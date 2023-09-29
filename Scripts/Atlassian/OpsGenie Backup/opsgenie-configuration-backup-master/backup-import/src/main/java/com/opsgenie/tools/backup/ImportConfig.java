@@ -1,0 +1,201 @@
+package com.opsgenie.tools.backup;
+
+public class ImportConfig {
+
+    private boolean addNewUsers = true, updateExistingUsers = true;
+
+    private boolean addNewTeams = true, updateExistingTeams = true;
+
+    private boolean addNewSchedules = true, updateExistingSchedules = true;
+
+    private boolean addNewEscalations = true, updateExistingEscalations = true;
+
+    private boolean addNewUserForwarding = true, updateExistingUserForwarding = true;
+
+    private boolean addNewPolicies = true, updateExistingPolicies = true;
+
+    private boolean addNewIntegrations = true, updateExistingIntegrations = true;
+
+    private boolean addNewCustomUserRoles = true, updateExistingCustomUserRoles = true;
+
+    private boolean addNewPoliciesV2 = true, updateExistingPoliciesV2 = true;
+
+    private boolean addNewMaintenance = true, updateExistingMaintenance = true;
+
+    public boolean isAddNewUsers() {
+        return addNewUsers;
+    }
+
+    public ImportConfig setAddNewUsers(boolean addNewUsers) {
+        this.addNewUsers = addNewUsers;
+        return this;
+    }
+
+    public boolean isUpdateExistingUsers() {
+        return updateExistingUsers;
+    }
+
+    public ImportConfig setUpdateExistingUsers(boolean updateExistingUsers) {
+        this.updateExistingUsers = updateExistingUsers;
+        return this;
+    }
+
+    public boolean isAddNewTeams() {
+        return addNewTeams;
+    }
+
+    public ImportConfig setAddNewTeams(boolean addNewTeams) {
+        this.addNewTeams = addNewTeams;
+        return this;
+    }
+
+    public boolean isUpdateExistingTeams() {
+        return updateExistingTeams;
+    }
+
+    public ImportConfig setUpdateExistingTeams(boolean updateExistingTeams) {
+        this.updateExistingTeams = updateExistingTeams;
+        return this;
+    }
+
+    public boolean isAddNewSchedules() {
+        return addNewSchedules;
+    }
+
+    public ImportConfig setAddNewSchedules(boolean addNewSchedules) {
+        this.addNewSchedules = addNewSchedules;
+        return this;
+    }
+
+    public boolean isUpdateExistingSchedules() {
+        return updateExistingSchedules;
+    }
+
+    public ImportConfig setUpdateExistingSchedules(boolean updateExistingSchedules) {
+        this.updateExistingSchedules = updateExistingSchedules;
+        return this;
+    }
+
+    public boolean isAddNewEscalations() {
+        return addNewEscalations;
+    }
+
+    public ImportConfig setAddNewEscalations(boolean addNewEscalations) {
+        this.addNewEscalations = addNewEscalations;
+        return this;
+    }
+
+    public boolean isUpdateExistingEscalations() {
+        return updateExistingEscalations;
+    }
+
+    public ImportConfig setUpdateExistingEscalations(boolean updateExistingEscalations) {
+        this.updateExistingEscalations = updateExistingEscalations;
+        return this;
+    }
+
+    public boolean isAddNewUserForwarding() {
+        return addNewUserForwarding;
+    }
+
+    public ImportConfig setAddNewUserForwarding(boolean addNewUserForwarding) {
+        this.addNewUserForwarding = addNewUserForwarding;
+        return this;
+    }
+
+    public boolean isUpdateExistingUserForwarding() {
+        return updateExistingUserForwarding;
+    }
+
+    public ImportConfig setUpdateExistingUserForwarding(boolean updateExistingUserForwarding) {
+        this.updateExistingUserForwarding = updateExistingUserForwarding;
+        return this;
+    }
+
+    public boolean isAddNewIntegrations() {
+        return addNewIntegrations;
+    }
+
+    public ImportConfig setAddNewIntegrations(boolean addNewIntegrations) {
+        this.addNewIntegrations = addNewIntegrations;
+        return this;
+    }
+
+    public boolean isUpdateExistingIntegrations() {
+        return updateExistingIntegrations;
+    }
+
+    public ImportConfig setUpdateExistingIntegrations(boolean updateExistingIntegrations) {
+        this.updateExistingIntegrations = updateExistingIntegrations;
+        return this;
+    }
+
+    public boolean isAddNewPolicies() {
+        return addNewPolicies;
+    }
+
+    public void setAddNewPolicies(boolean addNewPolicies) {
+        this.addNewPolicies = addNewPolicies;
+    }
+
+    public boolean isUpdateExistingPolicies() {
+        return updateExistingPolicies;
+    }
+
+    public void setUpdateExistingPolicies(boolean updateExistingPolicies) {
+        this.updateExistingPolicies = updateExistingPolicies;
+    }
+
+    public boolean isAddNewCustomUserRoles() {
+        return addNewCustomUserRoles;
+    }
+
+    public ImportConfig setAddNewCustomUserRoles(boolean addNewCustomUserRoles) {
+        this.addNewCustomUserRoles = addNewCustomUserRoles;
+        return this;
+    }
+
+    public boolean isUpdateExistingCustomUserRoles() {
+        return updateExistingCustomUserRoles;
+    }
+
+    public void setUpdateExistingCustomUserRoles(boolean updateExistingCustomUserRoles) {
+        this.updateExistingCustomUserRoles = updateExistingCustomUserRoles;
+    }
+
+    public boolean isAddNewPoliciesV2() {
+        return addNewPoliciesV2;
+    }
+
+    public ImportConfig setAddNewPoliciesV2(boolean addNewPoliciesV2) {
+        this.addNewPoliciesV2 = addNewPoliciesV2;
+        return this;
+    }
+
+    public boolean isUpdateExistingPoliciesV2() {
+        return updateExistingPoliciesV2;
+    }
+
+    public ImportConfig setUpdateExistingPoliciesV2(boolean updateExistingPoliciesV2) {
+        this.updateExistingPoliciesV2 = updateExistingPoliciesV2;
+        return this;
+    }
+
+    public boolean isAddNewMaintenance() {
+        return addNewMaintenance;
+    }
+
+    public ImportConfig setAddNewMaintenance(boolean addNewMaintenance) {
+        this.addNewMaintenance = addNewMaintenance;
+        return this;
+    }
+
+    public boolean isUpdateExistingMaintenance() {
+        return updateExistingMaintenance;
+    }
+
+    public ImportConfig setUpdateExistingMaintenance(boolean updateExistingMaintenance) {
+        this.updateExistingMaintenance = updateExistingMaintenance;
+        return this;
+    }
+}

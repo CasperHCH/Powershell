@@ -1,0 +1,1 @@
+{"id":"2ce72c7c-891d-4b0e-84e9-65a1e4c2463a","name":"DLS-Test_escalation","description":"","ownerTeam":{"id":"ea979192-1f62-4b27-943f-1fa876d99c65","name":"DLS-Test"},"rules":[{"condition":"if-not-acked","notifyType":"all","delay":{"timeAmount":0,"timeUnit":"minutes"},"recipient":{"type":"team","name":"DLS-Test"}}]}

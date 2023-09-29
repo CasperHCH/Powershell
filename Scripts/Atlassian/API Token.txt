@@ -1,0 +1,19 @@
+#### CLOUD ####
+$AdminAccount = "casper.christensen@knowit.dk"
+#Atlassian Cloud API Token 
+$token = "ATATT3xFfGF0rTSPPfXfzLp8vp5_HU5KqLugSJdQzl2iE8VKoZxl0l16gd-GDDjrtq5SwkGZFrddxYylooZNU7HKQRvbG7-mU8ZrJYPendytVyS5fdtVgsnbyjv-2sOIRpcYL24RrIGsWxWj2o7G8G0Ah1x4SzB6FpPF0bD0rgY46VTzIzPfoi8=6A932D3B"
+
+
+#### ON - PREM ####
+Jira-test
+Personal Access Token (PAT)
+$jirapat = "MDQ5NTU3NzAyNjc1OuZMMRP6JNt1lczvCjmi7q0x3TI3"
+
+Jira-prod
+$jirapat = ""
+
+Confluence-test
+$ConfluencePat =""
+
+Confluence-Prod
+$ConfluencePat =""
