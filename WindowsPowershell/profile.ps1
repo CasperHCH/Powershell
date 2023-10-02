@@ -2,7 +2,9 @@
 #$Host.UI.RawUI.WindowTitle = "I am the LAZY Admin ;-)"
 #$Host.UI.RawUI.WindowTitle = "p0w3rsHELL GURU !!"
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
-
+	Remove-Module PSReadline
+	Import-Module PSReadLine 
+	
 Set-PSReadLineOption -colors @{
     Operator           = 'Cyan'
     Parameter          = 'Cyan'
@@ -92,7 +94,7 @@ Set-PSReadLineOption -colors @{
   $dt = Get-Date
   if ($dt.DayOfWeek -match "Tue") {
       $error.Clear()
-      Update-Help -ErrorAction 0
+      Update-Help -ErrorAction 0 -Force
       for ($i = 0 ; $i -lt $error.Count ; $i ++) {
           "`nerror $i" ; $error[$i].exception
       }
