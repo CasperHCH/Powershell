@@ -14,7 +14,7 @@
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
   <Example goes here. Repeat this attribute for more than one example>
 #>
@@ -22,7 +22,6 @@
 
 Param (
   #Script parameters go here
-  [String]$Url,
   [String]$OrgID,
   [String]$AdminAccount,
   [String]$PersonalAccessToken,
@@ -69,12 +68,10 @@ $sScriptVersion = '1.0'
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$sOutputName = $sLogName -replace '.ps1', '.csv'
 $sLogName = $sLogName -replace '.ps1', '.log'
 $sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
-
-$sOutputPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sOutputName = $sLogName -replace '.ps1', '.log'
-$sOutputFile = Join-Path -Path $sLogPath -ChildPath $sLogName
+$sOutputFile = Join-Path -Path $sLogPath -ChildPath $sOutputName
 ##	Change Aliases	##
 #	Changing alias for Curl
 Remove-Item alias:curl -Force
@@ -160,26 +157,29 @@ Function ImportFile {
 Function CollectApiInfo {
   Param ()
   Begin {
-    Write-Log -Message '<description of what is going on>...'
+    Write-Log -Message 'Collecting Lastlogin for each product wihtin the Org'
   }
   Process {
     Try {
       $OrgID = '9k709933-bb51-192j-7jc5-d4b58k4a81bd'
       $PersonalAccessToken = 'ATCTT3xFfGN0U2Jwm-Bzn0JN9ABNH4keYzC5Y1CfbhiW05njF84gXLg6e970Sr8mQKXrxVcFuUtZ3lI1PfYfmIuWbZERwemMXRc_4eXYjwc-TGVbiyA8tAeb1KCJntiJKDzBHEspB64IfoobuTNKQokgxCvxE6u62c53O1QiIXDkFKFKp0ENFoE=367C1DB0'
       $auth = 'Authorization: Bearer ' + $PersonalAccessToken + ''
-        foreach ($uid in $file."user id") {
-          $user_id = ''+$uid+''
-          $users = curl --request GET --url 'https://api.atlassian.com/admin/v1/orgs/'+$OrgID+'/directory/users/'+$user_id+'/last-active-dates' --header $auth --header 'Accept: application/json' | ConvertFrom-Json
-          foreach ($u in $users) {
-            [PSCustomObject]@{
-              UserID     = $uid
-              Product    = $u.data.product_access.key 
-              Last_Login = $u.data.product_access.last_active
-            } | Export-Csv $sOutputFile -Append
-          }
+      foreach ($f in $file) {
+        Write-Log -Message "Currently collecting info of; $($f."email")"
+        $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)'/directory/users/$($f."user id")/last-active-dates"
+        $user = curl --request GET --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+
+        Write-Log -Message "Creating a PSCustomObject, to hold User info, before exporting it to CSV"
+        foreach ($u in $user) {
+          [PSCustomObject]@{
+            UserID     = $f."user ID"
+            Product    = $u.data.product_access.key
+            Last_Login = $u.data.product_access.last_active
+          } | Select-Object UserID, Product, Last_Login | Export-Csv -Path $sOutputFile -Append -NoTypeInformation
         }
       }
-      #$users = curl --request GET  --url 'https://api.atlassian.com/admin/v1/orgs/9k709933-bb51-192j-7jc5-d4b58k4a81bd/users' --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+    }
+    #$users = curl --request GET  --url 'https://api.atlassian.com/admin/v1/orgs/<OrgID>/users' --header $auth --header 'Accept: application/json' | ConvertFrom-Json
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
       Break
@@ -194,15 +194,6 @@ Function CollectApiInfo {
 }
 
 
-
-
-
-
-
-
-
-
-
 <#
 ALL ACTIVE FUNCTIONS ABOVE
 #>
@@ -212,7 +203,7 @@ Write-Log -message "Starting Script, $sScriptVersion"
 
 
 #Script Execution goes here
-
-
+ImportFile
+CollectApiInfo
 
 Write-Log -message "End of Script"
