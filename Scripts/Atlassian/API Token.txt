@@ -1,7 +1,7 @@
 #### CLOUD ####
 $AdminAccount = "casper.christensen@knowit.dk"
 #Atlassian Cloud API Token 
-$token = "ATATT3xFfGF0rTSPPfXfzLp8vp5_HU5KqLugSJdQzl2iE8VKoZxl0l16gd-GDDjrtq5SwkGZFrddxYylooZNU7HKQRvbG7-mU8ZrJYPendytVyS5fdtVgsnbyjv-2sOIRpcYL24RrIGsWxWj2o7G8G0Ah1x4SzB6FpPF0bD0rgY46VTzIzPfoi8=6A932D3B"
+$token = "ATATT3xFfGF0nGd_rnH_I52QOiPb1IR31Xls9tibMhO8vM3P2Vk1_Zu6NqJdFXfFfv9kDHWWyKmi64LZCC9d9Y_4GnCNtF2Os3pCYPA7hUltzeZwSDAI4TlyklZGn6a6cfrr6LBypfWPWpoDaB6Zx7oVLDvOdcIs3Q3yE6LOXmKXmyZudhgC3NU=2F546B40"
 
 
 #### ON - PREM ####
