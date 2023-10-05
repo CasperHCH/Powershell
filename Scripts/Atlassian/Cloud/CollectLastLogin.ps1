@@ -11,7 +11,7 @@
 .PARAMETER OrgID
     Organizational ID, of the org to process. Collected by e.g accessing the Org. in a browser, and copying from the URL.
 .PARAMETER OrgAccessToken
-    A requirment to create an Org. API key, is to be an Org. Admin.
+    A requirement to create an Org. API key, is to be an Org. Admin.
     Head into the Org. -> Settings -> API and generate a new key.
 .PARAMETER List
     The current List parameter is made from accesing an Cloud Org.
