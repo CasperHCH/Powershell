@@ -1,31 +1,45 @@
 <#
 .SYNOPSIS
-	<Overview of script>
+	With only OrgID and Org API Key, collect Last Login for all Users, on all Applications
 .DESCRIPTION
-	<Brief description of script>
-.PARAMETER <Parameter_Name>
-    <Brief description of parameter input required. Repeat this attribute if required>
+	On date; 05-10-2023; I didn't have the option to access an Atlassian Cloud, with Managed User Accounts.
+  A managed user account, is an account where the domain has been "collected/claimed".
+  Due to this, I used the option of Exporting a list of all users within an Org, which contains Account ID's.
+  This export, also contains Last Login on each application, however, currently the user Export can not be done automatically.
+
+  The script will take the User Export.CSV file, and collect their Last Login info for each product within the Org.
+.PARAMETER OrgID
+    Organizational ID, of the org to process. Collected by e.g accessing the Org. in a browser, and copying from the URL.
+.PARAMETER OrgAccessToken
+    A requirment to create an Org. API key, is to be an Org. Admin.
+    Head into the Org. -> Settings -> API and generate a new key.
+.PARAMETER List
+    The current List parameter is made from accesing an Cloud Org.
+    From here navigate to either:
+    Directory -> Managed Accounts -> Export Accounts
+    Products -> ... besides a product -> Manage users -> Export users
 .INPUTS
-	<Inputs if any, otherwise state None>
+	An List of users, containing their User ID
 .OUTPUTS
-	<Outputs if any, otherwise state None - example: Log file stored in C:\Windows\Temp\<name>.log>
+	    2 Outputs will be produced.
+  1. Log file is stored next to the script execution.
+  2. CSV output, containing the Last Login of users.
 .NOTES
   Version:        1.0
   Author:         Casper Hjorth Christensen
-  Creation Date:  <Date>
-  Purpose/Change: Initial script development
+  Creation Date:  05-10-2023
+  Purpose/Change: Collect Last Login info on Atlassian Cloud user accounts
 
 .EXAMPLE
-  <Example goes here. Repeat this attribute for more than one example>
+  .\CollectLastLogin.ps1 -OrgID XYZ -OrgAccessToken ABC -List C:\Temp\UserList.csv
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
 Param (
   #Script parameters go here
   [String]$OrgID,
-  [String]$AdminAccount,
-  [String]$PersonalAccessToken,
-  [String]$list
+  [String]$OrgAccessToken,
+  [String]$List
 )
 
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
@@ -129,16 +143,38 @@ Function <FunctionName> {
 <#
 ALL ACTIVE FUNCTIONS BELOW
 #>
-$list = "C:\Users\caspe\Downloads\export-users.csv"
-Function ImportFile {
+Function CollectUserIDFromManagedAccounts {
   Param ()
   Begin {
-    Write-Log -Message '<description of what is going on>...'
+    Write-Log -Message 'Collect UserID from all managed user accounts, wihtin the Organization'
   }
   Process {
     Try {
-      if (Test-Path $list) {
-        $script:file = Import-Csv $list
+      $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)/users"
+      $ManagedUserAccounts = curl --request GET  --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+    }
+    Catch {
+      Write-Log -Level ERROR -Message $_.Exception
+      Break
+    }
+  }
+  End {
+    If ($?) {
+      Write-Log -Message 'CollectUserIDFromManagedAccounts Completed Successfully.'
+      Write-Log -Message ' '
+    }
+  }
+}
+
+Function ImportFile {
+  Param ()
+  Begin {
+    Write-Log -Message 'Import CSV file (Export of all users within an org, contains userID)'
+  }
+  Process {
+    Try {
+      if (Test-Path $List) {
+        $script:file = Import-Csv $List
         $file."user id"
       }
     }
@@ -149,7 +185,7 @@ Function ImportFile {
   }
   End {
     If ($?) {
-      Write-Log -Message 'Completed Successfully.'
+      Write-Log -Message 'ImportFile Completed Successfully.'
       Write-Log -Message ' '
     }
   }
@@ -161,25 +197,28 @@ Function CollectApiInfo {
   }
   Process {
     Try {
-      $OrgID = '9k709933-bb51-192j-7jc5-d4b58k4a81bd'
-      $PersonalAccessToken = 'ATCTT3xFfGN0U2Jwm-Bzn0JN9ABNH4keYzC5Y1CfbhiW05njF84gXLg6e970Sr8mQKXrxVcFuUtZ3lI1PfYfmIuWbZERwemMXRc_4eXYjwc-TGVbiyA8tAeb1KCJntiJKDzBHEspB64IfoobuTNKQokgxCvxE6u62c53O1QiIXDkFKFKp0ENFoE=367C1DB0'
-      $auth = 'Authorization: Bearer ' + $PersonalAccessToken + ''
+      # Using the following API; https://developer.atlassian.com/cloud/admin/organization/rest/api-group-directory/#api-v1-orgs-orgid-directory-users-accountid-last-active-dates-get
+      Write-Log -Message "To ensure that the auth is processed correctly, it is carefully created before being sent"
+      $auth = 'Authorization: Bearer ' + $OrgAccessToken + ''
       foreach ($f in $file) {
         Write-Log -Message "Currently collecting info of; $($f."email")"
-        $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)'/directory/users/$($f."user id")/last-active-dates"
+        Write-Log -Message "Building a new URL for each user within the given file"
+        $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)/directory/users/$($f.'User id')/last-active-dates"
         $user = curl --request GET --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
 
         Write-Log -Message "Creating a PSCustomObject, to hold User info, before exporting it to CSV"
-        foreach ($u in $user) {
+
+        foreach ($u in $user.data.product_access) {
           [PSCustomObject]@{
             UserID     = $f."user ID"
-            Product    = $u.data.product_access.key
-            Last_Login = $u.data.product_access.last_active
-          } | Select-Object UserID, Product, Last_Login | Export-Csv -Path $sOutputFile -Append -NoTypeInformation
+            UserName   = $f.'User name'
+            Product    = $u.key
+            Last_Login = $u.last_active
+          } | Export-Csv -Path $sOutputFile -Append -NoTypeInformation
         }
       }
     }
-    #$users = curl --request GET  --url 'https://api.atlassian.com/admin/v1/orgs/<OrgID>/users' --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
       Break
@@ -187,8 +226,8 @@ Function CollectApiInfo {
   }
   End {
     If ($?) {
-      Write-Log -Message 'Completed Successfully.'
-      Write-Log -Message ' '
+      Write-Log -Message 'CollectApiInfo Completed Successfully.'
+      Write-Log -Message "CSV; $($sOutputFile) created"
     }
   }
 }
