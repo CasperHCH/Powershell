@@ -151,7 +151,27 @@ Function CollectUserIDFromManagedAccounts {
   Process {
     Try {
       $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)/users"
-      $ManagedUserAccounts = curl --request GET  --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+      while (condition) {
+
+
+        $ManagedUserAccounts = curl --request GET --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
+        #Add managed users account to table
+        #https://www.delftstack.com/howto/powershell/powershell-create-table/
+        $table = New-Object System.Data.Datatable
+
+        # Adding columns
+        [void]$table.Columns.Add("Name")
+        [void]$table.Columns.Add("User ID")
+        [void]$table.Columns.Add("Email Address")
+        [void]$table.Columns.Add("Product Name")
+        [void]$table.Columns.Add("Last Login")
+
+        # Adding rows
+        foreach ($MUA in $ManagedUserAccounts) {
+          [void]$table.Rows.Add($MUA.data."name", $MUA.data."account_id", $MUA.data."Email",$MUA.data.product_access("key", $MUA.data.product_access("last_active")))
+        }
+      }
+      $table
     }
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
