@@ -1,5 +1,4 @@
-﻿#requires -version 4
-<#
+﻿<#
 .SYNOPSIS
 	<Overview of script>
 .DESCRIPTION
@@ -9,13 +8,14 @@
 .INPUTS
 	<Inputs if any, otherwise state None>
 .OUTPUTS
-	<Outputs if any, otherwise state None - example: Log file stored in C:\Windows\Temp\<name>.log>
+	    2 Outputs will be produced.
+  1. Log file is stored next to the script execution.
 .NOTES
   Version:        1.0
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
   <Example goes here. Repeat this attribute for more than one example>
 #>
@@ -94,7 +94,7 @@ function Load-Module ($m) {
 }
 
 #Import Modules & Snap-ins
-#Load-Module 
+#Load-Module
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
@@ -163,7 +163,7 @@ function WebApiRequest {
     'Accept'       = 'application/json'
   }
   ### END OF On-prem auth
-  
+
   ### Cloud Auth
   #$headers = @{
   #  'Authorization' = 'Bearer ' + $token
@@ -178,7 +178,7 @@ function WebApiRequest {
       $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
     }
     else {
-      $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers 
+      $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
     }
   }
   catch {
