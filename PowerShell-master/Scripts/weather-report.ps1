@@ -14,7 +14,7 @@
 #>
 
 param([string]$GeoLocation = "") # empty means determine automatically
-
+#if($GeoLocation = "") {$GeoLocation = "Holbaek"}
 try {
 	(Invoke-WebRequest http://v2d.wttr.in/$GeoLocation -userAgent "curl" -useBasicParsing).Content
 	exit 0 # success

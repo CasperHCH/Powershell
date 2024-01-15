@@ -8,20 +8,20 @@
 
         # If module is not imported, but available on disk then import
         if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $m}) {
-            Import-Module $m -Verbose
+            Import-Module $m
         }
         else {
 
             # If module is not imported, not available on disk, but is in online gallery then install and import
             if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
-                Install-Module -Name $m -Force -Verbose -Scope CurrentUser
-                Import-Module $m -Verbose
+                Install-Module -Name $m -Force -Scope AllUsers
+                Import-Module $m
             }
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
                 write-host "Module $m not imported, not available and not in an online gallery, exiting."
-                EXIT 1
+
             }
         }
     }
@@ -31,6 +31,5 @@ Load-Module AADRM
 Load-Module AzureAD
 Load-Module AzureADPreview
 Load-Module MSOnline
-Load-Module Microsoft.Online.SharePoint.PowerShell
+Load-Module JiraPS
 Load-Module MicrosoftTeams
-Load-Module SharePointPnPPowerShellOnline

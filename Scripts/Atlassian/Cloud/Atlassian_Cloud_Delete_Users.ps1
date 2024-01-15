@@ -1,7 +1,7 @@
 ﻿#requires -version 4
 <#
 .SYNOPSIS
-  Needed a "smart" way to deleting bulk users, created from the single line of "curl --request DELETE --url 'https://test-site.atlassian.net/rest/api/3/user?accountId=USER-AAID' --user 'test@domain.com:XYZ"
+  Needed a "smart" way to bulk deleting users, created from the single line of "curl --request DELETE --url 'https://test-site.atlassian.net/rest/api/3/user?accountId=USER-AAID' --user 'test@domain.com:XYZ"
 .DESCRIPTION
   <Brief description of script>
 .PARAMETER OrgKey
