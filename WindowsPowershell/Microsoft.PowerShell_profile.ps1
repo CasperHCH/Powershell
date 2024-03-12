@@ -5,6 +5,11 @@
 Remove-Module PSReadline
 Import-Module PSReadLine
 
+
+Remove-Item alias:curl -Force
+New-Alias curl curl.exe
+
+
 Set-PSReadLineOption -colors @{
   Operator           = 'Cyan'
   Parameter          = 'Cyan'

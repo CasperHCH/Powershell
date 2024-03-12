@@ -1,4 +1,3 @@
-#requires -version 4
 <#
 .SYNOPSIS
 	<Overview of script>
@@ -20,7 +19,7 @@
   Creation Date:  <Date>
   Purpose/Change: To replace and change usernames and emails of Jira account, as Miracle has been purchased by KnowIT and is to replace their current AD with KnowIT AD.
   OBS!!!:         In current version, 1.0, the function, GetOldADUserObjects is hardcoded to a csv file, on developers machine. The query to generate a new is provided within the funciton.
-  
+
 .EXAMPLE
   RenameUsernamesFromNewADUPN -jirabaseurl https://jira-new-test.miracle.dk -AdminAccount chcadmin -token password
 #>
@@ -163,10 +162,10 @@ Function GetOldADUserObjects {
                 if ($extn -eq ".csv" ) {
                     $script:iul = Import-Csv $UserList
                 }
-                
-            } 
-            else { 
-                Write-Log -Message "$($UserList) doesn't exist" 
+
+            }
+            else {
+                Write-Log -Message "$($UserList) doesn't exist"
             }
         }
         Catch {
@@ -188,7 +187,7 @@ Function GetAzureUserObject {
     }
     Process {
         Try {
-            foreach ($user in $iul) { 
+            foreach ($user in $iul) {
                 $email = $user.mail
                 $username = $user.samaccountname
                 $filter = "proxyAddresses/any(p:startswith(p,'smtp:$email'))"
@@ -349,7 +348,7 @@ GetOldADUserObjects
 GetAzureUserObject
 
 <#
-the function 
+the function
 ChangeUsernameAndEmail
 will be called from GetAzureUserObject, as to only make changes to one user account at a time
 #>
