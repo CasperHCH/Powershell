@@ -336,7 +336,7 @@ Function ChangeUsernameAndEmail {
 
 
 <#
-ALL ACTIVE FUNCTIONS ABOVE
+ALL FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
