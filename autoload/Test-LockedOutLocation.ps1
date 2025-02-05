@@ -1,4 +1,4 @@
-﻿#Requires -Version 2.0
+#Requires -Version 2.0
 Function Test-LockedOutLocation {
 <#
 .SYNOPSIS
@@ -40,13 +40,13 @@ Function Test-LockedOutLocation {
     Process {
         
         #Get all domain controllers in domain exepct for Read Only DC's
-		$DomainControllers = Get-ADDomainController -Filter {Name -notlike "*RODC*"}
-        $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains "PDCEmulator"})
+		$DomainControllers = Get-ADDomainController -Filter {Name -notlike }
+        $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
 
-        Write-Verbose "Finding domain controllers in the domain"
+        Write-Verbose 
         Foreach($DC in $DomainControllers) {
             $DCCounter++
-            Write-Progress -Activity "Contacting $($DomainControllers.count) DCs for lockout info" -Status "Querying $($DC.Hostname)" -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
+            Write-Progress -Activity  -Status  -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
             
             Try {
                 $UserInfo = Get-ADUser -Identity $Identity  -Server $DC.Hostname -Properties AccountLockoutTime,LastBadPasswordAttempt,BadPwdCount,LockedOut -ErrorAction Stop

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the recycle bin folder
 .DESCRIPTION
@@ -15,6 +15,6 @@ try {
 	start shell:recyclebinfolder
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

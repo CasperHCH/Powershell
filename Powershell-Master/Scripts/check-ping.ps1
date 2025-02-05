@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the ping latency 
 .DESCRIPTION
@@ -14,10 +14,10 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$hosts = "bing.com,cnn.com,dropbox.com,github.com,google.com,ibm.com,live.com,meta.com,x.com,youtube.com")
+param([string]$hosts = )
 
 try {
-	$hostsArray = $hosts.Split(",")
+	$hostsArray = $hosts.Split()
 	$parallelTasks = $hostsArray | foreach {
 		(New-Object Net.NetworkInformation.Ping).SendPingAsync($_,750)
 	}
@@ -26,7 +26,7 @@ try {
 	[int]$total = $hostsArray.Count
 	[Threading.Tasks.Task]::WaitAll($parallelTasks)
 	foreach($ping in $parallelTasks.Result) {
-		if ($ping.Status -ne "Success") { continue }
+		if ($ping.Status -ne ) { continue }
 		$success++
 		[int]$latency = $ping.RoundtripTime
 		$avg += $latency
@@ -36,12 +36,12 @@ try {
 	[int]$loss = $total - $success
 	if ($success -ne 0) {
 		$avg /= $success
-		Write-Host "✅ Online with $($avg)ms latency average ($($min)ms...$($max)ms, $loss/$total ping loss)"
+		Write-Host 
 	} else {
-		Write-Host "⚠️ Offline ($loss/$total ping loss)"
+		Write-Host 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

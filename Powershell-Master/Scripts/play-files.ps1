@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Plays audio files (MP3 and WAV)
 .DESCRIPTION
@@ -13,22 +13,22 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$FilePattern = "*")
+param([string]$FilePattern = )
 
 try {
-	$Files = (get-childItem -path "$FilePattern" -attributes !Directory)
-	"Playing $($Files.Count) files ..."
+	$Files = (get-childItem -path  -attributes !Directory)
+	
 	foreach ($File in $Files) {
-		if ("$File" -like "*.mp3") {
-			& "$PSScriptRoot/play-mp3.ps1" "$File"
-		} elseif ("$File" -like "*.wav") {
-			& "$PSScriptRoot/play-mp3.ps1" "$File"
+		if ( -like ) {
+			&  
+		} elseif ( -like ) {
+			&  
 		} else {
-			"Skipping $File ..."
+			
 		}
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

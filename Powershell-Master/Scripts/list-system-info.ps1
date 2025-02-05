@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists system information of the local computer
 .DESCRIPTION
@@ -12,7 +12,7 @@
 #>
 
 # RAM
-$RAM = Get-WmiObject -Query "SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem"
+$RAM = Get-WmiObject -Query 
 
 $totalRAM = [math]::Round($RAM.TotalVisibleMemorySize/1MB, 2)
 $freeRAM = [math]::Round($RAM.FreePhysicalMemory/1MB, 2)
@@ -48,7 +48,7 @@ $CPU_Used = (Get-WmiObject win32_processor).LoadPercentage
 $CPU_Free = 100 - $CPU_Used
 
 # Disk
-$Disk = Get-WmiObject -class Win32_LogicalDisk -Filter "DeviceID='C:'"
+$Disk = Get-WmiObject -class Win32_LogicalDisk -Filter 
 $Disk_ID = $Disk.DeviceID
 $Disk_TotalSpace = [math]::Round($Disk.Size/1GB, 2)
 $Disk_FreeSpace = [math]::Round($Disk.FreeSpace/1GB, 2)

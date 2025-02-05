@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new Git branch 
 .DESCRIPTION
@@ -22,44 +22,44 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$newBranch = "", [string]$repoPath = "$PWD")
+param([string]$newBranch = , [string]$repoPath = )
 
 try {
-	if ($newBranch -eq "") { $newBranch = Read-Host "Enter the new branch name" }
+	if ($newBranch -eq ) { $newBranch = Read-Host  }
 
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/6) Searching for Git executable...  " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2/6) Checking local repository..."
-	if (-not(Test-Path "$repoPath" -pathType container)) { throw "Can't access directory: $repoPath" }
-	$repoPathName = (Get-Item "$repoPath").Name
+	Write-Host 
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$repoPathName = (Get-Item ).Name
 
-	"⏳ (3/6) Fetching latest updates..."
-	& git -C "$repoPath" fetch --all --recurse-submodules --prune --prune-tags --force
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed with exit code $lastExitCode" }
+	
+	& git -C  fetch --all --recurse-submodules --prune --prune-tags --force
+	if ($lastExitCode -ne ) { throw  }
 
-	$currentBranch = (git -C "$repoPath" rev-parse --abbrev-ref HEAD)
-	if ($lastExitCode -ne "0") { throw "'git rev-parse' failed with exit code $lastExitCode" }
+	$currentBranch = (git -C  rev-parse --abbrev-ref HEAD)
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (4/6) Creating new branch..."
-	& git -C "$repoPath" checkout -b "$newBranch"
-	if ($lastExitCode -ne "0") { throw "'git checkout -b $newBranch' failed with exit code $lastExitCode" }
+	
+	& git -C  checkout -b 
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (5/6) Pushing updates..."
-	& git -C "$repoPath" push origin "$newBranch"
-	if ($lastExitCode -ne "0") { throw "'git push origin $newBranch' failed with exit code $lastExitCode" }
+	
+	& git -C  push origin 
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (6/6) Updating submodules..."
-	& git -C "$repoPath" submodule update --init --recursive
-	if ($lastExitCode -ne "0") { throw "'git submodule update' failed with exit code $lastExitCode" }
+	
+	& git -C  submodule update --init --recursive
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ Created branch '$newBranch' in repo 📂$repoPathName (based on '$currentBranch' in $elapsed sec)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

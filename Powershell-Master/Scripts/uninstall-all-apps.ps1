@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls all apps
 .DESCRIPTION
@@ -12,13 +12,13 @@
 #>
 
 try {
-	"Uninstalling all apps, please wait... (ignore any error messages about packages that can't be removed, it's fine)"
+	
 
 	Get-AppxPackage | Remove-AppxPackage
 	
-	"Uninstalled all applications, your PC is clean now."
+	
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

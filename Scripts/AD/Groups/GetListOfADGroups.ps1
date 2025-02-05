@@ -1,7 +1,7 @@
-﻿$Groups = Get-ADGroup -Properties * -Filter * -SearchBase "OU=Signatur Groups,OU=Groups,OU=Global,OU=EET_Nordic,DC=eetnordic,DC=net" 
+$Groups = Get-ADGroup -Properties * -Filter * -SearchBase  
 Foreach($G In $Groups)
 {
     Write-Host $G.Name
-    Write-Host "-------------"
+    Write-Host 
     $G.Members
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints an image
 .DESCRIPTION
@@ -13,15 +13,15 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param($Path = "")
+param($Path = )
 
 try {
-	if ("$Path" -eq "") {
-		$Path = Read-Host "Enter path to the image file"
+	if ( -eq ) {
+		$Path = Read-Host 
 	}
 	Start-Process -filepath $Path -verb print
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

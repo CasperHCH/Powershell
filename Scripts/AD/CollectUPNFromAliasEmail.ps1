@@ -8,7 +8,7 @@
     A full path to a CSV containing the following fields;
     Name, Mail, SamAccountName
     An example of how to produce the list could be;
-    get-aduser -Filter {mail -like "*knowit.dk" -or mail -like "*miracle.dk"} -SearchBase "OU=Miracle Corp_New,DC=Miracle,DC=local" -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
+    get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
 .INPUTS
 	<Inputs if any, otherwise state None>
 .OUTPUTS
@@ -36,9 +36,9 @@ function Write-Log {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+        [ValidateSet(, , , , )]
         [String]
-        $Level = "INFO",
+        $Level = ,
 
         [Parameter(Mandatory = $True)]
         [string]
@@ -49,8 +49,8 @@ function Write-Log {
         $logfile
     )
 
-    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-    $Line = "$Stamp $Level $Message"
+    $Stamp = (Get-Date).toString()
+    $Line = 
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -67,8 +67,8 @@ function Load-Module ($m) {
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        Write-Host "Module $m is already imported."
-        Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+        Write-Host 
+        Write-Log -LogPath $sLogFile -TimeStamp -Message 
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -89,8 +89,8 @@ function Load-Module ($m) {
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                Write-Host "Module $m not imported, not available and not in an online gallery, exiting."
-                Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                Write-Host 
+                Write-Log -LogPath $sLogFile -TimeStamp -Message 
                 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -124,9 +124,9 @@ function Write-Log {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+        [ValidateSet(, , , , )]
         [String]
-        $Level = "INFO",
+        $Level = ,
 
         [Parameter(Mandatory = $True)]
         [string]
@@ -137,8 +137,8 @@ function Write-Log {
         $logfile
     )
 
-    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-    $Line = "$Stamp $Level $Message"
+    $Stamp = (Get-Date).toString()
+    $Line = 
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -174,23 +174,20 @@ Function <FunctionName> {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 
-Function GetOldADUserObjects {
-    Begin {
-        Write-Log -Message 'Collect samAccountName and Mail from Old Active Directory (AD)'
-    }
+
     Process {
         Try {
             #csv contains a list of users extracted from Miracle Local AD, containing only the properties mail and samaccountname
-            #get-aduser -Filter {mail -like "*knowit.dk" -or mail -like "*miracle.dk"} -SearchBase "OU=Miracle Corp_New,DC=Miracle,DC=local" -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
-            Write-Log -Message "collecting file Extension on provided file"
+            #get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
+            Write-Log -Message 
             $extn = [IO.Path]::GetExtension($UserList)
-            if ($extn -eq ".csv" ) {
-                write-log -Message "File is a CSV"
+            if ($extn -eq  ) {
+                write-log -Message 
                 $script:iul = Import-Csv $UserList
-                Write-Log -Message "file imported"
+                Write-Log -Message 
             }
             else { 
-                Write-Log -Message "File doesn't exist" 
+                Write-Log -Message  
             }
         }
         Catch {
@@ -205,11 +202,7 @@ Function GetOldADUserObjects {
         }
     }
 }
-Function GetAzureUserObject {
-    Param ($MiracleUserObject)
-    Begin {
-        Write-Log -Message 'Collect Azure user objects, based on samAccountName and mail from Old Active Directory (AD)'
-    }
+
     Process {
         Try {
             foreach ($user in $iul) { 
@@ -217,7 +210,7 @@ Function GetAzureUserObject {
                     $name           = $user.name
                     $mail           = $user.mail
                     $samaccountname = $user.samaccountname
-                    $filter         = "proxyAddresses/any(p:startswith(p,'smtp:$mail'))"
+                    $filter         = 
                     $KnowITUser     = Get-AzureADUser -Filter $filter | Select-Object UserPrincipalName
                     $upn            = $KnowITUser.UserPrincipalName
 
@@ -228,8 +221,8 @@ Function GetAzureUserObject {
                         upn = $upn} | Export-Csv $sOutputFile -NoTypeInformation -Append
                 }
             
-            #Write-Host "Collected Old Mail as $($email) and Old samAccountName as $($username), new UPN is $($KnowITUserUPN)"
-            #Write-Log -Message "Collected Old Mail as $($email) and Old samAccountName as $($username), new UPN is $($KnowITUserUPN)"
+            #Write-Host 
+            #Write-Log -Message 
         }
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
@@ -250,7 +243,7 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 
 #Script Execution goes here
@@ -258,4 +251,4 @@ GetOldADUserObjects
 GetAzureUserObject
 
 
-Write-Log -message "End of Script"
+Write-Log -message

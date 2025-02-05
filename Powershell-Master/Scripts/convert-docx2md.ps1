@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Converts .DOCX file(s) into Markdown 
 .DESCRIPTION
@@ -13,27 +13,27 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$FilePattern = "")
+param([string]$FilePattern = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	if ($FilePattern -eq "" ) { $FilePattern = Read-Host "Enter the file pattern to the .DOCX file(s)" }
+	if ($FilePattern -eq  ) { $FilePattern = Read-Host  }
 
-	Write-Host "⏳ Searching for pandoc..." 
+	Write-Host  
 	$null = (pandoc --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'pandoc' - make sure it's installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ Converting..."
+	Write-Host 
 	gci -r -i $FilePattern | foreach {
-		$TargetPath = $_.directoryname + "\" + $_.basename + ".md"
+		$TargetPath = $_.directoryname +  + $_.basename + 
 		& pandoc -f docx -s $_.name -o $TargetPath
 	}
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ converted in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets a timer for a countdown
 .DESCRIPTION
@@ -16,17 +16,17 @@
 param([int]$Seconds = 0)
 
 try {
-	if ($Seconds -eq 0 ) { [int]$Seconds = read-host "Enter number of seconds" }
+	if ($Seconds -eq 0 ) { [int]$Seconds = read-host  }
 
 	for ($i = $Seconds; $i -gt 0; $i--) {
 		Clear-Host
-		./write-big "T-$i seconds"
+		./write-big 
 		Start-Sleep -seconds 1
 	}
 
-	"✔️ $Seconds seconds countdown finished"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

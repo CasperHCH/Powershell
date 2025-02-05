@@ -1,4 +1,4 @@
-﻿#requires -version 4
+#requires -version 4
 <#
 .SYNOPSIS
 	<Overview of script>
@@ -31,8 +31,8 @@ param(
     $adware,
     $jirapat,
     $confluencepat,
-    $adwareGroupOU = "OU=LocalSamlGroups,OU=Groups,OU=General,OU=Farm,DC=ad,DC=ware,DC=fi",
-    $knowitlocalPrefix = "secg-moc-atlassian-",
+    $adwareGroupOU = ,
+    $knowitlocalPrefix = ,
     [switch]
     $VeryVerbose,
     [switch]
@@ -52,60 +52,60 @@ param(
     [switch]
     $skipArchivalCheck,
     $PreviousData,
-    $jirabaseurl = "jira-test.knowitops.com", 				#Jira URL
-    $confluencebaseurl = "confluence-test.knowitops.com", 	#Confluence URL
-    $knowitdc = @("10.170.0.101", "10.170.0.102"), 			#KnowIT Domain controllers
-    $adwaredc = @("tmp-adware-dc1", "tmp-adware-dc2"), 		#Customer AD's
-    $globaladdc = @("tmpdc1", "tmpdc2", "tmpdc3"), 			#Old-on-prem AD's
-    $transcriptpath = "C:\temp\"
+    $jirabaseurl = , 				#Jira URL
+    $confluencebaseurl = , 	#Confluence URL
+    $knowitdc = @(, ), 			#KnowIT Domain controllers
+    $adwaredc = @(, ), 		#Customer AD's
+    $globaladdc = @(, , ), 			#Old-on-prem AD's
+    $transcriptpath = 
 )
-$Host.PrivateData.WarningForegroundColor = "Magenta"
+$Host.PrivateData.WarningForegroundColor = 
 # We want info outputs always as it won't get passed to return values
-$InformationPreference = "Continue"
-$VerbosePreference = "Continue"
+$InformationPreference = 
+$VerbosePreference = 
 if ($host.UI.RawUI.WindowSize.Width -lt 170) {
-    Write-Information "NOTE: Window less than 170 characters wide - some output will get line-wrapped"
+    Write-Information 
 }
 #region Lazy parameter validation
 while ($null -eq $knowit) {
-    $knowit = Get-Credential -Message "Please enter knowit.local credentials for AD queries"
+    $knowit = Get-Credential -Message 
 }
 while ($null -eq $globalad) {
-    $globalad = Get-Credential -Message "Please enter global.ad credentials for AD queries"
+    $globalad = Get-Credential -Message 
 }
 while ($null -eq $adware) {
-    $adware = Get-Credential -Message "Please enter ADWARE credentials for AD queries"
+    $adware = Get-Credential -Message 
 }
 while ($null -eq $jirapat) {
-    Write-Host "Please create Personal Access Token in https://$jirabaseurl/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens and paste it here"
-    $jirapat = Read-Host "Jira access token"
+    Write-Host 
+    $jirapat = Read-Host 
 }
 while ($null -eq $confluencepat) {
-    Write-Host "Please create Personal Access Token in https://$confluencebaseurl/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens and paste it here"
-    $confluencepat = Read-Host "Confluence access token"
+    Write-Host 
+    $confluencepat = Read-Host 
 }
 #endregion
-Start-Transcript -Path "$transcriptpath\$($MyInvocation.MyCommand.Name)-$((Get-Date).ToString("yyyy-MM-dd_HH.mm.ss")).log" | out-null
+Start-Transcript -Path yyyy-MM-dd_HH.mm.ss | out-null
 $starttime = Get-Date
-Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Starting"
+Write-Information yyyy-MM-dd HH:mm:ss.fff
 
 
 #If group naming is longer than 63 characters, they need to be added here;
 $longGroupNameMap = @{
-    "owner-secg-moc-atlassian-Confluence-FIADVISORY-Resurssointi-restrictions" = "owner-secg-moc-atlassian-Confluence-FIADVISORY-Resurs-restr"
-    "owner-secg-moc-atlassian-Jira-Cybercom-ISIT-Service-desk-agents-external" = "owner-secg-moc-atlassian-Jira-Cybercom-ISIT-SD-agents-external"
-    "owner-secg-moc-atlassian-Jira-Cybercom-MOC-PL-Service-desk-agents"        = "owner-secg-moc-atlassian-Jira-Cybercom-MOC-PL-SD-agents"
-    "owner-secg-moc-atlassian-Jira-Cybercom-OPSSOK-Service-desk-agents"        = "owner-secg-moc-atlassian-Jira-Cybercom-OPSSOK-SD-agents"
-    "owner-secg-moc-atlassian-JiraConflu-MTV-General-Aineistosiirtopalvelu"    = "owner-secg-moc-atlassian-JiraConflu-MTV-General-Aspera"
-    "secg-moc-atlassian-Confluence-FIADVISORY-Resurssointi-restrictions"       = "secg-moc-atlassian-Confluence-FIADVISORY-Resurs-restr"
-    "secg-moc-atlassian-Jira-Cybercom-ISIT-Service-desk-agents-external"       = "secg-moc-atlassian-Jira-Cybercom-ISIT-SD-agents-external"
-    "secg-moc-atlassian-Jira-Cybercom-MOC-PL-Service-desk-agents"              = "secg-moc-atlassian-Jira-Cybercom-MOC-PL-SD-agents"
-    "secg-moc-atlassian-Jira-Cybercom-OPSSOK-Service-desk-agents"              = "secg-moc-atlassian-Jira-Cybercom-OPSSOK-SD-agents"
-    "secg-moc-atlassian-JiraConflu-MTV-General-Aineistosiirtopalvelu"          = "secg-moc-atlassian-JiraConflu-MTV-General-Aspera"
+     = 
+     = 
+            = 
+            = 
+        = 
+           = 
+           = 
+                  = 
+                  = 
+              = 
 }
 
 #needs clarification
-$specialgroups = @("667_users", "App_Jira_REXELSHOP", "App_SCD_Admin", "App_SCD_Dev", "App_SCD_User", "Confluence Finland All", "Confluence Finland Dace-external read-only", "confluence-administrators", "confluence-service-accounts-adware", "confluence-users-adware", "Cybercom (Worldwide)", "Cybercom Finland Jira users", "dace-admin-confluence", "dace-jyra", "dace-ohry", "DACE-pseudotunnukset", "DACE-pseudotunnukset-Insight-RO", "DACE-pseudotunnukset-Insight-RW", "DACE-pseudotunnukset-ServiceDeskTeam", "dace-sd", "dace-sec-dace", "DACEVainLukuPseudotunnukset", "FI BA Admin and General", "FI BA Connected Devices", "FI BA Data Center", "FI BA Digital Services", "FI BU Data Center", "FI BU Directors", "FI BU Finance", "FI BU HR", "FI BU ISIT", "FI BU Managed Cloud Services", "guru", "HR-Finland", "IS_IT.Finland", "IS_IT.Poland", "IS_IT.Sweden", "IS/IT", "Itella ALLSP", "jira-administrators", "jira-users", "jira-users-adware", "Jokakoti", "JokakotiConfluence", "Jyrä", "Kataloggruppen", "Linköping Innovation Zone", "luukku-admin", "luukku.tk", "Metso Bruno (projektiryhmä)", "MOC", "MOC-FI", "MTV-team-all", "mtv3-katsomotiimi", "mtvkatsomo", "MTVUsers", "Palvelut - Projektipaallikot", "palvelut-palveluvastaavat", "Palveluvastaavat", "SE Göteborg", "SE Oresund Karlskrona", "SE Site Karlskrona", "SP FI BA Data Center", "SP FI DC BU Data Center", "TeollisuusPP")
+$specialgroups = @(, , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , )
 
 #Removal of nested groups / Flatening the group tree
 Function Get-ADUserNestedGroups {
@@ -116,25 +116,25 @@ Function Get-ADUserNestedGroups {
         [System.Collections.ArrayList]$Groups,
         $filter,
         $session,
-        $intent = "",
+        $intent = ,
         [switch]$dnonly,
         [switch]$VeryVerbose
     )
-    if ($group.GetType().Name -eq "String") {
-        if ($group -match "OU=") {
+    if ($group.GetType().Name -eq ) {
+        if ($group -match ) {
             if ($VeryVerbose.IsPresent) {
-                Write-Verbose "$intent+ VeryVerbose: Group attribute string which matched  OU= - querying AD without -identity"
+                Write-Verbose 
             }
             $group = invoke-command -session $session -ScriptBlock { Get-ADgroup ($Using:group) -Properties memberOf, DistinguishedName }
         }
         else {
             if ($VeryVerbose.IsPresent) {
-                Write-Verbose "$intent+ VeryVerbose: Group attribute string - querying AD"
+                Write-Verbose 
             }
             $group = invoke-command -session $session -ScriptBlock { Get-ADgroup -identity ($Using:group) -Properties memberOf, DistinguishedName }
         }
     }
-    Write-Verbose "$intent Current: $((($group.DistinguishedName).substring(3) -split ",")[0])$(if($null -ne $filter){" - filter $filter, match $("{0,-5}" -f ($group.DistinguishedName -match $filter))"})"
+    Write-Verbose , - filter $filter, match $( -f ($group.DistinguishedName -match $filter))
     if ($null -ne $filter) {
         if ($group.DistinguishedName -match $filter) {
             if ($Group.DistinguishedName -notin $(if ($dnonly.IsPresent) { $Groups }else { $Groups.DistinguishedName })) {
@@ -152,32 +152,32 @@ Function Get-ADUserNestedGroups {
         #Enummurate through each of the groups.
         Foreach ($GroupDistinguishedName in $group.memberOf) {
             if ($VeryVerbose.IsPresent) {
-                Write-Verbose "$intent-- VeryVerbose: Checking groups $($group.name) is member of, current group $(($GroupDistinguishedName.substring(3) -split ",")[0])"
+                Write-Verbose ,
             }
             if ($GroupDistinguishedName -notin $(if ($dnonly.IsPresent) { $Groups }else { $Groups.DistinguishedName })) {
                 #Get member of groups from the enummerated group.
                 $ThisGroup = invoke-command -session $session -ScriptBlock { Get-ADgroup $Using:GroupDistinguishedName -Properties memberOf, DistinguishedName }
                 if ($VeryVerbose.IsPresent) {
-                    Write-Verbose "$intent-- VeryVerbose: Wasn't already in the group array, checking $($ThisGroup.MemberOf.count) nested groups"
+                    Write-Verbose 
                 }
                 #Get recursive groups.
                 $ThisGroup.memberOf | foreach-object {
                     if ($VeryVerbose.IsPresent) {
-                        Write-Verbose "$intent--- VeryVerbose: Nested-checking groups $($ThisGroup.name) is member of, current group $($ThisGroup.MemberOf.IndexOf($_) + 1)/$($ThisGroup.MemberOf.count) - $(($_.substring(3) -split ",")[0])"
+                        Write-Verbose ,
                     }
-                    Get-ADUserNestedGroups -group $_ -Groups $Groups -session $session -filter $filter -intent "$intent---" -VeryVerbose:$($VeryVerbose.IsPresent) -Verbose:$($VerbosePreference -eq "Continue") -dnonly:$dnonly.IsPresent | ForEach-Object -Process { if (-not $Groups.Contains($_)) { $Groups.Add($_) } } | Out-Null
+                    Get-ADUserNestedGroups -group $_ -Groups $Groups -session $session -filter $filter -intent  -VeryVerbose:$($VeryVerbose.IsPresent) -Verbose:$($VerbosePreference -eq ) -dnonly:$dnonly.IsPresent | ForEach-Object -Process { if (-not $Groups.Contains($_)) { $Groups.Add($_) } } | Out-Null
                     if ($VeryVerbose.IsPresent) {
-                        Write-Verbose "$intent--- VeryVerbose: Done checking group $(($_.substring(3) -split ",")[0]), continuing with next group"
+                        Write-Verbose ,
                     }
                 }
             }
             else {
                 if ($VeryVerbose.IsPresent) {
-                    Write-Verbose "$intent-- VeryVerbose: Was already in the group array"
+                    Write-Verbose 
                 }
             }
             if ($VeryVerbose.IsPresent) {
-                Write-Verbose "$intent- VeryVerbose: Done checking group $($CurrentGroup.MemberOf.IndexOf($GroupDistinguishedName) + 1)/$($CurrentGroup.MemberOf.count) ($(($GroupDistinguishedName.substring(3) -split ",")[0])), continuing to next one."
+                Write-Verbose ,
             }
         }
     }
@@ -191,42 +191,12 @@ Function Get-ADUserNestedGroups {
     Return $ret
 }
 
-Function FilterUPN {
-    [CmdLetBinding()]
-    param(
-        [parameter(ValueFromPipeline, Mandatory = $true, ParameterSetName = "array")]
-        [parameter(ValueFromPipeline, Mandatory = $true, ParameterSetName = "multidimensionalarray")]
-        [parameter(ValueFromPipeline, Mandatory = $true, ParameterSetName = "string")]
-        $pipe,
-        [parameter(Mandatory = $true, ParameterSetName = "multidimensionalarray")]
-        [parameter(Mandatory = $true, ParameterSetName = "array")]
-        [parameter(Mandatory = $true, ParameterSetName = "string")]
-        [string]
-        $field,
-        [parameter(Mandatory = $true, ParameterSetName = "multidimensionalarray")]
-        [parameter(Mandatory = $true, ParameterSetName = "array")]
-        $array,
-        [parameter(Mandatory = $true, ParameterSetName = "multidimensionalarray")]
-        [parameter(Mandatory = $true, ParameterSetName = "string")]
-        [string]
-        $string,
-        [parameter(Mandatory = $true, ParameterSetName = "multidimensionalarray")]
-        [switch]
-        $multidimensional,
-        [parameter(Mandatory = $false, ParameterSetName = "array")]
-        [switch]
-        $reverse
-    )
-    Process {
-        if ($PSCmdlet.ParameterSetName -eq "array") {
-            if ($reverse.IsPresent -and $pipe.$field -contains $array) {
-                $pipe
-            }
+
             elseif ($pipe.$field -in $array) {
                 $pipe
             }
         }
-        elseif ($PSCmdlet.ParameterSetName -eq "string" -and $pipe.$field -eq $string) {
+        elseif ($PSCmdlet.ParameterSetName -eq  -and $pipe.$field -eq $string) {
             $pipe
         }
         elseif ($multidimensional.IsPresent -and $pipe.$array.$field -eq $string) {
@@ -246,7 +216,7 @@ $dcsok = @{
 }
 $connectivityerrors = [System.Collections.ArrayList]@()
 
-Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Testing connectivities"
+Write-Information yyyy-MM-dd HH:mm:ss.fff
 foreach ($dc in $knowitdc) {
     try {
         $dcip = [array][System.Net.Dns]::GetHostEntry($dc).addresslist.ipaddresstostring
@@ -256,17 +226,17 @@ foreach ($dc in $knowitdc) {
     }
     foreach ($ip in $dcip) {
         try {
-            $test = Get-ADUser -Filter "UserPrincipalName -eq '$($knowit.UserName)'" -Server $ip -Credential $knowit
+            $test = Get-ADUser -Filter  -Server $ip -Credential $knowit
         }
         catch {
-            $connectivityerrors.Add("$dc/${ip}: $_") | Out-Null
+            $connectivityerrors.Add() | Out-Null
         }
         if ($null -ne $test) {
-            Write-Information "- Connectivity to knowit.local dc $dc/$ip - OK"
+            Write-Information 
             $dcsok.knowit.Add($ip) | Out-Null
         }
         else {
-            Write-Warning "- Connectivity to knowit.local dc $dc/$ip - FAILED"
+            Write-Warning 
         }
         $test = $null
     }
@@ -280,17 +250,17 @@ foreach ($dc in $globaladdc) {
     }
     foreach ($ip in $dcip) {
         try {
-            $test = Get-ADUser ($globalad.UserName -split "\\")[1] -Server $ip -Credential $globalad
+            $test = Get-ADUser ($globalad.UserName -split )[1] -Server $ip -Credential $globalad
         }
         catch {
-            $connectivityerrors.Add("$dc/${ip}: $_") | Out-Null
+            $connectivityerrors.Add() | Out-Null
         }
         if ($null -ne $test) {
-            Write-Information "- Connectivity to global.ad dc $dc/$ip - OK"
+            Write-Information 
             $dcsok.globalad.Add($ip) | Out-Null
         }
         else {
-            Write-Warning "- Connectivity to global.ad dc $dc/$ip - FAILED"
+            Write-Warning 
         }
         $test = $null
     }
@@ -304,42 +274,42 @@ foreach ($dc in $adwaredc) {
     }
     foreach ($ip in $dcip) {
         try {
-            $test = Get-ADUser ($adware.UserName -split "\\")[1] -Server $ip -Credential $adware
+            $test = Get-ADUser ($adware.UserName -split )[1] -Server $ip -Credential $adware
         }
         catch {
-            $connectivityerrors.Add("$dc/${ip}: $_") | Out-Null
+            $connectivityerrors.Add() | Out-Null
         }
         if ($null -ne $test) {
-            Write-Information "- Connectivity to adware dc $dc/$ip - OK"
+            Write-Information 
             $dcsok.adware.Add($ip) | Out-Null
         }
         else {
-            Write-Warning "- Connectivity to adware dc $dc/$ip - FAILED"
+            Write-Warning 
         }
         $test = $null
     }
 }
 try {
-    $jiratokentest = Invoke-RestMethod -Uri "https://$jirabaseurl/rest/api/2/upgrade" -Headers @{Authorization = "Bearer $jirapat" } -Method Get -ErrorAction Stop -verbose:$false
+    $jiratokentest = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Get -ErrorAction Stop -verbose:$false
 }
 catch {
-    $connectivityerrors.Add("Jira: $_") | Out-Null
+    $connectivityerrors.Add() | Out-Null
 }
 
 if ($dcsok.knowit.count -gt 0 -and $dcsok.globalad.count -gt 0 -and $dcsok.adware.count -gt 0 -and $null -ne $jiratokentest) {
-    Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Connectivity info:`n- Knowit.local DCs reached: $($dcsok.knowit.count)`n- Global.ad DCs reached: $($dcsok.globalad.count)`n- Adware DCs reached: $($dcsok.adware.count)$(if($connectivityerrors.count -ne 0){"`nCatched connectivity issues:`n- $($connectivityerrors -join "`n- ")`n`n"})"
-    Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] At least one DC reached for each domain, Jira reached - continuing"
+    Write-Information yyyy-MM-dd HH:mm:ss.fff`nCatched connectivity issues:`n- $($connectivityerrors -join )`n`n
+    Write-Information yyyy-MM-dd HH:mm:ss.fff
 }
 else {
-    Write-Error "Couldn't connect at least one DC in each domain. Please check errors below!"
-    Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Connectivity info:`n- Knowit.local DCs reached: $($dcsok.knowit.count)`n- Global.ad DCs reached: $($dcsok.globalad.count)`n- Adware DCs reached: $($dcsok.adware.count)$(if($connectivityerrors.count -ne 0){"`nCatched connectivity issues:`n- $($connectivityerrors -join "`n- ")`n`n"})"
+    Write-Error 
+    Write-Information yyyy-MM-dd HH:mm:ss.fff`nCatched connectivity issues:`n- $($connectivityerrors -join )`n`n
     exit
 }
 #endregion
 
 $gaserver = $dcsok.globalad[0]
 $knowitserver = $dcsok.knowit[0]
-Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Opening PSSession to $gaserver and $knowitserver"
+Write-Verbose yyyy-MM-dd HH:mm:ss.fff
 $gadsession = new-pssession -ComputerName $gaserver -Credential $globalad -EnableNetworkAccess -SessionOption $pssessionoptions
 $knowitsession = new-pssession -ComputerName $knowitserver -Credential $knowit -EnableNetworkAccess -SessionOption $pssessionoptions
 
@@ -359,33 +329,33 @@ $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 if (-not $UsersAndGroupsCache.IsPresent) {
     $g = [System.Collections.ArrayList]@()
     #region Discover global.ad groups and recursive memberships
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Querying Atlassian groups"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $stopwatch.Restart()
     $gad = [System.Collections.ArrayList]@()
-    invoke-command -session $gadsession -ScriptBlock { Get-ADGroup -SearchBase "OU=Dace,OU=Groups,OU=675,OU=Companies,DC=global,DC=ad" -filter "Name -like 'App_*'" } | Where-Object { $_.DistinguishedName -match "jira|conflu|insight|bitbucket|wiki" } | ForEach-Object -process { Get-ADUserNestedGroups -group $_ -session $gadsession -intent "-" -Groups $gad -dnonly -Verbose:$($VerbosePreference -eq "Continue") -VeryVerbose:$($VeryVerbose.IsPresent) | ForEach-Object -Process { if (-not $gad.Contains($_)) { $gad.Add($_) } } } | Out-Null
+    invoke-command -session $gadsession -ScriptBlock { Get-ADGroup -SearchBase  -filter  } | Where-Object { $_.DistinguishedName -match  } | ForEach-Object -process { Get-ADUserNestedGroups -group $_ -session $gadsession -intent  -Groups $gad -dnonly -Verbose:$($VerbosePreference -eq ) -VeryVerbose:$($VeryVerbose.IsPresent) | ForEach-Object -Process { if (-not $gad.Contains($_)) { $gad.Add($_) } } } | Out-Null
     # Handling oddities by hand - These groups are used in various places
-    invoke-command -session $gadsession -ScriptBlock { $Using:specialgroups | Foreach-Object -Process { Get-ADGroup $_ } } | ForEach-Object -process { Get-ADUserNestedGroups -group $_ -session $gadsession -intent "-" -Groups $gad -dnonly -Verbose:$($VerbosePreference -eq "Continue") -VeryVerbose:$($VeryVerbose.IsPresent) | ForEach-Object -Process { if (-not $gad.Contains($_)) { $gad.Add($_) } } } | Out-Null
-    $gad = $gad | Where-Object { $_ -notmatch "App_JiraConflu" } | Sort-Object -Unique
+    invoke-command -session $gadsession -ScriptBlock { $Using:specialgroups | Foreach-Object -Process { Get-ADGroup $_ } } | ForEach-Object -process { Get-ADUserNestedGroups -group $_ -session $gadsession -intent  -Groups $gad -dnonly -Verbose:$($VerbosePreference -eq ) -VeryVerbose:$($VeryVerbose.IsPresent) | ForEach-Object -Process { if (-not $gad.Contains($_)) { $gad.Add($_) } } } | Out-Null
+    $gad = $gad | Where-Object { $_ -notmatch  } | Sort-Object -Unique
     $perfmetrics.GroupDiscovery = $stopwatch.Elapsed
-    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Found $($gad.count) groups, iterating (query took $([Math]::Round(($stopwatch.ElapsedMilliseconds / 60000),0)) min $([Math]::Round(($stopwatch.ElapsedMilliseconds / 1000),2))s)"
+    Write-verbose yyyy-MM-dd HH:mm:ss.fff
     $stopwatch.Restart()
     $groupcount = $gad.Count
     $groupmembermap = @{}
     $groupmemberships = $gad | Foreach-Object {
         $g.Add([PSCustomObject]@{
-                Name        = ((([string]$_).substring(3) -split ",")[0])
+                Name        = ((([string]$_).substring(3) -split )[0])
                 Description = (invoke-command -session $gadsession -ScriptBlock { Get-ADGroup ([string]$Using:_) -Properties Description }).Description
             }) | Out-Null
         $groupquerystart = $stopwatch.ElapsedMilliseconds
         $groupdata = invoke-command -session $gadsession -ScriptBlock { Get-ADGroupMember -identity ([string]$Using:_) -Recursive }
         $groupquery = $stopwatch.ElapsedMilliseconds - $groupquerystart
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Group: {0,-55} - {1,4} members ({2,4} / {3,4} - data null? {4,5} - queried in {5,4}ms)" -f (([string]$_).substring(3) -split ",")[0], @($groupdata).count, $gad.IndexOf($_), $groupcount, ($null -eq $groupdata), $groupquery)
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f (([string]$_).substring(3) -split )[0], @($groupdata).count, $gad.IndexOf($_), $groupcount, ($null -eq $groupdata), $groupquery)
         [PSCustomObject]@{
-            Group   = $((([string]$_).substring(3) -split ",")[0])
+            Group   = $((([string]$_).substring(3) -split )[0])
             members = $groupdata
         }
-        if ($null -eq $groupmembermap.((([string]$_).substring(3) -split ",")[0])) {
-            $groupmembermap += @{((([string]$_).substring(3) -split ",")[0]) = $groupdata }
+        if ($null -eq $groupmembermap.((([string]$_).substring(3) -split )[0])) {
+            $groupmembermap += @{((([string]$_).substring(3) -split )[0]) = $groupdata }
         }
     }
     $stopwatch.Stop()
@@ -404,65 +374,65 @@ if (-not $UsersAndGroupsCache.IsPresent) {
         $user = invoke-command -session $gadsession -ScriptBlock { get-aduser ($Using:_).DistinguishedName -Properties proxyaddresses, memberOf, mail }
         $userquery = $stopwatch.ElapsedMilliseconds - $userquerystart
         if ($user.enabled -eq $false) {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] User: {0,-20} - disabled, skip {1,77} ({2,11} / {3,-12} - queried in {4,3}ms)" -f $_.samaccountname, "", $i, $membercount, $userquery)
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $_.samaccountname, , $i, $membercount, $userquery)
         }
-        elseif ($user.Name -match "\(Admin\)") {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] User: {0,-20} - Admin-account, skip ({1,-58}) {2,11} ({3,11} / {4,-12} - queried in {5,3}ms)" -f $_.samaccountname, $user.Name, "", $i, $membercount, $userquery)
+        elseif ($user.Name -match ) {
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $_.samaccountname, $user.Name, , $i, $membercount, $userquery)
         }
         else {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] User: {0,-20} - {1,-80} {2,11} ({3,11} / {4,-12} - queried in {5,3}ms)" -f $_.samaccountname, $user.Name, "", $i, $membercount, $userquery)
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $_.samaccountname, $user.Name, , $i, $membercount, $userquery)
             [PSCustomObject]@{
                 User = $user
-                smtp = "smtp:$($user.UserPrincipalName)"
+                smtp = 
             }
         }
     } | ForEach-Object -process {
         #region Try to query and match global.ad user to knowit.local user using various methods
         $userdiscoverystart = $stopwatch.ElapsedMilliseconds
         if (-not $onlyLocalPrep.IsPresent) {
-            $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "proxyaddresses -like '$(($using:_).smtp)'" -Properties mail, manager }
-            $foundwith = "-"
+            $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
+            $foundwith = 
             if ($null -ne $knowituser) {
                 # ~80% can be found with proxy. But not all.
-                $foundwith = "Proxy"
+                $foundwith = 
             }
             # It was part of the ~20%? Alright, time for freaking brute forcing >_<
-            if ($null -eq $knowituser -and $null -ne $_.user.mail -and $_.user.mail -match "knowit") {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "userprincipalname -like '$(($using:_).user.mail)'" -Properties mail, manager }
+            if ($null -eq $knowituser -and $null -ne $_.user.mail -and $_.user.mail -match ) {
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "UPN"
+                    $foundwith = 
                 }
             }
             if ($null -eq $knowituser -and $null -ne $_.user.samaccountname) {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "samaccountname -like '$(($using:_).user.samaccountname)'" -Properties mail, manager }
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "sAM"
+                    $foundwith = 
                 }
             }
             if ($null -eq $knowituser -and $null -ne $_.user.mail) {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "mail -like '$(($using:_).user.mail)'" -Properties mail, manager }
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "Mail"
+                    $foundwith = 
                 }
             }
             if ($null -eq $knowituser -and $null -ne $_.user.mail) {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "proxyaddresses -like 'smtp:$(($using:_).user.mail)'" -Properties mail, manager }
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "PMail"
+                    $foundwith = 
                 }
             }
             # Apparently the old email gets stored into this attribute in some instances
             if ($null -eq $knowituser -and $null -ne $_.user.mail) {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "extensionAttribute12 -like '$(($using:_).user.mail)'" -Properties mail, manager }
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "Ext12"
+                    $foundwith = 
                 }
             }
             # As a last resort, try with name. There isn't that many people with same name in the size of our group, right? Right?!
             if ($null -eq $knowituser) {
-                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter "name -like '$(($using:_).user.name)'" -Properties mail, manager }
+                $knowituser = invoke-command -session $knowitsession -ScriptBlock { get-aduser -filter  -Properties mail, manager }
                 if ($null -ne $knowituser) {
-                    $foundwith = "Name"
+                    $foundwith = 
                 }
             }
             if ($knowituser.count -gt 1) {
@@ -471,12 +441,12 @@ if (-not $UsersAndGroupsCache.IsPresent) {
             }
         }
         else {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Local prep, skipped knowit.local UPN discovery")
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff)
             $knowituser = $null
         }
         $userdiscovery = $stopwatch.ElapsedMilliseconds - $userdiscoverystart
         #endregion
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,10} Mapped: {1,45} -> {2,-40} / {3,-10} (success? {4,5}, with {5,5} - queried in {6,3}ms)" -f " ", $_.User.UserPrincipalName, $knowituser.UserPrincipalName, $knowituser.samaccountname, $($null -ne $knowituser), $foundwith, $userdiscovery)
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f , $_.User.UserPrincipalName, $knowituser.UserPrincipalName, $knowituser.samaccountname, $($null -ne $knowituser), $foundwith, $userdiscovery)
         [PSCustomObject]@{
             GAUser     = $_.User
             GAsmtp     = $_.smtp
@@ -495,7 +465,7 @@ if (-not $UsersAndGroupsCache.IsPresent) {
     $stopwatch.Restart(); $stopwatch.Stop()
 }
 else {
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Loading user and group data from provided cache"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $users = $PreviousData.UserData
     $groupmemberships = $PreviousData.GroupData
     $g = $PreviousData.G
@@ -505,15 +475,15 @@ else {
 #endregion
 #region Map the group and user data together
 if (-not $MappingCache.IsPresent) {
-    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Mapping group memberships"
+    Write-verbose yyyy-MM-dd HH:mm:ss.fff
     $stopwatch.Restart()
     try {
         $userswithgroups = foreach ($user in $users) {
-            #$groups = $($_.GAUser.memberof | foreach-object { Get-ADUserNestedGroups -group $_ -filter "ou=jira|ou=confluence" -session $gadsession -intent ("  {0,-9} " -f $_.gauser.samaccountname) -Verbose:$VerboseGroupSearch.IsPresent }).Name
+            #$groups = $($_.GAUser.memberof | foreach-object { Get-ADUserNestedGroups -group $_ -filter  -session $gadsession -intent ( -f $_.gauser.samaccountname) -Verbose:$VerboseGroupSearch.IsPresent }).Name
             $start = $stopwatch.ElapsedMilliseconds
             $groups = ($groupmemberships | FilterUPN -string $user.gauser.DistinguishedName -field distinguishedname -array members -multidimensional).group # Where-Object { $_.members.Distinguishedname -contains $user.gauser.DistinguishedName }).group
             $filterperf = $stopwatch.ElapsedMilliseconds - $start
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - User: {0,-50} {1,3} Atlassian groups - mapping (took {2,5} ms)" -f $user.GAUser.Name, $groups.count, $filterperf)
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $user.GAUser.Name, $groups.count, $filterperf)
             [PSCustomObject]@{
                 GAUser     = $user.GAUser
                 GAGroups   = $groups
@@ -526,14 +496,14 @@ if (-not $MappingCache.IsPresent) {
         }
     }
     catch {
-        Write-error -ErrorAction continue -Message "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Failed to map all group memberships! Continuing and returning rest of the data."
+        Write-error -ErrorAction continue -Message yyyy-MM-dd HH:mm:ss.fff
     }
     $stopwatch.Stop()
     $perfmetrics.GroupMapping = $stopwatch.Elapsed
     $stopwatch.Restart(); $stopwatch.Stop()
 }
 else {
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Loading mapping data of users and groups from provided cache"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $userswithgroups = $PreviousData.UserDataWithGroups
 }
 #endregion
@@ -545,10 +515,10 @@ $newemployees = $users | Where-Object { $_.GAUser.proxyaddresses -eq $null }
 $createdAdwaregroups = [System.Collections.ArrayList]@()
 $groupnamemax = ($g.name | Measure-Object -Maximum -Property Length).Maximum
 $adwserver = ($dcsok.adware[0])
-Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Opening PSSession to $adwserver"
+Write-Verbose yyyy-MM-dd HH:mm:ss.fff
 $adwaresession = new-pssession -ComputerName $adwserver -Credential $adware -EnableNetworkAccess -SessionOption $pssessionoptions
 $CSVs = [System.Collections.ArrayList]@()
-Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Generating CSV data"
+Write-verbose yyyy-MM-dd HH:mm:ss.fff
 $lookup = @{}
 $cache = @{
     Jira       = @{}
@@ -561,44 +531,44 @@ if (-not $skipDataProcessing.IsPresent) {
     foreach ($gagroup in $g) {
         $usedDefaultOwners = $false
         $isOwnerGroup = $false
-        if ($gagroup.name -match "(?<group>.*)(?<admin>_admin.*)") {
-            $newname = ($matches["group"] -replace "App_", "owner-$knowitlocalPrefix") -replace "_", "-"
+        if ($gagroup.name -match ) {
+            $newname = ($matches[] -replace , ) -replace , 
             $isOwnerGroup = $true
         }
         else {
-            $newname = ($gagroup.name -replace "App_", $knowitlocalPrefix) -replace "_", "-"
+            $newname = ($gagroup.name -replace , $knowitlocalPrefix) -replace , 
         }
-        if ($newname -notmatch "^((owner-)?$knowitlocalPrefix)") {
+        if ($newname -notmatch ) {
             # Special group, handling now
-            $charreplace = $gagroup.name -replace '[ /_]', '-' -replace "ä", "a" -replace "ö", "o" -replace '[()]', '' -replace "---","-"
-            $newname = "$knowitlocalPrefix$charreplace"
+            $charreplace = $gagroup.name -replace '[ /_]', '-' -replace ,  -replace ,  -replace '[()]', '' -replace ,
+            $newname = 
         }
-        if ($newname -match "${knowitlocalPrefix}Wiki-") {
-            $newname = $newname -replace "-Wiki-", "-Confluence-"
+        if ($newname -match ) {
+            $newname = $newname -replace , 
         }
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Current group: {0,-50} / {1,-50}" -f $gagroup.Name, $newname)
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $gagroup.Name, $newname)
         #region Check archival status from relevant system
         $archivalstart = $stopwatch.ElapsedMilliseconds
-        if (-not $skipArchivalCheck.IsPresent -and $gagroup.name -match "^App_") {
-            if ($gagroup.name -match "Jira") {
-                Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Checking archival status of the Jira project" -f "")
+        if (-not $skipArchivalCheck.IsPresent -and $gagroup.name -match ) {
+            if ($gagroup.name -match ) {
+                Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                 $projectinfo = $null
                 $roledata = $null
-                $project = ($gagroup.name -split "_")[2]
+                $project = ($gagroup.name -split )[2]
                 if ($null -eq $cache.Jira.$project) {
-                    Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} -- Cache miss. Calling https://$jirabaseurl/rest/api/2/project/$project" -f "")
+                    Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                     $success = $true
                     try {
-                        $projectinfo = Invoke-RestMethod -Uri "https://$jirabaseurl/rest/api/2/project/$project" -Headers @{Authorization = "Bearer $jirapat" } -Method Get -verbose:$false
+                        $projectinfo = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Get -verbose:$false
                     }
                     catch {
                         $success = $false
                     }
                     if ($success) {
-                        $roledata = $projectinfo.roles."Project admin" | ForEach-Object {
-                            Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} -- Calling $_" -f "")
+                        $roledata = $projectinfo.roles. | ForEach-Object {
+                            Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                             try {
-                                Invoke-RestMethod -Uri "$_" -Headers @{Authorization = "Bearer $jirapat" } -Method Get -verbose:$false
+                                Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Get -verbose:$false
                             }
                             catch {}
                         }
@@ -612,22 +582,22 @@ if (-not $skipDataProcessing.IsPresent) {
                     }
                 }
                 if ($cache.Jira.$project.archived) {
-                    Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} -- Project looks like it's archived - processing anyway" -f "")
+                    Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                 }
                 if ($null -ne $cache.Jira.$project.roleinfo.actors -and $gagroup.name -notin $cache.Jira.$project.roleinfo.actors.displayname) {
-                    Write-Warning ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Group '{1}' not found from project '$project' role mappings" -f "", $gagroup.name)
+                    Write-Warning (yyyy-MM-dd HH:mm:ss.fff -f , $gagroup.name)
                 }
             }
-            elseif ($gagroup.name -match "Confluence") {
-                Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Checking archival status Confluence space" -f "")
+            elseif ($gagroup.name -match ) {
+                Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                 $spaceinfo = $null
                 #$roledata = $null
-                $space = ($gagroup.name -split "_")[2]
+                $space = ($gagroup.name -split )[2]
                 if ($null -eq $cache.Confluence.$space) {
-                    Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} -- Cache miss. Calling https://$confluencebaseurl/rest/api/space/$space" -f "")
+                    Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                     $success = $true
                     try {
-                        $spaceinfo = Invoke-RestMethod -Uri "https://$confluencebaseurl/rest/api/space/$space" -Headers @{Authorization = "Bearer $confluencepat" } -Method Get -verbose:$false
+                        $spaceinfo = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Get -verbose:$false
                     }
                     catch {
                         $success = $false
@@ -640,19 +610,19 @@ if (-not $skipDataProcessing.IsPresent) {
                     }
                 }
                 if ($cache.Confluence.$space.archived) {
-                    Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} -- Space looks like it's archived - processing anyway" -f "")
+                    Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
                 }
             }
-            elseif ($gagroup.name -match "Bitbucket") {
-                Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Checking archival status from Bitbucket" -f "")
+            elseif ($gagroup.name -match ) {
+                Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
 
             }
-            elseif ($gagroup.name -match "Insight") {
-                Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Checking archival status Insight (?)" -f "")
+            elseif ($gagroup.name -match ) {
+                Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
 
             }
             else {
-                Write-verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Unable to check archival status" -f "")
+                Write-verbose (yyyy-MM-dd HH:mm:ss.fff -f )
             }
         }
         $archivalstop = $stopwatch.ElapsedMilliseconds
@@ -662,12 +632,12 @@ if (-not $skipDataProcessing.IsPresent) {
 
         $adwarestart = $stopwatch.ElapsedMilliseconds
         if ($createAdwareGroups.IsPresent) {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))]     Ensuring presense of ADWARE group   {0,-$groupnamemax}  in $adwareGroupOU" -f $newname)
-            If ($PSCmdlet.ShouldProcess("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- Creating group $($gagroup.name), if it doesn't exists", $gagroup.name, "Create new group, if it doesn't exist yet")) {
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $newname)
+            If ($PSCmdlet.ShouldProcess(yyyy-MM-dd HH:mm:ss.fff, $gagroup.name, )) {
                 $createdAdwaregroups.Add($(invoke-command -session $adwaresession -ScriptBlock {
-                            if ($null -eq $(Get-ADGroup -SearchBase $Using:adwareGroupOU -Filter "Name -eq '$(($Using:gagroup).name))'")) {
+                            if ($null -eq $(Get-ADGroup -SearchBase $Using:adwareGroupOU -Filter )) {
                                 try {
-                                    New-ADGroup -Name $Using:newname -SamAccountName ($Using:gagroup).name -DisplayName ($Using:gagroup).name -GroupCategory Security -GroupScope Global -Description "Jira sync group, should be empty" -Path $Using:adwareGroupOU -PassThru
+                                    New-ADGroup -Name $Using:newname -SamAccountName ($Using:gagroup).name -DisplayName ($Using:gagroup).name -GroupCategory Security -GroupScope Global -Description  -Path $Using:adwareGroupOU -PassThru
                                 }
                                 catch {}
                             }
@@ -676,7 +646,7 @@ if (-not $skipDataProcessing.IsPresent) {
         }
         $adwarestop = $stopwatch.ElapsedMilliseconds
         #region Populate variables: group membership lookup table and CSVs
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Populating group members" -f "")
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f )
         $memberpopulatestart = $stopwatch.ElapsedMilliseconds
         $members = $groupmembermap.($gagroup.name) | ` # The hashtable key is global.ad group name
         Foreach-Object -Process {
@@ -692,7 +662,7 @@ if (-not $skipDataProcessing.IsPresent) {
         $memberpopulatestop = $stopwatch.ElapsedMilliseconds
         <# Default owners not in use currently
         # Handle default owners
-        if ($members.count -eq 0 -and $newname -match "^owner-") {
+        if ($members.count -eq 0 -and $newname -match ) {
             $usedDefaultOwners = $true
             $members = $defaultOwnersMembers | Foreach-Object {
                 [PSCustomObject]@{
@@ -702,26 +672,26 @@ if (-not $skipDataProcessing.IsPresent) {
             }
         }
         # #>
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Populating group data" -f "")
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f )
         $groups = [PSCustomObject]@{
             Name        = $newname
             Description = $gagroup.description
         }
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Populating lookup table" -f "")
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f )
         $lookup.$newname = $members.member
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Adding data to output array" -f "")
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f )
         $CSVs.Add([PSCustomObject]@{
                 NewGroup   = $groups
                 NewMembers = $members
             }) | Out-Null
-        if ($gagroup.name -notmatch "^App_") {
-            Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,14} - Doing dirty owner-hack for special group" -f "")
+        if ($gagroup.name -notmatch ) {
+            Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f )
             # Dirty hack for special groups
             $hackmembers = $groupmembermap.($gagroup.name) | `
                 Foreach-Object -Process {
                 if ($null -ne $usermap.($_.DistinguishedName)) {
                     [PSCustomObject]@{
-                        name   = "owner-$newname"
+                        name   = 
                         member = $usermap.($_.DistinguishedName)
                     }
                 }
@@ -730,13 +700,13 @@ if (-not $skipDataProcessing.IsPresent) {
                 Name        = $newname
                 Description = $gagroup.description
             }
-            $lookup."owner-$newname" = $hackmembers.member
+            $lookup. = $hackmembers.member
             $CSVs.Add([PSCustomObject]@{
                     NewGroup   = $hackgroups
                     NewMembers = $hackmembers
                 }) | Out-Null
         }
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] {0,4} [[ Perf metrics: Archival check: {1,4}ms, ADWARE-groups: {2,4}ms, Member populating: {3,4}ms ]]$(if($isOwnerGroup){"[Used default owner? $($usedDefaultOwners -eq $true)]"})" -f "", ($archivalstop - $archivalstart), ($adwarestop - $adwarestart), ($memberpopulatestop - $memberpopulatestart))
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff[Used default owner? $($usedDefaultOwners -eq $true)] -f , ($archivalstop - $archivalstart), ($adwarestop - $adwarestart), ($memberpopulatestop - $memberpopulatestart))
         #endregion
     }
 }
@@ -748,11 +718,11 @@ $stopwatch.Restart()
 #region Handle Jira username changing
 $jiraOverlap = [System.Collections.ArrayList]@()
 if ($changeJiraUsernames.IsPresent) {
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Changing the Jira usernames"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $users | Where-Object { $_.KnowitUPN -ne $null } | ForEach-Object -Process {
-        Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - $($_.GAUser.SamAccountName) to $($_.KnowitUPN)"
-        If ($PSCmdlet.ShouldProcess("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- Changing Jira username $($_.GAUser.SamAccountName) to $($_.KnowitUPN)", $_.GAUser.SamAccountName, "Change usernme to $($_.KnowitUPN)")) {
-            $result = $exists = $overlapped = ""
+        Write-Verbose yyyy-MM-dd HH:mm:ss.fff
+        If ($PSCmdlet.ShouldProcess(yyyy-MM-dd HH:mm:ss.fff, $_.GAUser.SamAccountName, )) {
+            $result = $exists = $overlapped = 
             $tries = 0
             do {
                 $failed = $false
@@ -763,55 +733,55 @@ if ($changeJiraUsernames.IsPresent) {
                 do {
                     $innerfailed = $false
                     try {
-                        $exists = Invoke-RestMethod -Uri "https://$jirabaseurl/rest/api/2/user?username=$($_.KnowitUPN)" -Headers @{Authorization = "Bearer $jirapat" } -Method Get -ContentType "application/json" -ErrorVariable checkerror -verbose:$false
+                        $exists = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Get -ContentType  -ErrorVariable checkerror -verbose:$false
                     }
                     catch {
-                        if ($_.exception.response.StatusCode -eq "NotFound") {
+                        if ($_.exception.response.StatusCode -eq ) {
                             # Expected, continue
                             $exists = $null
                         }
                         else {
                             if ($null -eq $(try { $checkerror.message | ConvertFrom-Json -ErrorAction stop }catch {})) {
-                                Write-Warning "Catched error when checking existence of destination user but message is not jSON! Exception: $($_.Exception.Message)"
+                                Write-Warning 
                             }
                             else {
                                 $errmsg = $checkerror.message | ConvertFrom-Json
-                                if ($errmsg.errormessages -match "The user named '[a-zA-Z0-9.-_@]+' does not exist") {
+                                if ($errmsg.errormessages -match ) {
                                     # This is expexted
                                     $exists = $null
                                 }
                                 else {
-                                    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -! Destination user exists already, prefixing it with overlap-_-"
+                                    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                                 }
                             }
                         }
                     }
                     if ($null -ne $exists) {
                         if ($exists.key -eq $_.GAUser.SamAccountName) {
-                            Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- key equals to old username, user processed correctly already."
+                            Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                             return
                         }
                         else {
-                            $overlap = "overlap-_-$overlap"
+                            $overlap = 
                             try {
-                                $overlapped = Invoke-RestMethod -Uri "https://$jirabaseurl/rest/api/2/user?username=$($_.KnowitUPN)" -Headers @{Authorization = "Bearer $jirapat" } -Method Put -Body $(@{"name" = $overlap; "emailAddress" = $overlap } | ConvertTo-Json) -ContentType "application/json" -ErrorVariable overlaperror -verbose:$false
+                                $overlapped = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Put -Body $(@{ = $overlap;  = $overlap } | ConvertTo-Json) -ContentType  -ErrorVariable overlaperror -verbose:$false
                             }
                             catch {
                                 if ($null -eq $(try { $overlaperror.message | ConvertFrom-Json -ErrorAction stop }catch {})) {
                                     $innerfailed = $true
-                                    Write-Warning "Catched error when renaming destination user but message is not jSON! Exception:`n$($_.Exception.Message)"
+                                    Write-Warning 
                                 }
                                 else {
                                     $errmsg = $overlaperror.message | ConvertFrom-Json
-                                    if ($errmsg.errors.username -eq "A user with that username already exists.") {
+                                    if ($errmsg.errors.username -eq ) {
                                         # Silent retry
                                         $innerfailed = $true
                                         if ($innertries -ge 3) {
-                                            Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] !! Prefixing to '$overlap' failed, Jira returned error.`nerrorMessages: $($errmsg.errorMessages -join ", ")`nerrors:$($errmsg.errors -join ", ")"
+                                            Write-Verbose yyyy-MM-dd HH:mm:ss.fff, , 
                                         }
                                     }
                                     else {
-                                        Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] !! Prefixing to '$overlap' failed, Jira returned error.`nerrorMessages: $($errmsg.errorMessages -join ", ")`nerrors:$($errmsg.errors -join ", ")"
+                                        Write-Verbose yyyy-MM-dd HH:mm:ss.fff, , 
                                     }
                                 }
                             }
@@ -823,36 +793,36 @@ if ($changeJiraUsernames.IsPresent) {
                     $innertries++
                 }while ($innerfailed -and $innertries -lt 4)
                 if ($innerfailed) {
-                    Write-Warning "Failed changing overlapping username '$($_.KnowitUPN) to '$overlap' after $innertries tries!"
+                    Write-Warning 
                 }
                 #endregion
 
                 try {
-                    $result = Invoke-RestMethod -Uri "https://$jirabaseurl/rest/api/2/user?username=$($_.GAUser.SamAccountName)" -Headers @{Authorization = "Bearer $jirapat" } -Method Put -Body $(@{name = $_.KnowitUPN; "emailAddress" = $_.KnowitUser.mail } | ConvertTo-Json) -ContentType "application/json" -ErrorVariable changeerror -verbose:$false
+                    $result = Invoke-RestMethod -Uri  -Headers @{Authorization =  } -Method Put -Body $(@{name = $_.KnowitUPN;  = $_.KnowitUser.mail } | ConvertTo-Json) -ContentType  -ErrorVariable changeerror -verbose:$false
                 }
                 catch {
-                    if ($_.exception.response.StatusCode -eq "NotFound") {
-                        Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] !! Failed, user not found. Continuing with next user"
+                    if ($_.exception.response.StatusCode -eq ) {
+                        Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                     }
                     else {
                         # UPN might have been changed to incorrect one already so double-checking
                         $failed = $true
                         if ($null -eq $(try { $changeerror.message | ConvertFrom-Json -ErrorAction stop }catch {})) {
-                            Write-Warning "Catched error when renaming destination user but message is not jSON! Exception:`n$($_.Exception.Message)"
+                            Write-Warning 
                         }
                         else {
                             $chngerrmsg = $changeerror.message | ConvertFrom-Json
-                            Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] !! Failed, Jira returned error.`nerrorMessages: $($chngerrmsg.errorMessages -join ", ")`nerrors:$($chngerrmsg.errors -join ", ")"
+                            Write-Verbose yyyy-MM-dd HH:mm:ss.fff, , 
                         }
                     }
                 }
                 if ($null -ne $result -and $result.name -ne $_.KnowitUPN) {
-                    Write-Warning "Failed changing username of $($_.GAUser.SamAccountName) to $($_.KnowitUPN)! API returned $($result.name) as usernme."
+                    Write-Warning 
                 }
                 $tries++
             }while ($failed -and $tries -lt 4)
             if ($failed) {
-                Write-Warning "Failed changing username '$($_.GAUser.SamAccountName)' to '$($_.KnowitUPN)' after $tries tries!"
+                Write-Warning 
             }
         }
     }
@@ -861,21 +831,21 @@ $perfmetrics.JiraUsernameChange = $stopwatch.Elapsed
 #endregion
 
 #region Check the data coherency
-Write-information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Checking owner groups if there's empty ones"
+Write-information yyyy-MM-dd HH:mm:ss.fff
 $stopwatch.Restart()
 # This *SHOULD* be empty, as it's handled in the main data processor already, hence, just passing this info to output array
 $emptyowners = $CSVs.newgroup | ForEach-Object -Process {
-    if ($_.name -match "^owner-.*") {
-        Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Current: $($_.name) - count $($lookup.($_.name).count)"
+    if ($_.name -match ) {
+        Write-Verbose yyyy-MM-dd HH:mm:ss.fff
         if ($lookup.($_.name).count -eq 0) {
-            Write-information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Empty found: $($_.name)"
+            Write-information yyyy-MM-dd HH:mm:ss.fff
             $_.name
         }
     }
 }
 
-Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Generating and populating missing owner groups"
-$missingowner = $CSVs.newgroup.name | ForEach-Object -Process { if ($_ -notmatch "^owner-.*" -and "owner-$_" -notin $CSVs.newgroup.name) { $_ } }
+Write-Verbose yyyy-MM-dd HH:mm:ss.fff
+$missingowner = $CSVs.newgroup.name | ForEach-Object -Process { if ($_ -notmatch  -and  -notin $CSVs.newgroup.name) { $_ } }
 
 if ($null -eq $DefaultOwnersMembers) {
     $DefaultOwnersMembers = $defaultOwners.members | Foreach-Object {
@@ -888,19 +858,19 @@ if ($null -eq $DefaultOwnersMembers) {
 }
 
 foreach ($missing in $missingowner) {
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Current: $missing"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $members = $defaultOwnersMembers | Foreach-Object {
         [PSCustomObject]@{
-            name   = "owner-$missing"
+            name   = 
             member = $_
         }
     }
-    $lookup."owner-$missing" = $members.member
+    $lookup. = $members.member
     $groups = [PSCustomObject]@{
-        Name        = "owner-$missing"
-        Description = ""
+        Name        = 
+        Description = 
     }
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Adding data to output array"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $CSVs.Add([PSCustomObject]@{
             NewGroup   = $groups
             NewMembers = $members
@@ -912,25 +882,25 @@ $stopwatch.Restart(); $stopwatch.Stop()
 #endregion
 
 
-Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Data preparation done, took $([system.math]::round((New-TimeSpan $starttime (Get-Date)).TotalMinutes,2)) minutes. Closing DC connections"
+Write-Verbose yyyy-MM-dd HH:mm:ss.fff
 Remove-PSSession -Session $gadsession -WhatIf:$false | Out-Null
 Remove-PSSession -Session $adwaresession -WhatIf:$false | Out-Null
 
 #region Ensure knowit.local group existence and memberships
 if ($populateKnowitGroups.IsPresent) {
     Start-Sleep -Seconds 3
-    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Ensuring existence of knowit.local groups and group memberships, starting with owner-groups"
+    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
     $stopwatch.Restart()
     $createdKnowitGroups = [System.Collections.ArrayList]@()
     $extra = @{}
     # Apparently foreach is actually faster than Where-Object
-    $ownergroups = $CSVs.NewGroup | Foreach-Object -Process { if ($_.name -match "^owner-") { $_ } }
+    $ownergroups = $CSVs.NewGroup | Foreach-Object -Process { if ($_.name -match ) { $_ } }
     $normalgroups = $CSVs.NewGroup | Foreach-Object -Process { if ($_.name -notin $ownergroups.name) { $_ } }
     $orderedgroups = $ownergroups + $normalgroups
     :grouploop foreach ($group in $orderedgroups) {
-        Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] $($group.name)$(if($null -ne $longGroupNameMap.($group.name)){" (Shortened to $($longGroupNameMap.($group.name)))"})"
+        Write-Verbose yyyy-MM-dd HH:mm:ss.fff (Shortened to $($longGroupNameMap.($group.name)))
         if ($group.name -notmatch $knowitlocalPrefix) {
-            Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] '$($group.name)' doesn't match prefix '$knowitlocalPrefix'!? Skipping"
+            Write-Warning yyyy-MM-dd HH:mm:ss.fff
             continue
         }
         $outertries = 1
@@ -939,8 +909,8 @@ if ($populateKnowitGroups.IsPresent) {
             $groupfound = $true
             $membersfound = $true
             # Handle too long group names
-            if ((($group.name -match "^owner-" -and $group.name.length -gt 64) -or ($group.name -notmatch "^owner-" -and $group.name.length -gt 58)) -and $null -eq $longGroupNameMap.($group.name)) {
-                Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Group name '$($group.name)' too long and wasn't found from conversion map!"
+            if ((($group.name -match  -and $group.name.length -gt 64) -or ($group.name -notmatch  -and $group.name.length -gt 58)) -and $null -eq $longGroupNameMap.($group.name)) {
+                Write-Warning yyyy-MM-dd HH:mm:ss.fff
                 $groupname = $false
                 continue grouploop
             }
@@ -992,16 +962,16 @@ if ($populateKnowitGroups.IsPresent) {
             # Yeah, bit clunky way, I know.
             if (-not $groupfound) {
                 #region Create and populate missing group
-                Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Creating missing group"
+                Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                 $innertries = 1
                 $adgroup = $null
                 :innercreate do {
                     $innerfail = $false
-                    if ($groupname -notmatch "^owner-") {
+                    if ($groupname -notmatch ) {
                         $ownergroupquery = invoke-command -session $knowitsession -ScriptBlock {
                             $err = $false
                             try {
-                                $group = Get-ADGroup "owner-$($using:groupname)" -ErrorAction Stop
+                                $group = Get-ADGroup  -ErrorAction Stop
                             }
                             catch {
                                 $err = $_
@@ -1009,7 +979,7 @@ if ($populateKnowitGroups.IsPresent) {
                             return [PSCustomObject]@{Group = $group; Error = $err }
                         }
                         if ($ownergroupquery.Error -ne $false) {
-                            Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - failed to get owner-group 'owner-$groupname', try $innertries/3. Error: $($_.Exception.Message)"
+                            Write-Warning yyyy-MM-dd HH:mm:ss.fff
                             $innerfail = $true
                             $adgroupowner = $null
                         }
@@ -1022,7 +992,7 @@ if ($populateKnowitGroups.IsPresent) {
                                 $err = $false
                                 try {
                                     $ownergroup = Get-ADGroup ($using:adgroupowner).DistinguishedName -ErrorAction Stop
-                                    $newgroup = New-ADGroup -Name $using:groupname -Description ($using:group).Description -Path "OU=MOC-Atlassian,OU=Koncerngemensamt,OU=Knowit,DC=knowit,DC=local" -ManagedBy $ownergroup -GroupScope Global -GroupCategory Security -PassThru  -ErrorAction Stop
+                                    $newgroup = New-ADGroup -Name $using:groupname -Description ($using:group).Description -Path  -ManagedBy $ownergroup -GroupScope Global -GroupCategory Security -PassThru  -ErrorAction Stop
                                 }
                                 catch {
                                     $err = $_
@@ -1031,11 +1001,11 @@ if ($populateKnowitGroups.IsPresent) {
                             }
                         }
                         else {
-                            Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - owner-group object null, not creating group '$groupname'. Please check warning above."
+                            Write-Warning yyyy-MM-dd HH:mm:ss.fff
                         }
 
                         if ($adgroupcreate.Error -ne $false) {
-                            Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - failed to create group '$groupname', try $innertries. Error: $($adgroupcreate.Error.Exception.Message)"
+                            Write-Warning yyyy-MM-dd HH:mm:ss.fff
                             $innerfail = $true
                             $adgroup = $null
                         }
@@ -1047,7 +1017,7 @@ if ($populateKnowitGroups.IsPresent) {
                         $adgroupcreate = invoke-command -session $knowitsession -ScriptBlock {
                             $err = $false
                             try {
-                                $newgroup = New-ADGroup -Name $using:groupname -Description ($using:group).Description -Path "OU=MOC-Atlassian,OU=Koncerngemensamt,OU=Knowit,DC=knowit,DC=local" -GroupScope Global -GroupCategory Security -PassThru -ErrorAction Stop
+                                $newgroup = New-ADGroup -Name $using:groupname -Description ($using:group).Description -Path  -GroupScope Global -GroupCategory Security -PassThru -ErrorAction Stop
                             }
                             catch {
                                 $err = $_
@@ -1055,7 +1025,7 @@ if ($populateKnowitGroups.IsPresent) {
                             return [PSCustomObject]@{NewGroup = $newgroup; Error = $err }
                         }
                         if ($adgroupcreate.Error -ne $false) {
-                            Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - failed to create group '$groupname', try $innertries. Error: $($adgroupcreate.Error.Exception.Message)"
+                            Write-Warning yyyy-MM-dd HH:mm:ss.fff
                             $innerfail = $true
                             $adgroup = $null
                         }
@@ -1068,40 +1038,40 @@ if ($populateKnowitGroups.IsPresent) {
 
                 if ($null -ne $adgroup.name) {
                     $createdKnowitGroups.Add($adgroup.name) | Out-Null
-                    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Populating $($($lookup.($group.name)).count) members"
+                    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                     # NOTE: $lookup.($group.name) on lines above and below with dot between group and name is intentional! The lookup doesn't take the too long group names into account, which $groupname does!
                     $start = $stopwatch.ElapsedMilliseconds
                     $queriedusers = $users | FilterUPN -field KnowitUPN -array $lookup.($group.name) #Where-Object { $_.KnowitUPN -in $lookup.($group.name) }
                     $queryperf = $stopwatch.ElapsedMilliseconds - $start
-                    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- Adding $(@($queriedusers).count) users to group $([string]$adgroup.name)"
+                    Write-verbose yyyy-MM-dd HH:mm:ss.fff
                     if ($queriedusers.count -gt 0) {
                         $grouppopulating = invoke-command -session $knowitsession -ScriptBlock {
                             $VerbosePreference = $using:verbosepreference
-                            Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Getting group"
+                            Write-verbose yyyy-MM-dd HH:mm:ss.fff
                             $localgroup = Get-ADGroup -Identity ($Using:adgroup).DistinguishedName -ErrorVariable groupqueryerror
-                            $adderrors = @{UsersNotFound = [System.Collections.ArrayList]@(); GroupError = $groupqueryerror; UserAddError = "" }
+                            $adderrors = @{UsersNotFound = [System.Collections.ArrayList]@(); GroupError = $groupqueryerror; UserAddError =  }
                             if ($null -eq $localgroup) {
-                                Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Group not found, no point continuing. Error: $($groupqueryerror.Exception.Message)"
+                                Write-Warning yyyy-MM-dd HH:mm:ss.fff
                             }
                             else {
-                                Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Getting users"
+                                Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                 $localusers = foreach ($user in ($using:queriedusers).KnowitUser) {
-                                    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] -- $($user.Name)"
+                                    Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                     try {
                                         Get-ADUser -Identity $user.DistinguishedName -ErrorAction Stop
                                     }
                                     catch {
-                                        Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] --- User not found, error: $($_.Exception.Message)"
+                                        Write-Warning yyyy-MM-dd HH:mm:ss.fff
                                         $null = $adderrors.UsersNotFound.Add([PSCustomObject]@{User = $user; Error = $_ })
                                     }
                                 }
-                                Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Adding $(@($localusers).count) users to the group"
+                                Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                 if (@($localusers).count -gt 0) {
                                     try {
                                         Add-ADGroupMember -Identity $localgroup -Members $localusers -ErrorAction Stop
                                     }
                                     catch {
-                                        Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] -- Failed to add users to the group, error: $($_.Exception.Message)"
+                                        Write-Warning yyyy-MM-dd HH:mm:ss.fff
                                         $adderrors.UserAddError = $_
                                     }
                                 }
@@ -1111,14 +1081,14 @@ if ($populateKnowitGroups.IsPresent) {
                     }
                 }
                 if (-not [string]::IsNullOrWhiteSpace($grouppopulating.Errors.GroupError) -or @($grouppopulating.Errors.UsersNotFound).count -ne 0 -or -not [string]::IsNullOrWhiteSpace($grouppopulating.Errors.UserAddErrors)) {
-                    Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - failed to process group '$groupname', try $outertries/3. Please check warnings above."
+                    Write-Warning yyyy-MM-dd HH:mm:ss.fff
                     $outerfail = $true
                 }
                 #endregion
             }
             else {
                 #region Populate missing members of existing group
-                Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Group exists, ensuring memberships ($(@($groupmembers).count) / $(@($lookup.($group.name)).count) members, currently / in data)"
+                Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                 $missingadded = 0
                 $start = $stopwatch.ElapsedMilliseconds
                 $queriedusers = foreach ($user in $lookup.($group.name)) {
@@ -1128,37 +1098,37 @@ if ($populateKnowitGroups.IsPresent) {
                 }
                 $queryperf = $stopwatch.ElapsedMilliseconds - $start
                 if ($queriedusers.count -gt 0) {
-                    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- Adding $(@($queriedusers).count) users to group $([string]$adgroup.name)"
+                    Write-verbose yyyy-MM-dd HH:mm:ss.fff
                     $addtries = 0
                     do {
                         $addfail = $false
                         $missingadded = invoke-command -session $knowitsession -ScriptBlock {
                             $VerbosePreference = $using:verbosepreference
-                            Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Getting group"
+                            Write-verbose yyyy-MM-dd HH:mm:ss.fff
                             $localgroup = Get-ADGroup -Identity ($Using:adgroup).DistinguishedName -ErrorVariable groupqueryerror
-                            $adderrors = @{UsersNotFound = [System.Collections.ArrayList]@(); GroupError = $groupqueryerror; UserAddError = "" }
+                            $adderrors = @{UsersNotFound = [System.Collections.ArrayList]@(); GroupError = $groupqueryerror; UserAddError =  }
                             if ($null -eq $localgroup) {
-                                Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Group not found, no point continuing. Error: $($groupqueryerror.Exception.Message)"
+                                Write-Warning yyyy-MM-dd HH:mm:ss.fff
                             }
                             else {
-                                Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Getting users"
+                                Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                 $localusers = foreach ($user in ($using:queriedusers).KnowitUser) {
-                                    Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] -- $($user.Name)"
+                                    Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                     try {
                                         Get-ADUser -Identity $user.DistinguishedName -ErrorAction Stop
                                     }
                                     catch {
-                                        Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] --- User not found, error: $($_.Exception.Message)"
+                                        Write-Warning yyyy-MM-dd HH:mm:ss.fff
                                         $null = $adderrors.UsersNotFound.Add([PSCustomObject]@{User = $user; Error = $_ })
                                     }
                                 }
-                                Write-verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] - Adding $(@($localusers).count) users to the group"
+                                Write-verbose yyyy-MM-dd HH:mm:ss.fff
                                 if (@($localusers).count -gt 0) {
                                     try {
                                         Add-ADGroupMember -Identity $localgroup -Members $localusers -ErrorAction Stop
                                     }
                                     catch {
-                                        Write-Warning "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))][$($env:COMPUTERNAME)] -- Failed to add users to the group, error: $($_.Exception.Message)"
+                                        Write-Warning yyyy-MM-dd HH:mm:ss.fff
                                         $adderrors.UserAddError = $_
                                     }
                                 }
@@ -1167,13 +1137,13 @@ if ($populateKnowitGroups.IsPresent) {
                             return [PSCustomObject]@{UsersAdded = @($localusers).count; Errors = $adderrors }
                         }
                         if (-not [string]::IsNullOrWhiteSpace($missingadded.Errors.GroupError) -or @($missingadded.Errors.UsersNotFound).count -ne 0 -or -not [string]::IsNullOrWhiteSpace($missingadded.Errors.UserAddErrors)) {
-                            Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] -- Detected failures in group population, try $($addtries + 1)/4. Please check warnings above."
+                            Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                             $addfail = $true
                         }
                         $addtries++
-                        Write-Debug "In the end of populating missing users to existing group"
+                        Write-Debug 
                     }while ($addfail -and $addtries -lt 4)
-                    Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Added $($missingadded.UsersAdded) missing members"
+                    Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                 }
                 $extramembers = [System.Collections.ArrayList]@()
                 foreach ($user in $groupmembers) {
@@ -1187,12 +1157,12 @@ if ($populateKnowitGroups.IsPresent) {
                 else {
                     $extra.($group.name) = $extramembers
                 }
-                Write-Verbose "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] - Detected $($extramembers.count) extra members"
+                Write-Verbose yyyy-MM-dd HH:mm:ss.fff
                 #endregion
             }
             $outertries++
         }while ($outerfail -and $innerfail -and $outertries -lt 4)
-        Write-Verbose ("[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))]      [[ Perf metrics: querying from knowit.local: {0,4}ms, filtering missing users {1,4}ms ]]" -f $knowitgroupquery, $queryperf)
+        Write-Verbose (yyyy-MM-dd HH:mm:ss.fff -f $knowitgroupquery, $queryperf)
     }
 }
 $perfmetrics.PopulateGroups = $stopwatch.Elapsed
@@ -1221,7 +1191,7 @@ $returndata = [PSCustomObject]@{
 
 Remove-PSSession $knowitsession -WhatIf:$false | Out-Null
 
-Write-Information "[$((Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff"))] Done - Execution time: $([system.math]::round((New-TimeSpan $starttime (Get-Date)).TotalMinutes,2)) minutes"
+Write-Information yyyy-MM-dd HH:mm:ss.fff
 
 Stop-Transcript | out-null
 

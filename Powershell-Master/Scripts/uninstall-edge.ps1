@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls Microsoft Edge
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling Microsoft Edge, please wait..."
+	
 
-	& winget uninstall "Microsoft Edge Browser"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Edge, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"Microsoft Edge is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

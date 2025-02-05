@@ -1,4 +1,4 @@
-﻿$excel = Import-Excel C:\temp\projectTest.xlsx
+$excel = Import-Excel C:\temp\projectTest.xlsx
 
 foreach ($e in $excel){
     if($e.'Issue count' -lt 10){

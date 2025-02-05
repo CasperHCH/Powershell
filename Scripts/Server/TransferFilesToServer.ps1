@@ -1,5 +1,5 @@
-﻿$ComputerName = read-host "Please provide Computer Name to transfer files to"
+$ComputerName = read-host 
 $session = New-PSSession -ComputerName $ComputerName
-$container = read-host "Provide the path from where the files should be copied from - e.g. c:\temp\"
-$destination = read-host "Provide the path where the files should be copied to - e.g. c:\temp\"
+$container = read-host 
+$destination = read-host 
 Copy-Item -path $container -Recurse -Destination $destination -ToSession $session

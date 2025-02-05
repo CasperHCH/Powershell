@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Speaks a checklist by text-to-speech
 .DESCRIPTION
@@ -13,24 +13,24 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Name = "")
+param([string]$Name = )
 
 try {
-	if ($Name -eq "") { $Name = Read-Host "Enter the name of the checklist" }
+	if ($Name -eq ) { $Name = Read-Host  }
 
-	$Lines = Get-Content -path "$PSScriptRoot/../Data/Checklists/$Name.txt"
+	$Lines = Get-Content -path 
 	clear-host
 	$Step = 1
 	foreach($Line in $Lines) {
-		if ($Line -like "HEAD*") { & "$PSScriptRoot/write-big.ps1" "$($Line.substring(5))"; continue }
+		if ($Line -like ) { &  ; continue }
 
-		""			
-		& "$PSScriptRoot/speak-english.ps1" "$($Step). $Line"
-		$Dummy = Read-Host "    Say <Check> or press <Return> to continue"
+					
+		&  
+		$Dummy = Read-Host 
 		$Step++
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

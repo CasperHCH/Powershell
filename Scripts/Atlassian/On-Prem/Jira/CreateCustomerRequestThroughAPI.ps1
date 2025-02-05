@@ -1,4 +1,4 @@
-﻿#requires -version 7.4.1
+#requires -version 7.4.1
 <#
 .SYNOPSIS
 	The PowerShell script automates the creation of tickets in Jira Service Management (JSM) on-premises by leveraging the JSM API.
@@ -29,9 +29,9 @@
    https://Jira.Domain.com
    The script will trim the trailing slash from the base URL
 .PARAMETER Summary
-  Add the summary of the wanted ticket - Format: "A summary is one line of text"
+  Add the summary of the wanted ticket - Format: 
 .PARAMETER Description
-Add the wanted ticket description - Format: "A description is multiples lines of text\n separated by\n line feeds"
+Add the wanted ticket description - Format: 
 .INPUTS
 	none
 .OUTPUTS
@@ -43,7 +43,7 @@ Add the wanted ticket description - Format: "A description is multiples lines of
   Purpose/Change: Create a new Customer Request within JSM on-prem through API
 
 .EXAMPLE
-  Replace "your_jira_username", "your_jira_password", "https://your-jira-domain.com", "A brief summary of the ticket", and "A detailed description of the ticket..."
+  Replace , , , , and 
   with your actual Jira Service Management credentials and the details for the ticket you want to create.
 
   Ensure that you are in the correct directory or provide the full path to your script (replace YourScript.ps1 with the actual name of your PowerShell script).
@@ -53,11 +53,11 @@ Add the wanted ticket description - Format: "A description is multiples lines of
   and the log file will capture the details of the script execution.
 
   Specify the necessary parameters
-  $username = "your_jira_username"
-  $password = "your_jira_password"
-  $baseUrl = "https://your-jira-domain.com"
-  $summary = "A brief summary of the ticket"
-  $description = "A detailed description of the ticket, including multiple lines separated by line feeds."
+  $username = 
+  $password = 
+  $baseUrl = 
+  $summary = 
+  $description = 
 
   # Execute the script with the provided parameters
   .\YourScript.ps1 -username $username -password $password -baseUrl $baseUrl -summary $summary -description $description
@@ -79,9 +79,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -92,8 +92,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   Add-Content $slogfile -Value $Line -PassThru
 }
 
@@ -116,17 +116,13 @@ New-Alias curl curl.exe
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
-Function CreateTicket {
-  Param ()
-  Begin {
-    Write-Log -Message 'Creating a Customer Request in On-prem JSM'
-  }
+
   Process {
     Try {
-      $Cred = "$($username):$($password)"
+      $Cred = 
       $TrimmedURL = $BaseUrl.TrimEnd('/')
-      $Url = "$TrimmedURL/rest/servicedeskapi/request"
-      Write-Log -Message "Url collected and trimmed to: $url"
+      $Url = 
+      Write-Log -Message 
 
       # ServiceDeskID 58 is a static variable - please dont change it
 
@@ -140,31 +136,22 @@ Function CreateTicket {
       688 = Atlassian Workshop eller Kursus
       802 = Licenser
       #>
-      if ($null -eq $Summary) { $summary = "#1 test with api" }
+      if ($null -eq $Summary) { $summary =  }
       else {
-        Write-Log -Message "Summary was not NULL it was:"
-        Write-Log -message "$summary"
+        Write-Log -Message 
+        Write-Log -message 
       }
-      if ($null -eq $description) { $description = "test with api" }
+      if ($null -eq $description) { $description =  }
       else {
-        Write-Log -Message "Description was not NULL it was:"
-        write-log -message "$description"
+        Write-Log -Message 
+        write-log -message 
       }
-      $data = @"
-      {
-        "serviceDeskId": "58",
-        "requestTypeId": "624",
-        "requestFieldValues": {
-            "summary": "$Summary",
-            "description": "$description"
-        }
-    }
-"@
-      Write-Log -Message "JSON Data created, it contains the following:"
-      write-log -Message "$data"
+      $data = @serviceDeskId58requestTypeId624requestFieldValuessummary$Summarydescription$description@
+      Write-Log -Message 
+      write-log -Message 
 
-      $curlResponse = curl -u $cred -X POST -H "Content-Type: application/json" --data $data --url $url
-      write-log -Message "$curlResponse"
+      $curlResponse = curl -u $cred -X POST -H  --data $data --url $url
+      write-log -Message 
     }
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
@@ -185,7 +172,7 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 
 #Script Execution goes here
@@ -193,4 +180,4 @@ Write-Log -message "Starting Script, $sScriptVersion"
 CreateTicket
 
 
-Write-Log -message "End of Script"
+Write-Log -message

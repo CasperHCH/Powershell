@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the weather 
 .DESCRIPTION
@@ -13,10 +13,10 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$location = "") # empty means determine automatically
+param([string]$location = ) # empty means determine automatically
 
 try {
-	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent  -useBasicParsing).Content | ConvertFrom-Json
 
 	$Temp = $Weather.current_condition.temp_C
 	$Precip = $Weather.current_condition.precipMM
@@ -31,9 +31,9 @@ try {
 	$Area = $Weather.nearest_area.areaName.value
 	$Region = $Weather.nearest_area.region.value
 
-	& "$PSScriptRoot/speak-english.ps1" "$($Temp)°C, $($Precip)mm rain, $($Humidity)% humidity, $($WindSpeed)km/h wind from $WindDir with $($Clouds)% clouds and $($Visib)km visibility at $Area ($Region)."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

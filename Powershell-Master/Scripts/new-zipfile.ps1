@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new .ZIP file from a folder (including subfolders)
 .DESCRIPTION
@@ -13,19 +13,19 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$folder = "")
+param([string]$folder = )
 
 try {
-	if ($folder -eq "" ) { $folder = read-host "Enter the path to the folder to zip" }
+	if ($folder -eq  ) { $folder = read-host  }
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	$folder = resolve-path $folder
 	compress-archive -path $folder -destinationPath $folder.zip
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ created zip file $($folder).zip in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

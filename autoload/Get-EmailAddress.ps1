@@ -8,7 +8,7 @@ Function Get-EmailAddress {
 
 	process {
         foreach ($Address in $EmailAddress) {
-            Get-ADObject -Properties mail, proxyAddresses -Filter "mail -like '*$address*' -or proxyAddresses -like '*$Address*'"
+            Get-ADObject -Properties mail, proxyAddresses -Filter 
 		}
 	}
 }

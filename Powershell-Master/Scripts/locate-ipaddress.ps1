@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints the geo location of the given IP address
 .DESCRIPTION
@@ -13,15 +13,15 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$IPaddress= "")
+param([string]$IPaddress= )
 
 try {
-	if ($IPaddress -eq "" ) { $IPaddress = read-host "Enter IP address to locate" }
+	if ($IPaddress -eq  ) { $IPaddress = read-host  }
 
-	$result = Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$IPaddress"
+	$result = Invoke-RestMethod -Method Get -Uri 
 	write-output $result
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

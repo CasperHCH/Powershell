@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Exports all scripts as manuals
 .DESCRIPTION
@@ -16,23 +16,23 @@
 
 #requires -version 2
 
-param([string]$FilePattern = "$PSScriptRoot/*.ps1", [string]$TargetDir = "$PSScriptRoot/../Docs")
+param([string]$FilePattern = , [string]$TargetDir = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	"⏳ (1/2) Reading PowerShell scripts from $FilePattern ..." 
-	$Scripts = Get-ChildItem "$FilePattern"
+	 
+	$Scripts = Get-ChildItem 
 
-	"⏳ (2/2) Exporting Markdown manuals to $TargetDir ..."
+	
 	foreach ($Script in $Scripts) {
-		& "$PSScriptRoot/convert-ps2md.ps1" "$Script" > "$TargetDir/$($Script.BaseName).md"
+		&   > 
 	}
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Exported $($Scripts.Count) Markdown manuals in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

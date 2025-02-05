@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the latest headlines
 .DESCRIPTION
@@ -17,21 +17,21 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RSS_URL = "https://yahoo.com/news/rss/world", [int]$maxCount = 20)
+param([string]$RSS_URL = , [int]$maxCount = 20)
 
 try {
 	[xml]$content = (Invoke-WebRequest -uri $RSS_URL -useBasicParsing).Content
 	[int]$count = 0
 	foreach ($item in $content.rss.channel.item) {
-		"❇️ $($item.title)"
+		
 		$count++
 		if ($count -eq $maxCount) { break }
 	}
         $source = $Content.rss.channel.title
         $date = $Content.rss.channel.pubDate
-	"   (by $source as of $date)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

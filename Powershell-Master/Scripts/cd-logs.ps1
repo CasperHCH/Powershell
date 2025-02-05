@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the logs folder
 .DESCRIPTION
@@ -12,18 +12,17 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function GetLogsDir {
-	if ($IsLinux) { return "/var/logs" }
+
 	$WinDir = [System.Environment]::GetFolderPath('Windows')
-	return "$WinDir\Logs"
+	return 
 }
 
 try {
 	$Path = GetLogsDir
-	Set-Location "$Path"
-	"📂$Path"
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

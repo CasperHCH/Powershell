@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs 9 ZIP
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing 9 Zip, please wait..."
+	
 
-	& winget install "9 ZIP - open rar, zip, 7zip, gzip" --source msstore --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	& winget install  --source msstore --accept-package-agreements --accept-source-agreements
+	if ($lastExitCode -ne ) { throw  }
 
-	"9 Zip installed successfuly."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

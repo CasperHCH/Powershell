@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the CPU status
 .DESCRIPTION
@@ -12,15 +12,9 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function GetCPUTemperatureInCelsius {
-	$Temp = 99999.9 # unsupported
-	if ($IsLinux) {
-		if (Test-Path "/sys/class/thermal/thermal_zone0/temp" -pathType leaf) {
-			[int]$IntTemp = Get-Content "/sys/class/thermal/thermal_zone0/temp"
-			$Temp = [math]::round($IntTemp / 1000.0, 1)
-		}
+
 	} else {
-		$Objects = Get-WmiObject -Query "SELECT * FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation" -Namespace "root/CIMV2"
+		$Objects = Get-WmiObject -Query  -Namespace 
 		foreach ($Obj in $Objects) {
 			$HiPrec = $Obj.HighPrecisionTemperature
 			$Temp = [math]::round($HiPrec / 100.0, 1)
@@ -29,56 +23,55 @@ function GetCPUTemperatureInCelsius {
 	return $Temp;
 }
 
-function GetProcessorArchitecture {
-	if ("$env:PROCESSOR_ARCHITECTURE" -ne "") { return "$env:PROCESSOR_ARCHITECTURE" }
+
 	if ($IsLinux) {
 		$Name = $PSVersionTable.OS
-		if ($Name -like "*-generic *") {
-			if ([System.Environment]::Is64BitOperatingSystem) { return "x64" } else { return "x86" }
-		} elseif ($Name -like "*-raspi *") {
-			if ([System.Environment]::Is64BitOperatingSystem) { return "ARM64" } else { return "ARM32" }
+		if ($Name -like ) {
+			if ([System.Environment]::Is64BitOperatingSystem) { return  } else { return  }
+		} elseif ($Name -like ) {
+			if ([System.Environment]::Is64BitOperatingSystem) { return  } else { return  }
 		} else {
-			return ""
+			return 
 		}
 	}
 }
 
 try {
-	Write-Progress "⏳ Querying CPU details..."
-	$Status = "✅"
+	Write-Progress 
+	$Status = 
 	$Celsius = GetCPUTemperatureInCelsius
 	if ($Celsius -eq 99999.9) {
-		$Temp = "no temp"
+		$Temp = 
 	} elseif ($Celsius -gt 50) {
-		$Temp = "$($Celsius)°C"
-		$Status = "⚠️"
+		$Temp = 
+		$Status = 
 	} elseif ($Celsius -lt 0) {
-		$Temp = "$($Celsius)°C"
-		$Status = "⚠️"
+		$Temp = 
+		$Status = 
 	} else {
-		$Temp = "$($Celsius)°C"
+		$Temp = 
 	} 
 
 	$Arch = GetProcessorArchitecture
 	if ($IsLinux) {
-		$CPUName = "$Arch CPU"
-		$Arch = ""
-		$DeviceID = ""
-		$Speed = ""
-		$Socket = ""
+		$CPUName = 
+		$Arch = 
+		$DeviceID = 
+		$Speed = 
+		$Socket = 
 	} else {
 		$Details = Get-WmiObject -Class Win32_Processor
 		$CPUName = $Details.Name.trim()
-		$Arch = "$Arch, "
-		$DeviceID = "$($Details.DeviceID), "
-		$Speed = "$($Details.MaxClockSpeed)MHz, "
-		$Socket = "$($Details.SocketDesignation) socket, "
+		$Arch = 
+		$DeviceID = 
+		$Speed = 
+		$Socket = 
 	}
 	$Cores = [System.Environment]::ProcessorCount
-	Write-Progress -completed "done."
-	Write-Host "$Status $CPUName ($($Arch)$Cores cores, $($DeviceID)$($Speed)$($Socket)$Temp)"
+	Write-Progress -completed 
+	Write-Host 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

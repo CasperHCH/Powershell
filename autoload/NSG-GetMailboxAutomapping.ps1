@@ -1,4 +1,4 @@
-﻿Function NSG-GetMailboxAutomapping {
+Function NSG-GetMailboxAutomapping {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True)]

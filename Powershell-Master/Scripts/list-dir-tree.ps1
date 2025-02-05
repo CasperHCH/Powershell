@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists a directory tree
 .DESCRIPTION
@@ -16,33 +16,33 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = "$PWD")
+param([string]$Path = )
 
 function GetFileIcon([string]$suffix) {
 	switch ($suffix) {
-	".csv"	{return "📊"}
-	".epub"	{return "📓"}
-	".exe"  {return "⚙️"}
-	".gif"	{return "📸"}
-	".iso"	{return "📀"}
-	".jpg"	{return "📸"}
-	".mp3"	{return "🎵"}
-	".mkv"	{return "🎬"}
-	".zip"  {return "🎁"}
-	default {return "📄"}
+		{return }
+		{return }
+	  {return }
+		{return }
+		{return }
+		{return }
+		{return }
+		{return }
+	  {return }
+	default {return }
 	}
 }
 
 function Bytes2String([int64]$bytes) {
-	if ($bytes -lt 1000) { return "$bytes bytes" }
+	if ($bytes -lt 1000) { return  }
 	$bytes /= 1000
-	if ($bytes -lt 1000) { return "$($bytes)K" }
+	if ($bytes -lt 1000) { return  }
 	$bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)MB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)GB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-	return "$($Bytes)TB"
+	return 
 }
 
 function ListDirectory([string]$path, [int]$depth) {
@@ -50,14 +50,14 @@ function ListDirectory([string]$path, [int]$depth) {
 	$items = Get-ChildItem -path $path
 	foreach($item in $items) {
 		$filename = $item.Name
-		for ($i = 1; $i -lt $depth; $i++) { Write-Host "│ " -noNewline }
-		if ($item.Mode -like "d*") {
-			Write-Output "├📂$Filename"
-			ListDirectory "$path\$filename" $depth
+		for ($i = 1; $i -lt $depth; $i++) { Write-Host  -noNewline }
+		if ($item.Mode -like ) {
+			Write-Output 
+			ListDirectory  $depth
 			$global:folders++
 		} else {
 			$icon = GetFileIcon $item.Extension
-			Write-Output "├$($icon)$filename ($(Bytes2String $item.Length))"
+			Write-Output 
 			$global:files++
 			$global:bytes += $item.Length
 		}
@@ -69,9 +69,9 @@ try {
 	[int]$global:files = 0
 	[int]$global:bytes = 0
 	ListDirectory $Path 0
-	Write-Output " ($($global:folders) folders, $($global:files) files, $(Bytes2String $global:bytes) total)"
+	Write-Output 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Encrypts a file
 .DESCRIPTION
@@ -8,43 +8,16 @@
 .PARAMETER Password
 	Specifies the password to use
 .EXAMPLE
-	PS> ./encrypt-file.ps1 C:\MyFile.txt "123"
+	PS> ./encrypt-file.ps1 C:\MyFile.txt 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = "", [string]$Password = "")
+param([string]$Path = , [string]$Password = )
 
-function EncryptFile {
-[CmdletBinding(DefaultParameterSetName='SecureString')]
-[OutputType([System.IO.FileInfo[]])]
-Param(
-    [Parameter(Mandatory=$true, Position=1, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
-    [Alias('PSPath','LiteralPath')]
-    [string[]]$FileName,
-    [Parameter(Mandatory=$false, Position=2)]
-    [ValidateSet('AES','DES','RC2','Rijndael','TripleDES')]
-    [String]$Algorithm = 'AES',
-    [Parameter(Mandatory=$false, Position=3, ParameterSetName='SecureString')]
-    [System.Security.SecureString]$Key = (New-CryptographyKey -Algorithm $Algorithm),
-    [Parameter(Mandatory=$true, Position=3, ParameterSetName='PlainText')]
-    [String]$KeyAsPlainText,
-    [Parameter(Mandatory=$false, Position=4)]
-    [System.Security.Cryptography.CipherMode]$CipherMode,
-    [Parameter(Mandatory=$false, Position=5)]
-    [System.Security.Cryptography.PaddingMode]$PaddingMode,
-    [Parameter(Mandatory=$false, Position=6)]
-    [String]$Suffix = ".$Algorithm",
-    [Parameter()]
-    [Switch]$RemoveSource
-)
-    begin {
-        try {
-            if ($PSCmdlet.ParameterSetName -eq 'PlainText') {
-                $Key = $KeyAsPlainText | ConvertTo-SecureString -AsPlainText -Force
-            }
+
 
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Key)
             $EncryptionKey = [System.Convert]::FromBase64String([System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR))
@@ -114,18 +87,18 @@ Param(
 
 
 try {
-	if ($Path -eq "" ) { $Path = read-host "Enter path to file" }
-	if ($Password -eq "" ) { $Password = read-host "Enter password"	}
+	if ($Path -eq  ) { $Path = read-host  }
+	if ($Password -eq  ) { $Password = read-host 	}
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	[char[]]$PasswordAsArray = $Password
 	$PasswordAsBase64 = [System.Convert]::ToBase64String($PasswordAsArray)
-	EncryptFile "$Path" -Algorithm AES -KeyAsPlainText $PasswordAsBase64 -RemoveSource
+	EncryptFile  -Algorithm AES -KeyAsPlainText $PasswordAsBase64 -RemoveSource
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️  file encrypted in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

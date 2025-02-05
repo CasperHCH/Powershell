@@ -1,4 +1,4 @@
-﻿#Here is a simple requirement . you have a requirement to assign GrantsendonBehalfto 
+#Here is a simple requirement . you have a requirement to assign GrantsendonBehalfto 
 #permissions on all mailboxes with out overwriting existing Permissions.
     Param(
       [Parameter(Mandatory=$True)]

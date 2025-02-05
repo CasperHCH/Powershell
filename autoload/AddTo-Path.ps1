@@ -1,4 +1,4 @@
-﻿#requires -version 4
+#requires -version 4
 <#
 .SYNOPSIS
 	add a path to environment
@@ -16,11 +16,11 @@
   Creation Date:  unknown
   URL:            https://stackoverflow.com/questions/714877/setting-windows-powershell-environment-variables
 .EXAMPLE
-Add "C:\XXX" to User Path (but only if not already present)
-AddTo-Path "C:\XXX" "User" "Path"
+Add  to User Path (but only if not already present)
+AddTo-Path   
 
 Just show the current status by putting an empty path
-AddTo-Path "" "User" "Path"
+AddTo-Path   
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 function AddTo-Path {
@@ -30,22 +30,22 @@ function AddTo-Path {
       [Parameter(Mandatory=$true)][ValidateSet('Path','PSModulePath')][string]$PathType
   )
 
-  # AddTo-Path "C:\XXX" "PSModulePath" 'System' 
-  if ($UserType -eq "System" ) { $RegPropertyLocation = 'HKLM:\System\CurrentControlSet\Control\Session Manager\Environment' }
-  if ($UserType -eq "User"   ) { $RegPropertyLocation = 'HKCU:\Environment' } # also note: Registry::HKEY_LOCAL_MACHINE\ format
+  # AddTo-Path   'System' 
+  if ($UserType -eq  ) { $RegPropertyLocation = 'HKLM:\System\CurrentControlSet\Control\Session Manager\Environment' }
+  if ($UserType -eq    ) { $RegPropertyLocation = 'HKCU:\Environment' } # also note: Registry::HKEY_LOCAL_MACHINE\ format
   $PathOld = (Get-ItemProperty -Path $RegPropertyLocation -Name $PathType).$PathType
-  "`n$UserType $PathType Before:`n$PathOld`n"
-  $PathArray = $PathOld -Split ";" -replace "\\+$", ""
+  
+  $PathArray = $PathOld -Split  -replace , 
   if ($PathArray -notcontains $PathToAdd) {
-      "$UserType $PathType Now:"   # ; sleep -Milliseconds 100   # Might need pause to prevent text being after Path output(!)
-      $PathNew = "$PathOld;$PathToAdd"
+         # ; sleep -Milliseconds 100   # Might need pause to prevent text being after Path output(!)
+      $PathNew = 
       Set-ItemProperty -Path $RegPropertyLocation -Name $PathType -Value $PathNew
       Get-ItemProperty -Path $RegPropertyLocation -Name $PathType | select -ExpandProperty $PathType
-      if ($PathType -eq "Path") { $env:Path += ";$PathToAdd" }                  # Add to Path also for this current session
-      if ($PathType -eq "PSModulePath") { $env:PSModulePath += ";$PathToAdd" }  # Add to PSModulePath also for this current session
-      "`n$PathToAdd has been added to the $UserType $PathType"
+      if ($PathType -eq ) { $env:Path +=  }                  # Add to Path also for this current session
+      if ($PathType -eq ) { $env:PSModulePath +=  }  # Add to PSModulePath also for this current session
+      
   }
   else {
-      "'$PathToAdd' is already in the $UserType $PathType. Nothing to do."
+      
   }
 }

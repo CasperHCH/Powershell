@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Check the PowerShell status
 .DESCRIPTION
@@ -18,13 +18,13 @@ try {
 	$numModules = (Get-Module).Count
 	$numAliases = (Get-Alias).Count
 	if ($IsLinux) {
-		"✅ PowerShell $version $edition edition ($numModules modules, $numAliases aliases)"
+		
 	} else {
 		$numCmdlets = (Get-Command -Command-Type cmdlet).Count
-		"✅ PowerShell $version $edition edition ($numModules modules, $numCmdlets cmdlets, $numAliases aliases)"
+		
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

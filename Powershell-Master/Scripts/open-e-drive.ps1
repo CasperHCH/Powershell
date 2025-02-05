@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the E: drive folder
 .DESCRIPTION
@@ -11,4 +11,4 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-file-explorer.ps1" "E:"
+&

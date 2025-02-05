@@ -1,4 +1,4 @@
-﻿function Start-ADSync {
+function Start-ADSync {
     [CmdletBinding()]
     Param (
         [Switch]$delta,
@@ -29,7 +29,7 @@
 	    }
 
         if (!($delta -or $full)) {
-            Write-Warning "Please specify PolicyType to force a sync"
+            Write-Warning 
         }
     }
 }

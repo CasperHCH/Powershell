@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Microsoft Powertoys
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Microsoft Powertoys, please wait..."
+	
 
 	& winget install Microsoft.Powertoys --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Microsoft Powertoys installed successfully."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

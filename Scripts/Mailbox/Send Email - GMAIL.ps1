@@ -1,4 +1,4 @@
-﻿$smtpserver = “smtp.gmail.com”
+$smtpserver = “smtp.gmail.com”
 $msg = new-object Net.Mail.MailMessage
 $smtp = new-object Net.Mail.SmtpClient($smtpServer, 587)
 $smtp.EnableSsl = $True

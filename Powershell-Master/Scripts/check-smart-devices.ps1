@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the SMART device status
 .DESCRIPTION
@@ -12,28 +12,27 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function Bytes2String { param([int64]$Bytes)
-	if ($Bytes -lt 1000) { return "$Bytes bytes" }
+
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)KB" }
+	if ($Bytes -lt 1000) { return  }
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)MB" }
+	if ($Bytes -lt 1000) { return  }
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)GB" }
+	if ($Bytes -lt 1000) { return  }
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)TB" }
+	if ($Bytes -lt 1000) { return  }
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)PB" }
+	if ($Bytes -lt 1000) { return  }
 	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)EB" }
+	if ($Bytes -lt 1000) { return  }
 }
 
 try {
-	Write-Progress "⏳ (1/3) Searching for smartmontools..."
+	Write-Progress 
 	$Result = (smartctl --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'smartctl' - make sure smartmontools are installed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress "⏳ (2/3) Scanning S.M.A.R.T devices..."
+	Write-Progress 
 	if ($IsLinux) {
 		$Devices = $(sudo smartctl --scan-open)
 	} else {
@@ -41,10 +40,10 @@ try {
 	}
 
 	foreach($Device in $Devices) {
-		Write-Progress "⏳ (3/3) Querying S.M.A.R.T devices..."
-		$Array = $Device.split(" ")
+		Write-Progress 
+		$Array = $Device.split()
 		$Device = $Array[0]
-		if ("$Device" -eq "#") {
+		if ( -eq ) {
 			continue
 		} elseif ($IsLinux) {
 			$Details = (sudo smartctl --all --json $Device) | ConvertFrom-Json
@@ -57,20 +56,20 @@ try {
 		$Protocol = $Details.device.protocol
 		[int64]$GBytes = $Details.user_capacity.bytes
 		if ($GBytes -gt 0) {
-			$Capacity = "$(Bytes2String $GBytes) "
+			$Capacity = 
 		} else {
-			$Capacity = ""
+			$Capacity = 
 		}
 		$Temp = $Details.temperature.current
 		$Firmware = $Details.firmware_version
 		$PowerOn = $Details.power_cycle_count
 		$Hours = $Details.power_on_time.hours
-		if ($Details.smart_status.passed) { $Status = "passed" } else { $Status = "FAILED" }
-		Write-Progress -completed " "
-		Write-Host "✅ $($Capacity)$ModelName via $Protocol ($Hours hours, $($PowerOn)x on, v$($Firmware), $($Temp)°C, selftest $Status)"
+		if ($Details.smart_status.passed) { $Status =  } else { $Status =  }
+		Write-Progress -completed 
+		Write-Host 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

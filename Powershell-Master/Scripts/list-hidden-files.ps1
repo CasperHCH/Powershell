@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists hidden files in a directory tree
 .DESCRIPTION
@@ -13,20 +13,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$DirTree = "$PWD")
+param([string]$DirTree = )
 
 try {
-	$DirTree = resolve-path "$DirTree"
-	write-progress "Listing hidden files in $DirTree ..."
+	$DirTree = resolve-path 
+	write-progress 
 
 	[int]$Count = 0
-	get-childItem "$DirTree" -attributes Hidden -recurse | foreach-object {
-		"📄 $($_.FullName)"
+	get-childItem  -attributes Hidden -recurse | foreach-object {
+		
 		$Count++
 	}
-	"✔️ directory tree $DirTree has $Count hidden file(s)" 
+	 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

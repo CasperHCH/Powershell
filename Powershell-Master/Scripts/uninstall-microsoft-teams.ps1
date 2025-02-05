@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls Microsoft Teams
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling Microsoft Teams, please wait..."
+	
 
 	& winget uninstall --id Microsoft.Teams
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Microsoft Teams, is it installed?" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Microsoft Teams is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

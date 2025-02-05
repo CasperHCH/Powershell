@@ -40,7 +40,7 @@ function Load-Module ($m) {
 
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        Write-Log -Message "Module $m is already imported."
+        Write-Log -Message 
 		
     }
     else {
@@ -61,7 +61,7 @@ function Load-Module ($m) {
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                Write-Log -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                Write-Log -Message 
 				
                 EXIT 1
             }
@@ -83,7 +83,7 @@ $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sLogName = $sLogName -replace '.ps1', '.log'
 $sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
 
-$ListOfGroupsToBeRemovedFrom = "41b1db54-277a-48a3-930c-8ac002197370", "9de107f3-b54d-4208-bea4-6aa0ce09ed24", "c28569a8-f6d2-416f-a891-07915e5383a1" #ID Matches - Default Access Groups for Confluence, JSM and Software.
+$ListOfGroupsToBeRemovedFrom = , ,  #ID Matches - Default Access Groups for Confluence, JSM and Software.
 #                              jira-software-users                      jira-servicemanagement-users            confluence-users
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
@@ -92,9 +92,9 @@ function Write-Log {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+        [ValidateSet(, , , , )]
         [String]
-        $Level = "INFO",
+        $Level = ,
 
         [Parameter(Mandatory = $True)]
         [string]
@@ -105,19 +105,13 @@ function Write-Log {
         $logfile
     )
 
-    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-    $Line = "$Stamp $Level $Message"
+    $Stamp = (Get-Date).toString()
+    $Line = 
     Add-Content $slogfile -Value $Line -PassThru
 }
 
 ######### GetUrl #########
-Function GetUrl {
-    Param()
- 
-    Begin {
-        Write-Log -Message  'GetUrl started'
-        Write-Log -Message  'Asking initiator to insert a URL for an Atlassian Cloud site.'
-    }
+
  
     Process {
         Try {
@@ -132,23 +126,18 @@ Function GetUrl {
  
     End {
         If ($?) {
-            Write-Log -Message  "GetUrl Completed Successfully."
+            Write-Log -Message  
         }
     }
 }
 
 ######### Collect Admin account email #########
-Function CollectAdminAccount {
-    Param()
- 
-    Begin {
-        Write-Log -Message  'CollectAdminAccount started'
-    }
+
  
     Process {
         Try {
             $script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
-            Write-Log -Message  "AdminAccount Token collected as $AdminAccount"
+            Write-Log -Message  
         }
   
         Catch {
@@ -159,23 +148,18 @@ Function CollectAdminAccount {
  
     End {
         If ($?) {
-            Write-Log -Message  "CollectAdminAccount Completed Successfully."
+            Write-Log -Message  
         }
     }
 }
 
 ######### Provide API Token#########
-Function Providetoken {
-    Param()
- 
-    Begin {
-        Write-Log -Message 'Providetoken started'
-    }
+
  
     Process {
         Try {
             $script:token = read-host -prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-            Write-Log -Message  "API Token collected as $token"
+            Write-Log -Message  
         }
   
         Catch {
@@ -186,7 +170,7 @@ Function Providetoken {
  
     End {
         If ($?) {
-            Write-Log -Message "ProvidetokenCompleted Successfully."
+            Write-Log -Message 
         }
     }
 }
@@ -196,9 +180,9 @@ function CollectList() {
     write-log -message 'CollectList started'
     while (1) {
         try {
-            Write-Log -Message  "While loop entered, waiting for List path"
+            Write-Log -Message  
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq ".xlsx" ) {
+            if ($extn -eq  ) {
                 Load-Module ImportExcel
                 $script:importedList = Import-Excel (read-host -prompt 'provide List path')
                 
@@ -208,11 +192,11 @@ function CollectList() {
             }
         }
         Catch {
-            Write-Log -Message  "Not a valid List inserted"
+            Write-Log -Message  
         }
     }
 
-    Write-Log -Message  "CollectListCompleted Successfully."
+    Write-Log -Message  
 }
 ########## Import provided Excel #########
 function ImportList() {
@@ -222,11 +206,11 @@ function ImportList() {
     Process {
         Try {
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq ".xlsx" ) {
+            if ($extn -eq  ) {
                 Load-Module ImportExcel
                 $script:importedList = Import-Excel $List
             }
-            elseif ($extn -eq ".csv" ) {
+            elseif ($extn -eq  ) {
                 $script:importedList = Import-Csv $List
             }
             else { CollectList }
@@ -238,34 +222,18 @@ function ImportList() {
     }
     End {
         If ($?) {
-            Write-Log -Message "ImportList Completed Successfully."
+            Write-Log -Message 
         }
     }
 }
 
 #Allowing for easier web requests
-function WebApiRequest {
-    param(
-        [parameter(Mandatory = $true)] [string]$uri,
-        [ValidateSet("DEFAULT", "DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT", "TRACE")] [String] $Method = "GET",
-        [string] $Body = "",
-        [string] $userID = ""
-    )
-    
-    $pair = "$($AdminAccount):$($token)"
-    $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-    $basicAuthValue = "Basic $encodedCreds"
 
-    $headers = @{
-        Authorization  = $basicAuthValue
-        'Content-Type' = 'application/json'
-        'Accept'       = 'application/json'
-    }
 
     $uri = $url + $uri
 
     try {
-        If ($method -eq "GET") {
+        If ($method -eq ) {
             $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
         }
         else {
@@ -280,31 +248,27 @@ function WebApiRequest {
         $StatusCode = [string]$_.Exception.Response.StatusCode.value__
         $StatusDescription = [string]$_.Exception.Response.StatusDescription
         $message = $response
-        $message += " Url " + $uri + " : " + $_.Exception
+        $message +=  + $uri +  + $_.Exception
         Write-Log -Message $message
     }
     return $response
 }
 
 ######### Collect Atlassian ID based on list of emails #########
-Function CollectID {
-    Param ()
-    Begin {
-        Write-Log -Message 'Starting process of collecting Atlassian IDs based on Email'
-    }
+
     Process {
         Try {
             foreach ($CollectIDFromEmail in $importedList) {
-                Write-Log -message "Collecting Atlassian ID from email: $($CollectIDFromEmail.email)"
-                $CollectedIDUri = "/rest/api/3/user/search?query=$($CollectIDFromEmail.email)"
+                Write-Log -message 
+                $CollectedIDUri = 
                 $returned = WebApiRequest -uri $CollectedIDUri
-                Write-Log -Message "Collected the following ID: $($returned.accountID)"
+                Write-Log -Message 
                 ########### Remove the new user account from Jira Software, JSM and Confluence default Groups ###########
                 RemoveUserFromGroups $returned.accountID
             }
         }
         Catch {
-            Write-Log -Level "ERROR" -Message $_.Exception
+            Write-Log -Level  -Message $_.Exception
         }
     }
     End {
@@ -316,24 +280,20 @@ Function CollectID {
 
 
 ######### Remove User From Groups  #########
-Function RemoveUserFromGroups {
-    Param ($returnedResponse)
-    Begin {
-        Write-Log -Message 'Removing user from default groups'
-    }
+
     Process {
         Try {
             foreach ($ID in $returnedResponse) {  
                 foreach ($GroupID in $ListOfGroupsToBeRemovedFrom) {  
-                    Write-Log -Message "Removing user $($ID) from Group with ID: $($GroupID)"
+                    Write-Log -Message 
                     $RemoveUserFromGrpuri = '/rest/api/3/group/user?groupId=' + $($GroupID) + '&accountId=' + $($ID)
 
-                    WebApiRequest -method "DELETE" -uri $RemoveUserFromGrpuri
+                    WebApiRequest -method  -uri $RemoveUserFromGrpuri
                 }
             }
         }
         Catch {
-            Write-Log -Level "ERROR" -Message $_.Exception
+            Write-Log -Level  -Message $_.Exception
         }
     }
     End {
@@ -344,8 +304,8 @@ Function RemoveUserFromGroups {
 }
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $($sScriptVersion)"
-Write-Log -message "--------------------------------------"
+Write-Log -message 
+Write-Log -message 
 #Script Execution goes here
 #----------------------------------------------------------------------------------------------------------------------------------
 #GET the URL
@@ -357,9 +317,9 @@ if ($List -eq $null)
 { CollectList }
 else {
     ImportList
-    write-log -Message "Path of list is $List"
-    Write-Log -Message "containing:"
-    write-log -Message "$($importedList)"
+    write-log -Message 
+    Write-Log -Message 
+    write-log -Message 
 }
 #----------------------------------------------------------------------------------------------------------------------------------
 #Collect Admin account
@@ -370,7 +330,7 @@ if ($AdminAccount -eq $null)
 if ($token -eq $null)
 { Providetoken }else { write-log -Message $token }
 
-Write-Log -Message "Start Onboarding"
+Write-Log -Message 
 CollectID
-Write-Log -message "--------------------------------------"
-Write-Log -message "End of Script"
+Write-Log -message 
+Write-Log -message

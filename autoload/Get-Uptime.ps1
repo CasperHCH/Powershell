@@ -1,4 +1,4 @@
-﻿Function Get-Uptime {
+Function Get-Uptime {
 	[CmdletBinding()]
 	Param (
 		[Parameter(Mandatory = $False,
@@ -15,8 +15,8 @@
             $uptime = New-TimeSpan (Get-Date $boottime)
             $uptime_days = [int]$uptime.days
             Write-Host $server
-            Write-Host "LAST BOOT TIME =  " $boottime
-            Write-Host "UPTIME (DAYS) =  " $uptime_days
+            Write-Host  $boottime
+            Write-Host  $uptime_days
             Echo ''
         }
     }

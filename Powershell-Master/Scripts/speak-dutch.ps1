@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Speaks text in Dutch
 .DESCRIPTION
@@ -13,21 +13,21 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "") { $text = Read-Host "Enter the Dutch text to speak" }
+	if ($text -eq ) { $text = Read-Host  }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like "*- Dutch*") { 
+		if ($voice.GetDescription() -like ) { 
 			$TTS.Voice = $voice
 			[void]$TTS.Speak($text)
 			exit 0 # success
 		}
 	}
-	throw "No Dutch text-to-speech voice found - please install one"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

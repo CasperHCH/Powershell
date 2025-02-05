@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Executes tasks on desktop login
 .DESCRIPTION
@@ -13,22 +13,22 @@
 #>
 
 try {
-	& "$PSScriptRoot/write-big.ps1" "Welcome back"
-	" "
-	& "$PSScriptRoot/open-dashboards.ps1"
-	" "
-	& "$PSScriptRoot/write-quote.ps1"
-	" "
-	& "$PSScriptRoot/list-news.ps1"
-	" "
-	& "$PSScriptRoot/write-joke.ps1"
-	" "
-	& "$PSScriptRoot/cd-repos.ps1"
-	& "$PSScriptRoot/fetch-repos.ps1"
-	" "
-	& "$PSScriptRoot/write-clock.ps1"
+	&  
+	
+	& 
+	
+	& 
+	
+	& 
+	
+	& 
+	
+	& 
+	& 
+	
+	& 
 	exit 0 # success
 } catch {
-        "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+        
         exit 1
 }

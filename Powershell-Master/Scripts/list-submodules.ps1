@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the submodules in a Git repository
 .DESCRIPTION
@@ -13,27 +13,27 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
-	Write-Host "⏳ (1/4) Searching for Git executable...   " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	$RepoDirName = (Get-Item "$RepoDir").Name
-	Write-Host "⏳ (2/4) Checking Git repository...        📂$RepoDirName"
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access folder: $RepoDir" }
+	$RepoDirName = (Get-Item ).Name
+	Write-Host 
+	if (-not(Test-Path  -pathType container)) { throw  }
 
-	Write-Host "⏳ (3/4) Fetching latest updates... "
-	& git -C "$RepoDir" fetch
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed" }
+	Write-Host 
+	& git -C  fetch
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (4/4) Listing submodules... "
-	& git -C "$RepoDir" submodule
-	if ($lastExitCode -ne "0") { throw "'git submodule' failed" }
+	Write-Host 
+	& git -C  submodule
+	if ($lastExitCode -ne ) { throw  }
 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

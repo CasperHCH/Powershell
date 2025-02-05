@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens Google Play
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://play.google.com/store"
+&  
 exit 0 # success

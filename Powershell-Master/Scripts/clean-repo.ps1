@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Cleans a repo
 .DESCRIPTION
@@ -19,35 +19,35 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/4) Searching for Git executable...          " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (2/4) Checking local repository...             📂$RepoDir"
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access folder '$RepoDir' - maybe a typo or missing folder permissions?" }
-	$RepoDirName = (Get-Item "$RepoDir").Name
+	
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$RepoDirName = (Get-Item ).Name
 
-	"⏳ (3/4) Removing untracked files in repository..."
-	& git -C "$RepoDir" clean -xfd -f # to delete all untracked files in the main repo
-	if ($lastExitCode -ne "0") {
-		Write-Warning "'git clean' failed with exit code $lastExitCode, retrying once..."
-		& git -C "$RepoDir" clean -xfd -f 
-		if ($lastExitCode -ne "0") { throw "'git clean' failed with exit code $lastExitCode" }
+	
+	& git -C  clean -xfd -f # to delete all untracked files in the main repo
+	if ($lastExitCode -ne ) {
+		Write-Warning 
+		& git -C  clean -xfd -f 
+		if ($lastExitCode -ne ) { throw  }
 	}
 
-	"⏳ (4/4) Removing untracked files in submodules..."
-	& git -C "$RepoDir" submodule foreach --recursive git clean -xfd -f # to delete all untracked files in the submodules
-	if ($lastExitCode -ne "0") { throw "'git clean' in the submodules failed with exit code $lastExitCode" }
+	
+	& git -C  submodule foreach --recursive git clean -xfd -f # to delete all untracked files in the submodules
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Cleaned repo 📂$RepoDirName in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 IISLogsCleanup.ps1 - IIS Log File Cleanup Script
 
@@ -30,13 +30,13 @@ The path to a location where zip files are moved to, for example
 a central log repository stored on a NAS.
 
 .EXAMPLE
-.\IISLogsCleanup.ps1 -Logpath "D:\IIS Logs\W3SVC1"
-This example will compress the log files in "D:\IIS Logs\W3SVC1" and leave
+.\IISLogsCleanup.ps1 -Logpath 
+This example will compress the log files in  and leave
 the zip files in that location.
 
 .EXAMPLE
-.\IISLogsCleanup.ps1 -Logpath "D:\IIS Logs\W3SVC1" -ArchivePath "\\nas01\archives\iislogs"
-This example will compress the log files in "D:\IIS Logs\W3SVC1" and move
+.\IISLogsCleanup.ps1 -Logpath  -ArchivePath 
+This example will compress the log files in  and move
 the zip files to the archive path.
 
 .LINK
@@ -64,7 +64,7 @@ The MIT License (MIT)
 Copyright (c) 2015 Paul Cunningham
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
+of this software and associated documentation files (the ), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
@@ -73,7 +73,7 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -113,15 +113,15 @@ $previousmonth = ((Get-Date).AddMonths(-1)).Month
 $firstdayofpreviousmonth = (Get-Date -Year $currentyear -Month $currentmonth -Day 1).AddMonths(-1)
 
 $myDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$output = "$myDir\IISLogsCleanup.log"
-$logpathfoldername = $logpath.Split("\")[-1]
+$output = 
+$logpathfoldername = $logpath.Split()[-1]
 
 #...................................
 # Logfile Strings
 #...................................
 
-$logstring0 = "====================================="
-$logstring1 = " IIS Log File Cleanup Script"
+$logstring0 = 
+$logstring1 = 
 
 
 #-------------------------------------------------
@@ -133,7 +133,7 @@ Function Write-Logfile()
 {
 	param( $logentry )
 	$timestamp = Get-Date -DisplayHint Time
-	"$timestamp $logentry" | Out-File $output -Append
+	 | Out-File $output -Append
 }
 
 # This function is to test the completion of the async CopyHere method
@@ -191,36 +191,36 @@ function IsFileLocked( [string]$path)
 #very large log files from growing over time
 
 $timestamp = Get-Date -DisplayHint Time
-"$timestamp $logstring0" | Out-File $output
+ | Out-File $output
 Write-Logfile $logstring1
-Write-Logfile "  $now"
+Write-Logfile 
 Write-Logfile $logstring0w
 
 
 #Check whether IIS Logs path exists, exit if it does not
 if ((Test-Path $Logpath) -ne $true)
 {
-    $tmpstring = "Log path $logpath not found"
+    $tmpstring = 
     Write-Warning $tmpstring
     Write-Logfile $tmpstring
     EXIT
 }
 
 
-$tmpstring = "Current Month: $currentmonth"
+$tmpstring = 
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
-$tmpstring = "Previous Month: $previousmonth"
+$tmpstring = 
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
-$tmpstring = "First Day of Previous Month: $firstdayofpreviousmonth"
+$tmpstring = 
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
 #Fetch list of log files older than 1st day of previous month
-$logstoremove = Get-ChildItem -Path "$($Logpath)\*.*" -Include *.log | Where {$_.CreationTime -lt $firstdayofpreviousmonth -and $_.PSIsContainer -eq $false}
+$logstoremove = Get-ChildItem -Path  -Include *.log | Where {$_.CreationTime -lt $firstdayofpreviousmonth -and $_.PSIsContainer -eq $false}
 
 if ($($logstoremove.Count) -eq $null)
 {
@@ -231,7 +231,7 @@ else
     $logcount = $($logstoremove.Count)
 }
 
-$tmpstring = "Found $logcount logs earlier than $firstdayofpreviousmonth"
+$tmpstring = 
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
@@ -241,8 +241,8 @@ $hashtable = @{}
 #Add each logfile to hashtable
 foreach ($logfile in $logstoremove)
 {
-    $zipdate = $logfile.LastWriteTime.ToString("yyyy-MM")
-    $hashtable.Add($($logfile.FullName),"$zipdate")
+    $zipdate = $logfile.LastWriteTime.ToString()
+    $hashtable.Add($($logfile.FullName),)
 }
 
 #Calculate unique yyyy-MM dates from logfiles in hashtable
@@ -252,20 +252,20 @@ $dates = @($hashtable | Group -Property:Value | Select Name)
 #For each yyyy-MM date add those logfiles to a zip file
 foreach ($date in $dates)
 {
-    $zipfilename = "$Logpath\$computername-$logpathfoldername-$($date.Name).zip"
+    $zipfilename = 
 
     if(-not (test-path($zipfilename)))
     {
-        set-content $zipfilename ("PK" + [char]5 + [char]6 + ("$([char]0)" * 18))
+        set-content $zipfilename ( + [char]5 + [char]6 + ( * 18))
         (dir $zipfilename).IsReadOnly = $false 
     }
 
     $shellApplication = new-object -com shell.application
     $zipPackage = $shellApplication.NameSpace($zipfilename)
 
-    $zipfiles = $hashtable | Where {$_.Value -eq "$($date.Name)"}
+    $zipfiles = $hashtable | Where {$_.Value -eq }
 
-    $tmpstring = "Zip file name is $zipfilename and will contain $($zipfiles.Count) files"
+    $tmpstring = 
     Write-Host $tmpstring
     Write-Logfile $tmpstring
 
@@ -273,7 +273,7 @@ foreach ($date in $dates)
     { 
         $fn = $file.key.ToString()
         
-        $tmpstring = "Adding $fn to $zipfilename"
+        $tmpstring = 
         Write-Host $tmpstring
         Write-Logfile $tmpstring
 
@@ -291,18 +291,18 @@ foreach ($date in $dates)
     #Compare count of log files on disk to count of log files in zip file
     $zippedcount = ($zipPackage.Items()).Count
     
-    $tmpstring = "Zipped count: $zippedcount"
+    $tmpstring = 
     Write-Host $tmpstring
     Write-Logfile $tmpstring
     
-    $tmpstring = "Files: $($zipfiles.Count)"
+    $tmpstring = 
     Write-Host $tmpstring
     Write-Logfile $tmpstring
 
     #If counts match it is safe to delete the log files from disk
     if ($zippedcount -eq $($zipfiles.Count))
     {
-        $tmpstring = "Zipped file count matches log file count, safe to delete log files"
+        $tmpstring = 
         Write-Host $tmpstring
         Write-Logfile $tmpstring
         foreach($file in $zipfiles) 
@@ -317,7 +317,7 @@ foreach ($date in $dates)
             #Check whether archive path is accessible
             if ((Test-Path $ArchivePath) -ne $true)
             {
-                $tmpstring = "Log path $archivepath not found or inaccessible"
+                $tmpstring = 
                 Write-Warning $tmpstring
                 Write-Logfile $tmpstring
             }
@@ -334,7 +334,7 @@ foreach ($date in $dates)
                     catch
                     {
                         #Subfolder creation failed
-                        $tmpstring = "Unable to create $computername subfolder in $archivepath"
+                        $tmpstring = 
                         Write-Host $tmpstring
                         Write-Logfile $tmpstring
 
@@ -354,7 +354,7 @@ foreach ($date in $dates)
                     catch
                     {
                         #Subfolder creation failed
-                        $tmpstring = "Unable to create $logpathfoldername subfolder in $archivepath\$computername"
+                        $tmpstring = 
                         Write-Host $tmpstring
                         Write-Logfile $tmpstring
 
@@ -369,14 +369,14 @@ foreach ($date in $dates)
                 {
                     #Move the zip file
                     Move-Item $zipfilename -Destination $ArchivePath\$computername\$logpathfoldername -ErrorAction STOP
-                    $tmpstring = "$zipfilename was moved to $archivepath\$computername\$logpathfoldername"
+                    $tmpstring = 
                     Write-Host $tmpstring
                     Write-Logfile $tmpstring
                 }
                 catch
                 {
                     #Move failed, log the error
-                    $tmpstring = "Unable to move $zipfilename to $ArchivePath\$computername\$logpathfoldername"
+                    $tmpstring = 
                     Write-Host $tmpstring
                     Write-Logfile $tmpstring
                     Write-Warning $_.Exception.Message
@@ -388,7 +388,7 @@ foreach ($date in $dates)
     }
     else
     {
-        $tmpstring = "Zipped file count does not match log file count, not safe to delete log files"
+        $tmpstring = 
         Write-Host $tmpstring
         Write-Logfile $tmpstring
     }
@@ -397,7 +397,7 @@ foreach ($date in $dates)
 
 
 #Finished
-$tmpstring = "Finished"
+$tmpstring = 
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 

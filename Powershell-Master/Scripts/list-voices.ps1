@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the installed text-to-speech voices
 .DESCRIPTION
@@ -26,6 +26,6 @@ try {
 		Select-Object -Property Name, Culture, Gender, Age
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

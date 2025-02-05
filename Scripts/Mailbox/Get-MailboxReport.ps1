@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Get-MailboxReport.ps1 - Mailbox report generation script.
 
@@ -76,7 +76,7 @@ The MIT License (MIT)
 Copyright (c) 2015 Paul Cunningham
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
+of this software and associated documentation files (the ), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
@@ -85,7 +85,7 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -151,10 +151,10 @@ param(
 
 $now = Get-Date
 
-$ErrorActionPreference = "SilentlyContinue"
-$WarningPreference = "SilentlyContinue"
+$ErrorActionPreference = 
+$WarningPreference = 
 
-$reportemailsubject = "Exchange Mailbox Size Report - $now"
+$reportemailsubject = 
 $myDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $report = @()
@@ -198,7 +198,7 @@ else
     }
     else
     {
-        Write-Warning "Exchange Server management tools are not installed on this computer."
+        Write-Warning 
         EXIT
     }
 
@@ -217,7 +217,7 @@ else
 {
 	$timestamp = Get-Date -UFormat %Y%m%d-%H%M
 	$random = -join(48..57+65..90+97..122 | ForEach-Object {[char]$_} | Get-Random -Count 6)
-	$reportfile = "$mydir\MailboxReport-$timestamp-$random.csv"
+	$reportfile = 
 }
 
 
@@ -231,7 +231,7 @@ Import-Module ActiveDirectory -ErrorAction STOP
 
 #Get the mailbox list
 
-Write-Host -ForegroundColor White "Collecting mailbox list"
+Write-Host -ForegroundColor White 
 
 if($all) { $mailboxes = @(Get-Mailbox -resultsize unlimited -IgnoreDefaultScope) }
 
@@ -249,7 +249,7 @@ if($mailbox) { $mailboxes = @(Get-Mailbox $mailbox) }
 
 #Get the report
 
-Write-Host -ForegroundColor White "Collecting report data"
+Write-Host -ForegroundColor White 
 
 $mailboxcount = $mailboxes.count
 $i = 0
@@ -261,7 +261,7 @@ foreach ($mb in $mailboxes)
 {
 	$i = $i + 1
 	$pct = $i/$mailboxcount * 100
-	Write-Progress -Activity "Collecting mailbox details" -Status "Processing mailbox $i of $mailboxcount - $mb" -PercentComplete $pct
+	Write-Progress -Activity  -Status  -PercentComplete $pct
 
 	$stats = $mb | Get-MailboxStatistics | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount,LastLogonTime,LastLoggedOnUserAccount
     
@@ -271,12 +271,12 @@ foreach ($mb in $mailboxes)
     }
     else
     {
-        $archivestats = "n/a"
+        $archivestats = 
     }
 
-    $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where {$_.FolderPath -eq "/Inbox"}
-    $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems | Where {$_.FolderPath -eq "/Sent Items"}
-    $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems | Where {$_.FolderPath -eq "/Deleted Items"}
+    $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where {$_.FolderPath -eq }
+    $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems | Where {$_.FolderPath -eq }
+    $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems | Where {$_.FolderPath -eq }
     #FolderandSubFolderSize.ToMB()
 
 	$lastlogon = $stats.LastLogonTime
@@ -290,68 +290,68 @@ foreach ($mb in $mailboxes)
 	#Create a custom PS object to aggregate the data we're interested in
 	
 	$userObj = New-Object PSObject
-	$userObj | Add-Member NoteProperty -Name "DisplayName" -Value $mb.DisplayName
-	$userObj | Add-Member NoteProperty -Name "Mailbox Type" -Value $mb.RecipientTypeDetails
-	$userObj | Add-Member NoteProperty -Name "Title" -Value $user.Title
-    $userObj | Add-Member NoteProperty -Name "Department" -Value $user.Department
-    $userObj | Add-Member NoteProperty -Name "Office" -Value $user.Office
+	$userObj | Add-Member NoteProperty -Name  -Value $mb.DisplayName
+	$userObj | Add-Member NoteProperty -Name  -Value $mb.RecipientTypeDetails
+	$userObj | Add-Member NoteProperty -Name  -Value $user.Title
+    $userObj | Add-Member NoteProperty -Name  -Value $user.Department
+    $userObj | Add-Member NoteProperty -Name  -Value $user.Office
 
-    $userObj | Add-Member NoteProperty -Name "Total Mailbox Size (Mb)" -Value ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
-	$userObj | Add-Member NoteProperty -Name "Mailbox Size (Mb)" -Value $stats.TotalItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name "Mailbox Recoverable Item Size (Mb)" -Value $stats.TotalDeletedItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name "Mailbox Items" -Value $stats.ItemCount
+    $userObj | Add-Member NoteProperty -Name  -Value ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
+	$userObj | Add-Member NoteProperty -Name  -Value $stats.TotalItemSize.Value.ToMB()
+	$userObj | Add-Member NoteProperty -Name  -Value $stats.TotalDeletedItemSize.Value.ToMB()
+	$userObj | Add-Member NoteProperty -Name  -Value $stats.ItemCount
 
-    $userObj | Add-Member NoteProperty -Name "Inbox Folder Size (Mb)" -Value $inboxstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name "Sent Items Folder Size (Mb)" -Value $sentitemsstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name "Deleted Items Folder Size (Mb)" -Value $deleteditemsstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name  -Value $inboxstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name  -Value $sentitemsstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name  -Value $deleteditemsstats.FolderandSubFolderSize.ToMB()
 
-    if ($archivestats -eq "n/a")
+    if ($archivestats -eq )
     {
-        $userObj | Add-Member NoteProperty -Name "Total Archive Size (Mb)" -Value "n/a"
-	    $userObj | Add-Member NoteProperty -Name "Archive Size (Mb)" -Value "n/a"
-	    $userObj | Add-Member NoteProperty -Name "Archive Deleted Item Size (Mb)" -Value "n/a"
-	    $userObj | Add-Member NoteProperty -Name "Archive Items" -Value "n/a"
+        $userObj | Add-Member NoteProperty -Name  -Value 
+	    $userObj | Add-Member NoteProperty -Name  -Value 
+	    $userObj | Add-Member NoteProperty -Name  -Value 
+	    $userObj | Add-Member NoteProperty -Name  -Value 
     }
     else
     {
-        $userObj | Add-Member NoteProperty -Name "Total Archive Size (Mb)" -Value ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
-	    $userObj | Add-Member NoteProperty -Name "Archive Size (Mb)" -Value $archivestats.TotalItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name "Archive Deleted Item Size (Mb)" -Value $archivestats.TotalDeletedItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name "Archive Items" -Value $archivestats.ItemCount
+        $userObj | Add-Member NoteProperty -Name  -Value ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
+	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.TotalItemSize.Value.ToMB()
+	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.TotalDeletedItemSize.Value.ToMB()
+	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.ItemCount
     }
 
-    $userObj | Add-Member NoteProperty -Name "Audit Enabled" -Value $mb.AuditEnabled
-    $userObj | Add-Member NoteProperty -Name "Email Address Policy Enabled" -Value $mb.EmailAddressPolicyEnabled
-    $userObj | Add-Member NoteProperty -Name "Hidden From Address Lists" -Value $mb.HiddenFromAddressListsEnabled
-    $userObj | Add-Member NoteProperty -Name "Use Database Quota Defaults" -Value $mb.UseDatabaseQuotaDefaults
+    $userObj | Add-Member NoteProperty -Name  -Value $mb.AuditEnabled
+    $userObj | Add-Member NoteProperty -Name  -Value $mb.EmailAddressPolicyEnabled
+    $userObj | Add-Member NoteProperty -Name  -Value $mb.HiddenFromAddressListsEnabled
+    $userObj | Add-Member NoteProperty -Name  -Value $mb.UseDatabaseQuotaDefaults
     
     if ($mb.UseDatabaseQuotaDefaults -eq $true)
     {
-        $userObj | Add-Member NoteProperty -Name "Issue Warning Quota" -Value $primarydb.IssueWarningQuota
-        $userObj | Add-Member NoteProperty -Name "Prohibit Send Quota" -Value $primarydb.ProhibitSendQuota
-        $userObj | Add-Member NoteProperty -Name "Prohibit Send Receive Quota" -Value $primarydb.ProhibitSendReceiveQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.IssueWarningQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.ProhibitSendQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.ProhibitSendReceiveQuota
     }
     elseif ($mb.UseDatabaseQuotaDefaults -eq $false)
     {
-        $userObj | Add-Member NoteProperty -Name "Issue Warning Quota" -Value $mb.IssueWarningQuota
-        $userObj | Add-Member NoteProperty -Name "Prohibit Send Quota" -Value $mb.ProhibitSendQuota
-        $userObj | Add-Member NoteProperty -Name "Prohibit Send Receive Quota" -Value $mb.ProhibitSendReceiveQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $mb.IssueWarningQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $mb.ProhibitSendQuota
+        $userObj | Add-Member NoteProperty -Name  -Value $mb.ProhibitSendReceiveQuota
     }
 
-	$userObj | Add-Member NoteProperty -Name "Account Enabled" -Value $aduser.Enabled
-	$userObj | Add-Member NoteProperty -Name "Account Expires" -Value $aduser.AccountExpirationDate
-	$userObj | Add-Member NoteProperty -Name "Last Mailbox Logon" -Value $lastlogon
-	$userObj | Add-Member NoteProperty -Name "Last Logon By" -Value $stats.LastLoggedOnUserAccount
+	$userObj | Add-Member NoteProperty -Name  -Value $aduser.Enabled
+	$userObj | Add-Member NoteProperty -Name  -Value $aduser.AccountExpirationDate
+	$userObj | Add-Member NoteProperty -Name  -Value $lastlogon
+	$userObj | Add-Member NoteProperty -Name  -Value $stats.LastLoggedOnUserAccount
     
 
-	$userObj | Add-Member NoteProperty -Name "Primary Mailbox Database" -Value $mb.Database
-	$userObj | Add-Member NoteProperty -Name "Primary Server/DAG" -Value $primarydb.MasterServerOrAvailabilityGroup
+	$userObj | Add-Member NoteProperty -Name  -Value $mb.Database
+	$userObj | Add-Member NoteProperty -Name  -Value $primarydb.MasterServerOrAvailabilityGroup
 
-	$userObj | Add-Member NoteProperty -Name "Archive Mailbox Database" -Value $mb.ArchiveDatabase
-	$userObj | Add-Member NoteProperty -Name "Archive Server/DAG" -Value $archivedb.MasterServerOrAvailabilityGroup
+	$userObj | Add-Member NoteProperty -Name  -Value $mb.ArchiveDatabase
+	$userObj | Add-Member NoteProperty -Name  -Value $archivedb.MasterServerOrAvailabilityGroup
 
-    $userObj | Add-Member NoteProperty -Name "Primary Email Address" -Value $mb.PrimarySMTPAddress
-    $userObj | Add-Member NoteProperty -Name "Organizational Unit" -Value $user.OrganizationalUnit
+    $userObj | Add-Member NoteProperty -Name  -Value $mb.PrimarySMTPAddress
+    $userObj | Add-Member NoteProperty -Name  -Value $user.OrganizationalUnit
 
 	
 	#Add the object to the report
@@ -363,7 +363,7 @@ $reportcount = $report.count
 
 if ($reportcount -eq 0)
 {
-	Write-Host -ForegroundColor Yellow "No mailboxes were found matching that criteria."
+	Write-Host -ForegroundColor Yellow 
 }
 else
 {
@@ -375,7 +375,7 @@ else
 	else
 	{
 		$report | Export-Csv -Path $reportfile -NoTypeInformation -Encoding UTF8
-		Write-Host -ForegroundColor White "Report written to $reportfile in current path."
+		Write-Host -ForegroundColor White 
 		Get-Item $reportfile
 	}
 }
@@ -384,45 +384,28 @@ else
 if ($SendEmail)
 {
 
-    $topmailboxeshtml = $report | Sort "Total Mailbox Size (Mb)" -Desc | Select -First $top | Select DisplayName,Title,Department,Office,"Total Mailbox Size (Mb)" | ConvertTo-Html -Fragment
+    $topmailboxeshtml = $report | Sort  -Desc | Select -First $top | Select DisplayName,Title,Department,Office, | ConvertTo-Html -Fragment
 
     $reporthtml = $report | ConvertTo-Html -Fragment
 
-	$htmlhead="<html>
-				<style>
-				BODY{font-family: Arial; font-size: 8pt;}
-				H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-				H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-				H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-				TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
-				TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
-				TD{border: 1px solid #969595; padding: 5px; }
-				td.pass{background: #B7EB83;}
-				td.warn{background: #FFF275;}
-				td.fail{background: #FF2626; color: #ffffff;}
-				td.info{background: #85D4FF;}
-				</style>
-				<body>
-                <h1 align=""center"">Exchange Server Mailbox Report</h1>
-                <h3 align=""center"">Generated: $now</h3>
-                <p>Report of Exchange mailboxes. Top $top mailboxes are listed below. Full list of mailboxes is in the CSV file attached to this email.</p>"
+	$htmlhead=
     
-    $spacer = "<br />"
+    $spacer = 
 
-	$htmltail = "</body></html>"
+	$htmltail = 
 
 	$htmlreport = $htmlhead + $topmailboxeshtml + $htmltail
 
 	try
     {
-        Write-Host "Sending email report..."
+        Write-Host 
         Send-MailMessage @smtpsettings -Body $htmlreport -BodyAsHtml -Encoding ([System.Text.Encoding]::UTF8) -Attachments $reportfile -ErrorAction STOP
-        Write-Host "Finished."
+        Write-Host 
     }
     catch
     {
-        Write-Warning "An SMTP error has occurred, refer to log file for more details."
-        $_.Exception.Message | Out-File "$myDir\get-mailboxreport-error.log"
+        Write-Warning 
+        $_.Exception.Message | Out-File 
         EXIT
     }
 }

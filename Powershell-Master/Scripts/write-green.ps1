@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes text in a green foreground color
 .DESCRIPTION
@@ -6,16 +6,16 @@
 .PARAMETER text
 	Specifies the text to write
 .EXAMPLE
-	PS> ./write-green "Hello World"
+	PS> ./write-green 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
-if ($text -eq "" ) { $text = read-host "Enter the text to write" }
+if ($text -eq  ) { $text = read-host  }
 
-write-host -foregroundColor green "$text"
+write-host -foregroundColor green 
 exit 0 # success

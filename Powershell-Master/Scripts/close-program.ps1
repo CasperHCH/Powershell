@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes a program's processes 
 .DESCRIPTION
@@ -10,21 +10,21 @@
 .PARAMETER ProgramAliasName
 	Specifies the program alias name
 .EXAMPLE
-	PS> ./close-program "Google Chrome" "chrome.exe"
+	PS> ./close-program  
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$FullProgramName = "", [string]$ProgramName = "", [string]$ProgramAliasName = "")
+param([string]$FullProgramName = , [string]$ProgramName = , [string]$ProgramAliasName = )
 
 try {
-	if ($ProgramName -eq "") {
+	if ($ProgramName -eq ) {
 		get-process | where-object {$_.mainWindowTitle} | format-table Id, Name, mainWindowtitle -AutoSize
-		$ProgramName = read-host "Enter program name"
+		$ProgramName = read-host 
 	}
-	if ($FullProgramName -eq "") {
+	if ($FullProgramName -eq ) {
 		$FullProgramName = $ProgramName
 	}
 
@@ -38,7 +38,7 @@ try {
 	} else {
 		$Processes = get-process -name $ProgramAliasName -errorAction 'silentlycontinue'
 		if ($Processes.Count -eq 0) {
-			throw "$FullProgramName isn't running"
+			throw 
 		}
 		foreach ($Process in $Processes) {
 			$_.CloseMainWindow() | Out-Null
@@ -47,12 +47,12 @@ try {
 		stop-process -name $ProgramName -force -errorAction 'silentlycontinue'
 	}
 	if ($($Processes.Count) -eq 1) {
-		"✔️ $FullProgramName closed, 1 process stopped"
+		
 	} else {
-		"✔️ $FullProgramName closed, $($Processes.Count) processes stopped"
+		
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

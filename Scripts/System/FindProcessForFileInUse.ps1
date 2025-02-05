@@ -1,11 +1,11 @@
-﻿#requires -version 2
+#requires -version 2
 <#
 .SYNOPSIS
   <Overview of script>
 .DESCRIPTION
   Find the process which is blocking a file
 .PARAMETER $FileOrFolderPath
-    Insert the full path of the "blocked" file
+    Insert the full path of the  file
 .INPUTS
   <Inputs if any, otherwise state None>
 .OUTPUTS
@@ -34,7 +34,7 @@ $sScriptVersion = '1.0'
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogFile = "$sLogPath\$sLogName.log"
+$sLogFile = 
 
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Initialisations started'
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
@@ -57,8 +57,8 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host "Module $m is already imported."
-		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+        write-host 
+		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
 		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -79,8 +79,8 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host "Module $m not imported, not available and not in an online gallery, exiting."
-				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                write-host 
+				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
 				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -103,7 +103,7 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
   Param()
   
   Begin{
-    Write-Log -Entry "<description of what is going on>..."
+    Write-Log -Entry 
   }
   
   Process{
@@ -119,8 +119,8 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
   
   End{
     If($?){
-      Write-Log -Entry "Completed Successfully."
-      Write-Log -Entry " "
+      Write-Log -Entry 
+      Write-Log -Entry 
     }
   }
 }
@@ -131,23 +131,18 @@ Function Write-Log {
         [String]$Entry
     )
 
-    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') $Entry" | Out-File -FilePath $sLogFile -Append
+     | Out-File -FilePath $sLogFile -Append
 }
 
-Function FindProcess{
-  Param($FileOrFolderPath)
-  
-  Begin{
-    Write-Log -Entry "<description of what is going on>..."
-  }
+
   
   Process{
     Try{
       if ((Test-Path -Path $FileOrFolderPath) -eq $false) {
-    Write-Warning "File or directory does not exist."       
+    Write-Warning        
 	}
 	else {
-		$LockingProcess = CMD /C "openfiles /query /fo table | find /I ""$FileOrFolderPath"""
+		$LockingProcess = CMD /C 
 		Write-Host $LockingProcess
 		}
 	}
@@ -160,8 +155,8 @@ Function FindProcess{
   
   End{
     If($?){
-      Write-Log -Entry "Completed Successfully."
-      Write-Log -Entry " "
+      Write-Log -Entry 
+      Write-Log -Entry 
     }
   }
 }

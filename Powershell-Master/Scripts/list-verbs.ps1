@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists verbs
 .DESCRIPTION
@@ -20,6 +20,6 @@ try {
 	Get-Verb | Sort-Object -Property Verb
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

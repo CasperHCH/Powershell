@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Builds Git repositories
 .DESCRIPTION
@@ -13,28 +13,28 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$ParentDir = "$PWD")
+param([string]$ParentDir = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	$ParentDirName = (Get-Item "$ParentDir").Name
-	"⏳ Step 1 - Checking parent folder 📂$ParentDirName..."
-	if (-not(Test-Path "$ParentDir" -pathType container)) { throw "Can't access folder: $ParentDir" }
-	$Folders = (Get-ChildItem "$ParentDir" -attributes Directory)
+	$ParentDirName = (Get-Item ).Name
+	
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$Folders = (Get-ChildItem  -attributes Directory)
 	$FolderCount = $Folders.Count
-	"Found $FolderCount subfolders."
+	
 
 	[int]$Step = 1
 	foreach ($Folder in $Folders) {
-		& "$PSScriptRoot/build-repo.ps1" "$Folder"
+		&  
 		$Step++
 	}
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ built $FolderCount Git repositories at 📂$ParentDirName in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

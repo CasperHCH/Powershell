@@ -3,11 +3,11 @@ function Check-WindowsFeature {
     param(
         [Parameter(Position=0,Mandatory=$true)] [string]$FeatureName
     )
-  if((Get-WindowsOptionalFeature -FeatureName $FeatureName -Online).State -eq "Enabled") {
-        Write-Host $FeatureName "is Installed"
+  if((Get-WindowsOptionalFeature -FeatureName $FeatureName -Online).State -eq ) {
+        Write-Host $FeatureName 
         # (simplified function to paste here)
     } else {
-        Write-Host "Install" $FeatureName
+        Write-Host  $FeatureName
     }
   }
  Check-WindowsFeature

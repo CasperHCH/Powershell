@@ -1,4 +1,4 @@
-﻿Function NSG-GetUserAutomapping {
+Function NSG-GetUserAutomapping {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True)]

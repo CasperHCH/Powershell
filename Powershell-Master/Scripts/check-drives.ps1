@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the drive space
 .DESCRIPTION
@@ -17,45 +17,44 @@
 
 param([int64]$minLevel = 10) # 10 GB minimum
 
-function Bytes2String { param([int64]$bytes)
-        if ($bytes -lt 1000) { return "$bytes bytes" }
+
         $bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)KB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)MB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)GB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-        if ($bytes -lt 1000) { return "$($bytes)TB" }
+        if ($bytes -lt 1000) { return  }
         $bytes /= 1000
-        return "$($bytes)PB"
+        return 
 }
 
 try {
-	Write-Progress "⏳ Querying drives..."
+	Write-Progress 
 	$drives = Get-PSDrive -PSProvider FileSystem
 	$minLevel *= 1000 * 1000 * 1000
-	Write-Progress -completed "."
+	Write-Progress -completed 
 	foreach($drive in $drives) {
 		$details = (Get-PSDrive $drive.Name)
-		if ($IsLinux) { $name = $drive.Name } else { $name = $drive.Name + ":" }
+		if ($IsLinux) { $name = $drive.Name } else { $name = $drive.Name +  }
 		[int64]$free = $details.Free
  		[int64]$used = $details.Used
 		[int64]$total = ($used + $free)
 
 		if ($total -eq 0) {
-			Write-Host "✅ Drive $name is empty"
+			Write-Host 
 		} elseif ($free -eq 0) {
-			Write-Host "⚠️ Drive $name with $(Bytes2String $total) is full"
+			Write-Host 
 		} elseif ($free -lt $minLevel) {
-			Write-Host "⚠️ Drive $name with $(Bytes2String $total) is nearly full, $(Bytes2String $free) free"
+			Write-Host 
 		} else {
 			[int]$percent = ($used * 100) / $total
-			Write-Host "✅ Drive $name uses $percent% of $(Bytes2String $total), $(Bytes2String $free) free"
+			Write-Host 
 		}
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

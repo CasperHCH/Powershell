@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks an IPv4 address for validity
 .DESCRIPTION
@@ -14,28 +14,8 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Address = "")
+param([string]$Address = )
 
-function IsIPv4AddressValid { param([string]$IP)
-	$RegEx = "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-	if ($IP -match $RegEx) {
-		return $true
-	} else {
-		return $false
-	}
-}
-
-try {
-	if ($Address -eq "" ) { $Address = read-host "Enter IPv4 address to validate" }
-
-	if (IsIPv4AddressValid $Address) {
-		"✔️ IPv4 $Address is valid"
-		exit 0 # success
-	} else {
-		write-warning "Invalid IPv4 address: $Address"
-		exit 1
-	}
-} catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$Enter IPv4 address to validate✔️ IPv4 $Address is validInvalid IPv4 address: $Address⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
 	exit 1
 }

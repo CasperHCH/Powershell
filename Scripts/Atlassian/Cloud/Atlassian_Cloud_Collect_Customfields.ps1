@@ -1,4 +1,4 @@
-﻿#requires -version 2
+#requires -version 2
 <#
 .SYNOPSIS
  <Overview of script>
@@ -32,7 +32,7 @@ Param (
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogFile = "$sLogPath\$sLogName.log"
+$sLogFile = 
 
 Write-LogInfo -LogPath $sLogFile -Message 'Initialisations started'
 Write-LogInfo -LogPath $sLogFile -Message ' '
@@ -55,8 +55,8 @@ Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
   # If module is imported say that and do nothing
   if (Get-Module | Where-Object {$_.Name -eq $m}) {
-    write-host "Module $m is already imported."
-		Write-LogInfo -LogPath $sLogFile -Message "Module $m is already imported."
+    write-host 
+		Write-LogInfo -LogPath $sLogFile -Message 
 		Write-LogInfo -LogPath $sLogFile -Message ' '
   }
   else {
@@ -77,8 +77,8 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
       else {
 
         # If the module is not imported, not available and not in the online gallery then abort
-        write-host "Module $m not imported, not available and not in an online gallery, exiting."
-				Write-LogInfo -LogPath $sLogFile -Message "Module $m not imported, not available and not in an online gallery, exiting."
+        write-host 
+				Write-LogInfo -LogPath $sLogFile -Message 
 				Write-LogInfo -LogPath $sLogFile -Message ' '
         EXIT 1
       }
@@ -105,7 +105,7 @@ Function <FunctionName>{
  Param()
  
  Begin{
-  Write-Log -Entry "<description of what is going on>..."
+  Write-Log -Entry 
  }
  
  Process{
@@ -121,8 +121,8 @@ Function <FunctionName>{
  
  End{
   If($?){
-   Write-Log -Entry "Completed Successfully."
-   Write-Log -Entry " "
+   Write-Log -Entry 
+   Write-Log -Entry 
   }
  }
 }
@@ -134,16 +134,10 @@ Function Write-Log {
     [String]$Entry
   )
 
-  "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') $Entry" | Out-File -FilePath $sLogFile -Append
+   | Out-File -FilePath $sLogFile -Append
 }
 ######### GetUrl #########
-Function GetUrl{
- Param()
- 
- Begin{
-  Write-LogInfo -LogPath $sLogFile -Message 'GetUrl started'
-	Write-LogInfo -LogPath $sLogFile -Message 'Asking initiator to insert a URL for an Atlassian Cloud site.'
- }
+
  
  Process{
   Try{
@@ -159,24 +153,18 @@ Function GetUrl{
  
  End{
   If($?){
-   Write-Log -Entry "Completed Successfully."
-   Write-Log -Entry " "
+   Write-Log -Entry 
+   Write-Log -Entry 
   }
  }
 }
 ######### Collect Admin account email #########
-Function CollectAdminAccount{
- Param()
- 
- Begin{
-  	Write-LogInfo -LogPath $sLogFile -Message 'CollectAdminAccount started'
-		Write-LogInfo -LogPath $sLogFile -Message ''
- }
+
  
  Process{
   Try{
    $script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
-	 	Write-LogInfo -LogPath $sLogFile -Message "AdminAccount Token collected as $AdminAccount"
+	 	Write-LogInfo -LogPath $sLogFile -Message 
 		Write-LogInfo -LogPath $sLogFile -Message ' '
   }
   
@@ -188,25 +176,19 @@ Function CollectAdminAccount{
  
  End{
   If($?){
-   Write-Log -Entry "Completed Successfully."
-   Write-Log -Entry " "
+   Write-Log -Entry 
+   Write-Log -Entry 
   }
  }
 }
 
 ######### Provide API Token#########
-Function ProvideAPIToken{
- Param()
- 
- Begin{
-  	Write-LogInfo -LogPath $sLogFile -Message 'ProvideAPIToken started'
-		Write-LogInfo -LogPath $sLogFile -Message ''
- }
+
  
  Process{
   Try{
    $script:ApiToken = read-host -prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-	 	Write-LogInfo -LogPath $sLogFile -Message "API Token collected as $ApiToken"
+	 	Write-LogInfo -LogPath $sLogFile -Message 
 		Write-LogInfo -LogPath $sLogFile -Message ' '
   }
   
@@ -218,28 +200,22 @@ Function ProvideAPIToken{
  
  End{
   If($?){
-   Write-Log -Entry "Completed Successfully."
-   Write-Log -Entry " "
+   Write-Log -Entry 
+   Write-Log -Entry 
   }
  }
 }
 ######### CollectCustomFields #########
-Function CollectCustomFields{
- Param()
- 
- Begin{
-  	Write-LogInfo -LogPath $sLogFile -Message 'CollectCustomFields started'
-		Write-LogInfo -LogPath $sLogFile -Message 'We dont know how many fields there is - lets assume many... #1000?'
- }
+
  
  Process{
   Try{
 		$startInt = 0
-		Write-LogInfo -LogPath $sLogFile -Message "CollectCustomFields started"
+		Write-LogInfo -LogPath $sLogFile -Message 
 		Write-LogInfo -LogPath $sLogFile -Message ' '
 			while($startInt -lt 1001){ 
-				curl --URL "$($url)/rest/api/3/field/search?startAt=$($startInt)" --USER $($AdminAccount):$($token) | Out-File -FilePath "$($sLogPath)\$($sLogName).json" -Append
-				Write-LogInfo -LogPath $sLogFile -Message "$($startInt) CustomFields collected and added to $($sLogPath)\$($sLogName).json"
+				curl --URL  --USER $($AdminAccount):$($token) | Out-File -FilePath  -Append
+				Write-LogInfo -LogPath $sLogFile -Message 
 				Write-LogInfo -LogPath $sLogFile -Message ' '
 				
 				$startInt += 50
@@ -254,8 +230,8 @@ Function CollectCustomFields{
  
  End{
   If($?){
-   Write-Log -Entry "Completed Successfully."
-   Write-Log -Entry " "
+   Write-Log -Entry 
+   Write-Log -Entry 
   }
  }
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the root directory 
 .DESCRIPTION
@@ -13,11 +13,11 @@
 #>
 
 try {
-	if ($IsLinux) {	$Path = "/" } else { $Path = "C:\" }
-	Set-Location "$Path"
-	"📂$Path"
+	if ($IsLinux) {	$Path =  } else { $Path =  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

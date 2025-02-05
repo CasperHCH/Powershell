@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the time until Easter Sunday
 .DESCRIPTION
@@ -13,16 +13,16 @@
 
 try {
 	$Now = [DateTime]::Now
-	$Easter = [Datetime]("04/17/2022")
+	$Easter = [Datetime]()
 	if ($Now -lt $Easter) {
 		$Diff = $Easter – $Now
-		& "$PSScriptRoot/speak-english.ps1" "Easter Sunday on April 17 is in $($Diff.Days) days."
+		&  
 	} else {
 		$Diff = $Now - $Easter
-		& "$PSScriptRoot/speak-english.ps1" "Easter Sunday on April 17 was $($Diff.Days) days ago."
+		&  
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

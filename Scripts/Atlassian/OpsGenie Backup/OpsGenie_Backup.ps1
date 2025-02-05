@@ -11,7 +11,7 @@
 .OUTPUTS Log File
   The script log file stored in C:\Windows\Temp\OpsGenie Backup.log
  .OUTPUTS Backupfile
-  The script will create a new folder called "OpsGenieBackups", and then rename it to the current account name, once the backup is done.
+  The script will create a new folder called , and then rename it to the current account name, once the backup is done.
   The Backup will be placed at $PSScriptRoot
 .NOTES
   Version:        1.0
@@ -63,8 +63,8 @@ Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host "Module $m is already imported."
-		Write-LogInfo -LogPath $sLogFile -Message "Module $m is already imported."
+        write-host 
+		Write-LogInfo -LogPath $sLogFile -Message 
 		Write-LogInfo -LogPath $sLogFile -Message ' '
     }
     else {
@@ -85,8 +85,8 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host "Module $m not imported, not available and not in an online gallery, exiting."
-				Write-LogInfo -LogPath $sLogFile -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                write-host 
+				Write-LogInfo -LogPath $sLogFile -Message 
 				Write-LogInfo -LogPath $sLogFile -Message ' '
                 EXIT 1
             }
@@ -121,12 +121,12 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
 function SelectAPI(){
 	Write-LogInfo -LogPath $sLogFile -Message 'Switchcase started to select an account'
 	Write-LogInfo -LogPath $sLogFile -Message ' '
-    Write-Host "================ Select between available OpsGenie Sites ================" -ForegroundColor Green
-    Write-Host "OPSGenie TrialSite	: Press '1' for this option."-ForegroundColor Green
-    Write-Host "PandoraDigital		: Press '2' for this option."-ForegroundColor Green
-	Write-Host "KarnovGroup		: Press '3' for this option."-ForegroundColor Green
+    Write-Host  -ForegroundColor Green
+    Write-Host -ForegroundColor Green
+    Write-Host -ForegroundColor Green
+	Write-Host -ForegroundColor Green
 
-    $Selection = Read-Host "Please select an option"
+    $Selection = Read-Host 
     switch ($Selection)
         {
             '1' {#Option 1 is selected
@@ -156,7 +156,7 @@ function SelectAPI(){
 					Write-LogInfo -LogPath $sLogFile -Message ' '
                 
                 }#end option 3
-        Default {Write-Host "Invalid entry. Please enter a number between 1 - X " -ForegroundColor Red
+        Default {Write-Host  -ForegroundColor Red
 				Write-LogInfo -LogPath $sLogFile -Message 'Switchcase = Invalid entry.'
 				Write-LogInfo -LogPath $sLogFile -Message ' '}#END Default
         }#End Switch
@@ -166,11 +166,7 @@ function SelectAPI(){
 ######### Do Backup #########
 
 
-Function doBackup {
-  Param ()
-  Begin {
-    Write-LogInfo -LogPath $sLogFile -Message "Connecting to OpsGenie, to grab a backup of selected site, backup will be placed at $PSScriptRoot -> OpsGenieBackups"
-  }
+
   Process {
     Try {
       java -jar OpsGenieExportUtil-0.23.7.jar --apiKey $apiKey
@@ -189,16 +185,12 @@ Function doBackup {
 }
 
 ########## Collect AccountName #########
-Function CollectAccountName {
-  Param ()
-  Begin {
-    Write-LogInfo -LogPath $sLogFile -Message 'Connecting to OpsGenie, to grab the account name'
-  }
+
   Process {
     Try {	   
-		if($script:Data = curl -X GET https://api.eu.opsgenie.com/v2/account --header "Authorization: GenieKey $apiKey" ){}
+		if($script:Data = curl -X GET https://api.eu.opsgenie.com/v2/account --header  ){}
 		Else{
-			$script:Data = curl -X GET https://api.opsgenie.com/v2/account --header "Authorization: GenieKey $apiKey"
+			$script:Data = curl -X GET https://api.opsgenie.com/v2/account --header 
 		}
     }
     Catch {
@@ -226,7 +218,7 @@ CollectAccountName
 		$FolderName = $AccountName.data.name
 if($FolderName -ne $null) {	New-Item $PSScriptRoot\$FolderName -itemType Directory
 							Move-Item -Path $PSScriptRoot\OpsGenieBackups -Destination $FolderName
-							Write-LogInfo -LogPath $sLogFile -Message "Backup content moved to $PSScriptRoot\$FolderName"
+							Write-LogInfo -LogPath $sLogFile -Message 
 							Write-LogInfo -LogPath $sLogFile -Message ' '}
 Write-LogInfo -LogPath $sLogFile -Message 'Script completed Successfully.'
 Write-LogInfo -LogPath $sLogFile -Message ' '

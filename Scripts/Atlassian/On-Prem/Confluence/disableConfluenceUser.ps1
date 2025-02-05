@@ -3,7 +3,7 @@
 .SYNOPSIS
   Disables a user on Confluence Data Center
 .DESCRIPTION
-  Uses the Confluence REST API to update the user's status to "inactive," effectively disabling the user.
+  Uses the Confluence REST API to update the user's status to  effectively disabling the user.
 .PARAMETER <CONFLUENCE_BASE_URL>
     The base URL of the Confluence instance
 .PARAMETER <USERNAME>
@@ -23,7 +23,7 @@
   Purpose/Change: Initial script development
   
 .EXAMPLE
-  Disable-ConfluenceUser -confluenceUrl "https://confluence.example.com" -USERNAME "john.doe" -adminUsername "admin" -adminPassword "password123"
+  Disable-ConfluenceUser -confluenceUrl  -USERNAME  -adminUsername  -adminPassword 
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
@@ -43,7 +43,7 @@ $sScriptVersion = '1.0'
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogFile = "$sLogPath\$sLogName.log"
+$sLogFile = 
 
 #Enabling log
 Function Write-Log {
@@ -52,7 +52,7 @@ Function Write-Log {
         [String]$Entry
     )
 
-    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') $Entry" | Out-File -FilePath $sLogFile -Append
+     | Out-File -FilePath $sLogFile -Append
 }
 
 Write-Log -LogPath $sLogFile -TimeStamp -Message 'Initialisations started'
@@ -76,8 +76,8 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host "Module $m is already imported."
-		Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+        write-host 
+		Write-Log -LogPath $sLogFile -TimeStamp -Message 
 		Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -92,14 +92,14 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
                 Install-Module -Name $m -Force -Verbose -Scope CurrentUser
                 Import-Module $m -Verbose
-				Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not found, install started"
+				Write-Log -LogPath $sLogFile -TimeStamp -Message 
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             }
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host "Module $m not imported, not available and not in an online gallery, exiting."
-				Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                write-host 
+				Write-Log -LogPath $sLogFile -TimeStamp -Message 
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -124,7 +124,7 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   Param()
   
   Begin{
-    Write-Log -Entry "<description of what is going on>..."
+    Write-Log -Entry 
   }
   
   Process{
@@ -140,43 +140,40 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   
   End{
     If($?){
-      Write-Log -Entry "Completed Successfully."
-      Write-Log -Entry " "
+      Write-Log -Entry 
+      Write-Log -Entry 
     }
   }
 }
 #>
 
-Function DisableUser{
-  Begin{
-    Write-Log -Entry "<description of what is going on>..."
-  }
+
   
   Process{
     Try{
-     # Set the user's status to "inactive"
-		$updateUserUrl = "$confluenceUrl/rest/api/user?username=$username"
-		$updateUserBody = '{"active":false}'
-		$updateUserResponse = Invoke-RestMethod -Method Put -Uri $updateUserUrl -Body $updateUserBody -ContentType "application/json" -Headers $headers
+     # Set the user's status to 
+		$updateUserUrl = 
+		$updateUserBody = '{:false}'
+		$updateUserResponse = Invoke-RestMethod -Method Put -Uri $updateUserUrl -Body $updateUserBody -ContentType  -Headers $headers
 	# Check the response to see if the update was successful
-		if ($updateUserResponse.status -eq "OK") {
-			Write-Log "User $username has been disabled."
+		if ($updateUserResponse.status -eq ) {
+			Write-Log 
 			}
 		else {
-			Write-Log "Failed to disable user $username. Error: $($updateUserResponse.message)"
+			Write-Log 
 			}
 		}
     
     Catch{
-      Write-Log"$_.Exception" -ExitGracefully $True
+      Write-Log -ExitGracefully $True
       Break
     }
   }
   
   End{
     If($?){
-      Write-Log -Entry "Completed Successfully."
-      Write-Log -Entry " "
+      Write-Log -Entry 
+      Write-Log -Entry 
     }
   }
 }
@@ -184,18 +181,18 @@ Function DisableUser{
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -Entry "$sLogName, $sScriptVersion"
-Write-Log -Entry " "
-Write-Log -Entry "Script execution started"
+Write-Log -Entry 
+Write-Log -Entry 
+Write-Log -Entry 
 #Script Execution goes here
 
 # Set up the basic auth header
-$authHeader = ("{0}:{1}" -f $adminUsername, $adminPassword)
+$authHeader = ( -f $adminUsername, $adminPassword)
 $authHeader = [System.Text.Encoding]::UTF8.GetBytes($authHeader)
 $authHeader = [System.Convert]::ToBase64String($authHeader)
-$headers = @{Authorization=("Basic {0}" -f $authHeader)}
+$headers = @{Authorization=( -f $authHeader)}
 
 DisableUser
 
 #No new executions below
-Write-Log -Entry "End of log"
+Write-Log -Entry

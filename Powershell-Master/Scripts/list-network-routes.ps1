@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists network routes
 .DESCRIPTION
@@ -15,6 +15,6 @@ try {
 	& route print
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

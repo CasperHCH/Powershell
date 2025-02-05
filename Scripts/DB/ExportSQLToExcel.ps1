@@ -1,13 +1,13 @@
-﻿#some variables
-$serverName = "miraclesql2012";
-$databaseName = "'JIRA-DB-TEST-[MIR-TST-JIRA01]'";
+#some variables
+$serverName = ;
+$databaseName = ;
 
 #the save location for the new Excel file
-$filepath = "C:\temp\Project-Statistics.xlsx";
+$filepath = ;
 
 # Check if file exist, if it does, delete it
 # File contains previous output of Project Statistics
-$file = "C:\temp\Project-Statistics.xlsx"
+$file = 
 If(test-path $file)
 {
      Remove-Item -Path $file -Recurse
@@ -20,32 +20,32 @@ $worksheetA = $workbook.Worksheets.Add()
 
 #create byUser worksheet
 $sheet1 = $workbook.worksheets.Item(1)
-$sheet1.name = "Project-Statistics"
+$sheet1.name = 
  
 #create a Dataset to store the DataTable 
-$dataSet = new-object "System.Data.DataSet" "Project-Statistics"
+$dataSet = new-object  
  
 #create a Connection to the SQL Server database
-$cn = new-object System.Data.SqlClient.SqlConnection "server=$serverName;database=$databaseName;Integrated Security=sspi"
-$query= "SELECT us.email_address, MAX(us.display_name)Lead_Display_Name, us.lower_user_name, pr.LEAD, pr.pname, pr.pkey, count(ji.id)Issue_Count FROM jiraissue ji left join project pr on pr.id = ji.project left join cwd_user us on us.lower_user_name = pr.LEAD group by pr.pkey, us.email_address, pr.pname,us.lower_user_name, pr.LEAD;"
+$cn = new-object System.Data.SqlClient.SqlConnection 
+$query= 
 
 #Create a SQL Data Adapter to place the resultset into the DataSet
-$dataAdapter = new-object "System.Data.SqlClient.SqlDataAdapter" ($query, $cn)
+$dataAdapter = new-object  ($query, $cn)
 $dataAdapter.Fill($dataSet) | Out-Null
 
 #close the connection
 $cn.Close()
  
-$dataTable = new-object "System.Data.DataTable" "Principals"
+$dataTable = new-object  
 $dataTable = $dataSet.Tables[0]
 #assign  column names
-$sheet1.cells.item(1, 1) =  "Lead Email"
-$sheet1.cells.item(1, 2) =  "Lead Display Name"
-$sheet1.cells.item(1, 3) =  "Lead Username Lower Case"
-$sheet1.cells.item(1, 4) =  "Lead Username"
-$sheet1.cells.item(1, 5) =  "Project Name"
-$sheet1.cells.item(1, 6) =  "Project Key"
-$sheet1.cells.item(1, 7) =  "Issue Count"
+$sheet1.cells.item(1, 1) =  
+$sheet1.cells.item(1, 2) =  
+$sheet1.cells.item(1, 3) =  
+$sheet1.cells.item(1, 4) =  
+$sheet1.cells.item(1, 5) =  
+$sheet1.cells.item(1, 6) =  
+$sheet1.cells.item(1, 7) =  
  
 #iterate through every DataTable line item and insert to the Excel worksheete
 
@@ -68,5 +68,5 @@ $range1 = $sheet1.UsedRange
 $range1.EntireColumn.AutoFit()
 
 #save excel worksbook
-$excel.ActiveWorkbook.SaveAs("$filepath ")
+$excel.ActiveWorkbook.SaveAs()
 $excel.quit()

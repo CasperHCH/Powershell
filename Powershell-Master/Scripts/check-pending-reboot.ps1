@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Check for pending reboots
 .DESCRIPTION
@@ -22,52 +22,52 @@ function Test-RegistryValue { param([parameter(Mandatory=$true)][ValidateNotNull
 }
 
 try {
-	$Reason = ""
+	$Reason = 
 	if ($IsLinux) {
-		if (Test-Path "/var/run/reboot-required") {
-			$Reason = "found: /var/run/reboot-required"
-			Write-Host "⚠️ Pending reboot ($Reason)"
+		if (Test-Path ) {
+			$Reason = 
+			Write-Host 
 		}
 	} else {
-		if (Test-Path -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") {
-			$Reason += ", ...\Auto Update\RebootRequired"
+		if (Test-Path -Path ) {
+			$Reason += 
 		}
-		if (Test-Path -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\PostRebootReporting") {
-			$Reason += ", ...\Auto Update\PostRebootReporting"
+		if (Test-Path -Path ) {
+			$Reason += 
 		}
-		if (Test-Path -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
-			$Reason += ", ...\Component Based Servicing\RebootPending"
+		if (Test-Path -Path ) {
+			$Reason += 
 		}
-		if (Test-Path -Path "HKLM:\SOFTWARE\Microsoft\ServerManager\CurrentRebootAttempts") {
-			$Reason += ", ...\ServerManager\CurrentRebootAttempts"
+		if (Test-Path -Path ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing" -Value "RebootInProgress") {
-			$Reason += ", ...\CurrentVersion\Component Based Servicing with 'RebootInProgress'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing" -Value "PackagesPending") {
-			$Reason += ", '...\CurrentVersion\Component Based Servicing' with 'PackagesPending'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Value "PendingFileRenameOperations2") {
-			$Reason += ", '...\CurrentControlSet\Control\Session Manager' with 'PendingFileRenameOperations2'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce" -Value "DVDRebootSignal") {
-			$Reason += ", '...\Windows\CurrentVersion\RunOnce' with 'DVDRebootSignal'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon" -Value "JoinDomain") {
-			$Reason += ", '...\CurrentControlSet\Services\Netlogon' with 'JoinDomain'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if (Test-RegistryValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon" -Value "AvoidSpnSet") {
-			$Reason += ", '...\CurrentControlSet\Services\Netlogon' with 'AvoidSpnSet'"
+		if (Test-RegistryValue -Path  -Value ) {
+			$Reason += 
 		}
-		if ($Reason -ne "") {
-			Write-Host "⚠️ Pending reboot (registry contains $($Reason.substring(2)))"
+		if ($Reason -ne ) {
+			Write-Host 
 		}
 	}
-	if ($Reason -eq "") {
-		Write-Host "✅ No pending reboot"
+	if ($Reason -eq ) {
+		Write-Host 
 	}
 	exit 0 # success
 } catch {
-        "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+        
         exit 1
 }

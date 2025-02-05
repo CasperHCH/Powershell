@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens Microsoft Office 365
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://portal.office.com"
+&  
 exit 0 # success

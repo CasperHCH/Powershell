@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes Spotify
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/close-program.ps1" "Spotify" "spotify" ""
+&    
 exit 0 # success

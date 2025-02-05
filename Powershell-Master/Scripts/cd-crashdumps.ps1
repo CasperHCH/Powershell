@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Change to the crash dumps folder
 .DESCRIPTION
@@ -13,14 +13,14 @@
 #>
 
 try {
-	[string]$Path = Resolve-Path -Path "~"
-	if (!(Test-Path $Path)) { throw "Home directory at $Path doesn't exist (yet)" }
-	$Path += "\AppData\Local\CrashDumps"
-	if (!(Test-Path $Path)) { throw "Crashdumps directory at $Path doesn't exist (yet)" }
-	Set-Location "$Path"
-	"📂$Path"
+	[string]$Path = Resolve-Path -Path 
+	if (!(Test-Path $Path)) { throw  }
+	$Path += 
+	if (!(Test-Path $Path)) { throw  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

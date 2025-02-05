@@ -1,4 +1,4 @@
-﻿<#
+<#
     .SYNOPSIS
     Connect-Office365Services
 
@@ -60,7 +60,7 @@
 
     To load the helper functions from your PowerShell profile, put Connect-Office365Services.ps1 in the same location
     as your $profile file, and edit $profile as follows:
-    & (Join-Path $PSScriptRoot "Connect-Office365Services.ps1")
+    & (Join-Path $PSScriptRoot )
 
     .HISTORY
     1.2     Community release
@@ -284,7 +284,7 @@
             Changes due to deprecation of ExoPowershellModule (use EXOPSv2 instead)
             Connect-ExchangeOnline will use ExchangeOnlineManagement
             Removed obsolete Connect-ExchangeOnlinev2 helper function
-            Replaced variable-substitution strings "$(..)" with -f formatted versions
+            Replaced variable-substitution strings  with -f formatted versions
             Replaced aliases with full verbs. Happy PSScriptAnalyzer :)
             Due to removal of non-repository module checks, significant loading speed reduction.
     2.61    Updated connecting to EOP and S&C center using EXOPSv2 module
@@ -322,7 +322,7 @@
     3.00    Fixed wrongly detecting old modules because mixed native PS module and PSGet cmdlets
             Back to using native PS module management cmdlets
             Some cosmetics
-            Startup only reports installed modules, not "not installed"
+            Startup only reports installed modules, not 
             Report now also reports not installed modules
             Removed PSGet check 
     3.01    Added Preview info when reporting local module info
@@ -498,8 +498,8 @@ function global:Connect-ExchangeOnline {
         [uint32]$PageSize,
         [switch]$Device,
         [switch]$InlineCredential,
-        [string[]]$CommandName = @("*"),
-        [string[]]$FormatTypeName = @("*"),
+        [string[]]$CommandName = @(),
+        [string[]]$FormatTypeName = @(),
         [switch]$UseRPSSession = $false
     )
     if (!( $PSBoundParameters.ContainsKey('ConnectionUri'))) {
@@ -543,7 +543,7 @@ function global:Connect-ExchangeOnPremises {
     If ( !($global:myOffice365Services['OnPremisesCredentials'])) { Get-OnPremisesCredentials }
     If ( !($global:myOffice365Services['ExchangeOnPremisesFQDN'])) { Get-ExchangeOnPremisesFQDN }
     Write-Host ('Connecting to Exchange On-Premises {0} using {1} ..' -f $global:myOffice365Services['ExchangeOnPremisesFQDN'], $global:myOffice365Services['OnPremisesCredentials'].username)
-    $global:myOffice365Services['SessionExchange'] = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "http://$($global:myOffice365Services['ExchangeOnPremisesFQDN'])/PowerShell" -Credential $global:myOffice365Services['OnPremisesCredentials'] -Authentication Kerberos -AllowRedirection -SessionOption $global:myOffice365Services['SessionExchangeOptions']
+    $global:myOffice365Services['SessionExchange'] = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri  -Credential $global:myOffice365Services['OnPremisesCredentials'] -Authentication Kerberos -AllowRedirection -SessionOption $global:myOffice365Services['SessionExchangeOptions']
     If ( $global:myOffice365Services['SessionExchange']) {Import-PSSession -Session $global:myOffice365Services['SessionExchange'] -AllowClobber}
 }
 
@@ -656,7 +656,7 @@ function global:Connect-SharePointOnline {
             }
         }
         Else {
-            Write-Host "Connecting to SharePoint Online using $($global:myOffice365Services['Office365Credentials'].username) .."
+            Write-Host 
             $Parms = @{
                 url= 'https://{0}-admin.sharepoint.com' -f $global:myOffice365Services['Office365Tenant']
                 credential= $global:myOffice365Services['Office365Credentials']
@@ -674,7 +674,7 @@ function global:Connect-PowerApps {
     If ( !(Get-Module -Name Microsoft.PowerApps.Administration.PowerShell)) {Import-Module -Name Microsoft.PowerApps.Administration.PowerShell -ErrorAction SilentlyContinue}
     If ( Get-Module -Name Microsoft.PowerApps.PowerShell) {
         If ( !($global:myOffice365Services['Office365Credentials'])) { Get-Office365Credentials }
-        Write-Host "Connecting to PowerApps using $($global:myOffice365Services['Office365Credentials'].username) .."
+        Write-Host 
         If ( $global:myOffice365Services['Office365CredentialsMFA']) {
             $Parms = @{'Username' = $global:myOffice365Services['Office365Credentials'].UserName }
         }
@@ -743,9 +743,9 @@ function global:Get-ModuleVersionInfo {
     }
     Else {
         $ModuleManifestContent = Get-Content -Path $ModuleManifestPath
-        $preReleaseInfo = $ModuleManifestContent -match "Prerelease = '(.*)'"
+        $preReleaseInfo = $ModuleManifestContent -match 
         If( $preReleaseInfo) {
-            $preReleaseVersion= $preReleaseInfo[0].Split('=')[1].Trim().Trim("'")
+            $preReleaseVersion= $preReleaseInfo[0].Split('=')[1].Trim().Trim()
             If( $preReleaseVersion) {
                 $ModuleVersion= ('{0}-{1}' -f $Module.Version.ToString(), $preReleaseVersion)
             }

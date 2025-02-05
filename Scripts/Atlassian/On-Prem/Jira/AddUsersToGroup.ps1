@@ -42,8 +42,8 @@ function Load-Module ($m) {
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        write-host "Module $m is already imported."
-        Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+        write-host 
+        Write-Log -LogPath $sLogFile -TimeStamp -Message 
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -64,8 +64,8 @@ function Load-Module ($m) {
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host "Module $m not imported, not available and not in an online gallery, exiting."
-                Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+                write-host 
+                Write-Log -LogPath $sLogFile -TimeStamp -Message 
                 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -101,9 +101,9 @@ function Write-Log {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+        [ValidateSet(, , , , )]
         [String]
-        $Level = "INFO",
+        $Level = ,
 
         [Parameter(Mandatory = $True)]
         [string]
@@ -114,8 +114,8 @@ function Write-Log {
         $logfile
     )
 
-    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-    $Line = "$Stamp $Level $Message"
+    $Stamp = (Get-Date).toString()
+    $Line = 
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -147,13 +147,7 @@ Function <FunctionName> {
 }
 #>
 ######### GetUrl #########
-Function GetUrl {
-    Param()
-    
-    Begin {
-        Write-Log -Message 'GetUrl started'
-        Write-Log -Message 'Asking initiator to insert a URL for an Atlassian Cloud site.'
-    }
+
     
     Process {
         Try {
@@ -169,24 +163,18 @@ Function GetUrl {
     
     End {
         If ($?) {
-            Write-Log -Message "Completed Successfully."
-            Write-Log -Message " "
+            Write-Log -Message 
+            Write-Log -Message 
         }
     }
 }
 ######### Collect Admin account email #########
-Function CollectAdminAccount {
-    Param()
-    
-    Begin {
-        Write-Log -Message 'CollectAdminAccount started'
-        Write-Log -Message ''
-    }
+
     
     Process {
         Try {
             $script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account username'
-            Write-Log -Message "AdminAccount Token collected as $AdminAccount"
+            Write-Log -Message 
             Write-Log -Message ' '
         }
      
@@ -198,25 +186,19 @@ Function CollectAdminAccount {
     
     End {
         If ($?) {
-            Write-Log -Message "Completed Successfully."
-            Write-Log -Message " "
+            Write-Log -Message 
+            Write-Log -Message 
         }
     }
 }
    
 ######### Provide API Token#########
-Function ProvideAPIToken {
-    Param()
-    
-    Begin {
-        Write-Log -Message 'ProvideAPIToken started'
-        Write-Log -Message ''
-    }
+
     
     Process {
         Try {
             $script:ApiToken = read-host -prompt 'Please insert admin account password'
-            Write-Log -Message "API Token collected as $ApiToken"
+            Write-Log -Message 
             Write-Log -Message ' '
         }
      
@@ -228,8 +210,8 @@ Function ProvideAPIToken {
     
     End {
         If ($?) {
-            Write-Log -Message "Completed Successfully."
-            Write-Log -Message " "
+            Write-Log -Message 
+            Write-Log -Message 
         }
     }
 }
@@ -239,9 +221,9 @@ function CollectList() {
     write-log -message 'CollectList started'
     while (1) {
         try {
-            Write-Log -Message  "While loop entered, waiting for List path"
+            Write-Log -Message  
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq ".xlsx" ) {
+            if ($extn -eq  ) {
                 Load-Module ImportExcel
                 $script:importedList = Import-Excel (read-host -prompt 'provide List path')
                 
@@ -251,11 +233,11 @@ function CollectList() {
             }
         }
         Catch {
-            Write-Log -Message  "Not a valid List inserted"
+            Write-Log -Message  
         }
     }
 
-    Write-Log -Message  "CollectListCompleted Successfully."
+    Write-Log -Message  
 }
 ########## Import provided List #########
 function ImportList() {
@@ -265,11 +247,11 @@ function ImportList() {
     Process {
         Try {
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq ".xlsx" ) {
+            if ($extn -eq  ) {
                 Load-Module ImportExcel
                 $script:importedList = Import-Excel $List
             }
-            elseif ($extn -eq ".csv" ) {
+            elseif ($extn -eq  ) {
                 $script:importedList = Import-Csv $List
             }
             else { CollectList }
@@ -281,23 +263,17 @@ function ImportList() {
     }
     End {
         If ($?) {
-            Write-Log -Message "ImportList Completed Successfully."
+            Write-Log -Message 
         }
     }
 }
 ######### GetGroupName #########
-Function GetGroupName {
-    Param()
-    
-    Begin {
-        Write-Log -Message 'GetGroupName started'
-        Write-Log -Message 'Asking initiator to insert a URL for an Atlassian Cloud site.'
-    }
+
     
     Process {
         Try {
             $InputGroupName = read-host -prompt 'Provide the full group name, of the group you want to add users to'
-            $script:GroupName = "'+$InputGroupName'+"
+            $script:GroupName = 
         }
      
         Catch {
@@ -308,24 +284,20 @@ Function GetGroupName {
     
     End {
         If ($?) {
-            Write-Log -Message "Completed Successfully."
-            Write-Log -Message " "
+            Write-Log -Message 
+            Write-Log -Message 
         }
     }
 }
 ######### AddUsersToGroup #########
-Function AddUsersToGroup {
-    Param ()
-    Begin {
-        Write-Log -Message '<description of what is going on>...'
-    }
+
     Process {
         Try {
             foreach ($u in $importedList) {
-                $prejson = '{"name": "' + $u.user_name + '"}'
+                $prejson = '{: }'
                 $data = ConvertTo-Json $prejson
                 $data
-                curl -i -H 'Content-Type: application/json' -X POST -d $data -u "$($AdminAccount):$($token)" "$($url)/rest/api/latest/group/user?groupname=$($GroupName)"
+                curl -i -H 'Content-Type: application/json' -X POST -d $data -u  
             }
         }
         Catch {
@@ -343,7 +315,7 @@ Function AddUsersToGroup {
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 
 #Script Execution goes here
@@ -372,4 +344,4 @@ AddUsersToGroup
 
 
 
-Write-Log -message "End of Script"
+Write-Log -message

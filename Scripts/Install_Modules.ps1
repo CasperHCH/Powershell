@@ -1,8 +1,8 @@
-﻿function Load-Module ($m) {
+function Load-Module ($m) {
 
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host "Module $m is already imported."
+        write-host 
     }
     else {
 
@@ -20,7 +20,7 @@
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host "Module $m not imported, not available and not in an online gallery, exiting."
+                write-host 
 
             }
         }

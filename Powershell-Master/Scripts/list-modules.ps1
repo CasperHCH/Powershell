@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists PowerShell modules
 .DESCRIPTION
@@ -20,6 +20,6 @@ try {
 	Get-Module | Format-Table -property Name,Version,ModuleType,ExportedCommands
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

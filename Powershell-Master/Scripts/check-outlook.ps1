@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks Outlook's inbox 
 .DESCRIPTION
@@ -13,19 +13,19 @@
 #>
 
 try {
-	Add-Type -assembly "Microsoft.Office.Interop.Outlook"
+	Add-Type -assembly 
 	$Outlook = New-Object -comobject Outlook.Application
-	$Namespace = $Outlook.GetNameSpace("MAPI")
+	$Namespace = $Outlook.GetNameSpace()
 	$Inbox = $Namespace.GetDefaultFolder(6) # 6 = olFolderInbox
 	[int]$Unread = 0
 	foreach($Mail in $Inbox.Items) {
 		if ($Mail.Unread -eq $false) { continue }
-		"⚠️ New mail '$($Mail.Subject)' from $($Mail.SenderName)."
+		
 		$Unread++
 	}
-	if ($Unread -eq 0) { "✅ No new mails." }
+	if ($Unread -eq 0) {  }
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

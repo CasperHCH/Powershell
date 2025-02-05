@@ -1,4 +1,4 @@
-﻿<#
+<#
 Prerequisites Needed – 
 1)	Either run this on an Exchange Server with an Admin account or use New-PSSession to an Exchange Server running with an Admin Account.
 2)	You must be able to use - Import-Module ActiveDirectory.
@@ -26,7 +26,7 @@ Function Get-Mobile {
     PROCESS {
 
 # Date
-$Date = (get-date).ToString("MM-dd-yy")
+$Date = (get-date).ToString()
 
 # Get Requester Info via their UserID
 $RequesterEmail=(Get-ADUser $Requester -Properties mail).Mail
@@ -42,11 +42,11 @@ $TheUserEmail=(Get-ADUser $UserID -Properties mail).Mail
 #$TheUserName=$TheUser.DisplayName
 
 # Email Settings
-$SmtpServer = "smtp.eetnordic.net"
-$SmtpFrom = "exch@eetnordic.net"
-$SmtpTo = "$RequesterEmail"
-#$SmtpBcc = New-Object System.Net.Mail.MailAddress "$MyEmail"
-$MessageSubject = "Mobile report for $TheUserName "
+$SmtpServer = 
+$SmtpFrom = 
+$SmtpTo = 
+#$SmtpBcc = New-Object System.Net.Mail.MailAddress 
+$MessageSubject = 
 
 $Message = New-Object System.Net.Mail.MailMessage $Smtpfrom, $Smtpto
 # Add BCC
@@ -57,42 +57,11 @@ $Message.IsBodyHTML = $true
 
 #### HTML Output Formatting #######
  
-$a = @"
-<style>
-body {
-    color:#333333;
-    font-family:Calibri,Tahoma;
-    font-size: 10pt;
-}
-TABLE {
-	border-width: 1px;
-	text-align: center;
-	border-style: solid;
-	border-color: black;
-	border-collapse: collapse;
-}
-th {
-    font-weight:bold;
-	border-width: 1px;
-	padding: 10px;
-	border-style: solid;
-	border-color: black;
-    color:#eeeeee;
-    background-color:#333333;
-}
-td {
-	font-weight:bold;
-	border-width: 1px;
-	padding: 10px;
-	border-style: solid;
-	border-color: black;
-}
-</style>
-"@
+$a = @@
 
 # This is what will pull the information on the Mobile Devices being used by $UserID and will create the message body.
 $Message.Body = Get-MobileDeviceStatistics -Mailbox $TheUserEmail | 
-select DeviceType,DeviceModel,DeviceFriendlyName,DeviceOS,DeviceUserAgent,LastSyncAttemptTime,Lastsuccesssync,NumberOfFoldersSynced | ConvertTo-HTML -PreContent "<h2>Mobile Devices for $TheUserName</h2>","<h2>Date: $Date</h2>" -Head $a
+select DeviceType,DeviceModel,DeviceFriendlyName,DeviceOS,DeviceUserAgent,LastSyncAttemptTime,Lastsuccesssync,NumberOfFoldersSynced | ConvertTo-HTML -PreContent , -Head $a
 
 $smtp = New-Object Net.Mail.SmtpClient($smtpServer)
 $smtp.Send($message)

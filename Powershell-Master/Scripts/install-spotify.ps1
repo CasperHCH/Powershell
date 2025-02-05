@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Spotify
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Spotify, please wait..."
+	
 
-	& winget install "Spotify - Music and Podcasts" --source msstore --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	& winget install  --source msstore --accept-package-agreements --accept-source-agreements
+	if ($lastExitCode -ne ) { throw  }
 
-	"Spotify installed successfully."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

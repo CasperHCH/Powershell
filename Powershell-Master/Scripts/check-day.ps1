@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Determines the current day 
 .DESCRIPTION
@@ -13,11 +13,11 @@
 #>
 
 try {
-	[system.threading.thread]::currentthread.currentculture=[system.globalization.cultureinfo]"en-US"
-	$Weekday = (Get-Date -format "dddd")
-	& "$PSScriptRoot/speak-english.ps1" "It's $Weekday."
+	[system.threading.thread]::currentthread.currentculture=[system.globalization.cultureinfo]
+	$Weekday = (Get-Date -format )
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

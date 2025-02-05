@@ -1,10 +1,10 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a scheduled task that will display a popup message
 .DESCRIPTION
 	This PowerShell script creates a scheduled task that will display a popup message.
 .EXAMPLE
-	PS> ./remind-me "Dentist" "4/10/2021 12:00 PM"
+	PS> ./remind-me  
 
 	TaskPath                                       TaskName                          State
 	--------                                       --------                          -----
@@ -17,17 +17,17 @@
 
 #requires -version 4
 
-param([string]$Message = "", [datetime]$Time)
+param([string]$Message = , [datetime]$Time)
 
 try {
-	if ($Message -eq "") { $Message = read-host "Enter reminder message" }
+	if ($Message -eq ) { $Message = read-host  }
 
-	$Task = New-ScheduledTaskAction -Execute msg -Argument "* $Message"
+	$Task = New-ScheduledTaskAction -Execute msg -Argument 
 	$Trigger = New-ScheduledTaskTrigger -Once -At $Time
 	$Random = (Get-Random)
-	Register-ScheduledTask -Action $Task -Trigger $Trigger -TaskName "Reminder_$Random" -Description "Reminder"
+	Register-ScheduledTask -Action $Task -Trigger $Trigger -TaskName  -Description 
 	exit 0
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Git Extensions
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Git Extensions, please wait..."
+	
 
 	& winget install --id GitExtensionsTeam.GitExtensions --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Git Extensions installed successfully."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

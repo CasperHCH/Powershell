@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Switches browser tabs
 .DESCRIPTION
@@ -16,15 +16,14 @@
 param([int]$Interval = 10) # in seconds
 
 try {
-	Write-Host "⏳ Switching browser tabs automatically every $Interval seconds..."
-	Write-Host "   (click into the browser window to activate it, press Ctrl + C here to stop it)"
+	Write-Host 
 	$obj = New-Object -com wscript.shell
 	while ($true) {
-		$obj.SendKeys("^{PGDN}")
+		$obj.SendKeys()
 		Start-Sleep -seconds $Interval
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists Git commits
 .DESCRIPTION
@@ -20,44 +20,44 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD", [string]$Format = "pretty")
+param([string]$RepoDir = , [string]$Format = )
 
 try {
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
+	if (-not(Test-Path  -pathType container)) { throw  }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress "⏳ Fetching latest updates..."
-	& git -C "$RepoDir" fetch --all --quiet
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed" }
-	Write-Progress -Completed " "
+	Write-Progress 
+	& git -C  fetch --all --quiet
+	if ($lastExitCode -ne ) { throw  }
+	Write-Progress -Completed 
 
-	if ($Format -eq "pretty") {
-		""
-		& git -C "$RepoDir" log --graph --format=format:'%C(bold yellow)%s%C(reset)%d by %an 🕘%cs 🔗%h' --all
-	} elseif ($Format -eq "list") {
-		""
-		"Hash            Date            Author                  Description"
-		"----            ----            ------                  -----------"
-		& git log --pretty=format:"%h%x09%cs%x09%an%x09%s"
-	} elseif ($Format -eq "compact") {
-		""
-		"List of Git Commits"
-		"-------------------"
-		& git -C "$RepoDir" log --graph --pretty=format:'%Cred%h%Creset%C(yellow)%d%Creset %s %C(bold blue)by %an %cr%Creset' --abbrev-commit
-		if ($lastExitCode -ne "0") { throw "'git log' failed" }
-	} elseif ($Format -eq "JSON") {
-		& git -C "$RepoDir" log --pretty=format:'{%n  "commit": "%H",%n  "abbreviated_commit": "%h",%n  "tree": "%T",%n  "abbreviated_tree": "%t",%n  "parent": "%P",%n  "abbreviated_parent": "%p",%n  "refs": "%D",%n  "encoding": "%e",%n  "subject": "%s",%n  "sanitized_subject_line": "%f",%n  "body": "%b",%n  "commit_notes": "%N",%n  "verification_flag": "%G?",%n  "signer": "%GS",%n  "signer_key": "%GK",%n  "author": {%n    "name": "%aN",%n    "email": "%aE",%n    "date": "%aD"%n  },%n  "commiter": {%n    "name": "%cN",%n    "email": "%cE",%n    "date": "%cD"%n  }%n},'
+	if ($Format -eq ) {
+		
+		& git -C  log --graph --format=format:'%C(bold yellow)%s%C(reset)%d by %an 🕘%cs 🔗%h' --all
+	} elseif ($Format -eq ) {
+		
+		
+		
+		& git log --pretty=format:
+	} elseif ($Format -eq ) {
+		
+		
+		
+		& git -C  log --graph --pretty=format:'%Cred%h%Creset%C(yellow)%d%Creset %s %C(bold blue)by %an %cr%Creset' --abbrev-commit
+		if ($lastExitCode -ne ) { throw  }
+	} elseif ($Format -eq ) {
+		& git -C  log --pretty=format:'{%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : ,%n  : {%n    : ,%n    : ,%n    : %n  },%n  : {%n    : ,%n    : ,%n    : %n  }%n},'
 	} else {
-		""
-		"List of Git Commits"
-		"-------------------"
-		& git -C "$RepoDir" log
-		if ($lastExitCode -ne "0") { throw "'git log' failed" }
+		
+		
+		
+		& git -C  log
+		if ($lastExitCode -ne ) { throw  }
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	This script will list all AD users mailbox Automappings.
 
@@ -31,24 +31,24 @@ Begin {
 
 process {
     $automapped = Get-ADUser -Filter * -Properties msexchdelegatelistlink, UserPrincipalName | 
-    where {$_.msexchdelegatelistlink -ne ""} | 
-    Select-Object name, @{N="msExchDelegateListLink"; e={$_.msexchdelegatelistlink}}, UserPrincipalName 
+    where {$_.msexchdelegatelistlink -ne } | 
+    Select-Object name, @{N=; e={$_.msexchdelegatelistlink}}, UserPrincipalName 
     $targets= @()
 
     foreach ($User in $automapped) {
-        $Delegates = $user | select @{ N="Name"; e= {$_ |select -ExpandProperty MsExchDelegateListLink}} 
+        $Delegates = $user | select @{ N=; e= {$_ |select -ExpandProperty MsExchDelegateListLink}} 
         $delegatesExp = $Delegates | Select -ExpandProperty Name 
     
         foreach ($delegate in $delegatesExp) {
-            If ($delegate -notlike "CN=Administrator*") {
+            If ($delegate -notlike ) {
                 $DelegatedUserUPN = Get-ADUser -Identity ($Delegate.tostring()) -Properties Userprincipalname | Select UserPrincipalName 
-                $DelegatedName = ($Delegate.split(",")[0]).replace("CN=","") 
+                $DelegatedName = ($Delegate.split()[0]).replace(,) 
                 $target = New-Object psobject 
-                $target | Add-Member -type noteproperty -Name "User Name" -Value ($user.Name) -force 
-                $target | Add-Member -type noteproperty -Name "DelegatedUser" -Value ($DelegatedName) -force 
-                $target | Add-Member -type noteproperty -Name "UserPrincipalName" -Value ($user.UserPrincipalName) -force 
-                $target | Add-Member -type noteproperty -Name "DelegatedUser" -Value ($DelegatedName) -force 
-                $target | Add-Member -type noteproperty -Name "DelegatedUserUPN" -Value ($DelegatedUserUPN.UserPrincipalName) -force 
+                $target | Add-Member -type noteproperty -Name  -Value ($user.Name) -force 
+                $target | Add-Member -type noteproperty -Name  -Value ($DelegatedName) -force 
+                $target | Add-Member -type noteproperty -Name  -Value ($user.UserPrincipalName) -force 
+                $target | Add-Member -type noteproperty -Name  -Value ($DelegatedName) -force 
+                $target | Add-Member -type noteproperty -Name  -Value ($DelegatedUserUPN.UserPrincipalName) -force 
                 $targets += $target
             }
         }

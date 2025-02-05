@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Play the Pong game
 .DESCRIPTION
@@ -12,19 +12,9 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function DrawScores {
-    $x = [System.Console]::WindowWidth / 2 - 4
-    [System.Console]::SetCursorPosition($x, 1)
-    [System.Console]::Write("$($script:scorePlayer1) - $($script:scorePlayer2)")
-}
 
-function DrawFooter {
-    $text = "| Player 1: <W> moves up, <S> moves down | Player 2: <UP> or <DOWN> | <ESC> to quit |"
-    $x = ([System.Console]::WindowWidth - $text.Length) / 2
-    $y = [System.Console]::WindowHeight - 1
-    [System.Console]::SetCursorPosition($x, $y)
-    [System.Console]::Write($text)
-}
+
+
 
 function DrawPaddle($y, $isLeft) {
 	if ($isLeft) {
@@ -34,7 +24,7 @@ function DrawPaddle($y, $isLeft) {
 	}
 	for ($i = 0; $i -lt 5; $i++) {
 		[System.Console]::SetCursorPosition($x, $y + $i)
-		[System.Console]::Write("▌")
+		[System.Console]::Write()
 	}
 }
 
@@ -46,7 +36,7 @@ function ClearPaddle($y, $isLeft) {
     }
     for ($i = 0; $i -lt 5; $i++) {
         [System.Console]::SetCursorPosition($x, $y + $i)
-        [System.Console]::Write(" ")
+        [System.Console]::Write()
     }
 }
 
@@ -55,7 +45,7 @@ function DrawBall($x, $y) {
         return
     }
     [System.Console]::SetCursorPosition($x, $y)
-    Write-Host "🔴" -noNewline
+    Write-Host  -noNewline
 }
 
 function ClearBall($x, $y) {
@@ -63,17 +53,10 @@ function ClearBall($x, $y) {
         return
     }
     [System.Console]::SetCursorPosition($x, $y)
-    [System.Console]::Write(" ")
+    [System.Console]::Write()
 }
 
-function UpdateBall {
-    $nextX = $script:ball.X + $script:ball.Dx
-    $nextY = $script:ball.Y + $script:ball.Dy
 
-    if ($nextY -lt 0 -or $nextY -ge [System.Console]::WindowHeight) {
-        $script:ball.Dy = -$script:ball.Dy
-        $nextY = $script:ball.Y
-    }
 
     if ($nextX -eq 1 -and ($nextY -ge $player1 -and $nextY -le ($player1 + 4))) {
         $script:ball.Dx = -$script:ball.Dx
@@ -123,23 +106,23 @@ while ($true) {
     if ([System.Console]::KeyAvailable) {
         $key = [System.Console]::ReadKey($true).Key
 
-        if ($key -eq "W" -and $player1 -gt 0) {
+        if ($key -eq  -and $player1 -gt 0) {
             ClearPaddle $player1 $true
             $player1--
             DrawPaddle $player1 $true
-        } elseif ($key -eq "S" -and $player1 -lt [System.Console]::WindowHeight - 5) {
+        } elseif ($key -eq  -and $player1 -lt [System.Console]::WindowHeight - 5) {
             ClearPaddle $player1 $true
             $player1++
             DrawPaddle $player1 $true
-        } elseif ($key -eq "UpArrow" -and $player2 -gt 0) {
+        } elseif ($key -eq  -and $player2 -gt 0) {
             ClearPaddle $player2 $false
             $player2--
             DrawPaddle $player2 $false
-        } elseif ($key -eq "DownArrow" -and $player2 -lt [System.Console]::WindowHeight - 5) {
+        } elseif ($key -eq  -and $player2 -lt [System.Console]::WindowHeight - 5) {
             ClearPaddle $player2 $false
             $player2++
             DrawPaddle $player2 $false
-        } elseif ($key -eq "Escape") {
+        } elseif ($key -eq ) {
             break
         }
     }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the time zone
 .DESCRIPTION
@@ -13,19 +13,19 @@
 #>
 
 try {
-	[system.threading.thread]::currentThread.currentCulture = [system.globalization.cultureInfo]"en-US"
+	[system.threading.thread]::currentThread.currentCulture = [system.globalization.cultureInfo]
 	$Time = $((Get-Date).ToShortTimeString())
 	$TZ = (Get-Timezone)
 	if ($TZ.SupportsDaylightSavingTime) {
 		$TZName = $TZ.DaylightName
-		$DST=" (+01:00 DST)"
+		$DST=
 	} else {
 		$TZName = $TZ.StandardName
-		$DST=""
+		$DST=
 	}
-	Write-Host "✅ $Time $TZName $($TZ.DisplayName)$($DST)"
+	Write-Host 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

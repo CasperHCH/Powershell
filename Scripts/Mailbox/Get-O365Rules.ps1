@@ -1,4 +1,4 @@
-﻿# Rule Shot
+# Rule Shot
 #
 # Britton Manahan | The Crypsis Group
 # Special thanks to Paul Benoit
@@ -16,49 +16,49 @@
 Param(
 	#Authenticate with MFA Account
     [Parameter(Mandatory=$false)]
-    [alias("m")]
+    [alias()]
     [string]$mfa,
 	
 	#Filter on certain users when applicable
     [Parameter(Mandatory=$false)]
-    [alias("u")]
+    [alias()]
     [string]$user,
 
 	#Output rules in csv format
     [Parameter(Mandatory=$false)]
-    [alias("c")]
+    [alias()]
     [switch]$csv,
 	
 	#Display help page
 	[Parameter(Mandatory=$false)]
-    [alias("h")]
+    [alias()]
     [switch]$help
 )
 
 #Set timeStamp variable for output files
-$TimeStamp = (Get-Date -Format "MM-dd-yyyy_HHmmss").ToString()
+$TimeStamp = (Get-Date -Format ).ToString()
 
 #Set output file for Inbox rules
 #csv rule output file
 if($csv)
 {
-	$RuleFile = "InboxRules_" + $TimeStamp + ".csv"
+	$RuleFile =  + $TimeStamp + 
 	$outrules = [System.Collections.ArrayList]@()
 }
 #json rule output file
 else
 {
-	$RuleFile = "InboxRules_" + $TimeStamp + ".json"
+	$RuleFile =  + $TimeStamp + 
 }
 
 #Set csv output file for  Mail Flow rules
-$MailFlowFile = "MailFlow_" + $TimeStamp + ".csv"
+$MailFlowFile =  + $TimeStamp + 
 
 #Set csv output file for Mailbox Forwarding
-$MailBoxForwardingFile = "MailboxForwarding_" + $TimeStamp + ".csv"
+$MailBoxForwardingFile =  + $TimeStamp + 
 
-$failedRulesLog = "Failed_Rules_" + $TimeStamp + ".txt"
-$failedForwardingLog = "Failed_Forwarding_" + $TimeStamp + ".txt"
+$failedRulesLog =  + $TimeStamp + 
+$failedForwardingLog =  + $TimeStamp + 
 
 #Script Banner
 $banner = @'
@@ -101,33 +101,16 @@ Parameters (all optional)
 '@
 
 #Function for printing out information in color
-function color_out { param( [string]$mstring, [string]$mcolor )
-	
-	#Get the current console foregroundcolor
-	$current_fc = $host.ui.RawUI.ForegroundColor
-	#Change the console foregroundcolor
-	$host.ui.RawUI.ForegroundColor = $mcolor 
-	#Write out string passed to function
-	Write-Output $mstring
-	#Revert console back to original foregroundcolor
-	$host.ui.RawUI.ForegroundColor = $current_fc
-}
+
 
 #Parse a rule description and add contents to provided custom PSObject
-function rule_parser 
-{
-	
-	$description = $args[0]
-	$PsObject = $args[1]
-	
-	#break up the description into an array based on the newline character
-	$description = ($description.Split([Environment]::NewLine) | ?{$_ -match "\S"})
+)
 	
 	#track where we are in the rule description
 	$ifSection = $False
 	$takeSection = $False
 	
-	#keep track of what "if" and "take action" currently on
+	#keep track of what  and  currently on
 	$ifCount = 1
 	$takeCount = 1
 	
@@ -138,12 +121,12 @@ function rule_parser
 		$line = $line.Trim()
 		
 		#check if entering condition or action section 
-		if($line.startswith("If"))
+		if($line.startswith())
 		{
 			$ifSection = $True
 			$takeSection = $False
 		}
-		elseif($line.startswith("Take")) 
+		elseif($line.startswith()) 
 		{
 			$ifSection = $False
 			$takeSection = $True
@@ -154,14 +137,14 @@ function rule_parser
 			#add new condition property to object
 			if($ifSection)
 			{
-				$name = "condition" + [string]$ifCount
+				$name =  + [string]$ifCount
 				$ifcount += 1
 				Add-Member -InputObject $PsObject -NotePropertyName $name -NotePropertyValue $line
 			}
 			#add new action property to object
 			elseif($takeSection)
 			{
-				$name = "action" + [string]$takeCount
+				$name =  + [string]$takeCount
 				$takeCount += 1
 				Add-Member -InputObject $PsObject  -NotePropertyName $name -NotePropertyValue $line
 			}
@@ -169,28 +152,18 @@ function rule_parser
 	}
 }
 
-function O365_permission_check { param( $session_import_result )
 
-	if($session_import_result)
-	{
-		#ACCESS CHECK 1
-		if($session_import_result.ExportedCommands.Count -lt 4)
-		{
-			color_out "[-] ERROR!: O365 PSSession failed admin check! [1/2]" "Red"
-			color_out "[-] ERROR!: O365 PSSession failed imported command check!`n" "Red"
-			Exit
-		}
 	}
 
 	#ACCESS CHECK 2
-	if(((Get-Mailbox -ResultSize 2 -WarningAction "SilentlyContinue").Count) -lt 2)
+	if(((Get-Mailbox -ResultSize 2 -WarningAction ).Count) -lt 2)
 	{
-		color_out "[-] ERROR!: O365 PSSession failed admin check! [2/2]" "Red"	
-		color_out "[-] ERROR!: O365 PSSession failed Get-Mailbox check!`n" "Red"
+		color_out  	
+		color_out  
 		Exit
 	}
 
-	color_out "[+] Passed O365 permission check" "Green"
+	color_out  
 }
 
 ################
@@ -207,78 +180,7 @@ if($help)
 Write-Output $banner
 
 # C# Code for fixing powershell console window freeze issue
-$QuickEditCodeSnippet=@" 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-
-
-public static class DisableConsoleQuickEdit_RuleShot
-{
-
-const uint ENABLE_QUICK_EDIT = 0x0040;
-const uint ENABLE_INSERT_MODE = 0x0020;
-
-// STD_INPUT_HANDLE (DWORD): -10 is the standard input device.
-const int STD_INPUT_HANDLE = -10;
-
-[DllImport("kernel32.dll", SetLastError = true)]
-static extern IntPtr GetStdHandle(int nStdHandle);
-
-[DllImport("kernel32.dll")]
-static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
-
-[DllImport("kernel32.dll")]
-static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
-
-public static bool SetQuickEdit_RuleShot(bool SetEnabled)
-{
-
-    IntPtr consoleHandle = GetStdHandle(STD_INPUT_HANDLE);
-
-    // get current console mode
-    uint consoleMode;
-    if (!GetConsoleMode(consoleHandle, out consoleMode))
-    {
-        // ERROR: Unable to get console mode.
-        return false;
-    }
-
-    // Clear the quick edit bit in the mode flags
-    if (SetEnabled)
-    {
-        consoleMode &= ~ENABLE_QUICK_EDIT;
-    }
-    else
-    {
-        consoleMode |= ENABLE_QUICK_EDIT;
-    }
-	
-	// Clear the insert mode bit in the mode flags
-    if (SetEnabled)
-    {
-        consoleMode &= ~ENABLE_INSERT_MODE;
-    }
-    else
-    {
-        consoleMode |= ENABLE_INSERT_MODE;
-    }
-	
-    // set the new mode
-    if (!SetConsoleMode(consoleHandle, consoleMode))
-    {
-        // ERROR: Unable to set console mode
-        return false;
-    }
-
-    return true;
-}
-}
-
-"@
+$QuickEditCodeSnippet=@kernel32.dllkernel32.dllkernel32.dll@
 
 $QuickEditMode_RuleShot=add-type -TypeDefinition $QuickEditCodeSnippet -Language CSharp
 
@@ -312,24 +214,24 @@ if(!($mfa))
 			}
 			catch
 			{
-				color_out "[-] ERROR!: Failed to provide O365 Credentials" "Red"
+				color_out  
 			}
 		}While(!($credObject))
 
-		$ErrorActionPreference = "Stop"
+		$ErrorActionPreference = 
 		try
 		{
 			$New_Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $credObject -Authentication Basic -AllowRedirection
 		}
 		catch
 		{
-			color_out "[-] ERROR!: Failed to create O365 PSSession" "Red"
+			color_out  
 		}
-		$ErrorActionPreference = "Continue"
+		$ErrorActionPreference = 
 				
 	}While(!($New_Session))
 	
-	color_out "[+] Credentials are valid!" "Green"
+	color_out  
 
 	$Session = $New_Session
 	
@@ -343,7 +245,7 @@ else
 	#Find and load the separate O365 MFA powershell library
 	$cwd = Convert-Path .
 	$CreateEXOPSSession = (Get-ChildItem -Path $env:userprofile -Filter CreateExoPSSession.ps1 -Recurse -ErrorAction SilentlyContinue -Force | Select -Last 1).DirectoryName
-	. "$CreateEXOPSSession\CreateExoPSSession.ps1" *>$null
+	.  *>$null
 	cd $cwd
 	
 		try
@@ -352,11 +254,11 @@ else
 		}
 		catch
 		{
-			color_out "[-] ERROR!: Failed to create O365 PSSession" "Red"
+			color_out  
 			exit
 		}
 	 
-		color_out "[+] Credentials are valid!" "Green"	
+		color_out  	
 		
 		O365_permission_check $null
 }
@@ -364,31 +266,31 @@ else
 ###########################
 #Collect Mailflow Rules
 
-color_out "[+] Collecting Mail Flow Rules" "Green"
+color_out  
 $Mail_Flow_Fail = $False
 $preErrorCount = $Error.Count
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 
 try
 {
-	$TP_Rules = iex "Get-TransportRule -ResultSize Unlimited | Select Name,WhenChanged,State,Description,GUID" -ErrorAction Stop -ErrorVariable errvar
+	$TP_Rules = iex  -ErrorAction Stop -ErrorVariable errvar
 }
 catch
 {
-	color_out "[-] Failed to collect Mail Flow Rules!" "Red"
+	color_out  
 	$Mail_Flow_Fail = $True	
 }
 $postErrorCount = $Error.Count
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = 
 
 if($errvar -And (!($Mail_Flow_Fail)))
 {
-	color_out "[-] Failed to collect Mail Flow Rules!" "Red"
+	color_out  
 	$Mail_Flow_Fail = $True	
 }
 
 if($postErrorCount -gt $preErrorCount -And (!($Mail_Flow_Fail)))
 {
-	color_out "[-] Failed to collect Mail Flow Rules!" "Red"
+	color_out  
 	$Mail_Flow_Fail = $True	
 }
 
@@ -398,7 +300,7 @@ if(!($Mail_Flow_Fail))
 	{
 		$TP_Rules | Export-Csv -NoTypeInformation $MailFlowFile
 	}
-	color_out "[+] Successfully collected Mail Flow Rules" "Green"
+	color_out  
 }
 
 
@@ -408,20 +310,20 @@ if(!($Mail_Flow_Fail))
 if($user)
 {
 	$All_Mailboxes = $False
-	$temp=""
+	$temp=
 	if(Test-Path $user)
 	{
-		color_out "[+] User parameter detected as a file" "Green"
+		color_out  
 		[array]$u_array = (Get-Content $user | Where-Object {$_} | Foreach {$_.Trim()})
 	}
-	elseif($user.contains(","))
+	elseif($user.contains())
 	{
-		color_out "[+] User parameter detected as csv string" "Green"
-		[array]$u_array = $user.split(",")
+		color_out  
+		[array]$u_array = $user.split()
 	}
 	else
 	{
-		color_out "[+] User parameter detected as single user string" "Green"
+		color_out  
 		[array]$u_array = @($user)
 	}	
 }
@@ -431,44 +333,44 @@ else
 	$All_Mailboxes = $True
 }
 
-color_out "[+] User list created!" "Green"
+color_out  
 
 $userCount = $u_array.count
 
-color_out "[*] Number of users in list: $userCount" "Cyan"
+color_out  
 
 ################################
 #Collect any SMTP Email Forwarding Settings
 
-color_out "[+] Collecting any Forwarding Email Addresses" "Green"
+color_out  
 
 if($All_Mailboxes)
 {
 	$Mail_Forwarding_Fail = $False
 	$preErrorCount = $Error.Count
-	$ErrorActionPreference = "Stop"
+	$ErrorActionPreference = 
 	Try
 	{
-		[array]$Forwards = iex -Command "Get-Mailbox -ResultSize Unlimited | Select UserPrincipalName,ForwardingSmtpAddress,DelivertoMailboxAndForward" -ErrorAction Stop -ErrorVariable errvar
+		[array]$Forwards = iex -Command  -ErrorAction Stop -ErrorVariable errvar
 		[array]$Forwards = $Forwards | Where-Object {$_.ForwardingSmtpAddress -ne $null}
 	}
 	Catch
 	{
-		color_out "[-] Failed to collect Mail Forwarding Settings!" "Red"
+		color_out  
 		$Mail_Forwarding_Fail = $True	
 	}
 	$postErrorCount = $Error.Count
-	$ErrorActionPreference = "Continue"
+	$ErrorActionPreference = 
 	
 	if($errvar -And (!($Mail_Forwarding_Fail)))
 	{
-		color_out "[-] Failed to collect Mail Forwarding Settings!" "Red"
+		color_out  
 		$Mail_Forwarding_Fail = $True	
 	}
 
 	if($postErrorCount -gt $preErrorCount -And (!($Mail_Forwarding_Fail)))
 	{
-		color_out "[-] Failed to collect Mail Forwarding Settings!" "Red"
+		color_out  
 		$Mail_Forwarding_Fail = $True	
 	}
 		
@@ -479,7 +381,7 @@ if($All_Mailboxes)
 			$Forwards | ConvertTo-Csv -NoTypeInformation | Out-File $MailBoxForwardingFile -Encoding UTF8 
 		}
 		
-		color_out "[+] Forwarding Email Addresses Successfully Collected" "Green"
+		color_out  
 	}
 }
 else
@@ -489,34 +391,34 @@ else
 	For ($i=0; $i -lt $userCount; $i++) 
 	{
 		$currentAccount = $u_array[$i]
-		Write-Progress -Id 1 -Activity $("Working on mailbox: " + $currentAccount) -PercentComplete (($i / $u_array.count) * 100) 
+		Write-Progress -Id 1 -Activity $( + $currentAccount) -PercentComplete (($i / $u_array.count) * 100) 
 		
 		$preErrorCount = $Error.Count
-		$ErrorActionPreference = "Stop"
+		$ErrorActionPreference = 
 		try
 		{
-			$mb = iex "Get-Mailbox ""$currentAccount""" -ErrorAction Stop -ErrorVariable errvar
+			$mb = iex  -ErrorAction Stop -ErrorVariable errvar
 		}
 		catch
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedForwardingLog -Encoding UTF8 -Append
-			$ErrorActionPreference = "Continue"
+			$ErrorActionPreference = 
 			continue
 		}
 		$postErrorCount = $Error.Count
-		$ErrorActionPreference = "Continue"
+		$ErrorActionPreference = 
 		
 		if($errvar)
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedForwardingLog -Encoding UTF8 -Append
 			continue
 		}
 		
 		if($postErrorCount -gt $preErrorCount)
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedForwardingLog -Encoding UTF8 -Append
 			continue
 		}
@@ -536,27 +438,27 @@ else
 ################################
 #Collect Inbox Rules
 
-color_out "[+] Collecting Mailbox Rules" "Green"	
+color_out  	
 
 For ($i=0; $i -lt $userCount; $i++) 
 {
 	$currentAccount = $u_array[$i]
-	Write-Progress -Id 1 -Activity $("Working on mailbox: " + $currentAccount) -PercentComplete (($i / $u_array.count) * 100) 
+	Write-Progress -Id 1 -Activity $( + $currentAccount) -PercentComplete (($i / $u_array.count) * 100) 
 	While($True)
 	{
 		#Small Sleep
 		Start-Sleep -m 200
 		try
 		{
-			if(!(Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" -And $_.State -eq "Opened"}))
+			if(!(Get-PSSession | Where { $_.ConfigurationName -eq  -And $_.State -eq }))
 			{
 				While(!(Test-Connection outlook.office365.com -Count 1 -Quiet -ErrorAction SilentlyContinue))
 				{
-					color_out "[-] ERROR!: Unable to ping outlook.office365.com, will retry in 30 seconds..." "Red"		
+					color_out  		
 					Start-Sleep -s 30
 				}
 				
-				color_out "[-] ERROR!: Microsoft.Exchange PSSession is broken" "Red"
+				color_out  
 				
 				if(!($mfa))
 				{
@@ -565,15 +467,15 @@ For ($i=0; $i -lt $userCount; $i++)
 						Remove-PSSession $Session
 					}
 				
-					color_out "[-] Creating new Microsoft.Exchange PSSession" "Magenta"
+					color_out  
 					$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $credObject -Authentication Basic -AllowRedirection
 					if(!($Session))
 					{
-						color_out "[-] ERROR!: Failed to create O365 PSSession`n" "Red"
+						color_out  
 					}
 					else
 					{
-						color_out "[+] New Microsoft.Exchange PSSession created" "Green"
+						color_out  
 						$session_import_result = Import-PSSession -AllowClobber $Session -DisableNameChecking -CommandName Get-Mailbox,Get-InboxRule
 					}
 				}
@@ -602,31 +504,31 @@ For ($i=0; $i -lt $userCount; $i++)
 		
 		$preErrorCount = $Error.Count
 		
-		$ErrorActionPreference = "Stop"
+		$ErrorActionPreference = 
 		try
 		{
-			[array]$rules = iex -Command "Get-InboxRule -Mailbox ""$currentAccount"" -WarningAction silentlyContinue | Select Name,Priority,Description" -ErrorAction Stop -ErrorVariable errvar
+			[array]$rules = iex -Command  -ErrorAction Stop -ErrorVariable errvar
 		}
 		catch
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedRulesLog -Encoding UTF8 -Append
-			$ErrorActionPreference = "Continue"
+			$ErrorActionPreference = 
 			break
 		}
 		$postErrorCount = $Error.Count
-		$ErrorActionPreference = "Continue"
+		$ErrorActionPreference = 
 
 		if($errvar)
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedRulesLog -Encoding UTF8 -Append
 			break
 		}
 		
 		if($postErrorCount -gt $preErrorCount)
 		{
-			color_out "[-] Error caught and logged for $currentAccount" "Red"
+			color_out  
 			$u_array[$i] | Out-File $failedRulesLog -Encoding UTF8 -Append
 			break
 		}
@@ -639,7 +541,7 @@ For ($i=0; $i -lt $userCount; $i++)
 				if($csv)
 				{
 					$outrule = $rule | Select name,priority,description
-					Add-Member -InputObject $outrule -NotePropertyName "user" -NotePropertyValue $u_array[$i]				
+					Add-Member -InputObject $outrule -NotePropertyName  -NotePropertyValue $u_array[$i]				
 					$outrules.Add($outrule) | Out-Null
 				}
 				else
@@ -668,7 +570,7 @@ if($csv)
 if(!($mfa))
 {
 	Remove-PSSession $Session
-	color_out "[*] Removing Created Microsoft.Exchange PSSession" "Green"
+	color_out  
 }
 else
 {
@@ -677,5 +579,5 @@ else
 
 [System.GC]::Collect()
 Set-QuickEdit
-color_out "[+] Script Complete!" "Green"
-color_out "[+] Goodbye!`n" "Green"
+color_out  
+color_out

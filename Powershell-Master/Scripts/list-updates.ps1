@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists software updates
 .DESCRIPTION
@@ -19,20 +19,20 @@
 
 try {
 	if ($IsLinux) {
-		"⏳ (1/2) Querying package updates..."
+		
 		& sudo apt update
 		& sudo apt list --upgradable
-		"⏳ (2/2) Querying Snap updates..."
+		
 		& sudo snap refresh --list
 	} else {
-		Write-Progress "⏳ Querying the latest updates from winget and Microsoft Store..."
-		" "
+		Write-Progress 
+		
 		& winget upgrade --include-unknown
-		Write-Progress -completed " "
+		Write-Progress -completed 
 	}
-	"                                                       (use 'install-updates.ps1' to install the listed updates)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,6 +1,6 @@
 ##  Change Title on Window  ##
-#$Host.UI.RawUI.WindowTitle = "I am the LAZY Admin ;-)"
-#$Host.UI.RawUI.WindowTitle = "p0w3rsHELL GURU !!"
+#$Host.UI.RawUI.WindowTitle = 
+#$Host.UI.RawUI.WindowTitle = 
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
 Remove-Module PSReadline
 Import-Module PSReadLine
@@ -17,7 +17,7 @@ Set-PSReadLineOption -colors @{
 }
 ##  change dir to PS-Drive ps:  ##
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name "PS" -Root "C:\PS\Scripts" #| Out-Null
+    New-PSDrive -PSProvider FileSystem -Name  -Root  #| Out-Null
 }
 
 ##  Change location to PS  ##
@@ -28,51 +28,49 @@ if (!(Test-Path ps:)) {
 #.\Connect-Office365Services.ps1
 #
 # list content of function/script file  ##
-function def {
-    (Get-Command $args).Definition
-}
+
 
 
 #Function Connect-OnPremPS {
 #    Import-Module ActiveDirectory
-#    $RPSession = New-PSSession -Name "On-Prem AD" -ConfigurationName Microsoft.Exchange -ConnectionUri http://PROD-EXCH-01/Powershell
+#    $RPSession = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionUri http://PROD-EXCH-01/Powershell
 #    Import-PSSession $RPSession -AllowClobber
 #}
 #
 #Function Remove-OnPremPS {
-#    Get-PSSession -Name "On-Prem AD" | Remove-PSSession
+#    Get-PSSession -Name  | Remove-PSSession
 #}
 #
 #Function Disconnect-EXO  {
-#    Get-PSSession | ? { $_.ComputerName -eq "outlook.office365.com" } | Remove-PSSession
+#    Get-PSSession | ? { $_.ComputerName -eq  } | Remove-PSSession
 #}
 #
-#Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description "Connect to En-Prem Exchange Powershell"
-#Set-Alias -Name d-mbx -Value Remove-OnPremPS -Description "Disconnect from On-Prem Exchange Powershell"
-#Set-Alias -Name c-exo -Value Connect-ExchangeOnline -Description "Connect to Exchange Online Powershell"
-#Set-Alias -Name d-exo -Value Disconnect-EXO -Description "Disconnect from Exchange Online Powershell(s)"
+#Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description 
+#Set-Alias -Name d-mbx -Value Remove-OnPremPS -Description 
+#Set-Alias -Name c-exo -Value Connect-ExchangeOnline -Description 
+#Set-Alias -Name d-exo -Value Disconnect-EXO -Description 
 
 # directory of scripts to auto-load in PS
-$psdir = "C:\PS\autoload"
+$psdir = 
 
 # load all 'autoload' scripts
-Get-ChildItem "${psdir}\*.ps1" | ForEach-Object { .$_ } | out-null
+Get-ChildItem  | ForEach-Object { .$_ } | out-null
 
 # Load scripts from the following locations
 # Get environmental folders for PS scripts
-$CustomScripts = Get-ChildItem -path "c:\ps" -Directory -Recurse | ForEach-Object{$_.FullName}
+$CustomScripts = Get-ChildItem -path  -Directory -Recurse | ForEach-Object{$_.FullName}
 foreach($s in $CustomScripts)
 {
-    $env:Path += ";$s"
+    $env:Path += 
 }
 
 #####  CREDENTIAL MANAGER #####
-$KeyPath = "C:\PS\Tools\PScreds\"
+$KeyPath = 
 
 #Test if creds exist, if not create
 $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
 if ($TestCredsPath.count -eq '0'){
-$creds = Get-Credential -Message "Please provide the domain\username and password of the service account going to run this script"| New-StoredCredential -target $KeyPath
+$creds = Get-Credential -Message | New-StoredCredential -target $KeyPath
 }else{
 $creds = (Get-StoredCredential -UserName chcadmin)
 }
@@ -93,11 +91,11 @@ if (Test-Path $HistFile) { Import-Clixml $HistFile | Add-History }
 
 ## Update help if today is tuesday ##
 $dt = Get-Date
-if ($dt.DayOfWeek -match "Tue") {
+if ($dt.DayOfWeek -match ) {
     $error.Clear()
     Update-Help -ErrorAction 0 -Force
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
-        "`nerror $i" ; $error[$i].exception
+         ; $error[$i].exception
     }
     C:\PS\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1
 }
@@ -106,7 +104,7 @@ if ($dt.DayOfWeek -match "Tue") {
 function Load-Module ($m) {
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-      write-host "Module $m is already imported."
+      write-host 
     }
     else {
 
@@ -124,36 +122,19 @@ function Load-Module ($m) {
         else {
 
           # If the module is not imported, not available and not in the online gallery then abort
-          write-host "Module $m not imported, not available and not in an online gallery, exiting."
+          write-host 
           EXIT 1
         }
       }
     }
   }
 
-function WebApiRequest {
-  param(
-      [parameter(Mandatory = $true)] [string]$uri,
-      [ValidateSet("GET","HEAD","POST","PUT","DELETE","CONNECT","OPTIONS","TRACE","PATCH")]
-      [String] $method = "GET",
-      [string] $Body = "",
-      [string] $userID = ""
-  )
 
-  $pair = "$($AdminAccount):$($token)"
-  $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-  $basicAuthValue = "Basic $encodedCreds"
-
-  $headers = @{
-   Authorization = $basicAuthValue
-   'Content-Type' = 'application/json'
-   'Accept' = 'application/json'
-  }
 
   $uri = $url + $uri
 
   try {
-      If($method -eq "GET") {
+      If($method -eq ) {
           $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
       }
       else{
@@ -167,7 +148,7 @@ function WebApiRequest {
       $StatusCode = [string]$_.Exception.Response.StatusCode.value__
       $StatusDescription = [string]$_.Exception.Response.StatusDescription
       $message = $response
-      $message +=  " Url " + $uri + " : " + $_.Exception
+      $message +=   + $uri +  + $_.Exception
       Write-Log -Message $message
   }
   return $response

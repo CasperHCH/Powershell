@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs GitHub CLI
 .DESCRIPTION
@@ -14,7 +14,7 @@
 #>
 
 try {
-	"⏳ Installing GitHub CLI..."
+	
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	if ($IsMacOS) {
@@ -25,9 +25,9 @@ try {
 		& winget install --id GitHub.cli
 	}
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Installation of GitHub CLI took $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

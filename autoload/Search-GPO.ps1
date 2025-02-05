@@ -1,4 +1,4 @@
-﻿######################################################### 
+######################################################### 
 # 
 # Name: Search-GPOs.ps1 
 # Author: Tony Murray 
@@ -16,37 +16,36 @@ Function Search-GPO {
     )
 
     # Get the string we want to search for
-    #$String = Read-Host -Prompt "What string do you want to search for?"
+    #$String = Read-Host -Prompt 
 
     # Set the domain to search for GPOs
     $DomainName = $env:USERDNSDOMAIN
 
     # Find all GPOs in the current domain
-    write-host "Finding all the GPOs in $DomainName"
+    write-host 
     Import-Module grouppolicy
     $allGposInDomain = Get-GPO -All -Domain $DomainName
     [string[]] $MatchedGPOList = @()
 
     # Look through each GPO's XML for the string
-    Write-Host "Starting search...."
+    Write-Host 
     
     foreach ($gpo in $allGposInDomain) {
         $report = Get-GPOReport -Guid $gpo.Id -ReportType Xml
     
         if ($report -match $String) {
-            #write-host "********** Match found in: $($gpo.DisplayName) **********" -foregroundcolor "Green"
-            $MatchedGPOList += "$($gpo.DisplayName)";
+            #write-host  -foregroundcolor 
+            $MatchedGPOList += ;
         }
 
         else {
-            #Write-Host "No match in: $($gpo.DisplayName)"
+            #Write-Host 
         }
     }
     
-    write-host "`r`n"
-    write-host "Results: **************" -foregroundcolor "Yellow"
+    Write-Host  -foregroundcolor 
     
     foreach ($match in $MatchedGPOList) {
-        write-host "Match found in: $($match)" -foregroundcolor "Green"
+        write-host  -foregroundcolor 
     }
 }

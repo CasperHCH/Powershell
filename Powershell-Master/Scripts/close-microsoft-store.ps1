@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Microsoft Store app
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im WinStore.App.exe /f /t
-if ($lastExitCode -ne "0") {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry, Microsoft Store isn't running."
+if ($lastExitCode -ne ) {
+	&  
 	exit 1
 }
 exit 0 # success

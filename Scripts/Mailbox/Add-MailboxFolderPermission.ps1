@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Add-MailboxFolderPermissions.ps1
 
@@ -21,7 +21,7 @@ The permissions to grant for each folder.
 .EXAMPLE
 .\Add-MailboxFolderPermissions.ps1 -Mailbox alex.heyne -User alan.reid -Access Reviewer
 
-This will grant Alan Reid "Reviewer" access to all folders in Alex Heyne's mailbox.
+This will grant Alan Reid  access to all folders in Alex Heyne's mailbox.
 
 .LINK
 http://exchangeserverpro.com/grant-read-access-exchange-mailbox/
@@ -59,14 +59,14 @@ param (
 # Variables
 #...................................
 
-$exclusions = @("/Sync Issues",
-                "/Sync Issues/Conflicts",
-                "/Sync Issues/Local Failures",
-                "/Sync Issues/Server Failures",
-                "/Recoverable Items",
-                "/Deletions",
-                "/Purges",
-                "/Versions"
+$exclusions = @(,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                
                 )
 
 
@@ -75,7 +75,7 @@ $exclusions = @("/Sync Issues",
 #...................................
 
 #Add Exchange 2010 snapin if not already loaded in the PowerShell session
-if (!(Get-PSSnapin | where {$_.Name -eq "Microsoft.Exchange.Management.PowerShell.E2010"})) {
+if (!(Get-PSSnapin | where {$_.Name -eq })) {
 	try {
 		Add-PSSnapin Microsoft.Exchange.Management.PowerShell.E2010 -ErrorAction STOP
 	}
@@ -101,14 +101,14 @@ if (!(Get-ADServerSettings).ViewEntireForest) {
 $mailboxfolders = @(Get-MailboxFolderStatistics $Mailbox | Where {!($exclusions -icontains $_.FolderPath)} | Select FolderPath)
 
 foreach ($mailboxfolder in $mailboxfolders) {
-    $folder = $mailboxfolder.FolderPath.Replace("/","\")
+    $folder = $mailboxfolder.FolderPath.Replace(,)
 
-    if ($folder -match "Top of Information Store") {
+    if ($folder -match ) {
         $folder = $folder.Replace(“\Top of Information Store”,”\”)
     }
 
-    $identity = "$($mailbox):$folder"
-    Write-Host "Adding $user to $identity with $access permissions"
+    $identity = 
+    Write-Host 
 
     try {
         Add-MailboxFolderPermission -Identity $identity -User $user -AccessRights $Access -ErrorAction STOP

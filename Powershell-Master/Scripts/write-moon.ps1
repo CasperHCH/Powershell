@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes the moon phase
 .DESCRIPTION
@@ -12,9 +12,9 @@
 #>
 
 try {
-	(Invoke-WebRequest http://wttr.in/Moon -userAgent "curl" -useBasicParsing).Content
+	(Invoke-WebRequest http://wttr.in/Moon -userAgent  -useBasicParsing).Content
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

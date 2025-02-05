@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Shows Lightnings in OpenStreetMap
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://www.lightningmaps.org"
+&  
 exit 0 # success

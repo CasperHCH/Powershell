@@ -1,89 +1,93 @@
-﻿Write-Host "Please provide the absolute path to the script, you want to sign" -ForegroundColor Yellow
-write-host "E.g. 'C:\Temp\MyScriptToSign.ps1'" -ForegroundColor Yellow
-$MyScriptToSign = Read-Host
-Set-AuthenticodeSignature -FilePath "$MyScriptToSign" -Certificate (Get-ChildItem -Path Cert:\CurrentUser\My\ -CodeSigningCert)
-# SIG # Begin signature block
-# MIIPXgYJKoZIhvcNAQcCoIIPTzCCD0sCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
-# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU6RsmfX0kUUi4YX37iNIZdKk9
-# SNmgggzFMIIF5TCCBM2gAwIBAgITJQAABq50EYLEJamoTwAAAAAGrjANBgkqhkiG
-# 9w0BAQsFADBLMRMwEQYKCZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJ
-# ZWV0bm9yZGljMRkwFwYDVQQDExBFRVQgR3JvdXAgU3ViIENBMB4XDTE5MDUxNjA4
-# MTIyOVoXDTIxMDUxNTA4MTIyOVowMjEwMC4GA1UEAxMnQ2FzcGVyIEhqb3J0aCBD
-# aHJpc3RlbnNlbiBBZG1pbmlzdHJhdG9yMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-# MIIBCgKCAQEAsVHI2H2+8XxtYisTayDLcoMkXt7YDliNLpsQsB9NE0bkWdIqIzgN
-# V75PkQBNB8Y7CulgqTJ5bLDxVoNvdHZAQhmOcadLsF4g/FubPpeRBYpFfbw80Up0
-# bVruyf++e5Xdmxkhw0rIDsxwW98zuacy76gUjCpgaA1Cvb9fuQ26okOMEEmepSrx
-# 7KjqBYIBTzHKj9HVkLGVtMw3PqBu1O/RMYBCH/ByvEoZ8xD72pebtqz6BB0VF0vZ
-# zmIGZXJ/dO/dl75ONfaPNn7MbmKe0swdMqc4gTvi6Pv/V8Eg/TcF3oh1jFOmmVwI
-# eFWZR0Gn3xp8LC4LBX7DGQZyLQv33OURPwIDAQABo4IC2TCCAtUwPAYJKwYBBAGC
-# NxUHBC8wLQYlKwYBBAGCNxUI99Z8h/iMH9mJF4Hgsy6C8IQ5gQ+C9eJzhIzNGQIB
-# aQIBAzATBgNVHSUEDDAKBggrBgEFBQcDAzALBgNVHQ8EBAMCB4AwDAYDVR0TAQH/
-# BAIwADAbBgkrBgEEAYI3FQoEDjAMMAoGCCsGAQUFBwMDMB0GA1UdDgQWBBSLxTWJ
-# /z22qhrO+I4Xjdrdf4+e3TAfBgNVHSMEGDAWgBRBj6B94d5u5ZhabP6oFz+lQsCw
-# aTCB3AYDVR0fBIHUMIHRMIHOoIHLoIHIhoHFbGRhcDovLy9DTj1FRVQlMjBHcm91
-# cCUyMFN1YiUyMENBLENOPVBST0QtU1VCQ0EtMDEsQ049Q0RQLENOPVB1YmxpYyUy
-# MEtleSUyMFNlcnZpY2VzLENOPVNlcnZpY2VzLENOPUNvbmZpZ3VyYXRpb24sREM9
-# ZWV0bm9yZGljLERDPW5ldD9jZXJ0aWZpY2F0ZVJldm9jYXRpb25MaXN0P2Jhc2U/
-# b2JqZWN0Q2xhc3M9Y1JMRGlzdHJpYnV0aW9uUG9pbnQwgfYGCCsGAQUFBwEBBIHp
-# MIHmMIG3BggrBgEFBQcwAoaBqmxkYXA6Ly8vQ049RUVUJTIwR3JvdXAlMjBTdWIl
-# MjBDQSxDTj1BSUEsQ049UHVibGljJTIwS2V5JTIwU2VydmljZXMsQ049U2Vydmlj
-# ZXMsQ049Q29uZmlndXJhdGlvbixEQz1lZXRub3JkaWMsREM9bmV0P2NBQ2VydGlm
-# aWNhdGU/YmFzZT9vYmplY3RDbGFzcz1jZXJ0aWZpY2F0aW9uQXV0aG9yaXR5MCoG
-# CCsGAQUFBzABhh5odHRwOi8vcGtpMS5lZXRub3JkaWMubmV0L29jc3AwMAYDVR0R
-# BCkwJ6AlBgorBgEEAYI3FAIDoBcMFWNoai1hZG1AZWV0bm9yZGljLm5ldDANBgkq
-# hkiG9w0BAQsFAAOCAQEAm++4L1URiirtZ5aAnQ4uXll4ZY7/Qx70duK62Ht4a4/0
-# zeRPuju8z8ED7QGNWknfoeg3/9oILLqOeZGvWQLbPuy7+bfpFyVwHTgsHinLNBJi
-# ldhk5KmPzPEooBuIOcpbWoODGDUtkW3SR3SjIcYeMWBchFJpywoNfmC8fkhqh7bq
-# YLxaB4+Qv7XHLGKPyPeNLwcRE9pxU0NGfrK1c7BkiU5vO2BkYTvYHqhOCEuQzfiO
-# UFQA6CcnwIkWunWrqNRb30SQMokUCDAcRdCngknNcByzO3vSx4caZDqa9DyXquzx
-# b0oWR5jbRojr63rQKoApYMl4YeR4W0/1+EZbk0NZaTCCBtgwggTAoAMCAQICEzwA
-# AAACp2Mbi4zdg2MAAAAAAAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UEAxMRRUVU
-# IEdyb3VwIFJvb3QgQ0EwHhcNMTkwMjA2MDkyMjIxWhcNMjQwMjA2MDkzMjIxWjBL
-# MRMwEQYKCZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJZWV0bm9yZGlj
-# MRkwFwYDVQQDExBFRVQgR3JvdXAgU3ViIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC
-# AQ8AMIIBCgKCAQEA2BhikY439/eE6CRdiGIn2jRm+KJ2+fDCYMLN/f/WZon4Xl5P
-# HH+CAnBw5pC/Cv0xnMFhgJUhxDnLcm4GKnagOiAlxgE+ukzESzLigfOeMslvgXVt
-# xi0g2Nf/Y4g4dCs+RT3kOt6gH+3r1SUkyI01zkkN576dR9hYq7P2YfWlREFOTZiA
-# DKdBTLzZdZwz2foDInkIGFQBo4lEzOVbrZjyPaleXfIv7CJ5luMmN1tWZzREGk9F
-# R3IQo2/4DtaaqDqy1jY9aLdlSiUP2+IlKMAR2huE3GWCDcyQOlJKi7AibFznTpzo
-# zBwm8sLVs18/aMK6OPj1UV3+7l0fbcmhoYl2HwIDAQABo4IC4jCCAt4wEAYJKwYB
-# BAGCNxUBBAMCAQAwHQYDVR0OBBYEFEGPoH3h3m7lmFps/qgXP6VCwLBpMBkGCSsG
-# AQQBgjcUAgQMHgoAUwB1AGIAQwBBMAsGA1UdDwQEAwIBhjAPBgNVHRMBAf8EBTAD
-# AQH/MB8GA1UdIwQYMBaAFNEanpkqTKdu+Q7qzwzlbNmFPr3+MIIBIwYDVR0fBIIB
-# GjCCARYwggESoIIBDqCCAQqGgcdsZGFwOi8vL0NOPUVFVCUyMEdyb3VwJTIwUm9v
-# dCUyMENBLENOPVBST0QtUk9PVENBLTAxLENOPUNEUCxDTj1QdWJsaWMlMjBLZXkl
-# MjBTZXJ2aWNlcyxDTj1TZXJ2aWNlcyxDTj1Db25maWd1cmF0aW9uLGRjPWVldG5v
-# cmRpYyxkYz1uZXQ/Y2VydGlmaWNhdGVSZXZvY2F0aW9uTGlzdD9iYXNlP29iamVj
-# dENsYXNzPWNSTERpc3RyaWJ1dGlvblBvaW50hj5odHRwOi8vcGtpMS5lZXRub3Jk
-# aWMubmV0L0NlcnREYXRhL0VFVCUyMEdyb3VwJTIwUm9vdCUyMENBLmNybDCCASgG
-# CCsGAQUFBwEBBIIBGjCCARYwgbgGCCsGAQUFBzAChoGrbGRhcDovLy9DTj1FRVQl
-# MjBHcm91cCUyMFJvb3QlMjBDQSxDTj1BSUEsQ049UHVibGljJTIwS2V5JTIwU2Vy
-# dmljZXMsQ049U2VydmljZXMsQ049Q29uZmlndXJhdGlvbixkYz1lZXRub3JkaWMs
-# ZGM9bmV0P2NBQ2VydGlmaWNhdGU/YmFzZT9vYmplY3RDbGFzcz1jZXJ0aWZpY2F0
-# aW9uQXV0aG9yaXR5MFkGCCsGAQUFBzAChk1odHRwOi8vcGtpMS5lZXRub3JkaWMu
-# bmV0L0NlcnREYXRhL1BST0QtUk9PVENBLTAxX0VFVCUyMEdyb3VwJTIwUm9vdCUy
-# MENBLmNydDANBgkqhkiG9w0BAQsFAAOCAgEAyWGf9yQmujZDbugAxpqQIdPj1kab
-# /znUHIHEyUkpfQ9bvCR3iWz57F7217oOemlpexIAz/1D1QIgAxdgHykX0gjaKOO3
-# oS22sx/8l0hzQDoe0Oy1u6AOxJ/gtd/oEohAyldpg0Hfv60xdjFw+5zLzVbVQfaD
-# 1odeX0ea+5R/w6X50PRCQTQNCvlq4U3JiZ5G2t0YsVqYa/uiRODy0pyW+RIBxuqE
-# FVQLbVgymixf4GhnZ1PLkAcd0cUP+V68bywEApfim72XkCw7S+IRBaSVRwgZSD6g
-# Zf4mgHsOUgSX6q7dqDrIIVP3Qv6FvcNYHTt6oZGM5GpZ/TP8g972RT8f5r1a85F9
-# EDFJR9DmTZ3NK5Hc6jg0/KYNzDWuU1IZgmJytlUiVume5XKm1kYMzIFKh9wVdYK0
-# WMWmBsyi40ycw7VMN3J23eLscARWXOQYzanLQ1hLdLUUo5T+KLaisfkRilxAueKD
-# GKtgyJnM676QzDOdFr6beW/znpwxBbxVuO7FIDeZ1Ngz1LT5+zXq/vJ4P92L44m8
-# H+cT1E9OSxGLrUFRW3FYce+wC31cw34ui3VUidk+5JneMFTJA+npXysEJwzt+9TE
-# AxrmnoMeyNYqw4FSDE2aQRPDxlk+a5Pr+iZtzLes9tL6OaswA6FUAuwtGWNGv3rb
-# ilNGOO713QEQjM4xggIDMIIB/wIBATBiMEsxEzARBgoJkiaJk/IsZAEZFgNuZXQx
-# GTAXBgoJkiaJk/IsZAEZFgllZXRub3JkaWMxGTAXBgNVBAMTEEVFVCBHcm91cCBT
-# dWIgQ0ECEyUAAAaudBGCxCWpqE8AAAAABq4wCQYFKw4DAhoFAKB4MBgGCisGAQQB
-# gjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYK
-# KwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkEMRYEFI2ijv22
-# fVwlAx7JMB7DIq5AXCb+MA0GCSqGSIb3DQEBAQUABIIBAJabLbjGnPXhe7CZ6YKw
-# L1ejauRFp5FUeNkGXQsssn9ADjIj0zJE6h5L3gv8dLLVFJkboZpzzTsbVZl07aU0
-# G0HYouSB+6Bj/eLjIv16SCcWVCyxy8a4Tte2lEVe6ojfwwLibb5xMooEFV7V7ccK
-# 7KoFsriElBFCB3PyK9OZF8YDlbrwImY6jM8q+g+QWx+ZB9s1JgoIoqpzne4Eykx4
-# 6YIav8HdAFRuhGKVhdINu1iCSMhn+l/8lLI2btcluXlQAQSHknoGFbUgMCPBTUIx
-# scCS2KxcjqqUWYkJsNkeCJ3vhrkrJQvQosQsa6gK3Y3ROOSk7nMqLsBIZ0/FdWMi
-# YTA=
-# SIG # End signature block
+<#
+.SYNOPSIS
+    Script to sign PowerShell scripts using a code-signing certificate.
+.DESCRIPTION
+    This script prompts the user for the path to a PowerShell script and attempts to sign it using a code-signing certificate from the current user's certificate store. If no code-signing certificate is found, a new self-signed certificate is created and used for signing.
+.PARAMETER <Parameter_Name>
+    None
+.INPUTS
+    None
+.OUTPUTS
+    1. The specified script is signed with a code-signing certificate.
+    2. Messages indicating the success or failure of the signing process.
+.NOTES
+  Version:        1.0
+  Author:         Casper Hjorth Christensen
+  Creation Date:  <Date>
+  Purpose/Change: Initial script development
+.EXAMPLE
+    .\SignScripts.ps1
+    Prompts the user for the path to a script and signs it using a code-signing certificate.
+#>
+
+# Function to prompt the user for the script path
+function Get-ScriptToSign {
+    param (
+        [string]$Prompt = 
+    )
+    # Prompt the user for the script path
+    Write-Host $Prompt -ForegroundColor Yellow
+    Write-Host  -ForegroundColor Yellow
+    $scriptPath = Read-Host
+    # Check if the provided path exists
+    if (-not (Test-Path $scriptPath)) {
+        Write-Host  -ForegroundColor Red
+        return $null
+    }
+    return $scriptPath
+}
+
+# Function to get an existing code-signing certificate or create a new one
+function Get-CodeSigningCertificate {
+    # Attempt to retrieve an existing code-signing certificate from the current user's store
+    $cert = Get-ChildItem -Path Cert:\CurrentUser\My\ -CodeSigningCert | Select-Object -First 1
+    if (-not $cert) {
+        Write-Host  -ForegroundColor Red
+        # Create a new code-signing certificate if none is found
+        $cert = New-CodeSigningCertificate
+    }
+    return $cert
+}
+
+# Function to create a new self-signed code-signing certificate
+function New-CodeSigningCertificate {
+    Write-Host  -ForegroundColor Yellow
+    # Create a new self-signed certificate
+    $cert = New-SelfSignedCertificate -CertStoreLocation Cert:\CurrentUser\My -Subject  -KeyUsage DigitalSignature -Type CodeSigningCert
+    if ($cert) {
+        Write-Host  -ForegroundColor Green
+    } else {
+        Write-Host  -ForegroundColor Red
+    }
+    return $cert
+}
+
+# Function to sign the script with the provided certificate
+function Sign-Script {
+    param (
+        [string]$scriptPath,
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$certificate
+    )
+    try {
+        # Attempt to sign the script
+        $signature = Set-AuthenticodeSignature -FilePath $scriptPath -Certificate $certificate
+        if ($signature.Status -eq 'Valid') {
+            Write-Host  -ForegroundColor Green
+        } else {
+            Write-Host  -ForegroundColor Red
+            Write-Host  -ForegroundColor Red
+        }
+    } catch {
+        Write-Host  -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
+# Main script execution
+$scriptPath = Get-ScriptToSign
+if ($scriptPath) {
+    $certificate = Get-CodeSigningCertificate
+    if ($certificate) {
+        Sign-Script -scriptPath $scriptPath -certificate $certificate
+    }
+}

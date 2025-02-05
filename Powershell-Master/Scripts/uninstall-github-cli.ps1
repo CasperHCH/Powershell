@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls GitHub CLI
 .DESCRIPTION
@@ -14,7 +14,7 @@
 #>
 
 try {
-	"⏳ Uninstalling GitHub CLI..."
+	
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	if ($IsMacOS) {
@@ -24,12 +24,12 @@ try {
 	} else {
 		& winget uninstall --id GitHub.cli
 	}
-	if ($lastExitCode -ne "0") { throw "Can't uninstall GitHub CLI, is it installed?" }
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Removal of GitHub CLI took $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

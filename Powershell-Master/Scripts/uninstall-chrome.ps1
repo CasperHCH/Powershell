@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls the Chrome browser
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"⏳ Uninstalling Google Chrome..."
+	
 
 	& winget uninstall --id Google.Chrome
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Google Chrome, is it installed?" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"✔️ Google Chrome is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

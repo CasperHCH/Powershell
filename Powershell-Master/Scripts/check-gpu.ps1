@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Checks the GPU status
 .DESCRIPTION
@@ -12,16 +12,15 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-function Bytes2String { param([int64]$Bytes)
-        if ($Bytes -lt 1000) { return "$Bytes bytes" }
+
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)KB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)MB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)GB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        return "$($Bytes)TB"
+        return 
 }
 
 try {
@@ -37,10 +36,10 @@ try {
 		$RefreshRate = $Details.CurrentRefreshRate
 		$DriverVersion = $Details.DriverVersion
 		$Status = $Details.Status
-		Write-Host "✅ $Model GPU ($(Bytes2String $RAMSize) RAM, $($ResWidth)x$($ResHeight) pixels, $BitsPerPixel bit, $RefreshRate Hz, driver $DriverVersion, status $Status)"
+		Write-Host 
 	}
 	exit 0 # success
 } catch {
-        "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+        
         exit 1
 }

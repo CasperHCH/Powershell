@@ -77,18 +77,18 @@ function Get-ComputerHardwareSpecification {
             $ErrorActionPreference = 'Stop'
             # Establishing CIM Session
             try {
-                Write-Verbose -Message "Attempting to get the hardware specifications of $Computer"
+                Write-Verbose -Message 
                 $CimSession = New-ResilientCimSession -ComputerName $Computer -Credential $Credential
                 
-                Write-Verbose -Message "Gathering CPU information of $Computer"
+                Write-Verbose -Message 
                 $CPU = Get-CimInstance -ClassName win32_processor -CimSession $CimSession
 
-                Write-Verbose -Message "Gathering memory information of $Computer"
+                Write-Verbose -Message 
                 $Memory = Get-CimInstance -ClassName win32_operatingsystem -CimSession $CimSession
             
-                Write-Verbose -Message "Gathering storage information of $Computer"
-                $Disks = Get-CimInstance -ClassName win32_logicaldisk -Filter "DriveType = 3" -CimSession $CimSession
-                $Storage = "{0:N2}" -f (($Disks | Measure-Object -Property Size -Sum).Sum / 1Gb) -as [decimal]
+                Write-Verbose -Message 
+                $Disks = Get-CimInstance -ClassName win32_logicaldisk -Filter  -CimSession $CimSession
+                $Storage =  -f (($Disks | Measure-Object -Property Size -Sum).Sum / 1Gb) -as [decimal]
             
                 # Building object properties
                 $SystemProperties = [ordered]@{
@@ -110,7 +110,7 @@ function Get-ComputerHardwareSpecification {
             }
             catch {
                 $ErrorActionPreference = 'Continue'
-                Write-Error -Message "Unable to connect to $Computer"
+                Write-Error -Message 
             }
         }
     }

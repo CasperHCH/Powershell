@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	List the latest news
 .DESCRIPTION
@@ -19,20 +19,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RSS_URL = "https://yahoo.com/news/rss/world", [int]$maxLines = 24, [int]$speed = 10)
+param([string]$RSS_URL = , [int]$maxLines = 24, [int]$speed = 10)
 
 try {
 	[xml]$content = (Invoke-WebRequest -URI $RSS_URL -useBasicParsing).Content
 	[int]$count = 1
 	foreach ($item in $content.rss.channel.item) {
-		& "$PSScriptRoot/write-typewriter.ps1" "❇️ $($item.title)" $speed
+		&   $speed
 		if ($count++ -eq $maxLines) { break }
 	}
 	$source = $Content.rss.channel.title
 	$date = $Content.rss.channel.pubDate
-	"   (by $source as of $date)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

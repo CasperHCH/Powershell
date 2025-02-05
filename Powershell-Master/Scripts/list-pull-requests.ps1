@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Lists all pull requests
 .DESCRIPTION
@@ -13,30 +13,30 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
-        Write-Progress "⏳ (1/3) Searching for Git executable...  "
+        Write-Progress 
         $null = (git --version)
-        if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+        if ($lastExitCode -ne ) { throw  }
 
-        Write-Progress "⏳ (2/3) Checking local repository..."
-        if (!(Test-Path "$RepoDir" -pathType container)) { throw "Can't access folder: $RepoDir" }
-        $RepoDirName = (Get-Item "$RepoDir").Name
+        Write-Progress 
+        if (!(Test-Path  -pathType container)) { throw  }
+        $RepoDirName = (Get-Item ).Name
 
-        Write-Progress "⏳ (3/3) Fetching latest updates..."
-        & git -C "$RepoDir" fetch --all --force --quiet
-        if ($lastExitCode -ne "0") { throw "'git fetch --all' failed with exit code $lastExitCode" }
-	Write-Progress -completed " "
+        Write-Progress 
+        & git -C  fetch --all --force --quiet
+        if ($lastExitCode -ne ) { throw  }
+	Write-Progress -completed 
 
-	" "
-	"Commit ID                                       Reference"
-	"---------                                       ---------"
-	& git -C "$RepoDir" ls-remote origin 'pull/*/head'
-	if ($lastExitCode -ne "0") { throw "'git ls-remote' failed with exit code $lastExitCode" }
-	Write-Progress -completed " "
+	
+	
+	
+	& git -C  ls-remote origin 'pull/*/head'
+	if ($lastExitCode -ne ) { throw  }
+	Write-Progress -completed 
 	exit 0 # success
 } catch {
-        "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+        
         exit 1
 }

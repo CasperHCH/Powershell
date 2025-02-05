@@ -1,4 +1,4 @@
-﻿#Requires -Version 2.0
+#Requires -Version 2.0
 
 #Function Get-LockedOutLocation
 #{
@@ -25,7 +25,7 @@
 
     Param(
       [Parameter(Mandatory=$True)]
-      [string]$identity = $(throw "-identity is required.")
+      [string]$identity = $(throw )
     )
 
     Begin
@@ -47,16 +47,16 @@
     {
       #Get all domain controllers in domain
       $DomainControllers = Get-ADDomainController -Filter *
-      $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains "PDCEmulator"})
-      #$DomainControllers = Get-ADDomainController -Filter {Name -like "SRV-DC-0*" -or name -eq "BQ-DC-01" -or name -eq "HQ-DC-01"}
-      #$DomainControllers = Get-ADDomainController -Filter {Name -like "SRV-DC-0*" -or name -eq "HQ-DC-01"}
-      #$PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains "PDCEmulator"})
+      $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
+      #$DomainControllers = Get-ADDomainController -Filter {Name -like  -or name -eq  -or name -eq }
+      #$DomainControllers = Get-ADDomainController -Filter {Name -like  -or name -eq }
+      #$PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
 
-      Write-Verbose "Finding the domain controllers in the domain"
+      Write-Verbose 
       Foreach($DC in $DomainControllers)
       {
         $DCCounter++
-        Write-Progress -Activity "Contacting DCs for lockout info" -Status "Querying $($DC.Hostname)" -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
+        Write-Progress -Activity  -Status  -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
         Try
         {
           $UserInfo = Get-ADUser -Identity $Identity  -Server $DC.Hostname -Properties AccountLockoutTime,LastBadPasswordAttempt,BadPwdCount,LockedOut -ErrorAction Stop
@@ -85,7 +85,7 @@
       #Get User Info
       Try
       {
-        Write-Verbose "Querying event log on $($PDCEmulator.HostName)"
+        Write-Verbose 
         $LockedOutEvents = Get-WinEvent -ComputerName $PDCEmulator.HostName -FilterHashtable @{LogName='Security';Id=4740} -ErrorAction Stop | Sort-Object -Property TimeCreated -Descending
       }
       Catch
@@ -104,7 +104,7 @@
             @{Label = 'DomainController';   Expression = {$_.MachineName}}
             @{Label = 'EventId';            Expression = {$_.Id}}
             @{Label = 'LockedOutTimeStamp'; Expression = {$_.TimeCreated}}
-            @{Label = 'Message';            Expression = {$_.Message -split "`r" | Select -First 1}}
+            @{Label = 'Message';            Expression = {$_.Message -split  | Select -First 1}}
             @{Label = 'LockedOutLocation';  Expression = {$_.Properties[1].Value}}
           )
 

@@ -7,9 +7,9 @@
 .DESCRIPTION  
 	This script searches for the most recent instances of Lync Server warnings 31137 & 31138 (RGS Agents not enabled for UC or EV) 
 	and identifies the Agent Groups to which they belong. If a user still exists on the system but is Disabled for Enterprise 
-	Voice, the "-restore" switch will re-enable Enterprise Voice. If a user is no longer present in Lync (and presumably no longer 
-	in AD) the "-remove" switch will remove them from all Groups. If someone else has already corrected the warnings reported in 
-	these events, the "-restore" and "-remove" switches will have no effect.
+	Voice, the  switch will re-enable Enterprise Voice. If a user is no longer present in Lync (and presumably no longer 
+	in AD) the  switch will remove them from all Groups. If someone else has already corrected the warnings reported in 
+	these events, the  and  switches will have no effect.
 
 .NOTES  
     Version				: 1.3
@@ -20,8 +20,8 @@
 	Revision History:
 	v1.3 29May 2016		: Corrected bug where invalid agents in Distribution Group resulted in the group being replaced by the list of remaining (good) agents
 						  Added code-signing certificate. (Thank you DigiCert)
-						  Added "-wa silentlyContinue" to suppress warning messages showing on screen if the user has unrelated config issues
-						  Removed 'width' values from $myFormatShow & replaced with "-auto" to improve legibility on-screen
+						  Added  to suppress warning messages showing on screen if the user has unrelated config issues
+						  Removed 'width' values from $myFormatShow & replaced with  to improve legibility on-screen
 						  Added DistributionGroup as a new member to the output object
 						  Changed the output object to always show Action and DistributionGroup
 						  Changed command tests to try/catch blocks for improved error handling
@@ -41,8 +41,7 @@
  
 	Description
 	-----------
-    Searches the Lync error log for the most recent instance of Lync Server warnings 31137 & 31138 ("During the Active Directory 
-	update non-UC/SIP enabled agents were found"). The users named are then passed to Get-CsRgsAgentGroup to identify the groups
+    Searches the Lync error log for the most recent instance of Lync Server warnings 31137 & 31138 (). The users named are then passed to Get-CsRgsAgentGroup to identify the groups
 	they belong to & this output is written to the screen. If you have Response Groups across multiple pools, all are tested, 
 	however ONLY users homed to the local Front-End will be identified in that machine's event log.
 
@@ -66,27 +65,27 @@
 
 .PARAMETER Restore
 		Boolean. If $True (or simply present), any agents that are EV disabled will be re-enabled. Use of the 
-		parameter "Remove" is mutually exclusive - the script will abort if both are specified.
+		parameter  is mutually exclusive - the script will abort if both are specified.
 
 .PARAMETER Remove
-		Boolean. If $True (or simply present), any agents not reporting as "OK" will be removed from the group. If the group's agents 
+		Boolean. If $True (or simply present), any agents not reporting as  will be removed from the group. If the group's agents 
 		are populated from a Distribution Group the script will make no change and instead report the group's e-mail address so you can 
-		manually remove them. Use of the parameter "Restore" is mutually exclusive - the script will abort if both are specified.
+		manually remove them. Use of the parameter  is mutually exclusive - the script will abort if both are specified.
 		
 
 #>
 
-[CmdletBinding(DefaultParameterSetName = "restore")]
+[CmdletBinding(DefaultParameterSetName = )]
 param(
 	[parameter(
 		mandatory=$false,
-		parametersetname="restore"
+		parametersetname=
 	)]
 		[switch]$Restore,
 		
 	[parameter(
 		mandatory=$false,
-		parametersetname="remove"
+		parametersetname=
 	)]
 		[switch]$Remove
 )
@@ -98,17 +97,17 @@ $Error.Clear()          #Clear PowerShell's error variable
 # START MAIN CODE EXECUTION -----
 #--------------------------------
 
-write-progress -id 1 -Activity "Initialising" -Status "Importing Active Directory Module"
+write-progress -id 1 -Activity  -Status 
 if(-not(Get-Module -name ActiveDirectory)){Import-Module ActiveDirectory}
 
-write-progress -id 1 -Activity "Reading Event Log" -Status "Event ID 31137"
-$Event31137 = Get-EventLog "Lync Server" | ? {$_.eventid -eq 31137} | Select Message -First 1
-$users31137 = $Event31137 | select-string -pattern "(?<=sip:)([\w.]*)@([\w.]*)"  -AllMatches | %{ $_.Matches } | %{ $_.Value }
+write-progress -id 1 -Activity  -Status 
+$Event31137 = Get-EventLog  | ? {$_.eventid -eq 31137} | Select Message -First 1
+$users31137 = $Event31137 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
 
-write-progress -id 1 -Activity "Reading Event Log" -Status "Event ID 31138"
-$Event31138 = Get-EventLog "Lync Server" | ? {$_.eventid -eq 31138} | Select Message -First 1
-$users31138 = $Event31138 | select-string -pattern "(?<=sip:)([\w.]*)@([\w.]*)"  -AllMatches | %{ $_.Matches } | %{ $_.Value }
-write-progress -id 1 -Activity "Reading Event Log" -Status "Event ID 31138" -Completed
+write-progress -id 1 -Activity  -Status 
+$Event31138 = Get-EventLog  | ? {$_.eventid -eq 31138} | Select Message -First 1
+$users31138 = $Event31138 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
+write-progress -id 1 -Activity  -Status  -Completed
 
 $users = @()
 if ($users31137.count -ne 0) {$users  += $users31137.Split(' ')}
@@ -117,84 +116,84 @@ if ($users31138.count -ne 0) {$users  += $users31138.Split(' ')}
 $users = $users | select -uniq #Remove dupes
 
 $Grouptable = @()
-$status = ""
-$action = ""
+$status = 
+$action = 
 
-write-progress -id 1 -Activity "Reading Agent Groups into memory" -Status " "
+write-progress -id 1 -Activity  -Status 
 $AllGroups = Get-CsRgsAgentGroup
-write-progress -id 1 -Activity "Reading Users" -Status " "
+write-progress -id 1 -Activity  -Status 
 	
 foreach ($user in $users)
 {
-	write-progress -id 1 -Activity "Reading Users" -Status "$($user)"
-	if ($thisUser = get-csuser -Identity "sip:$user" -ea silentlyContinue -wa silentlyContinue)
+	write-progress -id 1 -Activity  -Status 
+	if ($thisUser = get-csuser -Identity  -ea silentlyContinue -wa silentlyContinue)
 	{
 		#OK, they're in Lync.
 		if ($thisUser.EnterpriseVoiceEnabled -eq $false)
 		{
-			$status = "EV disabled"
+			$status = 
 		}
 		else
 		{
-			$status = "OK" 	#Someone else must have already fixed them up prior to the script running
+			$status =  	#Someone else must have already fixed them up prior to the script running
 		}
 	}
 	else
 	{
-		$status = "Not in Lync/AD"
+		$status = 
 	}	
 	
-	$Groups = $AllGroups | where {$_.agentsbyuri -contains "sip:$user"}
+	$Groups = $AllGroups | where {$_.agentsbyuri -contains }
 	foreach ($Group in $groups)
 	{
 		$DG =  $group.DistributionGroupAddress
-		$action = "None"
+		$action = 
 		if ($Restore)
 		{
-			if  ($status -eq "EV disabled")
+			if  ($status -eq )
 			{
 				try
 				{
-					set-csuser -Identity "sip:$user" -EnterpriseVoiceEnabled $true -AudioVideoDisabled $false -wa silentlyContinue
-					$action = "Restored"
+					set-csuser -Identity  -EnterpriseVoiceEnabled $true -AudioVideoDisabled $false -wa silentlyContinue
+					$action = 
 				}
 				catch
 				{
 					#$_ | fl * -f	
-					$action = "Restore failed"
+					$action = 
 				}
 			}
 			else
 			{
-				$action = "None"
+				$action = 
 			}
 		}
 		if ($Remove)
 		{
-			if ($status -ne "OK")
+			if ($status -ne )
 			{
 				if ($group.DistributionGroupAddress -eq $null)
 				{
-					$Group.AgentsByUri.Remove("sip:$user") | Out-Null
+					$Group.AgentsByUri.Remove() | Out-Null
 					try
 					{
 						Set-CsRgsAgentGroup -Instance $Group
-						$action = "Removed"
+						$action = 
 					}
 					catch
 					{
 						$_ | fl * -f	
-						$action = "Remove failed"
+						$action = 
 					}
 				}
 				else
 				{
-					$action = "Skipped: Agent is in DG"
+					$action = 
 				}
 			}
 			else
 			{
-				$action = "None"
+				$action = 
 			}
 		}
 		#Now create a custom object so we can output all this into a table:
@@ -203,12 +202,12 @@ foreach ($user in $users)
 		$GroupTable += $TableRow
 	}
 }
-$myFormatShow = @{Expression={$_.User};Label="SIP URI"}, `
-			@{Expression={$_.Group};Label="Group Name"}, `
-			@{Expression={$_.Owner};Label="Owner Pool"}, `
-			@{Expression={$_.Status};Label="Status"}, `
-			@{Expression={$_.Action};Label="Action"}, `
-			@{Expression={$_.DistributionGroup};Label="Distribution Group"}
+$myFormatShow = @{Expression={$_.User};Label=}, `
+			@{Expression={$_.Group};Label=}, `
+			@{Expression={$_.Owner};Label=}, `
+			@{Expression={$_.Status};Label=}, `
+			@{Expression={$_.Action};Label=}, `
+			@{Expression={$_.DistributionGroup};Label=}
 $GroupTable | format-table $myFormatShow -auto
 
 

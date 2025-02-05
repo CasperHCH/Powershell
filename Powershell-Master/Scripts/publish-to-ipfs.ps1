@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Publishes files & folders to IPFS
 .DESCRIPTION
@@ -17,43 +17,43 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$FilePattern = "", [string]$HashList = "IPFS_hashes.txt", [string]$DF_Hashes = "file_checksums.xml")
+param([string]$FilePattern = , [string]$HashList = , [string]$DF_Hashes = )
 
 try {
-	if ($FilePattern -eq "") { $FilePattern = read-host "Enter file(s)/directories to publish" }
+	if ($FilePattern -eq ) { $FilePattern = read-host  }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/3) Searching for IPFS executable..." -NoNewline
+	Write-Host  -NoNewline
 	& ipfs --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'ipfs' - make sure IPFS is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	if (test-path "$FilePattern" -pathType container) {
-		"⏳ (2/3) Publishing folder $FilePattern/..."
-		& ipfs add -r "$FilePattern" > $HashList
+	if (test-path  -pathType container) {
+		
+		& ipfs add -r  > $HashList
 		[int]$Count = 1
-		""
-		"⏳ (3/3) Calculating digital forensics hashes to $DF_HASHES ..."
-		& nice hashdeep -c md5,sha1,sha256 -r -d -l -j 1 "$FilePattern" > $DF_Hashes
+		
+		
+		& nice hashdeep -c md5,sha1,sha256 -r -d -l -j 1  > $DF_Hashes
 	} else {
-		$FileList = (get-childItem "$FilePattern")
+		$FileList = (get-childItem )
 		foreach ($File in $FileList) {
-			if (test-path "$FilePattern" -pathType container) {
-				"⏳ (2/3) Publishing folder $File/..."
-				& ipfs add -r "$File" >> $HashList
+			if (test-path  -pathType container) {
+				
+				& ipfs add -r  >> $HashList
 			} else {
-				"⏳ (3/3) Publishing file $File..."
-				& ipfs add "$File" >> $HashList
+				
+				& ipfs add  >> $HashList
 			}
 		}
 		[int]$Count = $FileList.Count
 	}
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ published $Count file(s)/folder(s) to IPFS in $Elapsed sec"
-	"  NOTE: to publish it to IPNS execute: ipfs name publish <HASH>"
+	
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

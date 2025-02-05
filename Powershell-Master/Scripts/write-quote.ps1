@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes a random quote
 .DESCRIPTION
@@ -14,18 +14,18 @@
 #>
 
 try {
-	$table = Import-CSV "$PSScriptRoot/../Data/quotes.csv"
+	$table = Import-CSV 
 
 	$randomNumberGenerator = New-Object System.Random
 	$row = [int]$randomNumberGenerator.next(0, $table.Count - 1)
 	$quote = $table[$row].QUOTE
 	$author = $table[$row].AUTHOR.toUpper()
-	$spaces = "                                                                                                                             "
+	$spaces = 
 	$spaces = $spaces.Substring(0, $quote.Length - $author.Length)
 
-	Write-Host "`n"'“'"$quote"'„'"`n$spaces- $author" -foregroundColor Magenta
+	Write-Host '“''„' -foregroundColor Magenta
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

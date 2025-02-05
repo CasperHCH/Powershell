@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints the geographic location of a city
 .DESCRIPTION
@@ -13,13 +13,13 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$City = "")
+param([string]$City = )
 
 try {
-	if ($City -eq "" ) { $City = Read-Host "Enter the city name" }
+	if ($City -eq  ) { $City = Read-Host  }
 
-	Write-Progress "Reading worldcities.csv..."
-	$Table = import-csv "$PSScriptRoot/../Data/worldcities.csv"
+	Write-Progress 
+	$Table = import-csv 
 
 	$FoundOne = 0
 	foreach($Row in $Table) {
@@ -30,16 +30,16 @@ try {
 			$Lat = $Row.lat
 			$Long = $Row.lng
 			$Population = $Row.population
-			write-host "* $City ($Country, $Region, population $Population) is at $Lat°N, $Long°W"
+			write-host 
 		}
 	}
 
 	if ($FoundOne) {
 		exit 0 # success
 	}
-	write-error "City $City not found"
+	write-error 
 	exit 1
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

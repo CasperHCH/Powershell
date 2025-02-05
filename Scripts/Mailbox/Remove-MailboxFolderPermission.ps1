@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Remove-MailboxFolderPermissions.ps1
 
@@ -53,14 +53,14 @@ param (
 # Variables
 #...................................
 
-$exclusions = @("/Sync Issues",
-                "/Sync Issues/Conflicts",
-                "/Sync Issues/Local Failures",
-                "/Sync Issues/Server Failures",
-                "/Recoverable Items",
-                "/Deletions",
-                "/Purges",
-                "/Versions"
+$exclusions = @(,
+                ,
+                ,
+                ,
+                ,
+                ,
+                ,
+                
                 )
 
 
@@ -69,7 +69,7 @@ $exclusions = @("/Sync Issues",
 #...................................
 
 #Add Exchange 2010 snapin if not already loaded in the PowerShell session
-if (!(Get-PSSnapin | where {$_.Name -eq "Microsoft.Exchange.Management.PowerShell.E2010"}))
+if (!(Get-PSSnapin | where {$_.Name -eq }))
 {
 	try
 	{
@@ -101,19 +101,19 @@ $mailboxfolders = @(Get-MailboxFolderStatistics $Mailbox | Where {!($exclusions 
 
 foreach ($mailboxfolder in $mailboxfolders)
 {
-    $folder = $mailboxfolder.FolderPath.Replace("/","\")
-    if ($folder -match "Top of Information Store")
+    $folder = $mailboxfolder.FolderPath.Replace(,)
+    if ($folder -match )
     {
        $folder = $folder.Replace(“\Top of Information Store”,”\”)
     }
-    $identity = "$($mailbox):$folder"
-    Write-Host "Checking $identity for permissions for user $user"
+    $identity = 
+    Write-Host 
     if (Get-MailboxFolderPermission -Identity $identity -User $user -ErrorAction SilentlyContinue)
     {
         try
         {
             Remove-MailboxFolderPermission -Identity $identity -User $User -Confirm:$false -ErrorAction STOP
-            Write-Host -ForegroundColor Green "Removed!"
+            Write-Host -ForegroundColor Green 
         }
         catch
         {

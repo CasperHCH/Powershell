@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Ping the currrent weather conditions
 .DESCRIPTION
@@ -15,13 +15,13 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Location = "", [int]$UpdateInterval = 600)
+param([string]$Location = , [int]$UpdateInterval = 600)
 
 try {
-	$Weather = (Invoke-WebRequest -URI http://wttr.in/${Location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	$Weather = (Invoke-WebRequest -URI http://wttr.in/${Location}?format=j1 -userAgent  -useBasicParsing).Content | ConvertFrom-Json
         $Area = $Weather.nearest_area.areaName.value
         $Region = $Weather.nearest_area.region.value
-	"Current weather conditions at $Area ($Region), updating every $($UpdateInterval / 60) min..."
+	
 	do {
 		
 		$Description = $Weather.current_condition.WeatherDesc.value
@@ -36,12 +36,12 @@ try {
 		$Pressure = $Weather.current_condition.pressure
 		$Time = $Weather.current_condition.observation_time
 
-		"🕗$Time UTC  🌡$($TempC)°C  ☂️$($PrecipMM)mm  💨$($WindSpeed)km/h from $WindDir  ☁️$($Clouds)%  💧$($Humidity)%  ☀️UV$UV  👀$($Visib)km  $($Pressure)hPa  $Description"
+		
 		Start-Sleep -s $UpdateInterval
-		$Weather = (Invoke-WebRequest -URI http://wttr.in/${Location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+		$Weather = (Invoke-WebRequest -URI http://wttr.in/${Location}?format=j1 -userAgent  -useBasicParsing).Content | ConvertFrom-Json
 	} while ($true)
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

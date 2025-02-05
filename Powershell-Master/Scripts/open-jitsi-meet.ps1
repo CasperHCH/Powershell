@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the Jitsi Meet website
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://meet.jit.si/"
+&  
 exit 0 # success

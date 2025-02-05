@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the user's downloads folder
 .DESCRIPTION
@@ -13,16 +13,16 @@
 
 try {
 	if ($IsLinux) {
-		$Path = Resolve-Path "$HOME/Downloads"
+		$Path = Resolve-Path 
 	} else {
 		$Path = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
 	}
-	if (-not(Test-Path "$Path" -pathType container)) {
-		throw "Downloads folder at 📂$Path doesn't exist (yet)"
+	if (-not(Test-Path  -pathType container)) {
+		throw 
 	}
-	& "$PSScriptRoot/open-file-explorer.ps1" $Path
+	&  $Path
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

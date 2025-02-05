@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Writes a fractal
 .DESCRIPTION
@@ -39,8 +39,8 @@ $rui = $ui.rawui
 [float]$top = -0.25 
 [float]$xside = 0.25 
 [float]$yside = 0.45 
-$buffer0 = ""
-1..($rui.MaxWindowSize.Width * $rui.MaxWindowSize.Height) | ForEach-Object { $buffer0 += " " }
+$buffer0 = 
+1..($rui.MaxWindowSize.Width * $rui.MaxWindowSize.Height) | ForEach-Object { $buffer0 +=  }
 $global:buf = $buffer0.ToCharArray()
 
 while ($true) {

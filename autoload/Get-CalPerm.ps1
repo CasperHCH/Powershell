@@ -3,14 +3,14 @@
 Function Get-CalPerm {
 
     param(
-        [Parameter(Mandatory = $true, HelpMessage="Enter a mailbox to check permissions for")]
+        [Parameter(Mandatory = $true, HelpMessage=)]
         [ValidateNotNullOrEmpty()]
         [string]$Identity
     )
 
     # Connect to Exchange Management Shell if not already
     if (!(Get-Command Get-Mailbox -ErrorAction SilentlyContinue)) {
-        Write-Host "Connecting to Exchange Online.."
+        Write-Host 
         Connect-ExchangeOnline
     }
 

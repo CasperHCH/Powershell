@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls Visual Studio Code
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling Visual Studio Code, please wait..."
+	
 
-	& winget uninstall "Visual Studio Code"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Visual Studio Code, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"Visual Studio Code is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

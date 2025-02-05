@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Twitter
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Twitter, please wait..."
+	
 
-	& winget install "Twitter" --source msstore --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	& winget install  --source msstore --accept-package-agreements --accept-source-agreements
+	if ($lastExitCode -ne ) { throw  }
 
-	"Twitter installed successfully."
+	
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

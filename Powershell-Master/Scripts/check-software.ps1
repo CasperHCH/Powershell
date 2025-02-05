@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the software
 .DESCRIPTION
@@ -16,14 +16,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-" "
-& "$PSScriptRoot/write-green.ps1" "   S O F T W A R E"
-& "$PSScriptRoot/check-bios.ps1"
-& "$PSScriptRoot/check-os.ps1"
-& "$PSScriptRoot/check-apps.ps1"
-& "$PSScriptRoot/check-powershell.ps1"
-& "$PSScriptRoot/check-uptime.ps1"
-& "$PSScriptRoot/check-time-zone.ps1"
-& "$PSScriptRoot/check-swap-space.ps1"
-& "$PSScriptRoot/check-pending-reboot.ps1"
+
+&  
+& 
+& 
+& 
+& 
+& 
+& 
+& 
+& 
 exit 0 # success

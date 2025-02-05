@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the documents folder
 .DESCRIPTION
@@ -14,17 +14,17 @@
 
 try {
 	if ($IsLinux) {
-		$Path = Resolve-Path "$HOME/Documents"
+		$Path = Resolve-Path 
 	} else {
 		$Path = [Environment]::GetFolderPath('MyDocuments')
 	}
-	if (-not(Test-Path "$Path" -pathType container)) {
-		throw "Documents folder at 📂$Path doesn't exist (yet)"
+	if (-not(Test-Path  -pathType container)) {
+		throw 
 	}
-	Set-Location "$Path"
-	"📂$Path"
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

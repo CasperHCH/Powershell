@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Open web dashboards
 .DESCRIPTION
@@ -14,19 +14,19 @@
 #>
 
 try {
-	Write-Progress "⏳ Reading Data/popular-dashboards.csv..."
-	$table = Import-CSV "$PSScriptRoot/../Data/popular-dashboards.csv"
+	Write-Progress 
+	$table = Import-CSV 
 	$numRows = $table.Length
-	Write-Progress -completed "."
-	Write-Host "✅ Launching Web browser with 20 tabs...   " -noNewline
+	Write-Progress -completed 
+	Write-Host  -noNewline
 	foreach($row in $table) {
-		Write-Host "$($row.NAME), " -noNewline
-		& "$PSScriptRoot/open-default-browser.ps1" "$($row.URL)"
+		Write-Host  -noNewline
+		&  
 		Start-Sleep -milliseconds 100
 	}
-	Write-Host "(Hint: execute './switch-tabs.ps1' for automated tab switching)"
+	Write-Host 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints the geo location of a zip-code
 .DESCRIPTION
@@ -16,14 +16,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$CountryCode = "", [string]$ZipCode = "")
+param([string]$CountryCode = , [string]$ZipCode = )
 
 try {
-	if ($CountryCode -eq "" ) { $CountryCode = read-host "Enter the country code" }
-	if ($ZipCode -eq "" ) { $ZipCode = read-host "Enter the zip code" }
+	if ($CountryCode -eq  ) { $CountryCode = read-host  }
+	if ($ZipCode -eq  ) { $ZipCode = read-host  }
 
-	write-progress "Reading zip-codes.csv..."
-	$Table = import-csv "$PSScriptRoot/../Data/zip-codes.csv"
+	write-progress 
+	$Table = import-csv 
 
 	$FoundOne = 0
 	foreach($Row in $Table) {
@@ -33,7 +33,7 @@ try {
 				$City = $Row.city
 				$Lat = $Row.latitude
 				$Lon = $Row.longitude
-				write-output "* $Country $ZipCode $City is at $Lat°N, $Lon°W"
+				write-output 
 				$FoundOne = 1
 			}
 		}
@@ -42,8 +42,8 @@ try {
 	if ($FoundOne) {
 		exit 0 # success
 	}
-	throw "Zip-code $ZipCode in country $CountryCode not found"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

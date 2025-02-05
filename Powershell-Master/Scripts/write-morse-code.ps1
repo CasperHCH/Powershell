@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes Morse code
 .DESCRIPTION
@@ -16,28 +16,17 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "", [int]$speed = 100) # one time unit in milliseconds
+param([string]$text = , [int]$speed = 100) # one time unit in milliseconds
 
-function gap { param([int]$Length)
-	for ([int]$i = 0; $i -lt $Length; $i++) {
-		Write-Host " " -noNewline
-	}
+
 	Start-Sleep -milliseconds ($Length * $speed)
 }
 
-function dot {
-	Write-Host "●" -noNewline
-	Start-Sleep -milliseconds $speed # signal
-}
 
-function dash {
-	Write-Host "―" -noNewline
-	Start-Sleep -milliseconds (3 * $speed) # signal
-}
 
-function Char2MorseCode { param([string]$Char)
-	switch($Char) {
-	'A' { dot; gap 1; dash; gap 3 }
+
+
+
 	'B' { dash; gap 1; dot; gap 1; dot; gap 1; dot; gap 3 }
 	'C' { dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 3 }
 	'D' { dash; gap 1; dot; gap 1; dot; gap 3 }
@@ -77,7 +66,7 @@ function Char2MorseCode { param([string]$Char)
 	'!' { dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 1; dash; gap 3 }
 	'.' { dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 3 }
 	',' { dash; gap 1; dash; gap 1; dot; gap 1; dot; gap 1; dash; gap 1; dash; gap 3 }
-	"'" { dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 3 }
+	 { dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 3 }
 	':' { dash; gap 1; dash; gap 1; dash; gap 1; dot; gap 1; dot; gap 1; dot; gap 3 }
 	'+' { dot; gap 1; dash; gap 1; dot; gap 1; dash; gap 1; dot; gap 3 }
 	'-' { dash; gap 1; dot; gap 1; dot; gap 1; dot; gap 1; dot; gap 1; dash; gap 3 }
@@ -88,7 +77,7 @@ function Char2MorseCode { param([string]$Char)
 }
 
 try {
-	if ($text -eq "" ) { [string]$text = Read-Host "Enter text to write" }
+	if ($text -eq  ) { [string]$text = Read-Host  }
 
 	[char[]]$ArrayOfChars = $text.ToUpper()
 	foreach($Char in $ArrayOfChars) {
@@ -96,6 +85,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

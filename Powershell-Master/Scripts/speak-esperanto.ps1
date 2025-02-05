@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Speaks text in Esperanto
 .DESCRIPTION
@@ -13,21 +13,21 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "") { $text = Read-Host "Enter the Esperanto text to speak" }
+	if ($text -eq ) { $text = Read-Host  }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like "*- Esperanto*") {
+		if ($voice.GetDescription() -like ) {
 			$TTS.Voice = $voice
 			[void]$TTS.Speak($text)
 			exit 0 # success
 		}
 	}
-	throw "No Esperanto text-to-speech voice found - please install one."
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Clears the DNS cache
 .DESCRIPTION
@@ -18,9 +18,9 @@ try {
 	Clear-DnsClientCache
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Cleared DNS cache in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

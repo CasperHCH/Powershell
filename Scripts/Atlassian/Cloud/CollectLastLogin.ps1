@@ -3,7 +3,7 @@
 	With only OrgID and Org API Key, collect Last Login for all Users, on all Applications
 .DESCRIPTION
 	On date; 05-10-2023; I didn't have the option to access an Atlassian Cloud, with Managed User Accounts.
-  A managed user account, is an account where the domain has been "collected/claimed".
+  A managed user account, is an account where the domain has been .
   Due to this, I used the option of Exporting a list of all users within an Org, which contains Account ID's.
   This export, also contains Last Login on each application, however, currently the user Export can not be done automatically.
 
@@ -48,9 +48,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -61,8 +61,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   #If($logfile) {
   Add-Content $slogfile -Value $Line -PassThru
   #}
@@ -99,9 +99,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -112,8 +112,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   Add-Content $slogfile -Value $Line -PassThru
 }
 
@@ -143,14 +143,10 @@ Function <FunctionName> {
 <#
 ALL ACTIVE FUNCTIONS BELOW
 #>
-Function CollectUserIDFromManagedAccounts {
-  Param ()
-  Begin {
-    Write-Log -Message 'Collect UserID from all managed user accounts, wihtin the Organization'
-  }
+
   Process {
     Try {
-      $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)/users"
+      $url = 
       while (condition) {
 
 
@@ -160,15 +156,15 @@ Function CollectUserIDFromManagedAccounts {
         $table = New-Object System.Data.Datatable
 
         # Adding columns
-        [void]$table.Columns.Add("Name")
-        [void]$table.Columns.Add("User ID")
-        [void]$table.Columns.Add("Email Address")
-        [void]$table.Columns.Add("Product Name")
-        [void]$table.Columns.Add("Last Login")
+        [void]$table.Columns.Add()
+        [void]$table.Columns.Add()
+        [void]$table.Columns.Add()
+        [void]$table.Columns.Add()
+        [void]$table.Columns.Add()
 
         # Adding rows
         foreach ($MUA in $ManagedUserAccounts) {
-          [void]$table.Rows.Add($MUA.data."name", $MUA.data."account_id", $MUA.data."Email",$MUA.data.product_access("key", $MUA.data.product_access("last_active")))
+          [void]$table.Rows.Add($MUA.data., $MUA.data., $MUA.data.,$MUA.data.product_access(, $MUA.data.product_access()))
         }
       }
       $table
@@ -186,16 +182,12 @@ Function CollectUserIDFromManagedAccounts {
   }
 }
 
-Function ImportFile {
-  Param ()
-  Begin {
-    Write-Log -Message 'Import CSV file (Export of all users within an org, contains userID)'
-  }
+
   Process {
     Try {
       if (Test-Path $List) {
         $script:file = Import-Csv $List
-        $file."user id"
+        $file.
       }
     }
     Catch {
@@ -210,27 +202,23 @@ Function ImportFile {
     }
   }
 }
-Function CollectApiInfo {
-  Param ()
-  Begin {
-    Write-Log -Message 'Collecting Lastlogin for each product wihtin the Org'
-  }
+
   Process {
     Try {
       # Using the following API; https://developer.atlassian.com/cloud/admin/organization/rest/api-group-directory/#api-v1-orgs-orgid-directory-users-accountid-last-active-dates-get
-      Write-Log -Message "To ensure that the auth is processed correctly, it is carefully created before being sent"
+      Write-Log -Message 
       $auth = 'Authorization: Bearer ' + $OrgAccessToken + ''
       foreach ($f in $file) {
-        Write-Log -Message "Currently collecting info of; $($f."email")"
-        Write-Log -Message "Building a new URL for each user within the given file"
-        $url = "https://api.atlassian.com/admin/v1/orgs/$($OrgID)/directory/users/$($f.'User id')/last-active-dates"
+        Write-Log -Message email
+        Write-Log -Message 
+        $url = 
         $user = curl --request GET --url $url --header $auth --header 'Accept: application/json' | ConvertFrom-Json
 
-        Write-Log -Message "Creating a PSCustomObject, to hold User info, before exporting it to CSV"
+        Write-Log -Message 
 
         foreach ($u in $user.data.product_access) {
           [PSCustomObject]@{
-            UserID     = $f."user ID"
+            UserID     = $f.
             UserName   = $f.'User name'
             Product    = $u.key
             Last_Login = $u.last_active
@@ -247,7 +235,7 @@ Function CollectApiInfo {
   End {
     If ($?) {
       Write-Log -Message 'CollectApiInfo Completed Successfully.'
-      Write-Log -Message "CSV; $($sOutputFile) created"
+      Write-Log -Message 
     }
   }
 }
@@ -258,11 +246,11 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 
 #Script Execution goes here
 ImportFile
 CollectApiInfo
 
-Write-Log -message "End of Script"
+Write-Log -message

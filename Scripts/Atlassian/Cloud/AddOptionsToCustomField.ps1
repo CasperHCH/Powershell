@@ -1,4 +1,4 @@
-﻿#requires -version 4
+#requires -version 4
 <#
 .SYNOPSIS
 	<Overview of script>
@@ -43,8 +43,8 @@ function Load-Module ($m) {
   Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   # If module is imported say that and do nothing
   if (Get-Module | Where-Object { $_.Name -eq $m }) {
-    Write-Host "Module $m is already imported."
-    Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+    Write-Host 
+    Write-Log -LogPath $sLogFile -TimeStamp -Message 
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   }
   else {
@@ -65,8 +65,8 @@ function Load-Module ($m) {
       else {
 
         # If the module is not imported, not available and not in the online gallery then abort
-        Write-Host "Module $m not imported, not available and not in an online gallery, exiting."
-        Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+        Write-Host 
+        Write-Log -LogPath $sLogFile -TimeStamp -Message 
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
         EXIT 1
       }
@@ -100,9 +100,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -113,8 +113,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   #If($logfile) {
   Add-Content $slogfile -Value $Line -PassThru
   #}
@@ -149,29 +149,12 @@ Function <FunctionName> {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 #Allowing for easier web requests
-function WebApiRequest {
-  param(
-    [parameter(Mandatory = $true)] [string]$uri,
-    [Parameter(Mandatory = $False)] [ValidateSet("DEFAULT", "DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT", "TRACE")]
-    [String] $Method = "GET",
-    [string] $Body = "",
-    [string] $userID = ""
-  )
-    
-  $pair = "$($AdminAccount):$($token)"
-  $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-  $basicAuthValue = "Basic $encodedCreds"
 
-  $headers = @{
-    Authorization  = $basicAuthValue
-    'Content-Type' = 'application/json'
-    'Accept'       = 'application/json'
-  }
 
   $uri = $url + $uri
 
   try {
-    If ($method -eq "GET") {
+    If ($method -eq ) {
       $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
     }
     else {
@@ -186,21 +169,15 @@ function WebApiRequest {
     $StatusCode = [string]$_.Exception.Response.StatusCode.value__
     $StatusDescription = [string]$_.Exception.Response.StatusDescription
     $message = $response
-    $message += " Url " + $uri + " : " + $_.Exception
-    #$message += " Status Code " + $StatusCode + " Status Description: " + $StatusDescription
+    $message +=  + $uri +  + $_.Exception
+    #$message +=  + $StatusCode +  + $StatusDescription
 
     Write-Log -Message $message
   }
   return $response
 }
 ######### GetUrl #########
-Function GetUrl {
-  Param()
-    
-  Begin {
-    Write-Log -Message 'GetUrl started'
-    Write-Log -Message 'Asking initiator to insert a URL for an Atlassian Cloud site.'
-  }
+
     
   Process {
     Try {
@@ -216,23 +193,18 @@ Function GetUrl {
     
   End {
     If ($?) {
-      Write-Log -Message "GetUrl Completed Successfully."
+      Write-Log -Message 
     }
   }
 }
    
 ######### Collect Admin account email #########
-Function CollectAdminAccount {
-  Param()
-    
-  Begin {
-    Write-Log -Message 'CollectAdminAccount started'
-  }
+
     
   Process {
     Try {
       $script:AdminAccount = Read-Host -Prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
-      Write-Log -Message "AdminAccount Token collected as $AdminAccount"
+      Write-Log -Message 
     }
      
     Catch {
@@ -243,23 +215,18 @@ Function CollectAdminAccount {
     
   End {
     If ($?) {
-      Write-Log -Message "CollectAdminAccount Completed Successfully."
+      Write-Log -Message 
     }
   }
 }
    
 ######### Provide API Token#########
-Function Providetoken {
-  Param()
-    
-  Begin {
-    Write-Log -Message 'Providetoken started'
-  }
+
     
   Process {
     Try {
       $script:token = Read-Host -Prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-      Write-Log -Message "API Token collected as $token"
+      Write-Log -Message 
     }
      
     Catch {
@@ -270,16 +237,12 @@ Function Providetoken {
     
   End {
     If ($?) {
-      Write-Log -Message "ProvidetokenCompleted Successfully."
+      Write-Log -Message 
     }
   }
 }
 ######### Import list of Custom Field Options #########
-Function CollectOrProvideCustomFieldOptions {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
+
   Process {
     Try {
       #Code here
@@ -288,12 +251,12 @@ Function CollectOrProvideCustomFieldOptions {
           $options = Import-Excel -Path $ListOfOptions
         }
         catch {
-          $script:ListOfOptions = Read-Host "provide path to excel of custom field options"
+          $script:ListOfOptions = Read-Host 
           $options = Import-Excel -Path $ListOfOptions
         }
         else {
           <# Action when all if and elseif conditions are false #>
-          $ListOfOptions = Read-Host "provide path to excel of custom field options"
+          $ListOfOptions = Read-Host 
           $script:options = Import-Excel -Path $ListOfOptions
         }
         
@@ -312,14 +275,10 @@ Function CollectOrProvideCustomFieldOptions {
   }
 }
 ######### Collect Custom Field ID based on name #########
-Function CollectCustomFieldID {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
+
   Process {
     Try {
-      $CustomFieldName = Read-Host "please provide the custom field name, if you do not know the ID"
+      $CustomFieldName = Read-Host 
       #https://docs.atlassian.com/software/jira/docs/api/REST/9.10.0/#api/2/customFields-getCustomFields
       #GET 
       $CollectIDUri = '/rest/api/2/customFields'
@@ -343,16 +302,12 @@ Function CollectCustomFieldID {
   }
 }
 ######### Collect the Context ID of a custom field, ensuring we edit the right context. ######### 
-Function CollectContextID {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
+
   Process {
     Try {
       #https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-group-issue-custom-field-contexts/#api-rest-api-2-field-fieldid-context-get
       #/rest/api/2/field/{fieldId}/context
-      $CollectContextUri = "/rest/api/latest/field/$($CustomFieldID)/context"
+      $CollectContextUri = 
       $ListOfContexts = WebApiRequest -uri $CollectContextUri -Method GET
       $script:ContextID = $ListOfContexts.id
     }
@@ -369,21 +324,17 @@ Function CollectContextID {
   }
 }
 ######### Add the provided options to the Custom Field within the correct Context #########
-Function AddOptionsToCustomFieldID {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
+
   Process {
     Try {
       #https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-custom-field-options/#api-rest-api-3-field-fieldid-context-contextid-option-post
       #POST /rest/api/3/field/{fieldId}/context/{contextId}/option
       foreach ($o in $options) {
-        $NewOption = "$($o.ARE) - $($o."Company Name")"
+        $NewOption = Company Name
         $NewOption
-        $data = '{{"options": [{"disabled": false,"value": "' + $NewOption + '"}]}}'
+        $data = '{{: [{: false,: }]}}'
         $data
-        $webRequestUri = "/rest/api/3/field/$($CustomFieldID)/context/$($ContextID)/option"
+        $webRequestUri = 
         WebApiRequest -uri $webRequestUri -Body $data -method POST
       }        
     }
@@ -404,7 +355,7 @@ Function AddOptionsToCustomFieldID {
 ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 #Script Execution goes here
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -435,4 +386,4 @@ CollectOrProvideCustomFieldOptions
 AddOptionsToCustomFieldID
 #----------------------------------------------------------------------------------------------------------------------------------
 #End of Script
-Write-Log -message "End of Script"
+Write-Log -message

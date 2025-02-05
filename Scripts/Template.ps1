@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	<Overview of script>
 .DESCRIPTION
@@ -31,9 +31,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -44,8 +44,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   #If($logfile) {
   Add-Content $slogfile -Value $Line -PassThru
   #}
@@ -62,8 +62,8 @@ function Load-Module ($m) {
   Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   # If module is imported say that and do nothing
   if (Get-Module | Where-Object { $_.Name -eq $m }) {
-    Write-Host "Module $m is already imported."
-    Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
+    Write-Host 
+    Write-Log -LogPath $sLogFile -TimeStamp -Message 
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   }
   else {
@@ -84,8 +84,8 @@ function Load-Module ($m) {
       else {
 
         # If the module is not imported, not available and not in the online gallery then abort
-        Write-Host "Module $m not imported, not available and not in an online gallery, exiting."
-        Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
+        Write-Host 
+        Write-Log -LogPath $sLogFile -TimeStamp -Message 
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
         EXIT 1
       }
@@ -120,9 +120,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
+    [ValidateSet(, , , , )]
     [String]
-    $Level = "INFO",
+    $Level = ,
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -133,8 +133,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-  $Line = "$Stamp $Level $Message"
+  $Stamp = (Get-Date).toString()
+  $Line = 
   #If($logfile) {
   Add-Content $slogfile -Value $Line -PassThru
   #}
@@ -144,24 +144,7 @@ function Write-Log {
 }
 
 #Allowing for easier web requests
-function WebApiRequest {
-  param(
-    [parameter(Mandatory = $true)] [string]$uri,
-    [ValidateSet("GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH")]
-    [String] $method = "GET",
-    [string] $Body = "",
-    [string] $userID = ""
-  )
-  ### On-prem auth
-  $pair = "$($AdminAccount):$($token)"
-  $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-  $basicAuthValue = "Basic $encodedCreds"
 
-  $headers = @{
-    Authorization  = $basicAuthValue
-    'Content-Type' = 'application/json'
-    'Accept'       = 'application/json'
-  }
   ### END OF On-prem auth
 
   ### Cloud Auth
@@ -174,7 +157,7 @@ function WebApiRequest {
   $uri = $url + $uri
 
   try {
-    If ($method -eq "GET") {
+    If ($method -eq ) {
       $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
     }
     else {
@@ -187,7 +170,7 @@ function WebApiRequest {
     $reader.DiscardBufferedData()
     $response = $reader.ReadToEnd()
     $message = $response
-    $message += " Url " + $uri + " : " + $_.Exception
+    $message +=  + $uri +  + $_.Exception
     Write-Log -Message $message
   }
   return $response
@@ -219,11 +202,7 @@ Function <FunctionName> {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 
-Function FirstFunctionName {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
+
   Process {
     Try {
       <code goes here>
@@ -256,11 +235,11 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message "Starting Script, $sScriptVersion"
+Write-Log -message 
 
 
 #Script Execution goes here
 
 
 
-Write-Log -message "End of Script"
+Write-Log -message

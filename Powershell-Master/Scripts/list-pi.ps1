@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists PI
 .DESCRIPTION
@@ -35,7 +35,7 @@ function List-Pi ( $Digits ) {
 	$n = $nn
 	$r = $nr
  
- 	Write-Host "$($n)." -noNewline
+ 	Write-Host  -noNewline
  	$ndigits++
  
  	$nr = $Big[10] * ( $r - $n * $t )
@@ -45,7 +45,7 @@ function List-Pi ( $Digits ) {
  
  	while ($ndigits -lt $Digits) {
 		if ($Big[4] * $q + $r - $t -lt $n * $t) {
-			Write-Host "$n" -noNewline
+			Write-Host  -noNewline
 			$ndigits++
 			$nr = $Big[10] * ( $r - $n * $t )
 			$n = ( ( $Big[10] * ( 3 * $q + $r ) ) / $t ) - 10 * $n
@@ -62,13 +62,13 @@ function List-Pi ( $Digits ) {
 			$r = $nr
 		}
       }
-	Write-Host "...  ($Digits digits)"
+	Write-Host 
 }
 
 try {
 	List-Pi $Digits
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

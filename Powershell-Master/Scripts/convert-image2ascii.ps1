@@ -1,10 +1,10 @@
-﻿<#
+<#
 .SYNOPSIS
 	Converts images to ASCII art
 .DESCRIPTION
 	This PowerShell script converts an image to ASCII art.
 .EXAMPLE
-	PS> ./convert-image2ascii -InFile "C:\Folder\Image.jpg" -Width 32 -Height 32
+	PS> ./convert-image2ascii -InFile  -Width 32 -Height 32
 .NOTES
 	Author: Fxbyy
  #>
@@ -26,8 +26,8 @@
     )
  
     begin {
-        $tempFile = "$PSScriptRoot\temp.jpg"
-        [void][System.Reflection.Assembly]::LoadWithPartialName("System.Drawing")
+        $tempFile = 
+        [void][System.Reflection.Assembly]::LoadWithPartialName()
 
         $img = [System.Drawing.Image]::FromFile((Get-Item $InFile))
 
@@ -53,36 +53,36 @@
         $img.Dispose()
 
         if ($Invert) {
-            $symbols = " .,:~+t?xmoX#M%@"
+            $symbols = 
         } else {
-            $symbols = "@%M#Xomx?t+~:,. "
+            $symbols = 
         }
-        $res = ""
+        $res = 
 
         foreach ($h in 1..$bmp.Height) {
             foreach ($w in 1..$bmp.Width) {
                 $px = $bmp.GetPixel($w - 1, $h - 1)
                 $brightness = (0.2126 * $px.R + 0.7152 * $px.G + 0.0722 * $px.B)
 
-                if ($brightness -le 15) { $res += $symbols[0] + " " } 
-                elseif ($brightness -le 31) { $res += $symbols[1] + " " }
-                elseif ($brightness -le 47) { $res += $symbols[2] + " " }
-                elseif ($brightness -le 63) { $res += $symbols[3] + " " }
-                elseif ($brightness -le 79) { $res += $symbols[4] + " " }
-                elseif ($brightness -le 95) { $res += $symbols[5] + " " }
-                elseif ($brightness -le 111) { $res += $symbols[6] + " " }
-                elseif ($brightness -le 127) { $res += $symbols[7] + " " }
-                elseif ($brightness -le 143) { $res += $symbols[8] + " " }
-                elseif ($brightness -le 159) { $res += $symbols[9] + " " }
-                elseif ($brightness -le 175) { $res += $symbols[10] + " " }
-                elseif ($brightness -le 191) { $res += $symbols[11] + " " }
-                elseif ($brightness -le 207) { $res += $symbols[12] + " " }
-                elseif ($brightness -le 223) { $res += $symbols[13] + " " }
-                elseif ($brightness -le 249) { $res += $symbols[14] + " " }
-                else { $res += $symbols[15] + " " }
+                if ($brightness -le 15) { $res += $symbols[0] +  } 
+                elseif ($brightness -le 31) { $res += $symbols[1] +  }
+                elseif ($brightness -le 47) { $res += $symbols[2] +  }
+                elseif ($brightness -le 63) { $res += $symbols[3] +  }
+                elseif ($brightness -le 79) { $res += $symbols[4] +  }
+                elseif ($brightness -le 95) { $res += $symbols[5] +  }
+                elseif ($brightness -le 111) { $res += $symbols[6] +  }
+                elseif ($brightness -le 127) { $res += $symbols[7] +  }
+                elseif ($brightness -le 143) { $res += $symbols[8] +  }
+                elseif ($brightness -le 159) { $res += $symbols[9] +  }
+                elseif ($brightness -le 175) { $res += $symbols[10] +  }
+                elseif ($brightness -le 191) { $res += $symbols[11] +  }
+                elseif ($brightness -le 207) { $res += $symbols[12] +  }
+                elseif ($brightness -le 223) { $res += $symbols[13] +  }
+                elseif ($brightness -le 249) { $res += $symbols[14] +  }
+                else { $res += $symbols[15] +  }
 
             }
-            $res += "`n"
+            $res += 
         }
     }
  

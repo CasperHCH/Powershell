@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the power status
 .DESCRIPTION
@@ -14,45 +14,45 @@
 
 try {
 	if ($IsLinux) {
-		$reply = "✅ AC powered" # TODO, just guessing :-)
+		$reply =  # TODO, just guessing :-)
 	} else {
 		Add-Type -Assembly System.Windows.Forms
 		$details = [System.Windows.Forms.SystemInformation]::PowerStatus
 		[int]$percent = 100 * $details.BatteryLifePercent
 		[int]$remaining = $details.BatteryLifeRemaining / 60
-		if ($details.PowerLineStatus -eq "Online") {
-			if ($details.BatteryChargeStatus -eq "NoSystemBattery") {
-				$reply = "✅ AC powered"
+		if ($details.PowerLineStatus -eq ) {
+			if ($details.BatteryChargeStatus -eq ) {
+				$reply = 
 			} elseif ($percent -ge 95) {
-				$reply = "✅ Battery $percent% fully charged"
+				$reply = 
 			} else {
-				$reply = "✅ Battery charging... ($percent%)"
+				$reply = 
 			}
 		} else { # must be offline
 			if (($remaining -eq 0) -and ($percent -gt 90)) {
-				$reply = "✅ Battery $percent% full"
+				$reply = 
 			} elseif ($remaining -eq 0) {
-				$reply = "✅ Battery at $percent%"
+				$reply = 
 			} elseif ($remaining -le 5) {
-				$reply = "⚠️ Battery at $percent% · ONLY $remaining MIN remaining"
+				$reply = 
 			} elseif ($remaining -le 30) {
-				$reply = "⚠️ Battery at $percent% · only $remaining min remaining"
+				$reply = 
 			} elseif ($percent -lt 10) {
-				$reply = "⚠️ Battery at $percent% · $remaining min remaining"
+				$reply = 
 			} elseif ($percent -ge 80) {
-				$reply = "✅ Battery $percent% full · $remaining min remaining"
+				$reply = 
 			} else {
-				$reply = "✅ Battery at $percent% · $remaining min remaining"
+				$reply = 
 			}
 		}
 		$powerScheme = (powercfg /getactivescheme)
-		$powerScheme = $powerScheme -Replace "^(.*)  \(",""
-		$powerScheme = $powerScheme -Replace "\)$",""
-		$reply += " · power scheme '$powerScheme'"
+		$powerScheme = $powerScheme -Replace ,
+		$powerScheme = $powerScheme -Replace ,
+		$reply += 
 	}
 	Write-Output $reply
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

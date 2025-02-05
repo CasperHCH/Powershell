@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists random PIN's
 .DESCRIPTION
@@ -20,21 +20,21 @@
 param([int]$PinLength = 5, [int]$Columns = 12, [int]$Rows = 30)
 
 try {
-	write-output ""
+	write-output 
 	$Generator = New-Object System.Random
 	for ($j = 0; $j -lt $Rows; $j++) {
-		$Line = ""
+		$Line = 
 		for ($k = 0; $k -lt $Columns; $k++) {
 			for ($i = 0; $i -lt $PinLength; $i++) {
 				$Line += [char]$Generator.next(48,57)
 			}
-			$Line += "   "
+			$Line += 
 		}
 		write-output $Line
 	}
-	write-output ""
+	write-output 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

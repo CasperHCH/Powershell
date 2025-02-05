@@ -1,4 +1,4 @@
-﻿    Param(
+Param(
       [Parameter(Mandatory=$True)]
       [String]$Identity
     )

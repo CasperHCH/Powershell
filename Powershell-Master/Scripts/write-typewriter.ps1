@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes text á la typewriter
 .DESCRIPTION
@@ -8,14 +8,14 @@
 .PARAMETER speed
 	Specifies the speed (250 ms by default)
 .EXAMPLE
-	PS> ./write-typewriter "Hello World"
+	PS> ./write-typewriter 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "`nHello World`n-----------`n* PowerShell is powerful - fully control your computer`n* PowerShell is cross-platform - available for Linux, Mac OS and Windows`n* PowerShell is open-source and free`n* PowerShell is easy to learn`n* PowerShell is fully documented`n`nThanks for watching`nMarkus`n", [int]$speed = 200) # in milliseconds
+param([string]$text = , [int]$speed = 200) # in milliseconds
 
 try {
 	$Random = New-Object System.Random
@@ -23,9 +23,9 @@ try {
 		Write-Host -noNewline $_
 		Start-Sleep -milliseconds $(1 + $Random.Next($speed))
 	}
-	Write-Host ""
+	Write-Host 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

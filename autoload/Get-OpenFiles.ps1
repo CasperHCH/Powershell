@@ -4,7 +4,7 @@
 .DESCRIPTION
    This function is designed to quickly search for open network shared file(s).
 .NOTES
-	Created by: Nicolai Graakær
+	Created by: Nicolai Graakï¿½r
 	Modified: 04.06.2018 12.30
 	Version: 1.0
 	
@@ -36,11 +36,11 @@ Function Get-OpenFiles {
 
 	$var = OPENFILES.EXE /QUERY /S $Server /FO CSV  | ConvertFrom-Csv | ? { $_ -match $File }
 	$Report = foreach ($v in $var) {
-		$LDAP = Get-ADUser $v."accessed by" | Select Name
+		$LDAP = Get-ADUser $v. | Select Name
 		New-Object psobject -Property @{
-		    Directory = $v."Open File (Path\executable)"
+		    Directory = $v.
 		    Name = $LDAP.name
-		    UserName = $v."accessed by"
+		    UserName = $v.
 	    }
 	}
 

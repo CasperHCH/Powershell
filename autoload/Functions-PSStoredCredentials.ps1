@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 Functions-PSStoredCredentials - PowerShell functions to manage stored credentials for re-use
 
@@ -63,8 +63,8 @@ Function New-StoredCredential {
     #>
 
     if (!(Test-Path Variable:\KeyPath)) {
-        Write-Warning "The `$KeyPath variable has not been set. Consider adding `$KeyPath to your PowerShell profile to avoid this prompt."
-        $path = Read-Host -Prompt "Enter a path for stored credentials"
+        Write-Warning 
+        $path = Read-Host -Prompt 
         Set-Variable -Name KeyPath -Scope Global -Value $path
 
         if (!(Test-Path $KeyPath)) {
@@ -78,9 +78,9 @@ Function New-StoredCredential {
         }
     }
 
-    $Credential = Get-Credential -Message "Enter a user name and password"
+    $Credential = Get-Credential -Message 
 
-    $Credential.Password | ConvertFrom-SecureString | Out-File "$($KeyPath)\$($Credential.Username).cred" -Force
+    $Credential.Password | ConvertFrom-SecureString | Out-File  -Force
 
 }
 
@@ -133,15 +133,15 @@ Function Get-StoredCredential {
     #>
 
     param(
-        [Parameter(Mandatory=$false, ParameterSetName="Get")]
+        [Parameter(Mandatory=$false, ParameterSetName=)]
         [string]$UserName,
-        [Parameter(Mandatory=$false, ParameterSetName="List")]
+        [Parameter(Mandatory=$false, ParameterSetName=)]
         [switch]$List
     )
 
     if (!(Test-Path Variable:\KeyPath)) {
-        Write-Warning "The `$KeyPath variable has not been set. Consider adding `$KeyPath to your PowerShell profile to avoid this prompt."
-        $path = Read-Host -Prompt "Enter a path for stored credentials"
+        Write-Warning 
+        $path = Read-Host -Prompt 
         Set-Variable -Name KeyPath -Scope Global -Value $path
     }
 
@@ -152,7 +152,7 @@ Function Get-StoredCredential {
             $CredentialList = @(Get-ChildItem -Path $keypath -Filter *.cred -ErrorAction STOP)
 
             foreach ($Cred in $CredentialList) {
-                Write-Host "Username: $($Cred.BaseName)"
+                Write-Host 
             }
         }
 
@@ -163,13 +163,13 @@ Function Get-StoredCredential {
 
     if ($UserName) {
 
-        if (Test-Path "$($KeyPath)\$($Username).cred") {
-            $PwdSecureString = Get-Content "$($KeyPath)\$($Username).cred" | ConvertTo-SecureString
+        if (Test-Path ) {
+            $PwdSecureString = Get-Content  | ConvertTo-SecureString
             $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $PwdSecureString
         }
 
         else {
-            throw "Unable to locate a credential for $($Username)"
+            throw 
         }
 
         return $Credential

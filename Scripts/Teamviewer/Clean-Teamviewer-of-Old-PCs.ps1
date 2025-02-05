@@ -1,28 +1,28 @@
-﻿##   In order to create a token, do the following:
+##   In order to create a token, do the following:
 ##   1. When you are logged in click your Profile in the top right then click Edit Profile.
 ##   
 ##   2. Click the Apps tab on the left and then create a new script token.
 ##   
-##   3. Change Group Management to "View, create, delete, edit and share groups"
+##   3. Change Group Management to 
 ##   
-##   4. Change Computers & Contacts to "View, add, edit and delete entries"
+##   4. Change Computers & Contacts to 
 ##   
 ##   5. Click Save then copy your API Token into the script.
 
-$token = "6097665-v0YykC1APQd8madFU6E3" #Change this token to the one provided through Teamviewer Management Console.
-$bearer = "Bearer",$token
+$token =  #Change this token to the one provided through Teamviewer Management Console.
+$bearer = ,$token
 
-$header = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-$header.Add("authorization", $bearer)
+$header = New-Object 
+$header.Add(, $bearer)
 
-$devices = (Invoke-RestMethod -Uri "Https://webapi.teamviewer.com/api/v1/devices" -Method Get -Headers $header).devices
+$devices = (Invoke-RestMethod -Uri  -Method Get -Headers $header).devices
 
 $60Days = ((Get-Date).AddDays(-60)).GetDateTimeFormats()[22]
 
 ForEach($device in $devices)
 {
 
-    if ($device.online_state -eq "Offline")
+    if ($device.online_state -eq )
     {
 
     $ID = $device.device_id
@@ -32,15 +32,14 @@ ForEach($device in $devices)
             if ($Lastseen -ne $null)
             {
 
-            $LastSeen = ($device.last_seen).Split("T")[0]
+            $LastSeen = ($device.last_seen).Split()[0]
             [datetime]$DateLastSeen = $LastSeen
 
                     if ($DateLastSeen -le $60Days)
                     {
 
-                    Invoke-WebRequest -Uri "Https://webapi.teamviewer.com/api/v1/devices/$ID" -Method Delete -Headers $header
-                    write-host "The PC has last been seen by Teamviewer on: $lastseen"
-                    Write-Host "The Pc name that will be Deleted is: "$device.alias -ForegroundColor Yellow
+                    Invoke-WebRequest -Uri  -Method Delete -Headers $header
+                    Write-Host $device.alias -ForegroundColor Yellow
                     
                     }$Lastseen = $null
             }

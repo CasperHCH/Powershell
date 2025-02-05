@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the given subnet mask for validity
 .DESCRIPTION
@@ -14,28 +14,24 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$address = "")
+param([string]$address = )
 
-function IsSubNetMaskValid { param([string]$IP)
-	$RegEx = "^(254|252|248|240|224|192|128).0.0.0$|^255.(254|252|248|240|224|192|128|0).0.0$|^255.255.(254|252|248|240|224|192|128|0).0$|^255.255.255.(255|254|252|248|240|224|192|128|0)$"
-	if ($IP -match $RegEx) {
-		return $true
-	} else {
+ else {
 		return $false
 	}
 }
 
 try {
-	if ($address -eq "" ) { $address = read-host "Enter subnet mask to validate" }
+	if ($address -eq  ) { $address = read-host  }
 
 	if (IsSubNetMaskValid $address) {
-		"✔️ subnet mask $Address is valid"
+		
 		exit 0 # success
 	} else {
-		write-warning "Invalid subnet mask: $address"
+		write-warning 
 		exit 1
 	}
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

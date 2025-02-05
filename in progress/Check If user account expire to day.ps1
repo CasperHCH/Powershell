@@ -1,4 +1,4 @@
-﻿################################
+################################
 ####### Check if an User #######
 ####### Expired today    #######
 ################################
@@ -10,10 +10,10 @@ foreach ($U in $ListOfUsers)
 #$DisableUserOnDate = [datetime]$U.AccountExpires
 $i += 1
 if ($U.AccountExpires -eq (get-date).Date)
-    {        Write-Host "$($U.Name) has an expirationdate equal to today"    }
+    {        Write-Host     }
     else {
     
-    write-host "$($i)"
+    write-host 
     
     }
 

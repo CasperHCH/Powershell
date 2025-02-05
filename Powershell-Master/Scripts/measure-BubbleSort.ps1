@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Measures the speed of BubbleSort 
 .DESCRIPTION
@@ -6,7 +6,7 @@
 	BubbleSort is a simple sorting algorithm that repeatedly steps through the list,
 	compares adjacent elements and swaps them if they are in the wrong order. The pass
 	through the list is repeated until the list is sorted. The algorithm, which is a
-	comparison sort, is named for the way smaller or larger elements "bubble" to the top of the list.
+	comparison sort, is named for the way smaller or larger elements  to the top of the list.
 .PARAMETER numIntegers
 	Specifies the number of integers to sort
 .EXAMPLE
@@ -40,6 +40,6 @@ $list = (1..$NumIntegers | foreach{Get-Random -minimum 1 -maximum $numIntegers})
 $stopWatch = [system.diagnostics.stopwatch]::startNew()
 [BubbleSort]::Sort($list)
 [float]$elapsed = $stopWatch.Elapsed.TotalSeconds
-$elapsed3 = "{0:N3}" -f $elapsed # formatted to 3 decimal places
-"🧭 $elapsed3 sec to sort $numIntegers integers by BubbleSort"
+$elapsed3 =  -f $elapsed # formatted to 3 decimal places
+
 exit 0 # success

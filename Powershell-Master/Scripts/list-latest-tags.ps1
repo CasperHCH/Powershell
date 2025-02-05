@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the latests tags in all Git repositories in a folder
 .DESCRIPTION
@@ -13,31 +13,31 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$ParentDir = "$PWD")
+param([string]$ParentDir = )
 
 try {
-	if (-not(test-path "$ParentDir" -pathType container)) { throw "Can't access directory: $ParentDir" }
+	if (-not(test-path  -pathType container)) { throw  }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	$Folders = (get-childItem "$ParentDir" -attributes Directory)
+	$Folders = (get-childItem  -attributes Directory)
 	$FolderCount = $Folders.Count
-	$ParentDirName = (get-item "$ParentDir").Name
-	"Found $FolderCount subfolders in 📂$ParentDirName..."
+	$ParentDirName = (get-item ).Name
+	
 
 	foreach ($Folder in $Folders) {
-		$FolderName = (get-item "$Folder").Name
+		$FolderName = (get-item ).Name
 
-#		& git -C "$Folder" fetch --tags
-#		if ($lastExitCode -ne "0") { throw "'git fetch --tags' failed" }
+#		& git -C  fetch --tags
+#		if ($lastExitCode -ne ) { throw  }
 
-		$LatestTagCommitID = (git -C "$Folder" rev-list --tags --max-count=1)
-		$LatestTag = (git -C "$Folder" describe --tags $LatestTagCommitID)
-		"* $FolderName $LatestTag ($LatestTagCommitID)"
+		$LatestTagCommitID = (git -C  rev-list --tags --max-count=1)
+		$LatestTag = (git -C  describe --tags $LatestTagCommitID)
+		
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

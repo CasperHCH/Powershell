@@ -1,4 +1,4 @@
-﻿#Requires -RunAsAdministrator
+#Requires -RunAsAdministrator
 
 #a0siodasi0odnaosidnasiodn
 Get-ADUser chj-dk

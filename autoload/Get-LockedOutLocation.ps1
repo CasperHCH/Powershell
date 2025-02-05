@@ -1,4 +1,4 @@
-﻿#Requires -Version 2.0
+#Requires -Version 2.0
 Function Get-LockedOutLocation
 {
 <#
@@ -42,13 +42,13 @@ Function Get-LockedOutLocation
 
     Process {
         #Get all domain controllers in domain
-		$DomainControllers = Get-ADDomainController -Filter {Name -notlike "*RODC*"}
-        $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains "PDCEmulator"})
+		$DomainControllers = Get-ADDomainController -Filter {Name -notlike }
+        $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
 
-        Write-Verbose "Finding the domain controllers in the domain"
+        Write-Verbose 
         Foreach($DC in $DomainControllers) {
             $DCCounter++
-            Write-Progress -Activity "Contacting $($DomainControllers.count) DCs for lockout info" -Status "Querying $($DC.Hostname)" -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
+            Write-Progress -Activity  -Status  -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
             
             Try {
                 $UserInfo = Get-ADUser -Identity $Identity  -Server $DC.Hostname -Properties AccountLockoutTime,LastBadPasswordAttempt,BadPwdCount,LockedOut -ErrorAction Stop
@@ -76,7 +76,7 @@ Function Get-LockedOutLocation
         $LockedOutStats | Format-Table -Property Name,LockedOut,DomainController,BadPwdCount,AccountLockoutTime,LastBadPasswordAttempt -AutoSize
         #Get User Info
         Try {
-            Write-Verbose "Querying event log on $($PDCEmulator.HostName)"
+            Write-Verbose 
             $LockedOutEvents = Get-WinEvent -ComputerName $PDCEmulator.HostName -FilterHashtable @{LogName='Security';Id=4740} -ErrorAction Stop | Sort-Object -Property TimeCreated -Descending
         }
 
@@ -92,7 +92,7 @@ Function Get-LockedOutLocation
                     @{Label = 'DomainController';   Expression = {$_.MachineName}}
                     @{Label = 'EventId';            Expression = {$_.Id}}
                     @{Label = 'LockedOutTimeStamp'; Expression = {$_.TimeCreated}}
-                    @{Label = 'Message';            Expression = {$_.Message -split "`r" | Select -First 1}}
+                    @{Label = 'Message';            Expression = {$_.Message -split  | Select -First 1}}
                     @{Label = 'LockedOutLocation';  Expression = {$_.Properties[1].Value}}
                 )
             }

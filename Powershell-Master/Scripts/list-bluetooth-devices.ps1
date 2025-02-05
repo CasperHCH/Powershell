@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists Bluetooth devices
 .DESCRIPTION
@@ -17,9 +17,9 @@
 #>
 
 try {
-	Get-PnpDevice | Where-Object {$_.Class -eq "Bluetooth"}
+	Get-PnpDevice | Where-Object {$_.Class -eq }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

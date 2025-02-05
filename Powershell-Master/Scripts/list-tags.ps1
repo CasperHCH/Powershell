@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists all tags in a repository
 .DESCRIPTION
@@ -20,32 +20,32 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD", [string]$SearchPattern="*")
+param([string]$RepoDir = , [string]$SearchPattern=)
 
 try {
-	Write-Progress "⏳ (1/4) Searching for Git executable... "
+	Write-Progress 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress "⏳ (2/4) Checking local repository... "
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
+	Write-Progress 
+	if (-not(Test-Path  -pathType container)) { throw  }
 
-	Write-Progress "⏳ (3/4) Fetching newer tags from remote..."
-	& git -C "$RepoDir" fetch --all --tags
-	if ($lastExitCode -ne "0") { throw "'git fetch --all --tags' failed" }
+	Write-Progress 
+	& git -C  fetch --all --tags
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress "⏳ (4/4) Removing obsolete local tags..."
-	& git -C "$RepoDir" fetch --prune --prune-tags
-	if ($lastExitCode -ne "0") { throw "'git fetch --prune --prune-tags' failed" }
+	Write-Progress 
+	& git -C  fetch --prune --prune-tags
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress -completed "Done."
- 	""
-	"Tag             Description"
-	"---             -----------"
-	& git -C "$RepoDir" tag --list "$SearchPattern" -n
-	if ($lastExitCode -ne "0") { throw "'git tag --list' failed" }
+	Write-Progress -completed 
+ 	
+	
+	
+	& git -C  tag --list  -n
+	if ($lastExitCode -ne ) { throw  }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

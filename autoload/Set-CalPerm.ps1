@@ -3,17 +3,17 @@
 Function Set-CalPerm {
 
     param (
-        [Parameter(Mandatory = $true, HelpMessage="Enter a mailbox where you apply permission to")]
+        [Parameter(Mandatory = $true, HelpMessage=)]
         [ValidateNotNullOrEmpty()]
         [string]$Identity ,
 
-        [Parameter(Mandatory = $true, HelpMessage="Enter a user/group who will be granted the permission  syntax domain\xxx might be needed")]
+        [Parameter(Mandatory = $true, HelpMessage=)]
         [ValidateNotNullOrEmpty()]
-        [string]$User = "",
+        [string]$User = ,
 
-        [parameter(Mandatory = $true, HelpMessage="Enter a valid permission set")]
-        [ValidateSet("ReadItems","CreateItems","EditOwnedItems","DeleteOwnedItems","EditAllItems","DeleteAllItems","CreateSubfolders","FolderOwner","FolderContact","FolderVisible","None","Owner","PublishingEditor","Editor","PublishingAuthor","Author","NonEditingAuthor","Reviewer","Contributor","AvailabilityOnly","LimitedDetails","Remove","Delete")]
-        [string]$Permission = ""
+        [parameter(Mandatory = $true, HelpMessage=)]
+        [ValidateSet(,,,,,,,,,,,,,,,,,,,,,,)]
+        [string]$Permission = 
     )
 
     # Connect to Exchange Management Shell if not already

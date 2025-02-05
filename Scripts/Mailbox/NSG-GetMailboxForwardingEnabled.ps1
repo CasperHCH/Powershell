@@ -1,26 +1,24 @@
-﻿
-
 $domains = Get-AcceptedDomain
 $mailboxes = Get-Mailbox -ResultSize Unlimited
  
 foreach ($mailbox in $mailboxes) {
  
     $forwardingRules = $null
-#    Write-Host "Checking rules for $($mailbox.displayname) - $($mailbox.primarysmtpaddress)" -ForegroundColor Green
+#    Write-Host  -ForegroundColor Green
     $rules = Get-InboxRule -Mailbox $mailbox.PrimarySmtpAddress
      
     $forwardingRules = $rules | Where-Object {$_.ForwardTo -or $_.ForwardAsAttachmentTo}
  
     foreach ($rule in $forwardingRules) {
         $recipients = @()
-        $recipients = $rule.ForwardTo | Where-Object {$_ -match "SMTP"}
-        $recipients += $rule.ForwardAsAttachmentTo | Where-Object {$_ -match "SMTP"}
+        $recipients = $rule.ForwardTo | Where-Object {$_ -match }
+        $recipients += $rule.ForwardAsAttachmentTo | Where-Object {$_ -match }
      
         $externalRecipients = @()
  
         foreach ($recipient in $recipients) {
-            $email = ($recipient -split "SMTP:")[1].Trim("]")
-            $domain = ($email -split "@")[1]
+            $email = ($recipient -split )[1].Trim()
+            $domain = ($email -split )[1]
  
             if ($domains.DomainName -notcontains $domain) {
                 $externalRecipients += $email
@@ -28,8 +26,8 @@ foreach ($mailbox in $mailboxes) {
         }
  
         if ($externalRecipients) {
-            $extRecString = $externalRecipients -join ", "
-            Write-Host "$($rule.Name) forwards to $extRecString" -ForegroundColor Yellow
+            $extRecString = $externalRecipients -join 
+            Write-Host  -ForegroundColor Yellow
  
             $ruleHash = $null
             $ruleHash = [ordered]@{

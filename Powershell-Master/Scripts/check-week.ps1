@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Determines the week number 
 .DESCRIPTION
@@ -13,9 +13,9 @@
 
 try {
 	$WeekNo = (Get-Date -UFormat %V)
-	& "$PSScriptRoot/speak-english.ps1" "It's week #$WeekNo."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

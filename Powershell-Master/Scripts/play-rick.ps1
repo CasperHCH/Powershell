@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Plays Rick Astley
 .DESCRIPTION
@@ -11,6 +11,6 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://www.youtube.com/watch?v=v7ScGV5128A"
-"You've been Rick-Rolled 🤣"
+&  
+
 exit 0 # success

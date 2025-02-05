@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls CrystalDiskInfo
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling CrystalDiskInfo, please wait..."
+	
 
-	& winget uninstall "CrystalDiskInfo"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall CrystalDiskInfo, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"CrystalDiskInfo is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

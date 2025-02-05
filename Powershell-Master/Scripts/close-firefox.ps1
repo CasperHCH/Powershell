@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Firefox browser 
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/close-program.ps1" "Mozilla Firefox" "firefox" "firefox"
+&    
 exit 0 # success

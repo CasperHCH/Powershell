@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the hardware
 .DESCRIPTION
@@ -15,12 +15,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-" "
-& "$PSScriptRoot/write-green.ps1" "   H A R D W A R E"
-& "$PSScriptRoot/check-cpu.ps1"
-& "$PSScriptRoot/check-ram.ps1"
-& "$PSScriptRoot/check-gpu.ps1"
-& "$PSScriptRoot/check-smart-devices.ps1"
-& "$PSScriptRoot/check-drives.ps1"
-& "$PSScriptRoot/check-power.ps1"
+
+&  
+& 
+& 
+& 
+& 
+& 
+& 
 exit 0 # success

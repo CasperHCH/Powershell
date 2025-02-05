@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists all print jobs
 .DESCRIPTION
@@ -18,17 +18,15 @@
 
 #Requires -Version 4
 
-function ListPrintJobs {
-	$printers = Get-Printer
-	if ($printers.Count -eq 0) { throw "No printer found" }
+
 
 	foreach ($printer in $printers) {
 		$PrinterName = $printer.Name
 		$printjobs = Get-PrintJob -PrinterObject $printer
 		if ($printjobs.Count -eq 0) {
-			$PrintJobs = "none"
+			$PrintJobs = 
 		} else {
-			$PrintJobs = "$printjobs"
+			$PrintJobs = 
 		}
 		New-Object PSObject -Property @{ Printer=$PrinterName; Jobs=$PrintJobs }
 	}
@@ -42,6 +40,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

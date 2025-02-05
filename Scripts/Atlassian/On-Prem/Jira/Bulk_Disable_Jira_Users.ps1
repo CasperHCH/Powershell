@@ -1,4 +1,4 @@
-﻿If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
+If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
     Install-Module ImportExcel -Confirm:$False -Force
 }
 
@@ -6,7 +6,7 @@ If(-not(Get-InstalledModule jiraps -ErrorAction silentlycontinue)){
     Install-Module jiraps -Confirm:$False -Force
 }
 
-Set-JiraConfigServer -Server "https://jira.Base.Url"
+Set-JiraConfigServer -Server 
 
 $cred = get-credential #admin credentials e.g jira-admin
 

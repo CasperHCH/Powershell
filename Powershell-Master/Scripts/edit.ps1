@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens an editor to edit a file
 .DESCRIPTION
@@ -13,18 +13,18 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Filename = "")
+param([string]$Filename = )
 
 try {
 	if ($IsLinux) {
-		& vi "$Filename"
-		if ($lastExitCode -ne "0") { throw "Can't execute 'vi' - make sure vi is installed and available" }
+		& vi 
+		if ($lastExitCode -ne ) { throw  }
 	} else {
-		& notepad.exe "$Filename"
-		if ($lastExitCode -ne "0") { throw "Can't execute 'notepad.exe' - make sure notepad.exe is installed and available" }
+		& notepad.exe 
+		if ($lastExitCode -ne ) { throw  }
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls Git Extensions
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling Git Extensions, please wait..."
+	
 
 	& winget uninstall --id GitExtensionsTeam.GitExtensions
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Git Extensions, is it installed?" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Git Extensions is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

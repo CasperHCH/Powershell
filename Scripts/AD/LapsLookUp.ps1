@@ -1,1 +1,1 @@
-Get-ADComputer -Filter * -SearchBase "OU=Servers_old,OU=SERVERS,DC=eetnordic,DC=net" -Properties ms-Mcs-Admpwd | sort name | ft name, ms-Mcs-Admpwd -AutoSize
+Get-ADComputer -Filter * -SearchBase  -Properties ms-Mcs-Admpwd | sort name | ft name, ms-Mcs-Admpwd -AutoSize

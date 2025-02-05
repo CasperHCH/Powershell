@@ -1,17 +1,17 @@
-﻿#Check if EventLog exist, if it does, add event, of it doesnt, create EventLog and add event
-#Create an Event Log, within a new Tree called "VMware Virtual Machine"
+#Check if EventLog exist, if it does, add event, of it doesnt, create EventLog and add event
+#Create an Event Log, within a new Tree called 
 
 #Used Variables
-$LogSourceName = "VMware Workstation Player"
-$LogDisplayName = "SuspendVMSIfNetworkEQDomain.ps1"
-$logFileExists = Get-EventLog -list | Where-Object {$_.logdisplayname -eq "$LogDisplayName"}
+$LogSourceName = 
+$LogDisplayName = 
+$logFileExists = Get-EventLog -list | Where-Object {$_.logdisplayname -eq }
 
  
 if (! $logFileExists) 
     {
-    New-EventLog -LogName "$LogDisplayName" -Source "$LogSourceName"
+    New-EventLog -LogName  -Source 
     }
     Else
         {
-        Write-EventLog -LogName "$LogDisplayName" -Source "$LogSourceName" -EventID 0001 -EntryType Information -Message "MyApp added a user-requested feature to the display." -Category 1 -RawData 10,20
+        Write-EventLog -LogName  -Source  -EventID 0001 -EntryType Information -Message  -Category 1 -RawData 10,20
         }

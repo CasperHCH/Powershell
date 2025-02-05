@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens Google Contacts
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://contacts.google.com"
+&  
 exit 0 # success

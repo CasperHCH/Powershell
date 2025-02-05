@@ -1,4 +1,4 @@
-﻿#import modules
+#import modules
 Import-Module ConfluencePS
 
 #Variables
@@ -23,11 +23,9 @@ $AllSpaces | Where-Object {
     -not $SpacesToKeep.ContainsKey($_.Key)
 } | Export-Csv 'C:\users\Caspe\Downloads\SpacesToDelete.csv' -Delimiter ','
 
-#Delete all spaces listed in "SpacesToDelete.csv"
+#Delete all spaces listed in 
 foreach($Space in $SpacesToDelete){
 
 Remove-ConfluenceSpace -SpaceKey $Space -WhatIf
 
 }
-
-

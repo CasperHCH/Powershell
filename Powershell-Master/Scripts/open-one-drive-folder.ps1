@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the OneDrive folder
 .DESCRIPTION
@@ -12,13 +12,13 @@
 #>
 
 try {
-	$TargetDirs = resolve-path "$HOME/OneDrive*"
+	$TargetDirs = resolve-path 
 	foreach($TargetDir in $TargetDirs) {
-		& "$PSScriptRoot/open-file-explorer.ps1" "$TargetDir"
+		&  
 		exit 0 # success
 	}
-	throw "No OneDrive folder at 📂$HOME/Dropbox"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

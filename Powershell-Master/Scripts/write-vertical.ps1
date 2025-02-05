@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes text in vertical direction
 .DESCRIPTION
@@ -6,17 +6,17 @@
 .PARAMETER text
 	Specifies the text to write
 .EXAMPLE
-	PS> ./write-vertical "Hello World"
+	PS> ./write-vertical 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "" ) { $text = read-host "Enter the text to write" }
+	if ($text -eq  ) { $text = read-host  }
 
 	[char[]]$TextArray = $text
 	foreach($Char in $TextArray) {
@@ -24,6 +24,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,15 +1,15 @@
-if((Get-WindowsOptionalFeature -FeatureName "IIS-ManagementConsole" -Online).State -eq "Enabled") {
-  Write-Host "IIS-ManagementConsole is Installed"
+if((Get-WindowsOptionalFeature -FeatureName  -Online).State -eq ) {
+  Write-Host 
   # (simplified function to paste here)
   } else {
-    Write-Host "Installing IIS-ManagementConsole"
-    Enable-WindowsOptionalFeature -Online -FeatureName "IIS-ManagementConsole" -All
+    Write-Host 
+    Enable-WindowsOptionalFeature -Online -FeatureName  -All
 }
 
-if((Get-WindowsOptionalFeature -FeatureName "IIS-ManagementService" -Online).State -eq "Enabled") {
-  Write-Host "IIS-ManagementService is Installed"
+if((Get-WindowsOptionalFeature -FeatureName  -Online).State -eq ) {
+  Write-Host 
   # (simplified function to paste here)
   } else {
-    Write-Host "Installing IIS-ManagementService"
-    Enable-WindowsOptionalFeature -Online -FeatureName "IIS-ManagementService" -All
+    Write-Host 
+    Enable-WindowsOptionalFeature -Online -FeatureName  -All
 }

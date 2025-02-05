@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Paint 3D app 
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im PaintStudio.View.exe /f
-if ($lastExitCode -ne "0") {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry, Paint 3D isn't running."
+if ($lastExitCode -ne ) {
+	&  
 	exit 1
 }
 exit 0 # success

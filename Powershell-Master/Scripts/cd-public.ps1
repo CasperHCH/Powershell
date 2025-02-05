@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the Public folder
 .DESCRIPTION
@@ -14,15 +14,15 @@
 
 try {
 	if ($IsLinux) {
-		$Path = Resolve-Path "~/Public"
+		$Path = Resolve-Path 
 	} else {
-		$Path = Resolve-Path "~/../Public"
+		$Path = Resolve-Path 
 	}
-	if (-not(Test-Path "$Path" -pathType container)) { throw "Public folder at 📂$Path doesn't exist (yet)" }
-	Set-Location "$Path"
-	"📂$Path"
+	if (-not(Test-Path  -pathType container)) { throw  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

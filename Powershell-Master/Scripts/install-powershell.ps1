@@ -1,4 +1,4 @@
-﻿<#
+<#
 .Synopsis
     Install PowerShell on Windows, Linux or macOS.
 .DESCRIPTION
@@ -13,39 +13,39 @@
     Do not overwrite the destination folder if it already exists.
 .Parameter AddToPath
     On Windows, add the absolute destination path to the 'User' scope environment variable 'Path';
-    On Linux, make the symlink '/usr/bin/pwsh' points to "$Destination/pwsh";
-    On MacOS, make the symlink '/usr/local/bin/pwsh' points to "$Destination/pwsh".
+    On Linux, make the symlink '/usr/bin/pwsh' points to ;
+    On MacOS, make the symlink '/usr/local/bin/pwsh' points to .
 .EXAMPLE
     Install the daily build
     .\install-powershell.ps1 -Daily
 .EXAMPLE
     Invoke this script directly from GitHub
-    Invoke-Expression "& { $(Invoke-RestMethod 'https://aka.ms/install-powershell.ps1') } -daily"
+    Invoke-Expression 
 #>
-[CmdletBinding(DefaultParameterSetName = "Daily")]
+[CmdletBinding(DefaultParameterSetName = )]
 param(
-    [Parameter(ParameterSetName = "Daily")]
+    [Parameter(ParameterSetName = )]
     [string] $Destination,
 
-    [Parameter(ParameterSetName = "Daily")]
+    [Parameter(ParameterSetName = )]
     [switch] $Daily,
 
-    [Parameter(ParameterSetName = "Daily")]
+    [Parameter(ParameterSetName = )]
     [switch] $DoNotOverwrite,
 
-    [Parameter(ParameterSetName = "Daily")]
+    [Parameter(ParameterSetName = )]
     [switch] $AddToPath,
 
-    [Parameter(ParameterSetName = "MSI")]
+    [Parameter(ParameterSetName = )]
     [switch] $UseMSI,
 
-    [Parameter(ParameterSetName = "MSI")]
+    [Parameter(ParameterSetName = )]
     [switch] $Quiet,
 
-    [Parameter(ParameterSetName = "MSI")]
+    [Parameter(ParameterSetName = )]
     [switch] $AddExplorerContextMenu,
 
-    [Parameter(ParameterSetName = "MSI")]
+    [Parameter(ParameterSetName = )]
     [switch] $EnablePSRemoting,
 
     [Parameter()]
@@ -53,38 +53,38 @@ param(
 )
 
 Set-StrictMode -Version 3.0
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 
 
-$IsLinuxEnv = (Get-Variable -Name "IsLinux" -ErrorAction Ignore) -and $IsLinux
-$IsMacOSEnv = (Get-Variable -Name "IsMacOS" -ErrorAction Ignore) -and $IsMacOS
+$IsLinuxEnv = (Get-Variable -Name  -ErrorAction Ignore) -and $IsLinux
+$IsMacOSEnv = (Get-Variable -Name  -ErrorAction Ignore) -and $IsMacOS
 $IsWinEnv = !$IsLinuxEnv -and !$IsMacOSEnv
 
 if (-not $Destination) {
     if ($IsWinEnv) {
-        $Destination = "$env:LOCALAPPDATA\Microsoft\powershell"
+        $Destination = 
     } else {
-        $Destination = "~/.powershell"
+        $Destination = 
     }
 
     if ($Daily) {
-        $Destination = "${Destination}-daily"
+        $Destination = 
     }
 }
 
 $Destination = $PSCmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destination)
 
 if (-not $UseMSI) {
-    Write-Host "Installation destination path: $Destination"
+    Write-Host 
 } else {
     if (-not $IsWinEnv) {
-        throw "-UseMSI is only supported on Windows"
+        throw 
     } else {
         $MSIArguments = @()
         if($AddExplorerContextMenu) {
-            $MSIArguments += "ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1"
+            $MSIArguments += 
         }
         if($EnablePSRemoting) {
-            $MSIArguments += "ENABLE_PSREMOTING=1"
+            $MSIArguments += 
         }
     }
 }
@@ -114,24 +114,24 @@ function Expand-ArchiveInternal {
 function Remove-Destination([string] $Destination) {
     if (Test-Path -Path $Destination) {
         if ($DoNotOverwrite) {
-            throw "Destination folder '$Destination' already exist. Use a different path or omit '-DoNotOverwrite' to overwrite."
+            throw 
         }
-        Write-Host "Removing old installation at: $Destination" 
-        if (Test-Path -Path "$Destination.old") {
-            Remove-Item "$Destination.old" -Recurse -Force
+        Write-Host  
+        if (Test-Path -Path ) {
+            Remove-Item  -Recurse -Force
         }
         if ($IsWinEnv -and ($Destination -eq $PSHOME)) {
             # handle the case where the updated folder is currently in use
             Get-ChildItem -Recurse -File -Path $PSHOME | ForEach-Object {
-                if ($_.extension -eq ".old") {
+                if ($_.extension -eq ) {
                     Remove-Item $_
                 } else {
-                    Move-Item $_.fullname "$($_.fullname).old"
+                    Move-Item $_.fullname 
                 }
             }
         } else {
             # Unix systems don't keep open file handles so you can just move files/folders even if in use
-            Move-Item "$Destination" "$Destination.old"
+            Move-Item  
         }
     }
 }
@@ -156,12 +156,12 @@ function Test-PathNotInSettings($Path) {
     $Path = [System.Environment]::ExpandEnvironmentVariables($Path.TrimEnd([System.IO.Path]::DirectorySeparatorChar));
 
     if (-not [System.IO.Directory]::Exists($Path)) {
-        throw "Path does not exist: $Path"
+        throw 
     }
 
     # [System.Environment]::GetEnvironmentVariable automatically expands all variables
     [System.Array] $InstalledPaths = @()
-    if ([System.Environment]::OSVersion.Platform -eq "Win32NT") {
+    if ([System.Environment]::OSVersion.Platform -eq ) {
         $InstalledPaths += @(([System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User)) -split ([System.IO.Path]::PathSeparator))
         $InstalledPaths += @(([System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::Machine)) -split ([System.IO.Path]::PathSeparator))
     } else {
@@ -223,7 +223,7 @@ function Add-PathTToSettings {
 
     # $key is null here if it the user was unable to get ReadWriteSubTree access.
     if ($null -eq $Key) {
-        throw (New-Object -TypeName 'System.Security.SecurityException' -ArgumentList "Unable to access the target registry")
+        throw (New-Object -TypeName 'System.Security.SecurityException' -ArgumentList )
     }
 
     # Get current unexpanded value
@@ -242,33 +242,33 @@ function Add-PathTToSettings {
     # Upgrade PathValueKind to [Microsoft.Win32.RegistryValueKind]::ExpandString if appropriate
     if ($NewPathValue.Contains('%')) { $PathValueKind = [Microsoft.Win32.RegistryValueKind]::ExpandString }
 
-    $Key.SetValue("PATH", $NewPathValue, $PathValueKind)
+    $Key.SetValue(, $NewPathValue, $PathValueKind)
 }
 
 if ($IsLinux) {
     $Name = $PSVersionTable.OS
-    if ($Name -like "*-generic *") {
+    if ($Name -like ) {
         if ([System.Environment]::Is64BitOperatingSystem) {
-            $architecture = "x64"
+            $architecture = 
 	} else {
-            $architecture = "x86"
+            $architecture = 
 	}
-    } elseif ($Name -like "*-raspi *") {
+    } elseif ($Name -like ) {
         if ([System.Environment]::Is64BitOperatingSystem) {
-            $architecture = "arm64"
+            $architecture = 
 	} else {
-            $architecture = "arm32"
+            $architecture = 
 	}
     }
 } elseif (-not $IsWinEnv) {
-    $architecture = "x64"
-} elseif ($(Get-ComputerInfo -Property OsArchitecture).OsArchitecture -eq "ARM 64-bit Processor") {
-    $architecture = "arm64"
+    $architecture = 
+} elseif ($(Get-ComputerInfo -Property OsArchitecture).OsArchitecture -eq ) {
+    $architecture = 
 } else {
     switch ($env:PROCESSOR_ARCHITECTURE) {
-        "AMD64" { $architecture = "x64" }
-        "x86" { $architecture = "x86" }
-        default { throw "PowerShell package for OS architecture '$_' is not supported." }
+         { $architecture =  }
+         { $architecture =  }
+        default { throw  }
     }
 }
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
@@ -285,64 +285,64 @@ try {
         $blobName = $metadata.BlobName
 
         # Get version from currently installed PowerShell Daily if available.
-        $pwshPath = if ($IsWinEnv) {Join-Path $Destination "pwsh.exe"} else {Join-Path $Destination "pwsh"}
+        $pwshPath = if ($IsWinEnv) {Join-Path $Destination } else {Join-Path $Destination }
         $currentlyInstalledVersion = if(Test-Path $pwshPath) {
-            ((& $pwshPath -version) -split " ")[1]
+            ((& $pwshPath -version) -split )[1]
         }
 
         if($currentlyInstalledVersion -eq $release) {
-            Write-Verbose "Latest PowerShell Daily already installed." -Verbose
+            Write-Verbose  -Verbose
             return
         }
 
         if ($IsWinEnv) {
             if ($UseMSI) {
-                $packageName = "PowerShell-${release}-win-${architecture}.msi"
+                $packageName = 
             } else {
-                $packageName = "PowerShell-${release}-win-${architecture}.zip"
+                $packageName = 
             }
         } elseif ($IsLinuxEnv) {
-            $packageName = "powershell-${release}-linux-${architecture}.tar.gz"
+            $packageName = 
         } elseif ($IsMacOSEnv) {
-            $packageName = "powershell-${release}-osx-${architecture}.tar.gz"
+            $packageName = 
         }
 
-        if ($architecture -ne "x64") {
-            throw "The OS architecture is '$architecture'. However, we currently only support daily package for x64."
+        if ($architecture -ne ) {
+            throw 
         }
 
 
-        $downloadURL = "https://pscoretestdata.blob.core.windows.net/${blobName}/${packageName}"
-        Write-Verbose "About to download package from '$downloadURL'" -Verbose
+        $downloadURL = 
+        Write-Verbose  -Verbose
 
         $packagePath = Join-Path -Path $tempDir -ChildPath $packageName
-        if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq "Desktop") {
+        if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq ) {
             # On Windows PowerShell, progress can make the download significantly slower
             $oldProgressPreference = $ProgressPreference
-            $ProgressPreference = "SilentlyContinue"
+            $ProgressPreference = 
         }
 
         try {
             Invoke-WebRequest -Uri $downloadURL -OutFile $packagePath
         } finally {
-            if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq "Desktop") {
+            if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq ) {
                 $ProgressPreference = $oldProgressPreference
             }
         }
 
-        $contentPath = Join-Path -Path $tempDir -ChildPath "new"
+        $contentPath = Join-Path -Path $tempDir -ChildPath 
 
         $null = New-Item -ItemType Directory -Path $contentPath -ErrorAction SilentlyContinue
         if ($IsWinEnv) {
             if ($UseMSI -and $Quiet) {
-                Write-Verbose "Performing quiet install"
-                $ArgumentList=@("/i", $packagePath, "/quiet")
+                Write-Verbose 
+                $ArgumentList=@(, $packagePath, )
                 if($MSIArguments) {
                     $ArgumentList+=$MSIArguments
                 }
                 $process = Start-Process msiexec -ArgumentList $ArgumentList -Wait -PassThru
                 if ($process.exitcode -ne 0) {
-                    throw "Quiet install failed, please rerun install without -Quiet switch or ensure you have administrator rights"
+                    throw 
                 }
             } elseif ($UseMSI) {
                 if($MSIArguments) {
@@ -366,53 +366,53 @@ try {
 
         if ($IsWinEnv) {
             if ($UseMSI) {
-                if ($architecture -eq "arm64") {
-                    $packageName = "PowerShell-${release}-win-${architecture}.msix"
+                if ($architecture -eq ) {
+                    $packageName = 
                 } else {
-                    $packageName = "PowerShell-${release}-win-${architecture}.msi"
+                    $packageName = 
                 }
             } else {
-                $packageName = "PowerShell-${release}-win-${architecture}.zip"
+                $packageName = 
             }
         } elseif ($IsLinuxEnv) {
-            $packageName = "powershell-${release}-linux-${architecture}.tar.gz"
+            $packageName = 
         } elseif ($IsMacOSEnv) {
-            $packageName = "powershell-${release}-osx-${architecture}.tar.gz"
+            $packageName = 
         }
 
-        $downloadURL = "https://github.com/PowerShell/PowerShell/releases/download/v${release}/${packageName}"
-        Write-Host "Downloading: $downloadURL"
+        $downloadURL = 
+        Write-Host 
 
         $packagePath = Join-Path -Path $tempDir -ChildPath $packageName
-        if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq "Desktop") {
+        if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq ) {
             # On Windows PowerShell, progress can make the download significantly slower
             $oldProgressPreference = $ProgressPreference
-            $ProgressPreference = "SilentlyContinue"
+            $ProgressPreference = 
         }
 
         try {
             Invoke-WebRequest -Uri $downloadURL -OutFile $packagePath
         } finally {
-            if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq "Desktop") {
+            if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq ) {
                 $ProgressPreference = $oldProgressPreference
             }
         }
 
-        $contentPath = Join-Path -Path $tempDir -ChildPath "new"
+        $contentPath = Join-Path -Path $tempDir -ChildPath 
 
         $null = New-Item -ItemType Directory -Path $contentPath -ErrorAction SilentlyContinue
         if ($IsWinEnv) {
-            if ($UseMSI -and $architecture -eq "arm64") {
+            if ($UseMSI -and $architecture -eq ) {
                 Add-AppxPackage -Path $packagePath
             } elseif ($UseMSI -and $Quiet) {
-                Write-Verbose "Performing quiet install"
-                $ArgumentList=@("/i", $packagePath, "/quiet")
+                Write-Verbose 
+                $ArgumentList=@(, $packagePath, )
                 if($MSIArguments) {
                     $ArgumentList+=$MSIArguments
                 }
                 $process = Start-Process msiexec -ArgumentList $ArgumentList -Wait -PassThru
                 if ($process.exitcode -ne 0) {
-                    throw "Quiet install failed, please rerun install without -Quiet switch or ensure you have administrator rights"
+                    throw 
                 }
             } elseif ($UseMSI) {
                 if($MSIArguments) {
@@ -431,10 +431,10 @@ try {
     if (-not $UseMSI) {
         Remove-Destination $Destination
         if (Test-Path $Destination) {
-            Write-Verbose "Copying files" -Verbose
+            Write-Verbose  -Verbose
             # only copy files as folders will already exist at $Destination
-            Get-ChildItem -Recurse -Path "$contentPath" -File | ForEach-Object {
-                $DestinationFilePath = Join-Path $Destination $_.fullname.replace($contentPath, "")
+            Get-ChildItem -Recurse -Path  -File | ForEach-Object {
+                $DestinationFilePath = Join-Path $Destination $_.fullname.replace($contentPath, )
                 Copy-Item $_.fullname -Destination $DestinationFilePath
             }
         } else {
@@ -455,7 +455,7 @@ try {
                 try {
                     Add-PathTToSettings -Path $Destination -Target $TargetRegistry
                 } catch {
-                    Write-Warning -Message "Unable to save the new path in the machine wide registry: $_"
+                    Write-Warning -Message 
                     $TargetRegistry = [System.EnvironmentVariableTarget]::User
                 }
             } else {
@@ -467,35 +467,35 @@ try {
                 try {
                     Add-PathTToSettings -Path $Destination -Target $TargetRegistry
                 } catch {
-                    Write-Warning -Message "Unable to save the new path in the registry for the current user : $_"
+                    Write-Warning -Message 
                 }
             }
         } else {
-            $targetPath = Join-Path -Path $Destination -ChildPath "pwsh"
-            if ($IsLinuxEnv) { $symlink = "/usr/bin/pwsh" } elseif ($IsMacOSEnv) { $symlink = "/usr/local/bin/pwsh" }
+            $targetPath = Join-Path -Path $Destination -ChildPath 
+            if ($IsLinuxEnv) { $symlink =  } elseif ($IsMacOSEnv) { $symlink =  }
             $needNewSymlink = $true
 
             if (Test-Path -Path $symlink) {
                 $linkItem = Get-Item -Path $symlink
-                if ($linkItem.LinkType -ne "SymbolicLink") {
-                    Write-Warning "'$symlink' already exists but it's not a symbolic link. Abort adding to PATH."
+                if ($linkItem.LinkType -ne ) {
+                    Write-Warning 
                     $needNewSymlink = $false
                 } elseif ($linkItem.Target -contains $targetPath) {
                     ## The link already points to the target
-                    Write-Verbose "'$symlink' already points to '$targetPath'" -Verbose
+                    Write-Verbose  -Verbose
                     $needNewSymlink = $false
                 }
             }
 
             if ($needNewSymlink) {
                 $uid = id -u
-                if ($uid -ne "0") { $SUDO = "sudo" } else { $SUDO = "" }
+                if ($uid -ne ) { $SUDO =  } else { $SUDO =  }
 
-                Write-Verbose "Make symbolic link '$symlink' point to '$targetPath'..." -Verbose
+                Write-Verbose  -Verbose
                 & $SUDO ln -fs $targetPath $symlink
 
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Error "Could not add to PATH: failed to make '$symlink' point to '$targetPath'."
+                    Write-Error 
                 }
             }
         }
@@ -508,9 +508,9 @@ try {
     }
 
     if (-not $UseMSI) {
-        Write-Host "PowerShell has been installed at: $Destination"
+        Write-Host 
         if ($Destination -eq $PSHOME) {
-            Write-Host "Please restart pwsh" -ForegroundColor Magenta
+            Write-Host  -ForegroundColor Magenta
         }
     }
 } finally {

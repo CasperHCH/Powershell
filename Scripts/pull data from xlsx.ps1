@@ -1,4 +1,4 @@
-﻿$excel = New-Object -ComObject Excel.Application
+$excel = New-Object -ComObject Excel.Application
 $workbook = $excel.Workbooks.Open('C:\temp\Project Statistics 22-10-2019 13_26_38.xlsx')
 $workSheet = $Workbook.Sheets.Item(1)
 $WorkSheet.Name

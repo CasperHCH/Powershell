@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the Fibonacci numbers
 .DESCRIPTION
@@ -19,6 +19,6 @@ function fibonacci($n) {
 
 
 foreach ($i in 0..100) {
-	Write-Host "$(fibonacci $i), " -noNewline
+	Write-Host  -noNewline
 }
 exit 0 # success

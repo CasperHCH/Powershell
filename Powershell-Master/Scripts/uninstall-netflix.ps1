@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls Netflix
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling Netflix, please wait..."
+	
 
-	& winget uninstall "Netflix"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall Netflix, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"Netflix is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

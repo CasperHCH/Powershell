@@ -66,8 +66,8 @@ function Write-Log {
     [CmdletBinding()]
     Param(
     [Parameter(Mandatory=$False)]
-    [ValidateSet("INFO","WARN","ERROR","FATAL","DEBUG")]
-    [String]$Level = "INFO",
+    [ValidateSet(,,,,)]
+    [String]$Level = ,
 
     [Parameter(Mandatory=$True)]
     [string]$Message,
@@ -76,8 +76,8 @@ function Write-Log {
     [string]$logfile = $sLogFile
     )
 
-    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
-    $Line = "$Stamp $Level $Message"
+    $Stamp = (Get-Date).toString()
+    $Line = 
     #If($logfile) {
         Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -87,29 +87,12 @@ function Write-Log {
 }
 
 #Allowing for easier web requests
-function WebApiRequest {
-    param(
-        [parameter(Mandatory = $true)] [string]$uri,
-        [ValidateSet("GET","HEAD","POST","PUT","DELETE","CONNECT","OPTIONS","TRACE","PATCH")]
-        [String] $method = "GET",
-        [string] $Body = "",
-        [string] $userID = ""
-    )
-    
-    $pair = "$($AdminAccount):$($token)"
-    $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-    $basicAuthValue = "Basic $encodedCreds"
 
-    $headers = @{
-     Authorization = $basicAuthValue
-     'Content-Type' = 'application/json'
-     'Accept' = 'application/json'
-    }
 
     $uri = $url + $uri
 
     try {
-        If($method -eq "GET") {
+        If($method -eq ) {
             $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
         }
         else{
@@ -123,7 +106,7 @@ function WebApiRequest {
         $StatusCode = [string]$_.Exception.Response.StatusCode.value__
         $StatusDescription = [string]$_.Exception.Response.StatusDescription
         $message = $response
-        $message +=  " Url " + $uri + " : " + $_.Exception
+        $message +=   + $uri +  + $_.Exception
         Write-Log -Message $message
     }
     return $response
@@ -131,12 +114,12 @@ function WebApiRequest {
 ######### AddWatcherWebRequest ########
 function AddWatcherWebRequest($userID, $uri){
     
-    Write-Log -Message "$userID"
-    Write-Log -Message "$uri"
-    Write-Log -Message "$url"
-    $pair = "$($AdminAccount):$($token)"
+    Write-Log -Message 
+    Write-Log -Message 
+    Write-Log -Message 
+    $pair = 
     $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
-    $basicAuthValue = "Basic $encodedCreds"
+    $basicAuthValue = 
 
     $headers = @{
      Authorization = $basicAuthValue
@@ -154,13 +137,7 @@ return $response
 
 
 ######### GetUrl #########
-Function GetUrl{
- Param()
- 
- Begin{
-	Write-Log -Message  'GetUrl started'
-	Write-Log -Message  'Asking initiator to insert a URL for an Atlassian Cloud site.'
- }
+
  
  Process{
   Try{
@@ -176,7 +153,7 @@ Function GetUrl{
  
  End{
   If($?){
-   Write-Log -Message  "Completed Successfully."
+   Write-Log -Message  
   }
  }
 }
@@ -186,17 +163,17 @@ function CollectList(){
 	 'CollectList started'
 	while(1){
 		try{
-			Write-Log -Message  "While loop entered, waiting for Excel path"
+			Write-Log -Message  
 			$script:Excel = Import-Excel (read-host -prompt 'provide Excel path')
 		break
 		}
 		Catch{
-			write-host "Not a valid Excel, try again"
-			Write-Log -Level ERROR -Message  "Not a valid Excel inserted"
+			write-host 
+			Write-Log -Level ERROR -Message  
 		}
 	}
 
-	Write-Log -Message  "Completed Successfully."
+	Write-Log -Message  
 	Write-Log -Message  ' '	
 }
 ########## Import provided Excel #########
@@ -215,23 +192,18 @@ Begin{
  }
  End{
   If($?){
-   Write-Log -Message "Completed Successfully."
+   Write-Log -Message 
   }
  }
 }
 
 ######### Collect Admin account email #########
-Function CollectAdminAccount{
- Param()
- 
- Begin{
-  	Write-Log -Message  'CollectAdminAccount started'
- }
+
  
  Process{
   Try{
    $script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
-	 	Write-Log -Message  "AdminAccount Token collected as $AdminAccount"
+	 	Write-Log -Message  
   }
   
   Catch{
@@ -242,23 +214,18 @@ Function CollectAdminAccount{
  
  End{
   If($?){
-   Write-Log -Message  "Completed Successfully."
+   Write-Log -Message  
   }
  }
 }
 
 ######### Provide API Token#########
-Function Providetoken{
- Param()
- 
- Begin{
-  	Write-Log -Message 'Providetoken started'
- }
+
  
  Process{
   Try{
    $script:token = read-host -prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-	 	Write-Log -Message  "API Token collected as $token"
+	 	Write-Log -Message  
   }
   
   Catch{
@@ -269,17 +236,13 @@ Function Providetoken{
  
  End{
   If($?){
-   Write-Log -Message "Completed Successfully."
+   Write-Log -Message 
   }
  }
 }
 
 ######### Collect User Data #########
-Function CollectUserdata {
-  Param ()
-	Begin {
-		Write-Log -Message 'Entered; CollectUserdata'
-	}
+
 	Process {
         Write-Log -Message 'Entered; CollectUserdata - Process;'
 			Try {
@@ -287,25 +250,25 @@ Function CollectUserdata {
                 #Adding while loop, to ensure that all issues are changed for all users
                 #While loop will make the script repeat 250 times, as only 50 issues per call can be returned
                 #In total returning 12.500 issues.
-                #If any user have more assigned/reporter/Watcher/Request Participant, repeat script, or increase "$TotalInterations"
+                #If any user have more assigned/reporter/Watcher/Request Participant, repeat script, or increase 
                 while ($int -ne $TotalInterations){
 				    foreach($uID in $Excel){
                     Write-Log -Message 'Entered; CollectUserdata - foreach;'
                     #Collect where User is Assigned
 				    	try{#Collect where User is Assigned
                              Write-Log -Message 'Entered; CollectUserdata - Try-WebApiRequest;'
-                             Write-Log -Message "Entered; CollectUserdata - uID.old: $($uID.old)"
-                             Write-Log -Message "Entered; CollectUserdata - uID.newID: $($uID.newID)"
+                             Write-Log -Message 
+                             Write-Log -Message 
 
-				    	    $script:userAssignedList = WebApiRequest -Uri "/rest/api/3/search?jql=assignee=$($uID.old)"
+				    	    $script:userAssignedList = WebApiRequest -Uri 
                               
-                             Write-Log -Message "Entered; CollectUserdata issues: $($userAssignedList.issues.key)"
+                             Write-Log -Message 
 				    		 
 				    		#Use function ManipulateUserAssigneeData to change assignee to the new ID
                             #Only run it, if the returned list isnt empty
                             if ($userAssignedList.issues.key -ne $null){
 				    		    ManipulateUserAssigneeData $uID.newID $userAssignedList
-                              }else {Write-Log -Message "userAssignedList is empty SKIPPPED"}
+                              }else {Write-Log -Message }
 
 				    	}
 				    	Catch {
@@ -315,13 +278,13 @@ Function CollectUserdata {
                            #Collect where User is Reporter
 				    	try{#Collect where User is Reporter
                             Write-Log -Message 'CollectUserdata - Reporter'
-				    		$Script:userReporterList = WebApiRequest -Uri "/rest/api/3/search?jql=reporter=$($uID.old)"
-                            Write-Log -Message "CollectUserdata - Reporter List: $($userReporterList.issues.key)"
+				    		$Script:userReporterList = WebApiRequest -Uri 
+                            Write-Log -Message 
 
                             #If list isnt empty, go to function ManipulateUserReporterData
                              if ($userReporterList.issues.key -ne $null){
 				    		    ManipulateUserReporterData $uID.newID $userReporterList
-                              }else{Write-Log -Message "ManipulateUserReporterData is empty SKIPPED"}
+                              }else{Write-Log -Message }
 				    		
 				    	}
 				    	Catch {
@@ -332,26 +295,26 @@ Function CollectUserdata {
 				    	try{#Collect where User is in Request Participant
                             Write-Log -Message 'CollectUserdata - Request Participants'
                             #create useable variable.
-                            $uri = '/rest/api/3/search?jql="Request Participants"='+$uID.old
+                            $uri = '/rest/api/3/search?jql=='+$uID.old
 
                             $Script:userRequestParticipantList = WebApiRequest -Uri $uri
 
 
-                            Write-Log -Message "CollectUserdata - Request Participants List: $($userRequestParticipantList.issues.key)"
+                            Write-Log -Message 
                             
                             
                             #If list isnt empty, go to function ManipulateUserRPDataAdd
 				    		if ($userRequestParticipantList.issues.key -ne $null){
-                                Write-Log -Message "adding user $($uID.newID) to issue $($userRequestParticipantList.issues.key)"
+                                Write-Log -Message 
 				    		    ManipulateUserRPDataAdd $uID.newID $userRequestParticipantList
-                              }else{Write-Log -Message "userRequestParticipantList is empty SKIPPED ADD"}
+                              }else{Write-Log -Message }
                                
                               
                             #If list isnt empty, go to function ManipulateUserRPDataDelete
                             if ($userRequestParticipantList.issues.key -ne $null){
-                                 Write-Log -Message "removing user $($uID.old) from issue $($userRequestParticipantList.issues.key)"
+                                 Write-Log -Message 
 				    		    ManipulateUserRPDataDelete $uID.old $userRequestParticipantList
-                              }else {Write-Log -Message "userRequestParticipantList is empty SKIPPED DELETE"}
+                              }else {Write-Log -Message }
 				    		
 				    	}
 				    	Catch {
@@ -360,19 +323,19 @@ Function CollectUserdata {
 				    	}
 				    	try{#Collect where User is a Watcher
                              Write-Log -Message 'CollectUserdata - Watcher'
-				    		$Script:userWatcherList = WebApiRequest -Uri "/rest/api/3/search?jql=watcher=$($uID.old)"
-                             Write-Log -Message "CollectUserdata - Request Watcher List: $($userWatcherList.issues.key)"
+				    		$Script:userWatcherList = WebApiRequest -Uri 
+                             Write-Log -Message 
                              
 				    		
                             #If list isnt empty, go to function ManipulateUserWatcherDataAdd
 				    		 if ($userWatcherList.issues.key -ne $null){
 				    		    ManipulateUserWatcherDataAdd $uID.newID $userWatcherList
-                              }else {Write-Log -Message "userWatcherList is empty SKIPPED ADD"}
+                              }else {Write-Log -Message }
 				    		
                             #If list isnt empty, go to function ManipulateUserWatcherDataDelete
                             if ($userWatcherList.issues.key -ne $null){
 				    		    ManipulateUserWatcherDataDelete $uID.old $userWatcherList
-                              }else{Write-Log -Message "userWatcherList is empty SKIPPED ADD"}
+                              }else{Write-Log -Message }
 				    		
 				    	}
 				    	Catch {
@@ -391,7 +354,7 @@ Function CollectUserdata {
         }
 			 
 	End {
-         Write-Log -Message "Entered; CollectUserdata,End"
+         Write-Log -Message 
 		If ($?) {
 		 Write-Log -Message 'Completed Successfully. Exiting CollectUserdata'
          Write-Log -Message ' '
@@ -402,23 +365,19 @@ Function CollectUserdata {
 }
 
 ######### Manipulate User Assignee Data #########
-Function ManipulateUserAssigneeData {
-  Param ($newAssineeId, $userAssignedList)
-	Begin {
-		 Write-Log -Message 'Entered; ManipulateUserAssigneeData'
-	}
+
 	Process {
              Write-Log -Message 'Entered; ManipulateUserAssigneeData,Process'
 			Try {
 
-                $uIDAssigneejson = '{"accountId": "'+$newAssineeId+'"}'
+                $uIDAssigneejson = '{: }'
                 Write-Log -Message 'Entered; ManipulateUserAssigneeData,try'
 				foreach($Issue in $userAssignedList.issues){
 					try{#Change assignee where User is $uID
                         
-                        Write-Log -Message "Entered; ManipulateUserAssigneeData,try,foreach on $($Issue.key)"
+                        Write-Log -Message 
                         $uri = '/rest/api/3/issue/' + $Issue.key
-						$assigneeUri = $uri + "/assignee"
+						$assigneeUri = $uri + 
                         WebApiRequest -Uri $assigneeUri -Body $uIDAssigneejson -Method PUT | Out-Null
 					}
 					Catch {
@@ -433,7 +392,7 @@ Function ManipulateUserAssigneeData {
 			    }
 		}	
 		End {
-            Write-Log -Message "Entered; ManipulateUserAssigneeData,End"
+            Write-Log -Message 
 			If ($?) {
 			Write-Log -Message 'ManipulateUserAssigneeData Completed Successfully. Exiting'
             Write-Log -Message ' '
@@ -442,25 +401,21 @@ Function ManipulateUserAssigneeData {
 }
 
 ######### Manipulate User Reporter Data #########
-Function ManipulateUserReporterData {
-  Param ($newReporterId, $userReporterList)
-	Begin {
-		Write-Log -Message 'Entered; ManipulateUserReporterData'
-	}
+
 	Process {
         Write-Log -Message 'Entered; process'
 			Try {
             Write-Log -Message 'Entered; try'
                 $uIDReporterjson = '{
-                    "fields": {
-                        "reporter":{"accountId":"' + $newReporterId + '"}
+                    : {
+                        :{:}
                 }}'
-                Write-Log -Message "$uIDReporterjson"
+                Write-Log -Message 
 				foreach($Issue in $userReporterList.issues){
-                 "$($issue.key)"
+                 
 					try{#Change assignee where User is $uID
                         $uri = '/rest/api/3/issue/' + $Issue.key
-                        Write-Log -Message "$uri"
+                        Write-Log -Message 
 						WebApiRequest -Uri $uri -Body $uIDReporterjson -Method PUT | Out-Null
 					}
 					Catch {
@@ -475,7 +430,7 @@ Function ManipulateUserReporterData {
 			}
 		}
 			End {
-                Write-Log -Message "Entered; ManipulateUserReporterData,End"
+                Write-Log -Message 
 				If ($?) {
 				Write-Log -Message 'ManipulateUserReporterData Completed Successfully. Exiting'
                 Write-Log -Message ' '
@@ -485,21 +440,17 @@ Function ManipulateUserReporterData {
 }
 
 ######### Manipulate User Request participant Data Add #########
-Function ManipulateUserRPDataAdd {
-  Param ($newRequestID, $userRequestParticipantList)
-	Begin {
-		Write-Log -Message 'Entered; ManipulateUserRPDataAdd'
-	}
+
 	Process {
 			Try {
                 $uIDRequestjson = '{
-                    "accountIds": [ 
-                                      "'+$newRequestID+'"
+                    : [ 
+                                      
                                      ]
                 }'
 				foreach($Issue in $userRequestParticipantList.issues){
 					try{#Change assignee where User is $uID
-                        $uri = "/rest/servicedeskapi/request/$($Issue.key)/participant"
+                        $uri = 
 						WebApiRequest -Uri $uri -Body $uIDRequestjson -Method POST | Out-Null
 					}
 					Catch {
@@ -515,7 +466,7 @@ Function ManipulateUserRPDataAdd {
 			}
 			}
 			End {
-            Write-Log -Message "Entered; ManipulateUserRPDataAdd,End"
+            Write-Log -Message 
 				If ($?) {
 				Write-Log -Message 'ManipulateUserRPDataAdd Completed Successfully. Exiting'
 				Write-Log -Message ' '
@@ -526,21 +477,17 @@ Function ManipulateUserRPDataAdd {
 
 
 ######### Manipulate User Request participant Data Delete #########
-Function ManipulateUserRPDataDelete {
-  Param ($oldRequestID, $userRequestParticipantList)
-	Begin {
-		Write-Log -Message 'Entered; ManipulateUserRPDataDelete'
-	}
+
 	Process {
 			Try {
                 $uIDRequestjson = '{
-                    "accountIds": [ 
-                                      "'+$oldRequestID+'"
+                    : [ 
+                                      
                                      ]
                 }'
 				foreach($Issue in $userRequestParticipantList.issues){
 					try{#Change assignee where User is $uID
-                        $uri = "/rest/servicedeskapi/request/$($Issue.key)/participant"
+                        $uri = 
 						WebApiRequest -Uri $uri -Body $uIDRequestjson -Method DELETE | Out-Null
 					}
 					Catch {
@@ -556,7 +503,7 @@ Function ManipulateUserRPDataDelete {
 			}
 			}
 			End {
-            Write-Log -Message "Entered; ManipulateUserRPDataDelete,End"
+            Write-Log -Message 
 				If ($?) {
 				Write-Log -Message 'ManipulateUserRPDataDelete Completed Successfully. Exiting'
 				Write-Log -Message ' '
@@ -565,20 +512,16 @@ Function ManipulateUserRPDataDelete {
 }
 
 ######### Manipulate User Watcher Data ADD #########
-Function ManipulateUserWatcherDataAdd {
-  Param ($newWatcherID, $userWatcherList)
-	Begin {
-		 Write-Log -Message 'Entered; ManipulateUserWatcherDataAdd'
-	}
+
 	Process {
-        Write-Log -Message "$userWatcherList.issues.key"
+        Write-Log -Message 
 			Try {
-                        $newWatcherID = '"'+$newWatcherID+'"'
-                       Write-Log -Message "changed watcherID to contain double apos $newWatcherID"
+                        $newWatcherID = ''
+                       Write-Log -Message 
 				foreach($Issue in $userWatcherList.issues){
 					try{#Change assignee where User is $uID
-                        $uri = "/rest/api/3/issue/$($issue.key)/watchers"
-                        Write-Log -Message "Adding user $($newWatcherID) as watcher to Issue $($Issue.key)"
+                        $uri = 
+                        Write-Log -Message 
                         
                         AddWatcherWebRequest -Uri $uri -userID $newWatcherID
 						#WebApiRequest -Uri $userID -userID $newWatcherID -Method POST #| Out-Null
@@ -596,7 +539,7 @@ Function ManipulateUserWatcherDataAdd {
 			}
 		}
 		End {
-        Write-Log -Message "Entered; ManipulateUserWatcherDataAdd,End"
+        Write-Log -Message 
 			If ($?) {
 			Write-Log -Message 'ManipulateUserWatcherDataAdd Completed Successfully. Exiting'
             Write-Log -Message ' '
@@ -605,17 +548,13 @@ Function ManipulateUserWatcherDataAdd {
 }
 
 ######### Manipulate User Watcher Data DELETE #########
-Function ManipulateUserWatcherDataDelete {
-  Param ($oldWatcherID, $userWatcherList)
-	Begin {
-		Write-Log -Message 'Entered; ManipulateUserWatcherDataDelete'
-	}
+
 	Process {
 			Try {
 				foreach($Issue in $userWatcherList.issues){
 					try{#Change assignee where User is $uID
-                        Write-Log -Message "Delete watcher from ticket, where User is $($oldWatcherID) and ticket is $($Issue.key)"
-                        $uri = "/rest/api/2/issue/$($Issue.key)/watchers?accountId=$($oldWatcherID)"
+                        Write-Log -Message 
+                        $uri = 
 						WebApiRequest -Uri $uri -Method DELETE | Out-Null
 					}
 					Catch {
@@ -631,7 +570,7 @@ Function ManipulateUserWatcherDataDelete {
 			}
 			}
 			End {
-                Write-Log -Message "Entered; ManipulateUserWatcherDataDelete,End"
+                Write-Log -Message 
 				If ($?) {
                     Write-Log -Message 'ManipulateUserWatcherDataDelete Completed Successfully. Exiting'
                     Write-Log -Message ' '

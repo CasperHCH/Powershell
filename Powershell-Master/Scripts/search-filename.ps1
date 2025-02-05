@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists all files and folder names matching a search pattern
 .DESCRIPTION
@@ -23,7 +23,7 @@ $path,
 $term
 )
 # Recursive search function
-Write-Host "Results:"
+Write-Host 
 function Search-Folder($FilePath, $SearchTerm) {
     # Get children
     $children = Get-ChildItem -Path $FilePath
@@ -31,11 +31,11 @@ function Search-Folder($FilePath, $SearchTerm) {
     foreach ($child in $children) {
         $name = $child.Name
         if ($name -match $SearchTerm) {
-            Write-Host "$FilePath\$name"
+            Write-Host 
         }
-        $isdir = Test-Path -Path "$FilePath\$name" -PathType Container
+        $isdir = Test-Path -Path  -PathType Container
         if ($isdir) {
-            Search-Folder -FilePath "$FilePath\$name" -SearchTerm $SearchTerm
+            Search-Folder -FilePath  -SearchTerm $SearchTerm
         }
     }
 }

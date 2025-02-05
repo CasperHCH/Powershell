@@ -1,4 +1,4 @@
-﻿function Get-AdSync {
+function Get-AdSync {
     [CmdletBinding()]
     Param()
 

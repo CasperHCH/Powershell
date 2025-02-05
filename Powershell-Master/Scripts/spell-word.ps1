@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Spells a word
 .DESCRIPTION
@@ -13,20 +13,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$word = "")
+param([string]$word = )
 
 try {
-	if ($word -eq "" ) { $word = read-host "Enter word to spell" }
+	if ($word -eq  ) { $word = read-host  }
 
 	[char[]]$ArrayOfChars = $word.ToUpper()
-	$Reply = ""
+	$Reply = 
 	foreach($Char in $ArrayOfChars) {
 		$Reply += $Char
-		$Reply += " "
+		$Reply += 
 	}
-	& "$PSScriptRoot/speak-english.ps1" "$Reply"
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
         exit 1
 }

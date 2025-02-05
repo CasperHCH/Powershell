@@ -16,7 +16,7 @@ Write-Host -ForegroundColor cyan 'Define PowerShell to use TLS1.2 in this sessio
 # Register-PSRepository -Default -ErrorAction SilentlyContinue
 # Set-PSRepository -Name PSGallery -InstallationPolicy trusted -ErrorAction SilentlyContinue
 
-Write-Host -ForegroundColor Cyan "Get all PowerShell modules"
+Write-Host -ForegroundColor Cyan 
 
 $modules = Get-InstalledModule
 
@@ -27,61 +27,61 @@ foreach ($module in $modules.Name) {
         $currentVersion = (Get-InstalledModule -Name $module -AllVersions -ErrorAction Stop).Version
     }
     catch {
-        Write-Host -ForegroundColor red "$_.Exception.Message"
+        Write-Host -ForegroundColor red 
         continue
     }
 
     $moduleInfos = Find-Module -Name $module
 
     if ($null -eq $currentVersion) {
-        Write-Host -ForegroundColor Cyan "$($moduleInfos.Name) - Install from PowerShellGallery version $($moduleInfos.Version). Release date: $($moduleInfos.PublishedDate)"
+        Write-Host -ForegroundColor Cyan 
 
         try {
             Install-Module -Name $module -Force
         }
         catch {
-            Write-Host -ForegroundColor Red "$_.Exception.Message"
+            Write-Host -ForegroundColor Red 
         }
     }
     elseif ($moduleInfos.Version -eq $currentVersion) {
-        Write-Host -ForegroundColor Green "$($moduleInfos.Name) already installed in the latest version ($currentVersion. Release date: $($moduleInfos.PublishedDate))"
+        Write-Host -ForegroundColor Green 
     }
     elseif ($currentVersion.count -gt 1) {
-        Write-Warning "$module is installed in $($currentVersion.count) versions (versions: $($currentVersion -join ' | '))"
-        Write-Host -ForegroundColor Cyan "Uninstall previous $module versions"
+        Write-Warning 
+        Write-Host -ForegroundColor Cyan 
 
         try {
             $oldVersions = Get-InstalledModule -Name $module -AllVersions -ErrorAction Stop | Where-Object { $_.Version -ne $moduleInfos.Version }
 
             foreach ($oldVersion in $oldVersions) {
-                Write-Host -ForegroundColor Cyan "$module - Uninstall previous version ($($oldVersion.Version))"
+                Write-Host -ForegroundColor Cyan 
                 Remove-Module $module -ErrorAction SilentlyContinue
                 Uninstall-Module $oldVersion -Force
             }
 
         }
         catch {
-            Write-Host -ForegroundColor red "$_.Exception.Message"
+            Write-Host -ForegroundColor red 
         }
 
         if ($moduleInfos.Version -ne $currentVersion) {
-            Write-Host -ForegroundColor Cyan "$($moduleInfos.Name) - Install from PowerShellGallery version $($moduleInfos.Version). Release date: $($moduleInfos.PublishedDate)"
+            Write-Host -ForegroundColor Cyan 
 
             try {
                 Install-Module -Name $module -Force
             }
             catch {
-                Write-Host -ForegroundColor red "$_.Exception.Message"
+                Write-Host -ForegroundColor red 
             }
         }
     }
     else {
-        Write-Host -ForegroundColor Cyan "$($moduleInfos.Name) - Update from PowerShellGallery from version $currentVersion to $($moduleInfos.Version). Release date: $($moduleInfos.PublishedDate)"
+        Write-Host -ForegroundColor Cyan 
         try {
             Update-Module -Name $module -Force
         }
         catch {
-            Write-Host -ForegroundColor red "$_.Exception.Message"
+            Write-Host -ForegroundColor red 
         }
     }
 }

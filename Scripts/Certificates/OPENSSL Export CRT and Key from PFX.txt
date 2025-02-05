@@ -30,7 +30,3 @@ openssl rsa -in [keyfile-encrypted.key] -outform PEM -out [keyfile-encrypted-pem
 
 Note: Ensure that the name of the certificate file is drlive.crt and the private key file is named drlive.key. The renamed drlive.crt and drlive.key files must be updated for all three servers:
 
-    liveAuthServer: <live-install-folder>\liveAuthServer\lib_server\config
-    liveHomeServer: <live-install-folder>\liveHomeServer\lib_server\config
-    liveRoomServer: <live-install-folder>\liveRoomServer\lib_server\config
-

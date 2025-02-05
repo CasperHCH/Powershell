@@ -7,7 +7,7 @@
 While you could use the script on its own, it is highly recommended to add it to your profile.
 See https://technet.microsoft.com/en-us/library/ff461033.aspx for more info.
   You will need to get an OpenWeather API key from http://openweathermap.org/api - it's free.
-Once you have your key, replace "YOUR_API_KEY" with your key.
+Once you have your key, replace  with your key.
  
   Note that weather results are displayed in metric (°C) units.
 To switch to imperial (°F) change all instances of '&units=metric' to '&units=imperial'
@@ -36,23 +36,21 @@ I take no responsibility for any issues caused by this script.
   <# BEGIN VARIABLES #>
   
   <# Get your API Key (it's free) from http://openweathermap.org/api and change the value below with your key #>
-  $API = "260696ea60da5a36f56ea7672448b463"
+  $API = 
   
   <# Check if you have entered an API key and if not, exit the script.
   Do NOT change this value, only the one above! #>
-  if ($API -eq "YOUR_API_KEY") {
-    Write-Host ""
-    Write-Warning "You have not set your API Key!"
-    Write-Host "Please go to http://openweathermap.org/api to get your API key - it's free."
-    Write-Host "Once you have your key, change the value in the $" -NoNewline; Write-Host "API variable with your key and re-run this script."
-    Write-Host ""
+  if ($API -eq ) {
+    Write-Host 
+    Write-Warning 
+    Write-Host  -NoNewline; Write-Host 
     exit
   }
   
-  $Url = "api.openweathermap.org/data/2.5/weather?q=$City,$Country&units=imperial&appid=$API&type=accurate&mode=json"
+  $Url = 
   <#JSON request for sunrise/sunset #>
-  $JSONResults = Invoke-WebRequest "api.openweathermap.org/data/2.5/weather?q=$City,$Country&units=imperial&appid=$API&type=accurate&mode=json"
-  Write-Host "Attempting URL $Url"
+  $JSONResults = Invoke-WebRequest 
+  Write-Host 
   $JSON = $JSONResults.Content
   $JSONData = ConvertFrom-Json $JSON
   $JSONSunrise = $JSONData.sys.sunrise
@@ -63,12 +61,12 @@ I take no responsibility for any issues caused by this script.
   $Sunrise = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONSunrise))
   $Sunset = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONSunset))
   $LastUpdate = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONLastUpdate))
-  $Sunrise = "{0:hh:mm:ss tt}" -f (Get-Date $Sunrise)
-  $Sunset = "{0:hh:mm:ss tt}" -f (Get-Date $Sunset)
-  $LastUpdate = "{0:hh:mm:ss tt}" -f (Get-Date $LastUpdate)
+  $Sunrise =  -f (Get-Date $Sunrise)
+  $Sunset =  -f (Get-Date $Sunset)
+  $LastUpdate =  -f (Get-Date $LastUpdate)
   
   <# XML request for everything else #>
-  [xml]$XMLResults = Invoke-WebRequest "api.openweathermap.org/data/2.5/weather?q=$City,$Country&units=imperial&appid=$API&type=accurate&mode=xml"
+  [xml]$XMLResults = Invoke-WebRequest 
   $XMLData = $XMLResults.current
   
   <# Get current weather value. Needed to convert case of characters. #>
@@ -90,137 +88,121 @@ I take no responsibility for any issues caused by this script.
   $Time = Get-Date -DisplayHint Time
   
   <# Define the numbers for various weather conditions #>
-  $Thunder = "200", "201", "202", "210", "211", "212", "221", "230", "231", "232"
-  $Drizzle = "300", "301", "302", "310", "311", "312", "313", "314", "321", "500", "501", "502"
-  $Rain = "503", "504", "520", "521", "522", "531"
-  $LightSnow = "600", "601"
-  $HeavySnow = "602", "622"
-  $SnowAndRain = "611", "612", "615", "616", "620", "621"
-  $Atmosphere = "701", "711", "721", "731", "741", "751", "761", "762", "771", "781"
-  $Clear = "800"
-  $PartlyCloudy = "801", "802", "803"
-  $Cloudy = "804"
-  $Windy = "900", "901", "902", "903", "904", "905", "906", "951", "952", "953", "954", "955", "956", "957", "958", "959", "960", "961", "962"
+  $Thunder = , , , , , , , , , 
+  $Drizzle = , , , , , , , , , , , 
+  $Rain = , , , , , 
+  $LightSnow = , 
+  $HeavySnow = , 
+  $SnowAndRain = , , , , , 
+  $Atmosphere = , , , , , , , , , 
+  $Clear = 
+  $PartlyCloudy = , , 
+  $Cloudy = 
+  $Windy = , , , , , , , , , , , , , , , , , , 
   
   <# Create the variables we will use to display weather information #>
   $Weather = (Get-Culture).textinfo.totitlecase($CurrentValue.tolower())
-  $CurrentTemp = "Current Temp: " + [Math]::Round($XMLData.temperature.value, 0) + " F"
-  $High = "Today's High: " + [Math]::Round($XMLData.temperature.max, 0) + " F"
-  $Low = "Today's Low: " + [Math]::Round($XMLData.temperature.min, 0) + " F"
-  $Humidity = "Humidity: " + $XMLData.humidity.value + $XMLData.humidity.unit
-  $Precipitation = "Precipitation: " + (Get-Culture).textinfo.totitlecase($PrecipitationValue.tolower())
+  $CurrentTemp =  + [Math]::Round($XMLData.temperature.value, 0) + 
+  $High =  + [Math]::Round($XMLData.temperature.max, 0) + 
+  $Low =  + [Math]::Round($XMLData.temperature.min, 0) + 
+  $Humidity =  + $XMLData.humidity.value + $XMLData.humidity.unit
+  $Precipitation =  + (Get-Culture).textinfo.totitlecase($PrecipitationValue.tolower())
   
   <# Checking if there is precipitation and if so, display the values in $precipitationMM and $precipitationHRS #>
-  if ($Precipitation -eq "Precipitation: No") {
-    $PrecipitationData = "Precip. Data: No Precipitation"
+  if ($Precipitation -eq ) {
+    $PrecipitationData = 
   } else {
-    $PrecipitationData = "Precip. Data: " + $PrecipitationMM + "mm in the last " + $PrecipitationHRS
+    $PrecipitationData =  + $PrecipitationMM +  + $PrecipitationHRS
   }
   
-  $script:WindSpeed = "Wind Speed: " + ([math]::Round(([decimal]$XMLData.wind.speed.value * 1.609344), 1)) + " km/h" + " - Direction: " + $XMLData.wind.direction.code
-  $WindCondition = "Wind Condition: " + (Get-Culture).TextInfo.ToTitleCase($WindValue.tolower())
-  $Sunrise = "Sunrise: " + $Sunrise
-  $Sunset = "Sunset: " + $Sunset
+  $script:WindSpeed =  + ([math]::Round(([decimal]$XMLData.wind.speed.value * 1.609344), 1)) +  +  + $XMLData.wind.direction.code
+  $WindCondition =  + (Get-Culture).TextInfo.ToTitleCase($WindValue.tolower())
+  $Sunrise =  + $Sunrise
+  $Sunset =  + $Sunset
   
   <# END VARIABLES #>
   
-  Write-Host ""
-  Write-Host "Current weather conditions for" $XMLData.city.name -nonewline; Write-Host " -" $Weather -ForegroundColor yellow;
-  Write-Host "Last Updated:" -nonewline; Write-Host "" $LastUpdate -ForegroundColor yellow;
-  Write-Host ""
+  Write-Host  $XMLData.city.name -nonewline; Write-Host  $Weather -ForegroundColor yellow;
+  Write-Host  -nonewline; Write-Host  $LastUpdate -ForegroundColor yellow;
+  Write-Host 
   
   Show-WeatherImage
 
 
 function Show-WeatherImage {
   if ($Thunder.Contains($XMLData.weather.number)) {
-    Write-Host "	    .--.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	 .-(    ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	(___.__)__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	  /_   /_  		" -ForegroundColor yellow -nonewline; Write-Host "$Sunrise		$WindSpeed" -ForegroundColor white;
-    Write-Host "	   /    /  		" -ForegroundColor yellow -nonewline; Write-Host "$Sunset		$WindCondition" -ForegroundColor white;
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
   } elseif ($Drizzle.Contains($XMLData.weather.number)) {
-    Write-Host "	  .-.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	 (   ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	(___(__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	 / / / 			" -ForegroundColor cyan -nonewline; Write-Host "$Sunrise		$WindSpeed" -ForegroundColor white;
-    Write-Host "	  /  			" -ForegroundColor cyan -nonewline; Write-Host "$Sunset		$WindCondition" -ForegroundColor white;
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
   } elseif ($Rain.Contains($XMLData.weather.number)) {
-    Write-Host "	    .-.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	   (   ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	  (___(__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	 //////// 		" -ForegroundColor cyan -nonewline; Write-Host "$Sunrise		$WindSpeed" -ForegroundColor white;
-    Write-Host "	 /////// 		" -ForegroundColor cyan -nonewline; Write-Host "$Sunset		$WindCondition" -ForegroundColor white;
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
   } elseif ($LightSnow.Contains($XMLData.weather.number)) {
-    Write-Host "	  .-.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	 (   ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	(___(__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	 *  *  *		$Sunrise		$WindSpeed"
-    Write-Host "	*  *  * 		$Sunset		$WindCondition"
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
+    Write-Host 
   } elseif ($HeavySnow.Contains($XMLData.weather.number)) {
-    Write-Host "	    .-.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	   (   ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	  (___(__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	  * * * * 		$Sunrise		$WindSpeed"
-    Write-Host "	 * * * *  		$Sunset		$WindCondition"
-    Write-Host "	  * * * * "
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
+    Write-Host 
   } elseif ($SnowAndRain.Contains($XMLData.weather.number)) {
-    Write-Host "	  .-.   		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	 (   ). 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	(___(__)		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	 */ */* 		$Sunrise		$WindSpeed"
-    Write-Host "	* /* /* 		$Sunset		$WindCondition"
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
+    Write-Host 
   } elseif ($Atmosphere.Contains($XMLData.weather.number)) {
-    Write-Host "	_ - _ - _ -		" -ForegroundColor gray -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	 _ - _ - _ 		" -ForegroundColor gray -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	_ - _ - _ -		" -ForegroundColor gray -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	 _ - _ - _ 		" -ForegroundColor gray -nonewline; Write-Host "$Sunrise		$WindSpeed" -ForegroundColor white;
-    Write-Host "				$Sunset		$WindCondition"
-    Write-Host ""
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
   }
     <#	
       The following will be displayed on clear evening conditions
       It is set to 18:00:00 (6:00PM). Change this to any value you want.
-    #> elseif ($Clear.Contains($XMLData.weather.number) -and $Time -gt "18:00:00") {
-    Write-Host "	    *  --.			$CurrentTemp		$Humidity"
-    Write-Host "	        \  \   *		$High		$Precipitation"
-    Write-Host "	         )  |    *		$Low		$PrecipitationData"
-    Write-Host "	*       <   |			$Sunrise		$WindSpeed"
-    Write-Host "	   *    ./ /	  		$Sunset		$WindCondition"
-    Write-Host "	       ---'   *   "
-    Write-Host ""
+    #> elseif ($Clear.Contains($XMLData.weather.number) -and $Time -gt ) {
+    Write-Host 
+    Write-Host 
+    Write-Host 
+    Write-Host 
   } elseif ($Clear.Contains($XMLData.weather.number)) {
-    Write-Host "	   \ | /  		" -ForegroundColor Yellow -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	    .-.   		" -ForegroundColor Yellow -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	-- (   ) --		" -ForegroundColor Yellow -nonewline; Write-Host "$Low		$PrecipitationData" -ForegroundColor white;
-    Write-Host "	    ``'``   		" -ForegroundColor Yellow -nonewline; Write-Host "$Sunrise		$WindSpeed" -ForegroundColor white;
-    Write-Host "	   / | \  		" -ForegroundColor yellow -nonewline; Write-Host "$Sunset		$WindCondition" -ForegroundColor white;
-    Write-Host ""
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
   } elseif ($PartlyCloudy.Contains($XMLData.weather.number)) {
-    Write-Host "	   \ | /   		" -ForegroundColor Yellow -nonewline; Write-Host "$CurrentTemp		$Humidity" -ForegroundColor white;
-    Write-Host "	    .-.    		" -ForegroundColor Yellow -nonewline; Write-Host "$High		$Precipitation" -ForegroundColor white;
-    Write-Host "	-- (  .--. 		$Low		$PrecipitationData"
-    Write-Host "	   .-(    ). 		$Sunrise		$WindSpeed"
-    Write-Host "	  (___.__)__)		$Sunset		$WindCondition"
-    Write-Host ""
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
+    Write-Host 
+    Write-Host 
   } elseif ($Cloudy.Contains($XMLData.weather.number)) {
-    Write-Host "	    .--.   		$CurrentTemp		$Humidity"
-    Write-Host "	 .-(    ). 		$High		$Precipitation"
-    Write-Host "	(___.__)__)		$Low		$PrecipitationData"
-    Write-Host "	            		$Sunrise		$WindSpeed"
-    Write-Host "				$Sunset		$WindCondition"
-    Write-Host ""
+    Write-Host 
+    Write-Host 
+    Write-Host 
   } elseif ($Windy.Contains($XMLData.weather.number)) {
-    Write-Host "	~~~~      .--.   		$CurrentTemp		$Humidity"
-    Write-Host "	 ~~~~~ .-(    ). 		$High		$Precipitation"
-    Write-Host "	~~~~~ (___.__)__)		$Low		$PrecipitationData"
-    Write-Host "	                 		$Sunrise		$WindSpeed"
-    Write-Host "					$Sunset		$WindCondition"
+    Write-Host 
+    Write-Host 
+    Write-Host 
   }
 }

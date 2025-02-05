@@ -1,4 +1,4 @@
-﻿function Test-LDAPPorts {
+function Test-LDAPPorts {
     [CmdletBinding()]
     param(
         [string] $ServerName,
@@ -6,15 +6,15 @@
     )
     if ($ServerName -and $Port -ne 0) {
         try {
-            $LDAP = "LDAP://" + $ServerName + ':' + $Port
+            $LDAP =  + $ServerName + ':' + $Port
             $Connection = [ADSI]($LDAP)
             $Connection.Close()
             return $true
         } catch {
-            if ($_.Exception.ToString() -match "The server is not operational") {
-                Write-Warning "Can't open $ServerName`:$Port."
-            } elseif ($_.Exception.ToString() -match "The user name or password is incorrect") {
-                Write-Warning "Current user ($Env:USERNAME) doesn't seem to have access to to LDAP on port $Server`:$Port"
+            if ($_.Exception.ToString() -match ) {
+                Write-Warning 
+            } elseif ($_.Exception.ToString() -match ) {
+                Write-Warning 
             } else {
                 Write-Warning -Message $_
             }

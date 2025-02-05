@@ -40,6 +40,6 @@ function Get-ObjectsInTwoArrays {
         }
     }
 
-    Write-Host "$($res.count) $ComparisonMethod two arrays"
+    Write-Host 
     return $res
 }

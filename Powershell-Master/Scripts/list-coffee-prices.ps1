@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	List coffee prices
 .DESCRIPTION
@@ -11,43 +11,41 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function WriteHorizontalBar { param([float]$Value, [float]$Max)
-	$Num = ($Value * 100.0) / $Max
-	while ($Num -ge 1.0) { Write-Host "█" -noNewline; $Num -= 1.0 }
+
 	if ($Num -ge 0.875) {
-		Write-Host "▉" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.75) {
-		Write-Host "▊" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.625) {
-		Write-Host "▋" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.5) {
-		Write-Host "▌" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.375) {
-		Write-Host "▍" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.25) {
-		Write-Host "▎" -noNewline
+		Write-Host  -noNewline
 	} elseif ($Num -ge 0.125) {
-		Write-Host "▏" -noNewline
+		Write-Host  -noNewline
 	}
-	Write-Host " $Value"
+	Write-Host 
 }
 
 try {
-	Write-Progress "⏳ Loading data from www.alphavantage.co..."
-	$prices = (Invoke-WebRequest -URI "https://www.alphavantage.co/query?function=COFFEE&interval=monthly&apikey=demo" -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
-	Write-Progress -completed " "
+	Write-Progress 
+	$prices = (Invoke-WebRequest -URI  -userAgent  -useBasicParsing).Content | ConvertFrom-Json
+	Write-Progress -completed 
 
-	""
-	"$($prices.name) (by alphavantage.co, in $($prices.unit))"
-	"---------------------------------------------------------------"
+	
+	
+	
 	foreach($item in $prices.data) {
-		if ($Item.value -eq ".") { continue }
-		Write-Host "$($item.date) " -noNewline
+		if ($Item.value -eq ) { continue }
+		Write-Host  -noNewline
 		[int]$value = $Item.value
 		WriteHorizontalBar $value 350.0
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }
