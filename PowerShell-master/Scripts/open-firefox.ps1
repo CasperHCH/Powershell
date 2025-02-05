@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Launches the Firefox browser
 .DESCRIPTION
@@ -13,19 +13,19 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$URL = "http://www.fleschutz.de")
+param([string]$URL = )
 
 try {
 	$App = Get-AppxPackage -Name Mozilla.FireFox
-	if ($App.Status -eq "Ok") {
+	if ($App.Status -eq ) {
 		# starting Firefox UWP app:
 		explorer.exe shell:appsFolder\$($App.PackageFamilyName)!FIREFOX
 	} else {
 		# starting Firefox program:
-		start-process firefox.exe "$URL"
+		start-process firefox.exe 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

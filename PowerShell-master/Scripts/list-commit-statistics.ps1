@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the Git commit statistics
 .DESCRIPTION
@@ -18,30 +18,30 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
-	Write-Progress "⏳ (1/4) Searching for Git executable..."
+	Write-Progress 
 	$null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	$RepoDirName = (Get-Item "$RepoDir").Name
-	Write-Progress "⏳ (2/4) Checking folder 📂$RepoDirName..."
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
+	$RepoDirName = (Get-Item ).Name
+	Write-Progress 
+	if (-not(Test-Path  -pathType container)) { throw  }
 
-	Write-Progress "⏳ (3/4) Fetching updates..."
-	& git -C "$RepoDir" fetch --all --quiet
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed with exit code $lastExitCode" }
+	Write-Progress 
+	& git -C  fetch --all --quiet
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Progress "⏳ (4/4) Querying commits..."
-	" "
-	"Commits Author"
-	"------- ------"
-	Write-Progress -completed " "
-	git -C "$RepoDir" shortlog --summary --numbered --email --no-merges
-	if ($lastExitCode -ne "0") { throw "'git shortlog' failed with exit code $lastExitCode" }
+	Write-Progress 
+	
+	
+	
+	Write-Progress -completed 
+	git -C  shortlog --summary --numbered --email --no-merges
+	if ($lastExitCode -ne ) { throw  }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs basic apps
 .DESCRIPTION
@@ -17,41 +17,40 @@
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/37) Loading Data/basic-apps.csv...            " -NoNewline
-	$Table = Import-Csv "$PSScriptRoot/../Data/basic-apps.csv"
+	Write-Host  -NoNewline
+	$Table = Import-Csv 
 	$NumEntries = $Table.count
-	"$NumEntries apps"
-	Write-Host "⏳ (2/37) These apps will be installed or upgraded: " -NoNewline
+	
+	Write-Host  -NoNewline
 	foreach ($Row in $Table) {
-		[string]$AppName = "$($Row.APPLICATION)"
-		Write-Host "$AppName · " -NoNewline
+		[string]$AppName = 
+		Write-Host  -NoNewline
 	}
-	""
-	""
-	"Installation will start in 15 seconds... (otherwise press <Control> <C> to abort)"
+	
+	
+	
 	Start-Sleep -Seconds 15
 
 	[int]$Step = 3
 	[int]$Skipped = 0
 	foreach ($Row in $Table) {
-		[string]$AppName = "$($Row.APPLICATION)"
-		[string]$Category = "$($Row.CATEGORY)"
-		[string]$AppID = "$($Row.APPID)"
-		[string]$skip = "$($Row.Skip)"
-		Write-Host " "
-		Write-Host "⏳ ($Step/$($NumEntries + 2)) Installing $Category '$AppName'..."
-		if ($skip -eq "FALSE") {
+		[string]$AppName = 
+		[string]$Category = 
+		[string]$AppID = 
+		[string]$skip = 
+		Write-Host 
+		if ($skip -eq ) {
 			& winget install --id $AppID --accept-package-agreements --accept-source-agreements
 		}
-		if ($lastExitCode -ne "0") { $Skipped++ }
+		if ($lastExitCode -ne ) { $Skipped++ }
 		$Step++
 	}
 	[int]$Installed = ($NumEntries - $Skipped)
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Installation of $Installed basic apps ($Skipped skipped) took $Elapsed sec"
+	
 	exit 0 # success
 }
 catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

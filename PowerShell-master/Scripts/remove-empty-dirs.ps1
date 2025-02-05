@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Removes all empty subfolders within a directory tree
 .DESCRIPTION
@@ -13,16 +13,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$DirTree = "")
+param([string]$DirTree = )
 
 try {
-	if ($DirTree -eq "" ) { $DirTree = read-host "Enter the path to the directory tree" }
+	if ($DirTree -eq  ) { $DirTree = read-host  }
 
 	$Folders = @()
-	foreach ($Folder in (Get-ChildItem -path  "$DirTree" -Recurse | Where { $_.PSisContainer })) {
+	foreach ($Folder in (Get-ChildItem -path   -Recurse | Where { $_.PSisContainer })) {
 		$Folders += New-Object PSObject -Property @{
 			Object = $Folder
-			Depth = ($Folder.FullName.Split("\")).Count
+			Depth = ($Folder.FullName.Split()).Count
 		}
 	}
 	$Folders = $Folders | Sort Depth -Descending
@@ -33,7 +33,7 @@ try {
 		if ($Folder.Object.GetFileSystemInfos().Count -eq 0) {
 			$Deleted += New-Object PSObject -Property @{
 				Folder = $Folder.Object.FullName
-				Deleted = (Get-Date -Format "hh:mm:ss tt")
+				Deleted = (Get-Date -Format )
 				Created = $Folder.Object.CreationTime
 				'Last Modified' = $Folder.Object.LastWriteTime
 				Owner = (Get-Acl $Folder.Object.FullName).Owner
@@ -41,9 +41,9 @@ try {
 			Remove-Item -Path $Folder.Object.FullName -Force
 		}
 	}
-	"✔️  Done."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

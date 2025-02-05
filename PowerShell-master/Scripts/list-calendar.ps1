@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the calendar 
 .DESCRIPTION
@@ -31,25 +31,25 @@ function Print-Month ($month, $year) {
     $firstDayOfMonth = Get-Date -month $month -day 1 -year $year
     $lastDayOfMonth = (Get-Date -month $firstDayOfMonth.AddMonths(1).Month -day 1 -year $firstDayOfMonth.AddMonths(1).Year).AddDays(-1)
     
-    $header = (Get-Date $firstDayOfMonth -Format MMMM) + " " + $firstDayOfMonth.Year
+    $header = (Get-Date $firstDayOfMonth -Format MMMM) +  + $firstDayOfMonth.Year
     Write-Host
-    Write-Host ((" " * (($daysLine.Length - $header.Length) / 2)) + $header)
+    Write-Host (( * (($daysLine.Length - $header.Length) / 2)) + $header)
     Write-Host $daysLine
     
     for ($day = $firstDayOfMonth; $day -le $lastDayOfMonth; $day = $day.AddDays(1)) {
         if ($day.day -eq 1) {
-            Write-Host (" " * 3 * [int](Get-Date $day -uformat %u)) -NoNewLine
+            Write-Host ( * 3 * [int](Get-Date $day -uformat %u)) -NoNewLine
         }
         
         Write-Host ((Get-Date $day -Format dd).ToString()) -NoNewLine 
-        Write-Host " " -NoNewLine
+        Write-Host  -NoNewLine
         
-        if ($day.DayOfWeek -eq "Saturday") {
+        if ($day.DayOfWeek -eq ) {
             Write-Host
         }
     }
     
-    if ($lastDayOfMonth.DayOfWeek -ne "Saturday") {
+    if ($lastDayOfMonth.DayOfWeek -ne ) {
         Write-Host
     }
 
@@ -61,16 +61,16 @@ function Print-Year($year) {
     Write-Host
     
     for($month = 1; $month -le 12; $month += 3) {
-        $header = ""
+        $header = 
         
         for ($i = $month; $i -lt $month + 3; $i++) {
-            $tempHeader = (Get-Date -month $i -Format MMMM) + " " + $year.ToString()
-            $header += ((" " * (($daysLine.Length - $tempHeader.Length) / 2)) + $tempHeader + (" " * (($daysLine.Length - $tempHeader.Length) / 2)))
-            $header += "  "
+            $tempHeader = (Get-Date -month $i -Format MMMM) +  + $year.ToString()
+            $header += (( * (($daysLine.Length - $tempHeader.Length) / 2)) + $tempHeader + ( * (($daysLine.Length - $tempHeader.Length) / 2)))
+            $header += 
         }
         
         Write-Host $header
-        Write-Host (($daysLine + "  ") * 3)
+        Write-Host (($daysLine + ) * 3)
         
         $dayCounts = (1, 1, 1)
         $i = 0
@@ -84,22 +84,22 @@ function Print-Year($year) {
             $dayOffset = [int](Get-Date -day 1 -month ($month + $i) -year $year -uformat %u)
             
             if ($dayOfMonth -eq 1) {
-                Write-Host (" " * 3 * $dayOffSet) -NoNewLine
+                Write-Host ( * 3 * $dayOffSet) -NoNewLine
             }
                 
             if ($dayOfMonth -le (Get-Date -day 1 -month ((($i + $month) % 12) + 1) -year $year).AddDays(-1).day) {
                 $currentDay = (Get-Date -day $dayOfMonth -month ((($i + $month - 1) % 12) + 1) -year $year)
 
                 Write-Host ((Get-Date -month ($i + $month) -day $dayOfMonth -year $year -Format dd).ToString()) -NoNewLine 
-                Write-Host " " -NoNewLine
+                Write-Host  -NoNewLine
             }
             else {
-                Write-Host "   " -NoNewLine
+                Write-Host  -NoNewLine
             }
             
             if ((($dayOfMonth + $dayOffset) % 7) -eq 0) {
                 $i = ($i + 1) % 3
-                Write-Host "  " -NoNewLine
+                Write-Host  -NoNewLine
                 
                 if ($i -eq 0) {
                     Write-Host
@@ -124,7 +124,7 @@ function Find-WeekDayMultiple ($year, $month, $dayOfWeek, $multiple) {
         $result = $result.AddDays(1)
 
         if ($result.Month -ne $month) {
-            throw "Could not find weekday multiple."
+            throw 
         }
     }
     while ($multipleCount -lt $multiple)
@@ -145,16 +145,16 @@ function Find-LastWeekDay ($year, $month, $dayOfWeek) {
 }
 
 try {
-	Set-Variable -name daysLine -option Constant -value "Su Mo Tu We Th Fr Sa "
+	Set-Variable -name daysLine -option Constant -value 
 
-	if ($year -lt 0) { throw "Year parameter must be greater than 0" }
-	if ($month -lt 0) { throw "Month parameter must be between 1 and 12" }
+	if ($year -lt 0) { throw  }
+	if ($month -lt 0) { throw  }
 
 	if (($month -gt 12) -and ($year -eq (Get-Date).Year)) {
 	    $year = $month
 	    $month = 0
 	} elseif (($month -gt 12) -and ($year -ne (Get-Date).Year)) {
-	    throw "Month parameter must be between 1 and 12"
+	    throw 
 	}
 	if ($month -ne 0) {
 	    Print-Month $month $year
@@ -163,6 +163,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

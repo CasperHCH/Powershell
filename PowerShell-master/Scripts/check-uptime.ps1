@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the uptime 
 .DESCRIPTION
@@ -19,30 +19,30 @@ try {
 		$BootTime = Get-WinEvent -ProviderName eventlog | Where-Object {$_.Id -eq 6005} | Select-Object TimeCreated -First 1 
 		$Uptime = New-TimeSpan -Start $BootTime.TimeCreated.Date -End (Get-Date)
 	}
-	$Reply = "✅ Up for "
+	$Reply = 
 	$Days = $Uptime.Days
-	if ($Days -eq "1") {
-		$Reply += "1 day, "
-	} elseif ($Days -ne "0") {
-		$Reply += "$Days days, "
+	if ($Days -eq ) {
+		$Reply += 
+	} elseif ($Days -ne ) {
+		$Reply += 
 	}
 
 	$Hours = $Uptime.Hours
-	if ($Hours -eq "1") {
-		$Reply += "1 hour, "
-	} elseif ($Hours -ne "0") {
-		$Reply += "$Hours hours, "
+	if ($Hours -eq ) {
+		$Reply += 
+	} elseif ($Hours -ne ) {
+		$Reply += 
 	}
 
 	$Minutes = $Uptime.Minutes 
-	if ($Minutes -eq "1") {
-		$Reply += "1 minute"
+	if ($Minutes -eq ) {
+		$Reply += 
 	} else {
-		$Reply += "$Minutes minutes"
+		$Reply += 
 	}
 	Write-Host $Reply
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

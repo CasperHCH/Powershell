@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Writes the matrix
 .DESCRIPTION
@@ -11,14 +11,7 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-function CalculateMatrix { param([int]$pos, [char]$letter)
-	[int]$width = $rui.MaxWindowSize.Width
-	[int]$height = $rui.MaxWindowSize.Height
-	[int]$y = 0
-	for ([int]$x = 0; $x -lt $width; $x++) {
-		if ($x -eq $pos) {
-			$global:buf[$y * $width + $x] = $letter
-		} else {
+ else {
 			$global:buf[$y * $width + $x] = [char]32
 		}
 	}
@@ -29,8 +22,7 @@ function CalculateMatrix { param([int]$pos, [char]$letter)
 	}
 }
 
-function NextLetter {
-	if ($global:index -eq 6) { $global:index = 0; $global:pos = [int]$global:generator.next(0, $rui.MaxWindowSize.Width) }
+
 	switch($global:index++) {
 	0 { return 'X' }
 	1 { return 'I' }
@@ -43,8 +35,8 @@ function NextLetter {
 
 $ui = (Get-Host).ui
 $rui = $ui.rawui
-$buffer0 = ""
-1..($rui.MaxWindowSize.Width * $rui.MaxWindowSize.Height) | foreach { $buffer0 += " " }
+$buffer0 = 
+1..($rui.MaxWindowSize.Width * $rui.MaxWindowSize.Height) | foreach { $buffer0 +=  }
 $global:buf = $buffer0.ToCharArray()
 $global:generator = New-Object System.Random
 $global:pos = [int]$global:generator.next(0, $rui.MaxWindowSize.Width)
@@ -59,4 +51,3 @@ while ($true) {
 	Start-Sleep -milliseconds 30
 }
 exit 0 # success
-

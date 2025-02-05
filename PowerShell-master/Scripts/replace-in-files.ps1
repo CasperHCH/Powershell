@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Search and replace a pattern in the given files by the replacement
 .DESCRIPTION
@@ -10,37 +10,32 @@
 .PARAMETER files
 	Specifies the file to scan
 .EXAMPLE
-	PS> ./replace-in-files NSA "No Such Agency" C:\Temp\*.txt
+	PS> ./replace-in-files NSA  C:\Temp\*.txt
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$pattern = "", [string]$replacement = "", [string]$files = "")
+param([string]$pattern = , [string]$replacement = , [string]$files = )
 
-function ReplaceInFile { param([string]$FilePath, [string]$Pattern, [string]$Replacement)
 
-    [System.IO.File]::WriteAllText($FilePath,
-        ([System.IO.File]::ReadAllText($FilePath) -replace $Pattern, $Replacement)
-    )
-}
 
 try {
-	if ($pattern -eq "" ) { $pattern = read-host "Enter search pattern" }
-	if ($replacement -eq "" ) { $replacement = read-host "Enter replacement" }
-	if ($files -eq "" ) { $files = read-host "Enter files" }
+	if ($pattern -eq  ) { $pattern = read-host  }
+	if ($replacement -eq  ) { $replacement = read-host  }
+	if ($files -eq  ) { $files = read-host  }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	$fileList = (get-childItem -path "$files" -attributes !Directory)
+	$fileList = (get-childItem -path  -attributes !Directory)
 	foreach($file in $fileList) {
 		ReplaceInFile $file $pattern $replacement
 	}
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"OK, replaced '$pattern' by '$replacement' in $($fileList.Count) files in $Elapsed sec."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

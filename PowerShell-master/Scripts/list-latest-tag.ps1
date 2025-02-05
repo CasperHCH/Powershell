@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the latest tag on the current branch in a Git repository
 .DESCRIPTION
@@ -14,19 +14,19 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
-	if (-not(test-path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
+	if (-not(test-path  -pathType container)) { throw  }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	$LatestTagCommitID = (git -C "$RepoDir" rev-list --tags --max-count=1)
-	$LatestTag = (git -C "$RepoDir" describe --tags $LatestTagCommitID)
-	"🔖$LatestTag at commit $LatestTagCommitID"
+	$LatestTagCommitID = (git -C  rev-list --tags --max-count=1)
+	$LatestTag = (git -C  describe --tags $LatestTagCommitID)
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

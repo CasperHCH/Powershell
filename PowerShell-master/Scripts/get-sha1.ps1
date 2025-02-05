@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints the SHA1 checksum of a file
 .DESCRIPTION
@@ -14,16 +14,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$file = "")
+param([string]$file = )
 
 try {
-	if ($file -eq "" ) { $file = Read-Host "Enter the filename" }
+	if ($file -eq  ) { $file = Read-Host  }
 
 	$Result = get-filehash $file -algorithm SHA1
 
-	"✔️ SHA1 hash is $($Result.Hash)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

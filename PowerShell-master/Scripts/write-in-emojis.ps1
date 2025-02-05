@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Writes text in Emojis
 .DESCRIPTION
@@ -6,7 +6,7 @@
 .PARAMETER text
         Specifies the text
 .EXAMPLE
-        PS> ./write-in-emojis.ps1 "I love my folder"
+        PS> ./write-in-emojis.ps1 
         I💘️my📂
 .LINK
         https://github.com/fleschutz/PowerShell
@@ -14,18 +14,18 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "")  { $text = Read-Host "Enter the text" }
+	if ($text -eq )  { $text = Read-Host  }
 	
-	$table = Import-CSV "$PSScriptRoot/../Data/emojis.csv"
+	$table = Import-CSV 
 	foreach($row in $table) {
-		$text = $text -Replace "\s?$($row.WORD)\s?","$($row.EMOJI)️"
+		$text = $text -Replace ,
 	}
 	Write-Output $text
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls CrystalDiskMark
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling CrystalDiskMark, please wait..."
+	
 
-	& winget uninstall "CrystalDiskMark Shizuku Edition"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall CrystalDiskMark, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"CrystalDiskMark is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

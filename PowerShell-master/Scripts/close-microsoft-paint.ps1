@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Microsoft Paint app 
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im mspaint.exe
-if ($lastExitCode -ne "0") {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry, Microsoft Paint isn't running."
+if ($lastExitCode -ne ) {
+	&  
 	exit 1
 }
 exit 0 # success

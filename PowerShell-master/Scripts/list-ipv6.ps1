@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists IPv6 states
 .DESCRIPTION
@@ -20,6 +20,6 @@ try {
 	Get-NetAdapterBinding -name '*' -componentID 'ms_tcpip6' | Format-Table -autoSize -property Name,Enabled 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

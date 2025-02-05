@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Prints the MD5 checksum of a file
 .DESCRIPTION
@@ -14,16 +14,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$file = "")
+param([string]$file = )
 
 try {
-	if ($file -eq "" ) { $file = Read-Host "Enter path to file" }
+	if ($file -eq  ) { $file = Read-Host  }
 
 	$Result = Get-Filehash $file -algorithm MD5
 
-	"✔️ MD5 hash is $($Result.Hash)"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

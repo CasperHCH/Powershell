@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Switches a Shelly1 device 
 .DESCRIPTION
@@ -17,18 +17,18 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Host = "", [string]$TurnMode = "", [int]$Timer = -999)
+param([string]$Host = , [string]$TurnMode = , [int]$Timer = -999)
 
 try {
-	if ($Host -eq "") { $Host = read-host "Enter hostname or IP address of the Shelly1 device" }
-	if ($TurnMode -eq "") { $TurnMode = read-host "Enter turn mode (on/off/toggle)" }
-	if ($Timer -eq -999) { [int]$Timer = read-host "Enter timer in seconds (0=endless)" }
+	if ($Host -eq ) { $Host = read-host  }
+	if ($TurnMode -eq ) { $TurnMode = read-host  }
+	if ($Timer -eq -999) { [int]$Timer = read-host  }
 
-	$Result = Invoke-RestMethod "http://$($Host)/relay/0?turn=$($TurnMode)&timer=$($Timer)"
+	$Result = Invoke-RestMethod 
 	
-	"✔️ switched Shelly1 device at $Host to $TurnMode for $Timer sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

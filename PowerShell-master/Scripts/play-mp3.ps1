@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Plays a MP3 sound file 
 .DESCRIPTION
@@ -13,14 +13,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = "")
+param([string]$Path = )
 
 try {
-	if ($Path -eq "" ) { $Path = Read-Host "Enter the path to the MP3 sound file" }
+	if ($Path -eq  ) { $Path = Read-Host  }
 
-	if (-not(Test-Path "$Path" -pathType leaf)) { throw "Can't access sound file: $Path" }
+	if (-not(Test-Path  -pathType leaf)) { throw  }
 	$FullPath = (Get-ChildItem $Path).fullname
-	$Filename = (Get-Item "$FullPath").name
+	$Filename = (Get-Item ).name
 
 	Add-Type -assemblyName PresentationCore
 	$MediaPlayer = New-Object System.Windows.Media.MediaPlayer
@@ -32,9 +32,9 @@ try {
 
 	[int]$Minutes = $Milliseconds / 60000
 	[int]$Seconds = ($Milliseconds / 1000) % 60
-	"▶️ Playing $Filename for $($Minutes.ToString('00')):$($Seconds.ToString('00')) sec..."
+	
 	$PreviousTitle = $host.ui.RawUI.WindowTitle 
-	$host.ui.RawUI.WindowTitle = "▶️ $Filename"
+	$host.ui.RawUI.WindowTitle = 
 	$MediaPlayer.Volume = 1
 	$MediaPlayer.play()
 	Start-Sleep -milliseconds $Milliseconds
@@ -44,6 +44,6 @@ try {
 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

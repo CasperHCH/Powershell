@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the VPN status
 .DESCRIPTION
@@ -19,13 +19,13 @@ try {
 	} else {
 		$Connections = Get-VPNConnection
 		foreach($Connection in $Connections) {
-			Write-Host "✅ VPN to $($Connection.Name) is $($Connection.ConnectionStatus.ToLower())"
+			Write-Host 
 			$noVPN = $false
 		}
 	}
-	if ($noVPN) { Write-Host "⚠️ No VPN configured" }
+	if ($noVPN) { Write-Host  }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

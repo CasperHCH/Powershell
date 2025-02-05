@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new tag in a Git repository
 .DESCRIPTION
@@ -15,36 +15,36 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$TagName = "", [string]$RepoDir = "$PWD")
+param([string]$TagName = , [string]$RepoDir = )
 
 try {
-	if ($TagName -eq "") { $TagName = read-host "Enter new tag name" }
+	if ($TagName -eq ) { $TagName = read-host  }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	if (-not(test-path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
-	set-location "$RepoDir"
+	if (-not(test-path  -pathType container)) { throw  }
+	set-location 
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
 	$Result = (git status)
-	if ($lastExitCode -ne "0") { throw "'git status' failed in $RepoDir" }
-	if ("$Result" -notmatch "nothing to commit, working tree clean") { throw "Repository is NOT clean: $Result" }
+	if ($lastExitCode -ne ) { throw  }
+	if ( -notmatch ) { throw  }
 
-	& "$PSScriptRoot/fetch-repo.ps1"
-	if ($lastExitCode -ne "0") { throw "Script 'fetch-repo.ps1' failed" }
+	& 
+	if ($lastExitCode -ne ) { throw  }
 
-	& git tag "$TagName"
-	if ($lastExitCode -ne "0") { throw "Error: 'git tag $TagName' failed!" }
+	& git tag 
+	if ($lastExitCode -ne ) { throw  }
 
-	& git push origin "$TagName"
-	if ($lastExitCode -ne "0") { throw "Error: 'git push origin $TagName' failed!" }
+	& git push origin 
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ created new tag '$TagName' in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

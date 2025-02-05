@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks symlinks in a folder
 .DESCRIPTION
@@ -16,25 +16,25 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Folder = "")
+param([string]$Folder = )
 
 try {
-	if ($Folder -eq "" ) { $Folder = read-host "Enter the path to the folder" }
+	if ($Folder -eq  ) { $Folder = read-host  }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
-	$FullPath = Resolve-Path "$Folder"
-	"⏳ Checking symlinks at 📂$FullPath including subfolders..."
+	$FullPath = Resolve-Path 
+	
 
 	[int]$NumTotal = [int]$NumBroken = 0
-	Get-ChildItem $FullPath -recurse  | Where { $_.Attributes -match "ReparsePoint" } | ForEach-Object {
+	Get-ChildItem $FullPath -recurse  | Where { $_.Attributes -match  } | ForEach-Object {
 		$Symlink = $_.FullName
 		$Target = ($_ | Select-Object -ExpandProperty Target -ErrorAction Ignore)
 		if ($Target) {
-			$path = $_.FullName + "\..\" + ($_ | Select-Object -ExpandProperty Target)
+			$path = $_.FullName +  + ($_ | Select-Object -ExpandProperty Target)
 			$item = Get-Item $path -ErrorAction Ignore
 			if (!$item) {
 				$NumBroken++
-				"Symlink $Symlink to: $Target seems broken (#$NumBroken)"
+				
 			}
 		}
 		$NumTotal++
@@ -42,14 +42,14 @@ try {
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
 	if ($NumTotal -eq 0) {
-		"✔️ No symlink found at 📂$FullPath in $Elapsed sec" 
+		 
 	} elseif ($NumBroken -eq 1) {
-		"✔️ Found $NumBroken broken symlink at 📂$FullPath in $Elapsed sec"
+		
 	} else {
-		"✔️ Found $NumBroken broken symlinks at 📂$FullPath in $Elapsed sec"
+		
 	}
 	exit $NumBroken
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

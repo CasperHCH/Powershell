@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sends a UDP datagram message to an IP address and port
 .DESCRIPTION
@@ -10,7 +10,7 @@
 .PARAMETER Message
 	Specifies the message text to send
 .EXAMPLE
-	PS> ./send-udp 192.168.100.100 8080 "TEST"
+	PS> ./send-udp 192.168.100.100 8080 
 	✔️  Done.
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -18,12 +18,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$TargetIP = "", [int]$TargetPort = 0, [string]$Message = "")
+param([string]$TargetIP = , [int]$TargetPort = 0, [string]$Message = )
 
 try {
-	if ($TargetIP -eq "" ) { $TargetIP = read-host "Enter target IP address" }
-	if ($TargetPort -eq 0 ) { $TargetPort = read-host "Enter target port" }
-	if ($Message -eq "" ) { $Message = read-host "Enter message to send" }
+	if ($TargetIP -eq  ) { $TargetIP = read-host  }
+	if ($TargetPort -eq 0 ) { $TargetPort = read-host  }
+	if ($Message -eq  ) { $Message = read-host  }
 
 	$IP = [System.Net.Dns]::GetHostAddresses($TargetIP) 
 	$Address = [System.Net.IPAddress]::Parse($IP) 
@@ -33,9 +33,9 @@ try {
 	$SendMessage = $Socket.Send($EncodedText, $EncodedText.Length, $EndPoints) 
 	$Socket.Close() 
 
-	"✔️  Done."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

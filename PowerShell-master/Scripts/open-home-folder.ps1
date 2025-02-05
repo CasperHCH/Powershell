@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the home folder
 .DESCRIPTION
@@ -12,13 +12,13 @@
 #>
 
 try {
-	$TargetDir = resolve-path "$HOME"
-	if (-not(test-path "$TargetDir" -pathType container)) {
-		throw "Home folder at 📂$TargetDir doesn't exist (yet)"
+	$TargetDir = resolve-path 
+	if (-not(test-path  -pathType container)) {
+		throw 
 	}
-	& "$PSScriptRoot/open-file-explorer.ps1" "$TargetDir"
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

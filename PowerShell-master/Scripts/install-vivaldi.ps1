@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Vivaldi
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Vivaldi, please wait..."
+	
 
 	& winget install --id VivaldiTechnologies.Vivaldi --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Vivaldi installed successfully."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

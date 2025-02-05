@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Saves a single screenshot
 .DESCRIPTION
@@ -14,42 +14,30 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$TargetFolder = "")
+param([string]$TargetFolder = )
 
-function GetScreenshotsFolder {
-        if ($IsLinux) {
-                $Path = "$HOME/Pictures"
-                if (-not(Test-Path "$Path" -pathType container)) { throw "Pictures folder at $Path doesn't exist (yet)"}
-                if (Test-Path "$Path/Screenshots" -pathType container) { $Path = "$Path/Screenshots" }
+
+                if (Test-Path  -pathType container) { $Path =  }
         } else {
                 $Path = [Environment]::GetFolderPath('MyPictures')
-                if (-not(Test-Path "$Path" -pathType container)) { throw "Pictures folder at $Path doesn't exist (yet)" }
-                if (Test-Path "$Path\Screenshots" -pathType container) { $Path = "$Path\Screenshots" }
+                if (-not(Test-Path  -pathType container)) { throw  }
+                if (Test-Path  -pathType container) { $Path =  }
         }
         return $Path
 }
 
-function TakeScreenshot { param([string]$FilePath)
-	Add-Type -Assembly System.Windows.Forms            
-	$ScreenBounds = [Windows.Forms.SystemInformation]::VirtualScreen
-	$ScreenshotObject = New-Object Drawing.Bitmap $ScreenBounds.Width, $ScreenBounds.Height
-	$DrawingGraphics = [Drawing.Graphics]::FromImage($ScreenshotObject)
-	$DrawingGraphics.CopyFromScreen( $ScreenBounds.Location, [Drawing.Point]::Empty, $ScreenBounds.Size)
-	$DrawingGraphics.Dispose()
-	$ScreenshotObject.Save($FilePath)
-	$ScreenshotObject.Dispose()
-}
+
 
 try {
-	if ("$TargetFolder" -eq "") { $TargetFolder = GetScreenshotsFolder }
+	if ( -eq ) { $TargetFolder = GetScreenshotsFolder }
 	$Time = (Get-Date)
-	$Filename = "$($Time.Year)-$($Time.Month)-$($Time.Day)T$($Time.Hour)-$($Time.Minute)-$($Time.Second).png"
+	$Filename = 
 	$FilePath = (Join-Path $TargetFolder $Filename)
 	TakeScreenshot $FilePath
 
-	"✔️ screenshot saved to $FilePath"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

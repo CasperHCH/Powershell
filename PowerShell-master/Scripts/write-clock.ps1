@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes an ASCII clock
 .DESCRIPTION
@@ -12,29 +12,29 @@
 #>
 
 try {
-	[system.threading.thread]::currentthread.currentculture = [system.globalization.cultureinfo]"en-US"
-	$Weekday = Get-Date -UFormat "%A"
-	$Date = Get-Date -UFormat "%d %b %Y"
-	$Week = Get-Date -UFormat "%V"
+	[system.threading.thread]::currentthread.currentculture = [system.globalization.cultureinfo]
+	$Weekday = Get-Date -UFormat 
+	$Date = Get-Date -UFormat 
+	$Week = Get-Date -UFormat 
 
 	Clear-Host
-	& "$PSScriptRoot/write-big.ps1" "    $Weekday"
-	Write-Output ""
-	& "$PSScriptRoot/write-big.ps1" "  $Date"
-	Write-Output ""
-	& "$PSScriptRoot/write-big.ps1" "    WEEK $Week"
-	Write-Output ""
+	&  
+	Write-Output 
+	&  
+	Write-Output 
+	&  
+	Write-Output 
 
 	$StartPosition = $HOST.UI.RawUI.CursorPosition
 	while ($true) {
-		$Time = Get-Date -format "HH:mm:ss" 
-		& "$PSScriptRoot/write-big.ps1" "    $Time  "
-		Write-Output "`n                             (press <Ctrl> <C> to stop)"
+		$Time = Get-Date -format  
+		&  
+		Write-Output 
 		Start-Sleep -seconds 1
 		$HOST.UI.RawUI.CursorPosition = $StartPosition
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

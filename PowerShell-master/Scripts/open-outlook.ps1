@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Launches the Microsoft Outlook app
 .DESCRIPTION
@@ -11,18 +11,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function TryToExec { param($Folder, $Binary)
-        if (test-path "$Folder/$Binary" -pathType leaf) {
-                start-process "$Folder/$Binary" -WorkingDirectory "$Folder"
-                exit 0 # success
-        }
+
 }
 
 try {
-	TryToExec "C:\Program Files\Microsoft Office\root\Office16" "OUTLOOK.EXE"
-	TryToExec "C:\Programs\Microsoft Office\Office14" "OUTLOOK.EXE"
-	throw "It seems Outlook isn't installed yet."
+	TryToExec  
+	TryToExec  
+	throw 
 } catch {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry: $($Error[0])"
+	&  
 	exit 1
 }

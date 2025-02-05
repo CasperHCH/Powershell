@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the current working directory
 .DESCRIPTION
@@ -13,10 +13,10 @@
 #>
 
 try {
-	$Path = Resolve-Path -Path "$PWD"
-	"📂$Path"
+	$Path = Resolve-Path -Path 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

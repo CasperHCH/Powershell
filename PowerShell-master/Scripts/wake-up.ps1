@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Wakes up a computer using Wake-on-LAN
 .DESCRIPTION
@@ -19,12 +19,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$MACaddress = "", [string]$IPaddress = "", [int]$Port=9, [int]$NumRetries=3)
+param([string]$MACaddress = , [string]$IPaddress = , [int]$Port=9, [int]$NumRetries=3)
 	
 function Send-WOL { param([string]$mac, [string]$ip, [int]$port) 
 	$broadcast = [Net.IPAddress]::Parse($ip) 
   
-	$mac=(($mac.replace(":","")).replace("-","")).replace(".","") 
+	$mac=(($mac.replace(,)).replace(,)).replace(,) 
 	$target=0,2,4,6,8,10 | % {[convert]::ToByte($mac.substring($_,2),16)} 
 	$packet = (,[byte]255 * 6) + ($target * 16) 
   
@@ -34,18 +34,18 @@ function Send-WOL { param([string]$mac, [string]$ip, [int]$port)
 } 
 
 try {
-	if ($MACaddress -eq "" ) { $MACaddress = Read-Host "Enter the host's MAC address, e.g. 11:22:33:44:55:66" }
-	if ($IPaddress -eq "" ) { $IPaddress = Read-Host "Enter the host's IP or subnet address, e.g. 192.168.0.255" }
+	if ($MACaddress -eq  ) { $MACaddress = Read-Host  }
+	if ($IPaddress -eq  ) { $IPaddress = Read-Host  }
 
 	Send-WOL $MACaddress $IPaddress $Port
 	for ($i = 0; $i -lt $NumRetries; $i++) {
 		Start-Sleep -milliseconds 100
 		Send-WOL $MACaddress $IPaddress $Port
 	}
-	"✔️ sent magic packet with MAC $MACaddress to IP $IPaddress on port $Port as wakeup call ($($NumRetries + 1) times)"
-	"   (Hint: wait a minute until the computer fully boots up)"
+	
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

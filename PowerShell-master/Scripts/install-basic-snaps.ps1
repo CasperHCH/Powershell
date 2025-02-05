@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs basic Linux snaps 
 .DESCRIPTION
@@ -13,9 +13,9 @@
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
-	if (!$IsLinux) { throw "Only Linux currently support snaps" }
+	if (!$IsLinux) { throw  }
 
-	"⏳ Installing 19 Snaps (sorted alphabetically)..."
+	
 	sudo snap install ant
 	sudo snap install audacity
 	sudo snap install bashtop
@@ -37,9 +37,9 @@ try {
 	sudo snap install plexmediaserver
 	
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ installed 19 Snaps in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

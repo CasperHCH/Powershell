@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists DNS servers
 .DESCRIPTION
@@ -16,28 +16,22 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function CheckDNSServer { param($Provider, $IPv4Pri, $IPv4Sec)
-	Write-Progress "Measuring latency of $Provider..."
-	$SW=[system.diagnostics.stopwatch]::startNew();$null=(nslookup fleschutz.de $IPv4Pri 2>$null);[int]$Lat1=$SW.Elapsed.TotalMilliseconds
 
-	$SW=[system.diagnostics.stopwatch]::startNew();$null=(nslookup fleschutz.de $IPv4Sec 2>$null);[int]$Lat2=$SW.Elapsed.TotalMilliseconds
-
-	New-Object PSObject -Property @{ Provider=$Provider; IPv4="$IPv4Pri / $IPv4Sec"; Latency="$Lat1 / $Lat2 ms" }
 }
 
 function List-DNS-Servers {
-	Write-Progress "Loading Data/public-dns-servers.csv..."
-      $Table = Import-CSV "$PSScriptRoot/../Data/public-dns-servers.csv"
+	Write-Progress 
+      $Table = Import-CSV 
 	foreach($Row in $Table) {
 		CheckDNSServer $Row.PROVIDER $Row.IPv4_PRI $Row.IPv4_SEC	
 	}
-	Write-Progress -completed "."
+	Write-Progress -completed 
 }
  
 try {
 	List-DNS-Servers | Format-Table -property @{e='Provider';width=50},@{e='IPv4';width=32},@{e='Latency';width=15}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

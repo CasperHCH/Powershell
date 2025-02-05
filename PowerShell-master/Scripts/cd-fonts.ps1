@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the fonts folder
 .DESCRIPTION
@@ -14,13 +14,13 @@
 
 try {
 	$Path = [Environment]::GetFolderPath('Fonts')
-	if (-not(Test-Path "$Path" -pathType container)) {
-		throw "Fonts folder at 📂$Path doesn't exist (yet)"
+	if (-not(Test-Path  -pathType container)) {
+		throw 
 	}
-	Set-Location "$Path"
-	"📂$Path"
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

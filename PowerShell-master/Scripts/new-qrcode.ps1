@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Generates a QR code
 .DESCRIPTION
@@ -8,43 +8,43 @@
 .PARAMETER ImageSize
 	Specifies the image size (width x height)
 .EXAMPLE
-	PS> ./new-qrcode.ps1 "Fasten seatbelt" 500x500
+	PS> ./new-qrcode.ps1  500x500
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Text = "", [string]$ImageSize = "")
+param([string]$Text = , [string]$ImageSize = )
 
 try {
-	if ($Text -eq "") { $Text = read-host "Enter text or URL" }
-	if ($ImageSize -eq "") { $ImageSize = read-host "Enter image size (e.g. 500x500)" }
+	if ($Text -eq ) { $Text = read-host  }
+	if ($ImageSize -eq ) { $ImageSize = read-host  }
 
-	$ECC = "M" # can be L, M, Q, H
+	$ECC =  # can be L, M, Q, H
 	$QuietZone = 1
-	$ForegroundColor = "000000"
-	$BackgroundColor = "ffffff"
-	$FileFormat = "jpg"
+	$ForegroundColor = 
+	$BackgroundColor = 
+	$FileFormat = 
         if ($IsLinux) {
-                $PathToPics = Resolve-Path "$HOME/Pictures"
+                $PathToPics = Resolve-Path 
         } else {
                 $PathToPics = [Environment]::GetFolderPath('MyPictures')
         }
-        if (-not(Test-Path "$PathToPics" -pathType container)) {
-                throw "Pictures folder at 📂$Path doesn't exist (yet)"
+        if (-not(Test-Path  -pathType container)) {
+                throw 
         }
-	$NewFile = "$PathToPics/QR_code.jpg"
+	$NewFile = 
 
 	$WebClient = new-object System.Net.WebClient
-	$WebClient.DownloadFile(("http://api.qrserver.com/v1/create-qr-code/?data=" + $Text + "&ecc=" + $ECC +`
-		"&size=" + $ImageSize + "&qzone=" + $QuietZone + `
-		"&color=" + $ForegroundColor + "&bgcolor=" + $BackgroundColor.Text + `
-		"&format=" + $FileFormat), $NewFile)
+	$WebClient.DownloadFile(( + $Text +  + $ECC +`
+		 + $ImageSize +  + $QuietZone + `
+		 + $ForegroundColor +  + $BackgroundColor.Text + `
+		 + $FileFormat), $NewFile)
 
-	"✔️ saved new QR code image file to: $NewFile"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

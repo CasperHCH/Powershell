@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the 3D-Viewer app 
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im 3DViewer.exe /f
-if ($lastExitCode -ne "0") {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry, 3D Viewer isn't running."
+if ($lastExitCode -ne ) {
+	&  
 	exit 1
 }
 exit 0 # success

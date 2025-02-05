@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Writes an ASCII image
 .DESCRIPTION
@@ -11,32 +11,30 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-function WriteLine { param([string]$line)
-	Write-Host $line -foregroundColor green
-}
 
-WriteLine ""
-WriteLine "              _-o#&&*''''?d:>b\_"
-WriteLine "          _o/'`''  '',, dMF9MMMMMHo_"
-WriteLine "       .o&#'        `'MbHMMMMMMMMMMMHo."
-WriteLine "     .o'' '         vodM*$&&HMMMMMMMMMM?."
-WriteLine "    ,'              $M&ood,~'`(&##MMMMMMH\"
-WriteLine "   /               ,MMMMMMM#b?#bobMMMMHMMML"
-WriteLine "  &              ?MMMMMMMMMMMMMMMMM7MMM$R*Hk"
-WriteLine " ?$.            :MMMMMMMMMMMMMMMMMMM/HMMM|`*L"
-WriteLine "|               |MMMMMMMMMMMMMMMMMMMMbMH'   T,"
-WriteLine "$H#:            `*MMMMMMMMMMMMMMMMMMMMb#}'  `?"
-WriteLine "]MMH#             ''*''''*#MMMMMMMMMMMMM'    -"
-WriteLine "MMMMMb_                   |MMMMMMMMMMMP'     :"
-WriteLine "HMMMMMMMHo                 `MMMMMMMMMT       ."
-WriteLine "?MMMMMMMMP                  9MMMMMMMM}       -"
-WriteLine "-?MMMMMMM                  |MMMMMMMMM?,d-    '"
-WriteLine " :|MMMMMM-                 `MMMMMMMT .M|.   :"
-WriteLine "  .9MMM[                    &MMMMM*' `'    ."
-WriteLine "   :9MMk                    `MMM#'        -"
-WriteLine "     &M}                     '          .-"
-WriteLine "      `&.                             ."
-WriteLine "        `~,   .                     ./"
-WriteLine "            . _                  .-"
-WriteLine "              '`--._,dd###pp='''"
+
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
+WriteLine 
 exit 0 # success

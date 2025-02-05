@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Launches Screen Sketch
 .DESCRIPTION
@@ -15,6 +15,6 @@ try {
 	Start-Process ms-screensketch:
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

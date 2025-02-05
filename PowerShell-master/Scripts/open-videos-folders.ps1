@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the user's videos folder
 .DESCRIPTION
@@ -12,13 +12,13 @@
 #>
 
 try {
-	$TargetDir = Resolve-Path "$HOME/Videos"
-	if (-not(Test-Path "$TargetDir" -pathType container)) {
-		throw "Videos folder at 📂$TargetDir doesn't exist (yet)"
+	$TargetDir = Resolve-Path 
+	if (-not(Test-Path  -pathType container)) {
+		throw 
 	}
-	& "$PSScriptRoot/open-file-explorer.ps1" "$TargetDir"
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

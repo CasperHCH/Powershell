@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists all tables of a MySQL database 
 .DESCRIPTION
@@ -20,6 +20,6 @@ param(
 [Parameter(Mandatory=$true)]$dbuser,
 [Parameter(Mandatory=$true)]$dbpass
 )
-$csvfilepath = "$PSScriptRoot\mysql_tables.csv"
-$result = Invoke-MySqlQuery  -ConnectionString "server=$server; database=$database; user=$dbuser; password=$dbpass; pooling = false; convert zero datetime=True" -Sql "SHOW TABLES" -CommandTimeout 10000
+$csvfilepath = 
+$result = Invoke-MySqlQuery  -ConnectionString  -Sql  -CommandTimeout 10000
 $result | Export-Csv $csvfilepath -NoTypeInformation

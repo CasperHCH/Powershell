@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Plays a playlist (.M3U format)
 .DESCRIPTION
@@ -13,12 +13,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$filename = "")
+param([string]$filename = )
 
 try {
-	if ($filename -eq "" ) { $filename = read-host "Enter the M3U playlist filename" }
+	if ($filename -eq  ) { $filename = read-host  }
 
-	if (-not(test-path "$filename" -pathType leaf)) { throw "Can't access playlist file: $filename" }
+	if (-not(test-path  -pathType leaf)) { throw  }
 	$Lines = get-content $filename
 
 	add-type -assemblyName presentationCore
@@ -26,17 +26,17 @@ try {
 
 	for ([int]$i=0; $i -lt $Lines.Count; $i++) {
 		$Line = $Lines[$i]
-		if ($Line[0] -eq "#") { continue }
-		if (-not(test-path "$Line" -pathType leaf)) { throw "Can't access audio file: $Line" }
-		$FullPath = (get-childItem "$Line").fullname
-		$filename = (get-item "$FullPath").name
+		if ($Line[0] -eq ) { continue }
+		if (-not(test-path  -pathType leaf)) { throw  }
+		$FullPath = (get-childItem ).fullname
+		$filename = (get-item ).name
 		do {
-			$MediaPlayer.open("$FullPath")
+			$MediaPlayer.open()
 			$Milliseconds = $MediaPlayer.NaturalDuration.TimeSpan.TotalMilliseconds
 		} until ($Milliseconds)
 		[int]$Minutes = $Milliseconds / 60000
 		[int]$Seconds = ($Milliseconds / 1000) % 60
-		"▶️Playing 🎵$filename ($($Minutes.ToString('00')):$($Seconds.ToString('00'))) ..."
+		
 		$MediaPlayer.Volume = 1
 		$MediaPlayer.play()
 		start-sleep -milliseconds $Milliseconds
@@ -45,6 +45,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

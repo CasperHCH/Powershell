@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes a chart
 .DESCRIPTION
@@ -15,35 +15,30 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function WriteChartLine { param([string]$Text, [float]$Value, [float]$Max)
-	$Num = ($Value * 40.0) / $Max
-	while ($Num -ge 1.0) {
-		Write-Host -noNewLine "█"
-		$Num -= 1.0
-	}
+
 	if ($Num -ge 0.875) {
-		Write-Host -noNewLine "▉"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.75) {
-		Write-Host -noNewLine "▊"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.625) {
-		Write-Host -noNewLine "▋"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.5) {
-		Write-Host -noNewLine "▌"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.375) {
-		Write-Host -noNewLine "▍"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.25) {
-		Write-Host -noNewLine "▎"
+		Write-Host -noNewLine 
 	} elseif ($Num -ge 0.125) {
-		Write-Host -noNewLine "▏"
+		Write-Host -noNewLine 
 	}
 	if ($Max -eq 100.0) {
-		Write-Host " $($Value)% $Text"
+		Write-Host 
 	} else {
-		Write-Host " $Value / $Max $Text"
+		Write-Host 
 	}
 }
 
-Write-Host "`n2023 BOWLING RESULTS" -foregroundColor green
-WriteChartLine "Joe" 40.5 100.0
-WriteChartLine "Tom" 30.9 100.0
+Write-Host  -foregroundColor green
+WriteChartLine  40.5 100.0
+WriteChartLine  30.9 100.0
 exit 0 # success

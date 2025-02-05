@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the local weather report
 .DESCRIPTION
@@ -13,12 +13,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$GeoLocation = "") # empty means determine automatically
-#if($GeoLocation = "") {$GeoLocation = "Holbaek"}
+param([string]$GeoLocation = ) # empty means determine automatically
+#if($GeoLocation = ) {$GeoLocation = }
 try {
-	(Invoke-WebRequest http://v2d.wttr.in/$GeoLocation -userAgent "curl" -useBasicParsing).Content
+	(Invoke-WebRequest http://v2d.wttr.in/$GeoLocation -userAgent  -useBasicParsing).Content
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

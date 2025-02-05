@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists CPU details
 .DESCRIPTION
@@ -19,6 +19,6 @@ try {
 	Get-WmiObject -Class Win32_Processor
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

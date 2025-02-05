@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Convert a MySQL database table to a .CSV file
 .DESCRIPTION
@@ -22,20 +22,20 @@
 #>
 
 
-param([string]$server = "", [string]$database = "", [string]$username = "", [string]$password = "", [string]$query = "")
+param([string]$server = , [string]$database = , [string]$username = , [string]$password = , [string]$query = )
 
 try {
-	if ($server -eq "") { $server = read-host "Enter the hostname/IP address of the MySQL server" }
-	if ($database -eq "") { $database = read-host "Enter the database name" }
-	if ($username -eq "") { $username = read-host "Enter the database username" }
-	if ($password -eq "") { $password = read-host "Enter the database user password" }
-	if ($query -eq "") { $query = read-host "Enter the database query" }
+	if ($server -eq ) { $server = read-host  }
+	if ($database -eq ) { $database = read-host  }
+	if ($username -eq ) { $username = read-host  }
+	if ($password -eq ) { $password = read-host  }
+	if ($query -eq ) { $query = read-host  }
 
-	$csvfilepath = "$PSScriptRoot\mysql_table.csv"
-	$result = Invoke-MySqlQuery  -ConnectionString "server=$server; database=$database; user=$username; password=$password; pooling = false; convert zero datetime=True" -Sql $query -CommandTimeout 10000
+	$csvfilepath = 
+	$result = Invoke-MySqlQuery  -ConnectionString  -Sql $query -CommandTimeout 10000
 	$result | Export-Csv $csvfilepath -NoTypeInformation
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

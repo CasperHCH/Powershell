@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Builds a repository 
 .DESCRIPTION
@@ -13,105 +13,99 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
-function BuildInDir { param($Path)
-	$DirName = (Get-Item "$Path").Name
-	if (Test-Path "$Path/CMakeLists.txt" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using CMakeLists.txt into subfolder _My_Build ..."
-		if (-not(Test-Path "$Path/_My_Build/" -pathType container)) { 
-			& mkdir "$Path/_My_Build/"
-		}
-		Set-Location "$Path/_My_Build/"
+
+		Set-Location 
 
 		& cmake ..
-		if ($lastExitCode -ne "0") { throw "Executing 'cmake ..' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make test
-		if ($lastExitCode -ne "0") { throw "Executing 'make test' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/configure" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'configure'..."
-		Set-Location "$Path/"
+	} elseif (Test-Path  -pathType leaf) { 
+		
+		Set-Location 
 
 		& ./configure
-		#if ($lastExitCode -ne "0") { throw "Script 'configure' exited with error code $lastExitCode" }
+		#if ($lastExitCode -ne ) { throw  }
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make test
-		if ($lastExitCode -ne "0") { throw "Executing 'make test' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/autogen.sh" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'autogen.sh'..."
-		Set-Location "$Path/"
+	} elseif (Test-Path  -pathType leaf) { 
+		
+		Set-Location 
 
 		& ./autogen.sh
-		if ($lastExitCode -ne "0") { throw "Script 'autogen.sh' exited with error code $lastExitCode" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/build.gradle" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using build.gradle..."
-		Set-Location "$Path"
+	} elseif (Test-Path  -pathType leaf) {
+		
+		Set-Location 
 
 		& gradle build
-		if ($lastExitCode -ne "0") { throw "'gradle build' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& gradle test
-		if ($lastExitCode -ne "0") { throw "'gradle test' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/Imakefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using Imakefile..."
-		Set-Location "$RepoDir/"
+	} elseif (Test-Path  -pathType leaf) {
+		
+		Set-Location 
 
 		& xmkmf 
-		if ($lastExitCode -ne "0") { throw "Executing 'xmkmf' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/Makefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using Makefile..."
-		Set-Location "$Path"
-
-		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
-
-	} elseif (Test-Path "$Path/makefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using makefile..."
-		Set-Location "$Path"
+	} elseif (Test-Path  -pathType leaf) {
+		
+		Set-Location 
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/compile.sh" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'compile.sh'..."
-		Set-Location "$Path/"
+	} elseif (Test-Path  -pathType leaf) {
+		
+		Set-Location 
+
+		& make -j4
+		if ($lastExitCode -ne ) { throw  }
+
+	} elseif (Test-Path  -pathType leaf) { 
+		
+		Set-Location 
 
 		& ./compile.sh
-		if ($lastExitCode -ne "0") { throw "Script 'compile.sh' exited with error code $lastExitCode" }
+		if ($lastExitCode -ne ) { throw  }
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/attower/src/build/DevBuild/build.bat" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using build.bat ..."
-		Set-Location "$Path/attower/src/build/DevBuild/"
+	} elseif (Test-Path  -pathType leaf) {
+		
+		Set-Location 
 
 		& ./build.bat build-all-release
-		if ($lastExitCode -ne "0") { throw "Script 'build.bat' exited with error code $lastExitCode" }
+		if ($lastExitCode -ne ) { throw  }
 
-	} elseif (Test-Path "$Path/$DirName" -pathType container) {
-		"⏳ No make rule found, trying subfolder 📂$($DirName)..."
-		BuildInDir "$Path/$DirName"
+	} elseif (Test-Path  -pathType container) {
+		
+		BuildInDir 
 	} else {
-		Write-Warning "Sorry, no make rule applies to: 📂$DirName"
+		Write-Warning 
 		exit 0 # success
 	}
 }
@@ -119,17 +113,17 @@ function BuildInDir { param($Path)
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
-	$RepoDirName = (Get-Item "$RepoDir").Name
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$RepoDirName = (Get-Item ).Name
 
 	$PreviousPath = Get-Location
-	BuildInDir "$RepoDir"
-	Set-Location "$PreviousPath"
+	BuildInDir 
+	Set-Location 
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ built repo 📂$RepoDirName in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

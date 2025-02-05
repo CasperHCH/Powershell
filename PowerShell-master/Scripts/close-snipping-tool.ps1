@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Snipping Tool
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/close-program.ps1" "Snipping Tool" "SnippingTool.exe" ""
+&    
 exit 0 # success

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new user account
 .DESCRIPTION
@@ -11,22 +11,22 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Username = "")
+param([string]$Username = )
 
 try {
-	if ($Username -eq "") { $Username = Read-Host "Enter new user name" }
+	if ($Username -eq ) { $Username = Read-Host  }
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	if ($IsLinux) {
 		& sudo adduser --encrypt-home $Username
 	} else {
-		throw "Not supported yet"
+		throw 
 	}
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ created new user '$Username' with encrypted home directory in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

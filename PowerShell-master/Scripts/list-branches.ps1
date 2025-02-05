@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists Git branches
 .DESCRIPTION
@@ -19,32 +19,32 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD", [string]$SearchPattern = "*")
+param([string]$RepoDir = , [string]$SearchPattern = )
 
 try {
-	if (-not(test-path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
+	if (-not(test-path  -pathType container)) { throw  }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	& git -C "$RepoDir" fetch 
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed" }
+	& git -C  fetch 
+	if ($lastExitCode -ne ) { throw  }
 
-	$Branches = $(git -C "$RepoDir" branch --list --remotes --no-color --no-column)
-	if ($lastExitCode -ne "0") { throw "'git branch --list' failed" }
+	$Branches = $(git -C  branch --list --remotes --no-color --no-column)
+	if ($lastExitCode -ne ) { throw  }
 
-	""
-	"List of Git Branches"
-	"--------------------"
+	
+	
+	
 	foreach($Branch in $Branches) {
-		if ("$Branch" -match "origin/HEAD") { continue }
+		if ( -match ) { continue }
 		$BranchName = $Branch.substring(9)
-		if ("$BranchName" -notlike "$SearchPattern") { continue }
-		"$BranchName"
+		if ( -notlike ) { continue }
+		
 	}
-	""
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes a random joke
 .DESCRIPTION
@@ -13,15 +13,15 @@
 #>
 
 try {
-	$table = Import-CSV "$PSScriptRoot/../Data/jokes.csv"
+	$table = Import-CSV 
 
 	$randomNumberGenerator = New-Object System.Random
 	$row = [int]$randomNumberGenerator.next(0, $table.Count - 1)
 	$joke = $table[$row].JOKE
 
-	Write-Host "`n$Joke 😂" -foregroundColor Magenta
+	Write-Host  -foregroundColor Magenta
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

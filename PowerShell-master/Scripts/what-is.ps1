@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Explains an abbreviation
 .DESCRIPTION
@@ -14,23 +14,23 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$abbr = "")
+param([string]$abbr = )
 
 try {
-	if ($abbr -eq "" ) { $abbr = Read-Host "Enter the abbreviation to query" }
-	$files = (Get-ChildItem "$PSScriptRoot/../Data/Abbr/*.csv")
-	$basename = ""
+	if ($abbr -eq  ) { $abbr = Read-Host  }
+	$files = (Get-ChildItem )
+	$basename = 
 	foreach($file in $files) {
-		$table = Import-CSV "$file"
+		$table = Import-CSV 
 		foreach($row in $table) {
 			if ($row.ABBR -ne $abbr) { continue }
-			$basename = (Get-Item "$file").Basename -Replace "_"," "
-			"💡 $($row.ABBR) in $basename refers to: $($row.MEANING)"
+			$basename = (Get-Item ).Basename -Replace ,
+			
 		}
 	}
-	if ($basename -eq "") { "🤷‍ Sorry, no entry '$abbr' in my database (located at .../Data/Abbr/)." }
+	if ($basename -eq ) {  }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

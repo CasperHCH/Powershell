@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Starts the default email client
 .DESCRIPTION
@@ -12,9 +12,9 @@
 #>
 
 try {
-	start-process "mailto:markus@fleschutz.de"
+	start-process 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

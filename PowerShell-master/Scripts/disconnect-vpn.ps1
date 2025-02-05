@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Disconnects the VPN
 .DESCRIPTION
@@ -15,15 +15,15 @@
 try {
 	$Connections = (Get-VPNConnection)
 	foreach($Connection in $Connections) {
-		if ($Connection.ConnectionStatus -ne "Connected") { continue }
-		"Disconnecting $($Connection.Name)..."
-		& rasdial.exe "$($Connection.Name)" /DISCONNECT
-		if ($lastExitCode -ne "0") { throw "Disconnect failed with exit code $lastExitCode" }
-		"Disconnected now."
+		if ($Connection.ConnectionStatus -ne ) { continue }
+		
+		& rasdial.exe  /DISCONNECT
+		if ($lastExitCode -ne ) { throw  }
+		
 		exit 0 # success
 	}
-	throw "No VPN connection found."
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Gets the current month name
 .DESCRIPTION
@@ -13,11 +13,11 @@
 #>
 
 try {
-	[system.threading.thread]::currentthread.currentculture=[system.globalization.cultureinfo]"en-US"
+	[system.threading.thread]::currentthread.currentculture=[system.globalization.cultureinfo]
 	$MonthName = (Get-Date -UFormat %B)
-	& "$PSScriptRoot/speak-english.ps1" "It's $MonthName."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

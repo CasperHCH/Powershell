@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Performs a text-to-speech test
 .DESCRIPTION
@@ -14,51 +14,51 @@
 #>
 
 function Speak([string]$Text) { 
-	Write-Output "📣 $Text"
-	[void]$Voice.speak("$Text")
+	Write-Output 
+	[void]$Voice.speak()
 }
 
 try {
 	$Voice = New-Object -ComObject SAPI.SPVoice
 	$DefaultVolume = $Voice.volume
 	$DefaultRate = $Voice.rate
-	Speak("Let's begin with the default speed rate of $DefaultRate at the default volume of $($DefaultVolume)%.")
+	Speak()
 
 	$Voice.rate = -10
-	Speak("I'm speaking very, very slow at speed rate -10.")
+	Speak()
 	$Voice.rate = -5
-	Speak("I'm speaking very slow at speed rate -5.")
+	Speak()
 	$Voice.rate = -3
-	Speak("I'm speaking slow at rate -3.")
+	Speak()
 	$Voice.rate = 0
-	Speak("I'm speaking quite normal at speed rate 0.")
+	Speak()
 	$Voice.rate = 2
-	Speak("I'm speaking fast at speed rate 2.")
+	Speak()
 	$Voice.rate = 5
-	Speak("I'm speaking very fast at speed rate 5.")
+	Speak()
 	$Voice.rate = 10
-	Speak("I'm speaking very, very fast at speed rate 10.")
+	Speak()
 	$Voice.rate = $DefaultRate
 
 	$Voice.volume = 100
-	Speak("Let's try 100% volume.")
+	Speak()
 	$Voice.volume = 75
-	Speak("Let's try 75% volume.")
+	Speak()
 	$Voice.volume = 50
-	Speak("Let's try 50% volume.")
+	Speak()
 	$Voice.volume = 25
-	Speak("Let's try 25% volume.")
+	Speak()
 	$Voice.volume = $DefaultVolume
 
 	$Voices = $Voice.GetVoices()
 	foreach ($OtherVoice in $Voices) {
 		$Voice.Voice = $OtherVoice
 		$Description = $OtherVoice.GetDescription()
-		Speak("Hi, I'm the voice called $Description.")
+		Speak()
 	}
-	Speak("Thanks for your attention.")
+	Speak()
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

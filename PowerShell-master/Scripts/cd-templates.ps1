@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the templates folder
 .DESCRIPTION
@@ -14,15 +14,15 @@
 
 try {
 	if ($IsLinux) {
-		$Path = Resolve-Path "~/Templates"
+		$Path = Resolve-Path 
 	} else {
 		$Path = [Environment]::GetFolderPath('Templates')
 	}
-	if (-not(Test-Path "$Path" -pathType container)) { throw "Templates folder at 📂$Path doesn't exist (yet)" }
-	Set-Location "$Path"
-	"📂$Path"
+	if (-not(Test-Path  -pathType container)) { throw  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

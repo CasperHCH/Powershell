@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists time zone details
 .DESCRIPTION
@@ -16,10 +16,10 @@
 #>
 
 try {
-	[system.threading.thread]::currentThread.currentCulture = [system.globalization.cultureInfo]"en-US"
+	[system.threading.thread]::currentThread.currentCulture = [system.globalization.cultureInfo]
 	Get-Timezone 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

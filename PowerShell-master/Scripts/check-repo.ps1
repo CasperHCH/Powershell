@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks a repo
 .DESCRIPTION
@@ -21,58 +21,56 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$RepoDir = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/10) Searching for Git executable...  " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2/10) Checking local folder...         " -noNewline
-	$FullPath = Resolve-Path "$RepoDir"
-	if (!(Test-Path "$FullPath" -pathType Container)) { throw "Can't access folder: $FullPath" }
-	"📂$FullPath"
+	Write-Host  -noNewline
+	$FullPath = Resolve-Path 
+	if (!(Test-Path  -pathType Container)) { throw  }
+	
 
-	Write-Host "⏳ (3/10) Querying remote URL...           " -noNewline
-	& git -C "$FullPath" remote get-url origin
-	if ($lastExitCode -ne "0") { throw "'git remote get-url origin' failed with exit code $lastExitCode" }
+	Write-Host  -noNewline
+	& git -C  remote get-url origin
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (4/10) Querying current branch...       " -noNewline
-	& git -C "$FullPath" branch --show-current
-	if ($lastExitCode -ne "0") { throw "'git branch --show-current' failed with exit code $lastExitCode" }
+	Write-Host  -noNewline
+	& git -C  branch --show-current
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (5/10) Fetching remote updates..."
-	& git -C "$FullPath" fetch
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed with exit code $lastExitCode" }
+	Write-Host 
+	& git -C  fetch
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (6/10) Querying latest tag...           " -noNewline
-        $LatestTagCommitID = (git -C "$FullPath" rev-list --tags --max-count=1)
-        $LatestTagName = (git -C "$FullPath" describe --tags $LatestTagCommitID)
-        Write-Host "$LatestTagName (commit $LatestTagCommitID)"
+	Write-Host  -noNewline
+        $LatestTagCommitID = (git -C  rev-list --tags --max-count=1)
+        $LatestTagName = (git -C  describe --tags $LatestTagCommitID)
+        Write-Host 
+	& git -C  fsck 
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (7/10) Verifying data integrity..."
-	& git -C "$FullPath" fsck 
-	if ($lastExitCode -ne "0") { throw "'git fsck' failed with exit code $lastExitCode" }
+	Write-Host 
+	& git -C  maintenance run
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (8/10) Running maintenance tasks..."
-	& git -C "$FullPath" maintenance run
-	if ($lastExitCode -ne "0") { throw "'git maintenance run' failed with exit code $lastExitCode" }
+	Write-Host 
+	& git -C  submodule status
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (9/10) Checking submodule status..."
-	& git -C "$FullPath" submodule status
-	if ($lastExitCode -ne "0") { throw "'git submodule status' failed with exit code $lastExitCode" }
+	Write-Host  -noNewline
+	& git -C  status 
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (10/10) Checking repo status...         " -noNewline
-	& git -C "$FullPath" status 
-	if ($lastExitCode -ne "0") { throw "'git status --short' failed with exit code $lastExitCode" }
-
-	$RepoDirName = (Get-Item "$FullPath").Name
+	$RepoDirName = (Get-Item ).Name
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Checked repo 📂$RepoDirName in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

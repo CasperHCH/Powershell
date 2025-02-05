@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the user's desktop folder
 .DESCRIPTION
@@ -14,17 +14,17 @@
 
 try {
 	if ($IsLinux) {
-		$Path = Resolve-Path "~/Desktop"
+		$Path = Resolve-Path 
 	} else {
 		$Path = [Environment]::GetFolderPath('DesktopDirectory')
 	}
-	if (Test-Path "$Path" -pathType container) {
-		Set-Location "$Path"
-		"📂$Path"
+	if (Test-Path  -pathType container) {
+		Set-Location 
+		
 		exit 0 # success
 	}
-	throw "User's desktop folder at 📂$Path doesn't exist (yet)"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

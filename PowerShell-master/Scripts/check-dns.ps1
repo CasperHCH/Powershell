@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Check the DNS resolution 
 .DESCRIPTION
@@ -13,9 +13,9 @@
 #>
  
 try {
-	$table = Import-CSV "$PSScriptRoot/../Data/popular-domains.csv"
+	$table = Import-CSV 
 	$numRows = $table.Length
-	Write-Progress "⏳ Resolving $numRows domain names..."
+	Write-Progress 
 
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 	if ($IsLinux) {
@@ -23,16 +23,16 @@ try {
 	} else {
 		foreach($row in $table){$nop=Resolve-DNSName $row.Domain}
 	}
-	Write-Progress -completed "."
+	Write-Progress -completed 
 	[float]$elapsed = $stopWatch.Elapsed.TotalSeconds
 	$average = [math]::round($numRows / $elapsed, 1)
 	if ($average -lt 10.0) {
-		Write-Output "⚠️ DNS resolves $average domains per second only"
+		Write-Output 
 	} else {  
-		Write-Output "✅ DNS resolves $average domains per second"
+		Write-Output 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

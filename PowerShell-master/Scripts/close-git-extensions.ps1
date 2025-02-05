@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Closes the Git Extensions app
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im GitExtensions.exe
-if ($lastExitCode -ne "0") {
-	& "$PSScriptRoot/speak-english.ps1" "Sorry, Git Extensions isn't running."
+if ($lastExitCode -ne ) {
+	&  
 	exit 1
 }
 exit 0 # success

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new symbolic link file
 .DESCRIPTION
@@ -15,17 +15,17 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$symlink = "", [string]$target = "")
+param([string]$symlink = , [string]$target = )
 
 try {
-	if ($symlink -eq "" ) { $symlink = read-host "Enter new symlink filename" }
-	if ($target -eq "" ) { $target = read-host "Enter path to target" }
+	if ($symlink -eq  ) { $symlink = read-host  }
+	if ($target -eq  ) { $target = read-host  }
 
-	new-item -path "$symlink" -itemType SymbolicLink -Value "$target"
+	new-item -path  -itemType SymbolicLink -Value 
 
-	"✔️ created new symlink $symlink ⭢ $target"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

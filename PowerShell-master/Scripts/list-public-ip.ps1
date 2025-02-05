@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
         Lists the public IP address(es)
 .DESCRIPTION
@@ -22,12 +22,12 @@ try {
 		$publicIPv6 = (curl.exe -6 --silent ifconfig.co)
 		$city = (curl.exe --silent ifconfig.co/city)
 	}
-	if ("$publicIPv4" -eq "") { $publicIPv4 = "no IPv4" }
-	if ("$publicIPv6" -eq "") { $publicIPv6 = "no IPv6" }
-	if ("$city" -eq "") { $city = "unknown" }
-	Write-Output "✅ Public IP address $publicIPv4, $publicIPv6 near $City"
+	if ( -eq ) { $publicIPv4 =  }
+	if ( -eq ) { $publicIPv6 =  }
+	if ( -eq ) { $city =  }
+	Write-Output 
 	exit 0 # success
 } catch {
-        "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+        
         exit 1
 }

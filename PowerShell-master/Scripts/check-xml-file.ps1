@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the given XML file for validity
 .DESCRIPTION
@@ -14,10 +14,10 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$file = "")
+param([string]$file = )
 
 try {
-	if ($file -eq "" ) { $file = read-host "Enter path to XML file" }
+	if ($file -eq  ) { $file = read-host  }
 
 	$XmlFile = Get-Item $file
 	
@@ -33,13 +33,13 @@ try {
 	$Reader.Close()
 	
 	if ($script:ErrorCount -gt 0) {
-		write-warning "Invalid XML file"
+		write-warning 
 		exit 1
 	} 
 
-	"✔️ XML file is valid"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

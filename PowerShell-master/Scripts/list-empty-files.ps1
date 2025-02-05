@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists empty files within a directory tree
 .DESCRIPTION
@@ -13,21 +13,21 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$DirTree = "")
+param([string]$DirTree = )
 
 try {
-	if ($DirTree -eq "" ) { $DirTree = read-host "Enter the path to the directory tree" }
+	if ($DirTree -eq  ) { $DirTree = read-host  }
 
 	[int]$Count = 0
-	write-progress "Listing empty files in $DirTree ..."
+	write-progress 
 	get-childItem $DirTree -attributes !Directory -recurse | where {$_.Length -eq 0} | foreach-object {
 		write-output $_.FullName
 		$Count++
 	}
 
-	"✔️ found $Count empty file(s)" 
+	 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

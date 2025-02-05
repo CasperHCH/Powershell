@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Clears the recycle bin folder
 .DESCRIPTION
@@ -14,11 +14,11 @@
 
 try {
 	Clear-RecycleBin -Confirm:$false
-	if ($lastExitCode -ne "0") { throw "'Clear-RecycleBin' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	& "$PSScriptRoot/speak-english.ps1" "It's clean now."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

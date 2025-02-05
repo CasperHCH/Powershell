@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Query the app status
 .DESCRIPTION
@@ -14,28 +14,28 @@
 
 try {
 	if ($IsLinux) {
-		Write-Progress "⏳ Querying installed applications..."
+		Write-Progress 
 		$numPkgs = (apt list --installed 2>/dev/null).Count
 		$numSnaps = (snap list).Count - 1
-		Write-Progress -Completed "."
-		Write-Host "✅ $numPkgs Debian packages, $numSnaps snaps installed"
+		Write-Progress -Completed 
+		Write-Host 
 	} else {
-		Write-Progress "⏳ Querying installed applications..."
+		Write-Progress 
 		$Apps = Get-AppxPackage
-		Write-Progress -Completed "."
-		Write-Host "✅ $($Apps.Count) Windows apps installed, " -noNewline
+		Write-Progress -Completed 
+		Write-Host  -noNewline
 
 		[int]$NumNonOk = 0
-		foreach($App in $Apps) { if ($App.Status -ne "Ok") { $NumNonOk++ } }
-		if ($NumNonOk -gt 0) { $Status += ", $NumNonOk non-ok" }
+		foreach($App in $Apps) { if ($App.Status -ne ) { $NumNonOk++ } }
+		if ($NumNonOk -gt 0) { $Status +=  }
 		[int]$NumErrors = (Get-AppxLastError)
-		if ($NumErrors -gt 0) { $Status += ", $NumErrors errors" }
+		if ($NumErrors -gt 0) { $Status +=  }
 
 		$NumUpdates = (winget upgrade --include-unknown).Count - 5
-		Write-Host "$NumUpdates upgrades available"
+		Write-Host 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Counts the lines of code (LOC)
 .DESCRIPTION
@@ -14,28 +14,28 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$path = "")
+param([string]$path = )
 
 try {
-	if ($path -eq "" ) { $path = Read-Host "Enter the path to the directory tree" }
+	if ($path -eq  ) { $path = Read-Host  }
 
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
-	$path = Resolve-Path "$path"
+	$path = Resolve-Path 
 
-	Write-Progress "⏳ Counting lines of code in 📂$path ..."
+	Write-Progress 
 	[int]$files = [int]$LOC = 0
 	Get-ChildItem -Path $path -Include *.c,*.h,*.cpp,*.hpp,*.java,*.ps1 -Recurse | ForEach-Object {
 		$fileStats = Get-Content $_.FullName | Measure-Object -line
 		$LOC += $fileStats.Lines
 		$files++
 	}
-	Write-Progress -completed "."
+	Write-Progress -completed 
 
-	$folderName = (Get-Item "$path").Name
+	$folderName = (Get-Item ).Name
 	[int]$Elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ $LOC lines of code (LOC) in $files files in 📂$folderName (took $Elapsed sec)" 
+	 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

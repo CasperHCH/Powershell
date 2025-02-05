@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls One Calendar
 .DESCRIPTION
@@ -12,16 +12,16 @@
 #>
 
 try {
-	"⏳ Uninstalling One Calendar ..."
+	
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	& winget uninstall "One Calendar"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall One Calendar, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Removal of One Calendar tool $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

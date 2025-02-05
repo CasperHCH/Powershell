@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the user's recycle bin folder
 .DESCRIPTION
@@ -12,23 +12,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function GetCurrentUserSID { [CmdletBinding()] param()
-	Add-Type -AssemblyName System.DirectoryServices.AccountManagement
-	return ([System.DirectoryServices.AccountManagement.UserPrincipal]::Current).SID.Value
-}
+
 
 
 try {
 	if ($IsLinux) {
-		$Path = "$HOME/.local/share/Trash/"
+		$Path = 
 	} else {
-		$Path = "C:\$Recycle.Bin\" + "$(GetCurrentUserSID)"
+		$Path =  + 
 	}
-	if (-not(Test-Path "$Path" -pathType container)) { throw "Recycle bin folder at 📂$Path doesn't exist (yet)" }
-	Set-Location "$Path"
-	"📂$Path"
+	if (-not(Test-Path  -pathType container)) { throw  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the user's PowerShell profiles
 .DESCRIPTION
@@ -18,22 +18,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function ListProfile { param([int]$Level, [string]$Profile, [string]$Location)
-	if (test-path "$Location") { $Existent = "yes" } else { $Existent = "no" }
-	New-Object PSObject -Property @{ 'Level'="$Level"; 'Profile'="$Profile"; 'Location'="$Location"; 'Existent'="$Existent"	}
+ else { $Existent =  }
+	New-Object PSObject -Property @{ 'Level'=; 'Profile'=; 'Location'=; 'Existent'=	}
 }
 
-function ListProfiles { 
-	ListProfile 1 "AllUsersAllHosts"       $PROFILE.AllUsersAllHosts
-	ListProfile 2 "AllUsersCurrentHost"    $PROFILE.AllUsersCurrentHost
-	ListProfile 3 "CurrentUserAllHosts"    $PROFILE.CurrentUserAllHosts
-	ListProfile 4 "CurrentUserCurrentHost" $PROFILE.CurrentUserCurrentHost
-}
+
 
 try {
 	ListProfiles | format-table -property Level,Profile,Location,Existent
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

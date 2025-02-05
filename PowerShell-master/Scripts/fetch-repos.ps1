@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Fetches updates into Git repos
 .DESCRIPTION
@@ -17,36 +17,36 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$parentDirPath = "$PWD")
+param([string]$parentDirPath = )
 
 try {
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1) Searching for Git executable...     " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2) Checking parent folder...           " -noNewline
-	if (-not(Test-Path "$parentDirPath" -pathType container)) { throw "Can't access folder: $parentDirPath" }
-	$folders = (Get-ChildItem "$parentDirPath" -attributes Directory)
+	Write-Host  -noNewline
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$folders = (Get-ChildItem  -attributes Directory)
 	$numFolders = $folders.Count
-	$parentDirPathName = (Get-Item "$parentDirPath").Name
-	Write-Host "$numFolders subfolders"
+	$parentDirPathName = (Get-Item ).Name
+	Write-Host 
 
 	[int]$step = 3
 	foreach ($folder in $folders) {
-		$folderName = (Get-Item "$folder").Name
-		Write-Host "⏳ ($step/$($numFolders + 2)) Fetching into 📂$folderName...  "
+		$folderName = (Get-Item ).Name
+		Write-Host 
 
-		& git -C "$folder" fetch --all --recurse-submodules --prune --prune-tags --force
-		if ($lastExitCode -ne "0") { throw "'git fetch' in $folder failed with exit code $lastExitCode" }
+		& git -C  fetch --all --recurse-submodules --prune --prune-tags --force
+		if ($lastExitCode -ne ) { throw  }
 
 		$step++
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ Fetched updates into $numFolders repos under 📂$parentDirPathName in $elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

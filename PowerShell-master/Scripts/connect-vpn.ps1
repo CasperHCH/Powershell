@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Connects to the VPN
 .DESCRIPTION
@@ -14,16 +14,16 @@
 try {
 	$Connections = (Get-VPNConnection)
 	foreach($Connection in $Connections) {
-		if ($Connection.ConnectionStatus -eq "Connected") { throw "Already connected to VPN $($Connection.Name)" }
-		if ($Connection.ConnectionStatus -ne "Disconnected") { continue }
-		"Connecting to VPN $($Connection.Name)..."
-		& rasdial.exe "$($Connection.Name)"
-		if ($lastExitCode -ne "0") { throw "Cannot establish connection" }
-		"Connected now."
+		if ($Connection.ConnectionStatus -eq ) { throw  }
+		if ($Connection.ConnectionStatus -ne ) { continue }
+		
+		& rasdial.exe 
+		if ($lastExitCode -ne ) { throw  }
+		
 		exit 0 # success 
 	}
-	throw "No VPN connection available"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists Git repos
 .DESCRIPTION
@@ -18,37 +18,30 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$ParentDir = "$PWD")
+param([string]$ParentDir = )
 
-function ListRepos { 
-	$Folders = (Get-ChildItem "$ParentDir" -attributes Directory)
-	foreach($Folder in $Folders) {
-		$Repository = (Get-Item "$Folder").Name
-		$LatestTagCommitID = (git -C "$Folder" rev-list --tags --max-count=1)
-		if ($LatestTagCommitID -ne "") {
-	        	$LatestTag = (git -C "$Folder" describe --tags $LatestTagCommitID)
-		} else {
-			$LatestTag = ""
+ else {
+			$LatestTag = 
 		}
-		$Branch = (git -C "$Folder" branch --show-current)
-		$RemoteURL = (git -C "$Folder" remote get-url origin)
-		$NumCommits = (git -C "$Folder" rev-list HEAD...origin/$Branch --count)
-		$Status = (git -C "$Folder" status --short)
-		if ("$Status" -eq "") { $Status = "✔️clean" }
-		elseif ("$Status" -like " M *") { $Status = "⚠️modified" }
-		New-Object PSObject -property @{'Repository'="📂$Repository";'Latest Tag'="$LatestTag";'Branch'="$Branch";'Status'="$Status";'Remote'="$RemoteURL ↓$NumCommits";}
+		$Branch = (git -C  branch --show-current)
+		$RemoteURL = (git -C  remote get-url origin)
+		$NumCommits = (git -C  rev-list HEAD...origin/$Branch --count)
+		$Status = (git -C  status --short)
+		if ( -eq ) { $Status =  }
+		elseif ( -like ) { $Status =  }
+		New-Object PSObject -property @{'Repository'=;'Latest Tag'=;'Branch'=;'Status'=;'Remote'=;}
 	}
 }
 
 try {
-	if (-not(Test-Path "$ParentDir" -pathType container)) { throw "Can't access directory: $ParentDir" }
+	if (-not(Test-Path  -pathType container)) { throw  }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
 	ListRepos | Format-Table -property @{e='Repository';width=20},@{e='Latest Tag';width=18},@{e='Branch';width=20},@{e='Status';width=10},Remote
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

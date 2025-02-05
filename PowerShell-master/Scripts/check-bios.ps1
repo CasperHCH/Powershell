@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the BIOS status
 .DESCRIPTION
@@ -14,29 +14,29 @@
 
 try {
 	if ($IsLinux) {
-		Write-Progress "⏳ Querying BIOS details..."
+		Write-Progress 
 		$model = (sudo dmidecode -s system-product-name)
-		if ("$model" -ne "") {
+		if ( -ne ) {
 			$version = (sudo dmidecode -s bios-version)
 			$releaseDate = (sudo dmidecode -s bios-release-date)
 			$manufacturer = (sudo dmidecode -s system-manufacturer)
-			Write-Host "✅ BIOS model $model by $manufacturer (version $version of $releaseDate)"
+			Write-Host 
 		}
-		Write-Progress -completed "."
+		Write-Progress -completed 
 	} else {
 		$BIOS = Get-CimInstance -ClassName Win32_BIOS
 		$model = $BIOS.Name.Trim()
 		$version = $BIOS.Version.Trim()
 		$serialNumber = $BIOS.SerialNumber.Trim()
 		$manufacturer = $BIOS.Manufacturer.Trim()
-		if ($serialNumber -eq "To be filled by O.E.M.") {
-			Write-Host "✅ BIOS model $model by $manufacturer (version $version)"
+		if ($serialNumber -eq ) {
+			Write-Host 
 		} else {
-			Write-Host "✅ BIOS model $model by $manufacturer (version $version, S/N $serialNumber)"
+			Write-Host 
 		}
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

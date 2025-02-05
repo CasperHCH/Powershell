@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the phone calls of the FRITZ!Box device
 .DESCRIPTION
@@ -17,19 +17,19 @@
 
 #Requires -Version 3
 
-param([string]$Username = "", [string]$Password = "")
+param([string]$Username = , [string]$Password = )
 
-if ($Username -eq "") { $Username = read-host "Enter username for FRITZ!Box" }
-if ($Password -eq "") { $Password = read-host "Enter password for FRITZ!Box" }
+if ($Username -eq ) { $Username = read-host  }
+if ($Password -eq ) { $Password = read-host  }
 
-write-progress "Contacting FRITZ!Box ..."
-$FQDN = "fritz.box"
+write-progress 
+$FQDN = 
 
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Tls,Tls11,Tls12'
 
-[xml]$serviceinfo = Invoke-RestMethod -Method GET -Uri "http://$($FQDN):49000/tr64desc.xml"
+[xml]$serviceinfo = Invoke-RestMethod -Method GET -Uri 
 [System.Xml.XmlNamespaceManager]$ns = new-Object System.Xml.XmlNamespaceManager $serviceinfo.NameTable
-$ns.AddNamespace("ns",$serviceinfo.DocumentElement.NamespaceURI)
+$ns.AddNamespace(,$serviceinfo.DocumentElement.NamespaceURI)
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
 
@@ -37,7 +37,7 @@ function Execute-SOAPRequest { param([Xml]$SOAPRequest, [string]$soapactionheade
     try {
         $wr = [System.Net.WebRequest]::Create($URL)
         $wr.Headers.Add('SOAPAction',$soapactionheader)
-        $wr.ContentType = 'text/xml; charset="utf-8"'
+        $wr.ContentType = 'text/xml; charset='
         $wr.Accept      = 'text/xml'
         $wr.Method      = 'POST'
         $wr.PreAuthenticate = $true
@@ -68,15 +68,9 @@ function New-Request {
         $Protocol = 'https'
     )
         # SOAP Request Body Template
-        [xml]$request = @"
-<?xml version="1.0"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-    <s:Body>
-    </s:Body>
-</s:Envelope>
-"@
+        [xml]$request = @1.0http://schemas.xmlsoap.org/soap/envelope/http://schemas.xmlsoap.org/soap/encoding/@
     $service = $serviceinfo.SelectNodes('//ns:service',$ns) | ?{$_.ServiceType -eq $URN}
-    if(!$service){throw "URN does not exist."}
+    if(!$service){throw }
     $actiontag = $request.CreateElement('u',$action,$service.serviceType)
     $parameter.GetEnumerator() | %{
           $el = $request.CreateElement($_.Key)
@@ -84,18 +78,13 @@ function New-Request {
           $actiontag.AppendChild($el)| out-null
     }
     $request.GetElementsByTagName('s:Body')[0].AppendChild($actiontag) | out-null
-    $resp = Execute-SOAPRequest $request "$($service.serviceType)#$($action)" "$($Protocol)://$($FQDN):$(@{$true=$script:secport;$false=49000}[($Protocol -eq 'https')])$($service.controlURL)"
+    $resp = Execute-SOAPRequest $request  
     return $resp
 }
 
-$script:secport = (New-Request -urn "urn:dslforum-org:service:DeviceInfo:1" -action 'GetSecurityPort' -proto 'http').Envelope.Body.GetSecurityPortResponse.NewSecurityPort
+$script:secport = (New-Request -urn  -action 'GetSecurityPort' -proto 'http').Envelope.Body.GetSecurityPortResponse.NewSecurityPort
 
-function GetCallList { param([int]$MaxEntries = 999, [int]$MaxDays = 999
-    )
-    $resp = New-Request -urn 'urn:dslforum-org:service:X_AVM-DE_OnTel:1' -action 'GetCallList'
-    $list = [xml](new-object System.Net.WebClient).DownloadString("$($resp.Envelope.Body.GetCallListResponse.NewCallListURL)&max=$MaxEntries&MaxDays=$days")
-    return $list.root.call
-}
+
 
 GetCallList | format-table -property Date,Duration,Caller,Called
 echo $Result

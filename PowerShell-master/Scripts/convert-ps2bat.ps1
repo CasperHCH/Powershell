@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Converts PowerShell scripts to batch files
 .DESCRIPTION
@@ -13,7 +13,7 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Filepattern = "")
+param([string]$Filepattern = )
 
 function Convert-PowerShellToBatch
 {
@@ -21,27 +21,27 @@ function Convert-PowerShellToBatch
     (
         [Parameter(Mandatory,ValueFromPipeline,ValueFromPipelineByPropertyName)]
         [string]
-        [Alias("FullName")]
+        [Alias()]
         $Path
     )
  
     process
     {
         $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes((Get-Content -Path $Path -Raw -Encoding UTF8)))
-        $newPath = [Io.Path]::ChangeExtension($Path, ".bat")
-        "@echo off`npowershell.exe -NoExit -encodedCommand $encoded" | Set-Content -Path $newPath -Encoding Ascii
+        $newPath = [Io.Path]::ChangeExtension($Path, )
+         | Set-Content -Path $newPath -Encoding Ascii
     }
 }
  
 try {
-	if ($Filepattern -eq "") { $Filepattern = Read-Host "Enter path to the PowerShell script(s)" }
+	if ($Filepattern -eq ) { $Filepattern = Read-Host  }
 
-	$Files = Get-ChildItem -path "$Filepattern"
+	$Files = Get-ChildItem -path 
 	foreach ($File in $Files) {
-		Convert-PowerShellToBatch "$File"
+		Convert-PowerShellToBatch 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

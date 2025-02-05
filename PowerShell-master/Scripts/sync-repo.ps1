@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Synchronizes a repo 
 .DESCRIPTION
@@ -18,31 +18,31 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$path = "$PWD")
+param([string]$path = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/4) Searching for Git executable...  " -noNewline
+	Write-Host  -noNewline
  	& git --version
- 	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+ 	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2/4) Checking local repository...     📂$path"
-	if (!(Test-Path "$path" -pathType container)) { throw "Can't access folder: $path" }
-	$pathName = (Get-Item "$path").Name
+	Write-Host 
+	if (!(Test-Path  -pathType container)) { throw  }
+	$pathName = (Get-Item ).Name
 
-	Write-Host "⏳ (3/4) Pulling remote updates...        " -noNewline
-	& git -C "$Path" pull --all --recurse-submodules
-	if ($lastExitCode -ne "0") { throw "'git pull --all --recurse-submodes' failed" }
+	Write-Host  -noNewline
+	& git -C  pull --all --recurse-submodules
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (4/4) Pushing local updates...         " -noNewline
-	& git -C "$Path" push
-	if ($lastExitCode -ne "0") { throw "'git push' failed" }
+	Write-Host  -noNewline
+	& git -C  push
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Synced repo 📂$pathName in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

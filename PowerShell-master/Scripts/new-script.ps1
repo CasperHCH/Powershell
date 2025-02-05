@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a new PowerShell script file
 .DESCRIPTION
@@ -14,16 +14,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$filename = "")
+param([string]$filename = )
 
 try {
-	if ($filename -eq "" ) { $filename = Read-Host "Enter the new filename" }
+	if ($filename -eq  ) { $filename = Read-Host  }
 
-	Copy-Item "$PSScriptRoot/../Data/template.ps1" "$filename"
+	Copy-Item  
 
-	"✔️ created new PowerShell script: $filename"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

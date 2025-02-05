@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs Thunderbird
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Installing Mozilla Thunderbird, please wait..."
+	
 
 	& winget install --id Mozilla.Thunderbird --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne "0") { throw "'winget install' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"Mozilla Thunderbird installed successfully."
+	
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

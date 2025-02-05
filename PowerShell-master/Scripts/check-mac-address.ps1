@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the given MAC address for validity
 .DESCRIPTION
@@ -15,29 +15,8 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$MAC = "")
+param([string]$MAC = )
 
-function IsMACAddressValid { param([string]$mac)
-	$RegEx = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})|([0-9A-Fa-f]{2}){6}$"
-	if ($mac -match $RegEx) {
-		return $true
-	} else {
-		return $false
-	}
-}
-
-try {
-	if ($MAC -eq "" ) {
-		$MAC = read-host "Enter MAC address to validate"
-	}
-	if (IsMACAddressValid $MAC) {
-		"✔️ MAC address $MAC is valid"
-		exit 0 # success
-	} else {
-		write-warning "Invalid MAC address: $MAC"
-		exit 1
-	}
-} catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+[:-]){5}([0-9A-Fa-f]{2})|([0-9A-Fa-f]{2}){6}$Enter MAC address to validate✔️ MAC address $MAC is validInvalid MAC address: $MAC⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
 	exit 1
 }

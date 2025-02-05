@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens the Apps folder
 .DESCRIPTION
@@ -11,6 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-file-explorer.ps1" "shell:AppsFolder"
+&  
 exit 0 # success
-

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the file system of a drive (needs admin rights)
 .DESCRIPTION
@@ -16,17 +16,17 @@
 
 #Requires -RunAsAdministrator
 
-param([string]$Drive = "")
+param([string]$Drive = )
 
 try {
-	if ($Drive -eq "" ) { $Drive = read-host "Enter drive (letter) to check" }
+	if ($Drive -eq  ) { $Drive = read-host  }
 
 	$Result = repair-volume -driveLetter $Drive -scan
-	if ($Result -ne "NoErrorsFound") { throw "'repair-volume' failed" }
+	if ($Result -ne ) { throw  }
 
-	& "$PSScriptRoot/speak-english.ps1" "File system on drive $Drive is clean."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

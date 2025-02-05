@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists unused files in a directory tree
 .DESCRIPTION
@@ -15,9 +15,9 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$DirTree = "", [int]$Days = 100)
+param([string]$DirTree = , [int]$Days = 100)
 
-write-host "Listing files in $DirTree with last access time older than $Days days"
+write-host 
 
 try {
 	$cutOffDate = (Get-Date).AddDays(-$Days)
@@ -26,6 +26,6 @@ try {
 
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

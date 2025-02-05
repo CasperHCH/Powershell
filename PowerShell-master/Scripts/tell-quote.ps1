@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Tells a random quote by text-to-speech
 .DESCRIPTION
@@ -13,14 +13,14 @@
 #>
 
 try {
-	$table = Import-CSV "$PSScriptRoot/../Data/quotes.csv"
+	$table = Import-CSV 
 
 	$randomNumberGenerator = New-Object System.Random
 	$row = [int]$randomNumberGenerator.next(0, $table.Count - 1)
 
-	& "$PSScriptRoot/speak-english.ps1" "$($table[$row].QUOTE). By $($table[$row].AUTHOR)."
+	&  
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

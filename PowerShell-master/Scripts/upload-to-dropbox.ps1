@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uploads a file to Dropbox
 .DESCRIPTION
@@ -13,21 +13,21 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([Parameter (Mandatory = $True, ValueFromPipeline = $True)] [Alias("f")] [string]$SourceFilePath) 
+param([Parameter (Mandatory = $True, ValueFromPipeline = $True)] [Alias()] [string]$SourceFilePath) 
 
 try {
-	$DropBoxAccessToken = "YOUR-DROPBOX-ACCESS-TOKEN-HERE"   # Replace with your DropBox Access Token
+	$DropBoxAccessToken =    # Replace with your DropBox Access Token
 	$outputFile = Split-Path $SourceFilePath -leaf
-	$TargetFilePath="/$outputFile"
-	$arg = '{ "path": "' + $TargetFilePath + '", "mode": "add", "autorename": true, "mute": false }'
-	$authorization = "Bearer " + $DropBoxAccessToken
-	$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-	$headers.Add("Authorization", $authorization)
-	$headers.Add("Dropbox-API-Arg", $arg)
-	$headers.Add("Content-Type", 'application/octet-stream')
+	$TargetFilePath=
+	$arg = '{ : , : , : true, : false }'
+	$authorization =  + $DropBoxAccessToken
+	$headers = New-Object 
+	$headers.Add(, $authorization)
+	$headers.Add(, $arg)
+	$headers.Add(, 'application/octet-stream')
 	Invoke-RestMethod -Uri https://content.dropboxapi.com/2/files/upload -Method Post -InFile $SourceFilePath -Headers $headers
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0]) after $Elapsed sec."
+	
 	exit 1
 }

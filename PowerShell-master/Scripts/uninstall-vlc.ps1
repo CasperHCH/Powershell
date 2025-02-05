@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls VLC
 .DESCRIPTION
@@ -14,16 +14,16 @@
 #>
 
 try {
-	"⏳ Uninstalling VLC media player..."
+	
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	& winget uninstall --id XPDM1ZW6815MQM
-	if ($lastExitCode -ne "0") { throw "Can't uninstall VLC media player, is it installed?" }
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Removal of VLC media player took $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"Sorry: $($Error[0])"
+	
 	exit 1
 }

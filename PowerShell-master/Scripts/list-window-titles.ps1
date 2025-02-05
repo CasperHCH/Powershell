@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists window titles
 .DESCRIPTION
@@ -20,6 +20,6 @@ try {
 	Get-Process | Where-Object {$_.mainWindowTitle} | Format-Table Id,Name,mainWindowtitle -AutoSize
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

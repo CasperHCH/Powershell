@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Log off the current user
 .DESCRIPTION
@@ -15,6 +15,6 @@ try {
 	Invoke-CimMethod -ClassName Win32_Operatingsystem -MethodName Win32Shutdown -Arguments @{ Flags = 0 }
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

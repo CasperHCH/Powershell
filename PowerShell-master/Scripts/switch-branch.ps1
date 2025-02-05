@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Switches the Git branch
 .DESCRIPTION
@@ -22,46 +22,46 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$branchName = "", [string]$repoDir = "$PWD")
+param([string]$branchName = , [string]$repoDir = )
 
 try {
-	if ($branchName -eq "") { $branchName = Read-Host "Enter the branch name to switch to" }
-	if ($repoDir -eq "") { $repoDir = Read-Host "Enter the path to the local Git repository" }
+	if ($branchName -eq ) { $branchName = Read-Host  }
+	if ($repoDir -eq ) { $repoDir = Read-Host  }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1/6) Searching for Git executable...   " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2/6) Checking local repository..."
-	$repoDir = Resolve-Path "$repoDir"
-	if (-not(Test-Path "$repoDir" -pathType container)) { throw "Can't access directory: $repoDir" }
+	Write-Host 
+	$repoDir = Resolve-Path 
+	if (-not(Test-Path  -pathType container)) { throw  }
 	$Result = (git status)
-	if ($lastExitCode -ne "0") { throw "'git status' in $repoDir failed with exit code $lastExitCode" }
-	if ("$Result" -notmatch "nothing to commit, working tree clean") { throw "Git repository is NOT clean: $Result" }
-	$repoDirName = (Get-Item "$repoDir").Name
+	if ($lastExitCode -ne ) { throw  }
+	if ( -notmatch ) { throw  }
+	$repoDirName = (Get-Item ).Name
 
-	"⏳ (3/6) Fetching latest updates..."
-	& git -C "$repoDir" fetch --all --prune --prune-tags --force
-	if ($lastExitCode -ne "0") { throw "'git fetch' failed with exit code $lastExitCode" }
+	
+	& git -C  fetch --all --prune --prune-tags --force
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (4/6) Switching to branch '$branchName'..."
-	& git -C "$repoDir" checkout --recurse-submodules "$branchName"
-	if ($lastExitCode -ne "0") { throw "'git checkout $branchName' failed with exit code $lastExitCode" }
+	
+	& git -C  checkout --recurse-submodules 
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (5/6) Pulling updates..."
-	& git -C "$repoDir" pull --recurse-submodules
-	if ($lastExitCode -ne "0") { throw "'git pull' failed with exit code $lastExitCode" }
+	
+	& git -C  pull --recurse-submodules
+	if ($lastExitCode -ne ) { throw  }
 
-	"⏳ (6/6) Updating submodules..."	
-	& git -C "$repoDir" submodule update --init --recursive
-	if ($lastExitCode -ne "0") { throw "'git submodule update' failed with exit code $lastExitCode" }
+		
+	& git -C  submodule update --init --recursive
+	if ($lastExitCode -ne ) { throw  }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Switched repo 📂$repoDirName to branch '$branchName' in $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Copy photos sorted by year and month
 .DESCRIPTION
@@ -17,73 +17,69 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$sourceDir = "", [string]$targetDir = "")
+param([string]$sourceDir = , [string]$targetDir = )
 
-function CopyFile { param([string]$sourcePath, [string]$targetDir, [int]$date, [string]$filename)
-	[int]$year = $date / 10000
-	[int]$month = ($date / 100) % 100
-	$monthDir = switch($month) {
-	1  {"01 JAN"}
-	2  {"02 FEB"}
-	3  {"03 MAR"}
-	4  {"04 APR"}
-	5  {"05 MAY"}
-	6  {"06 JUN"}
-	7  {"07 JUL"}
-	8  {"08 AUG"}
-	9  {"09 SEP"}
-	10 {"10 OCT"}
-	11 {"11 NOV"}
-	12 {"12 DEC"}
+
+	2  {}
+	3  {}
+	4  {}
+	5  {}
+	6  {}
+	7  {}
+	8  {}
+	9  {}
+	10 {}
+	11 {}
+	12 {}
 	}
-	$TargetPath = "$targetDir/$year/$monthDir/$filename"
-	if (Test-Path "$TargetPath" -pathType leaf) {
-		Write-Host "⏳ Skipping existing $targetDir\$year\$monthDir\$filename..."
+	$TargetPath = 
+	if (Test-Path  -pathType leaf) {
+		Write-Host 
 	} else {
-		Write-Host "⏳ Copying $filename to $targetDir\$year\$monthDir\..."
-		New-Item -path "$targetDir" -name "$year" -itemType "directory" -force | out-null
-		New-Item -path "$targetDir/$year" -name "$monthDir" -itemType "directory" -force | out-null
-		Copy-Item "$sourcePath" "$TargetPath" -force
+		Write-Host 
+		New-Item -path  -name  -itemType  -force | out-null
+		New-Item -path  -name  -itemType  -force | out-null
+		Copy-Item   -force
 	}
 }
 
 try {
-	if ($sourceDir -eq "") { $sourceDir = Read-Host "Enter file path to the source directory" }
-	if ($targetDir -eq "") { $targetDir = Read-Host "Enter file path to the target directory" }
+	if ($sourceDir -eq ) { $sourceDir = Read-Host  }
+	if ($targetDir -eq ) { $targetDir = Read-Host  }
 	$stopWatch = [system.diagnostics.stopWatch]::startNew()
 
-	Write-Host "⏳ Checking source directory 📂$($sourceDir)..."
-	if (-not(Test-Path "$sourceDir" -pathType container)) { throw "Can't access source directory: $sourceDir" }
-	$files = (Get-ChildItem "$sourceDir\*.jpg" -attributes !Directory)
+	Write-Host 
+	if (-not(Test-Path  -pathType container)) { throw  }
+	$files = (Get-ChildItem  -attributes !Directory)
 
-	Write-Host "⏳ Checking target directory 📂$($targetDir)..."
-	if (-not(Test-Path "$targetDir" -pathType container)) { throw "Can't access target directory: $targetDir" }
+	Write-Host 
+	if (-not(Test-Path  -pathType container)) { throw  }
 
 	foreach($file in $files) {
-		$filename = (Get-Item "$file").Name
-		if ("$filename" -like "IMG_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
-		} elseif ("$filename" -like "IMG-*-*.jpg") {
-			$Array = $filename.split("-")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
-		} elseif ("$filename" -like "PANO_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file"  "$targetDir" $Array[1] "$filename"
-		} elseif ("$filename" -like "PANO-*-*.jpg") {
-			$Array = $filename.split("-")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
-		} elseif ("$filename" -like "SAVE_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
+		$filename = (Get-Item ).Name
+		if ( -like ) {
+			$Array = $filename.split()
+			CopyFile   $Array[1] 
+		} elseif ( -like ) {
+			$Array = $filename.split()
+			CopyFile   $Array[1] 
+		} elseif ( -like ) {
+			$Array = $filename.split()
+			CopyFile    $Array[1] 
+		} elseif ( -like ) {
+			$Array = $filename.split()
+			CopyFile   $Array[1] 
+		} elseif ( -like ) {
+			$Array = $filename.split()
+			CopyFile   $Array[1] 
 		} else {
-			Write-Host "⏳ Skipping $filename with unknown filename format..."
+			Write-Host 
 		}
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ Copied $($files.Count) photos to 📂$targetDir in $elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

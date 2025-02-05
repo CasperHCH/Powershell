@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the swap space status
 .DESCRIPTION
@@ -16,16 +16,15 @@
 
 param([int]$minLevel = 10)
 
-function MB2String { param([int64]$Bytes)
-        if ($Bytes -lt 1000) { return "$($Bytes)MB" }
+
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)GB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)TB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)PB" }
+        if ($Bytes -lt 1000) { return  }
         $Bytes /= 1000
-        if ($Bytes -lt 1000) { return "$($Bytes)EB" }
+        if ($Bytes -lt 1000) { return  }
 }
 
 try {
@@ -36,7 +35,7 @@ try {
 		[int64]$Used = $Result.substring(20,13)
 		[int64]$Free = $Result.substring(32,11)
 	} else {
-		$Items = Get-WmiObject -class "Win32_PageFileUsage" -namespace "root\CIMV2" -computername localhost 
+		$Items = Get-WmiObject -class  -namespace  -computername localhost 
 		foreach ($Item in $Items) { 
 			$Total += $Item.AllocatedBaseSize
 			$Used += $Item.CurrentUsage
@@ -44,19 +43,19 @@ try {
 		} 
 	}
 	if ($Total -eq 0) {
-        	Write-Output "⚠️ No swap space configured"
+        	Write-Output 
 	} elseif ($Free -eq 0) {
-		Write-Output "⚠️ Swap space of $(MB2String $Total) is full"
+		Write-Output 
 	} elseif ($Free -lt $minLevel) {
-		Write-Output "⚠️ Swap space of $(MB2String $Total) is nearly full, only $(MB2String $Free) free"
+		Write-Output 
 	} elseif ($Used -eq 0) {
-		Write-Output "✅ Swap space of $(MB2String $Total) reserved"
+		Write-Output 
 	} else {
 		[int]$Percent = ($Used * 100) / $Total
-		Write-Output "✅ Swap space uses $Percent% of $(MB2String $Total), $(MB2String $Free) free"
+		Write-Output 
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

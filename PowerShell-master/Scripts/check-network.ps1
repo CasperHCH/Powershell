@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the network details
 .DESCRIPTION
@@ -15,11 +15,11 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-" "
-& "$PSScriptRoot/write-green.ps1" "   N E T W O R K"
-& "$PSScriptRoot/check-ping.ps1"
-& "$PSScriptRoot/check-firewall"
-& "$PSScriptRoot/check-dns.ps1"
-& "$PSScriptRoot/check-vpn.ps1"
-& "$PSScriptRoot/list-public-ip.ps1"
+
+&  
+& 
+& 
+& 
+& 
+& 
 exit 0 # success

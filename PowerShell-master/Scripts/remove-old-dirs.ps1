@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Removes old directories
 .DESCRIPTION
@@ -13,33 +13,33 @@
 	Author: Markus Fleschutz
 #>
 
-param([string]$path = "", [int]$numDays = 1000)
+param([string]$path = , [int]$numDays = 1000)
 
 try {
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
-	if ("$path" -eq "") { $path = Read-Host "Enter the file path to the parent folder" }
-	if (!(Test-Path -Path "$path" -PathType container)) { throw "Given path doesn't exist - enter a valid path, please" }
+	if ( -eq ) { $path = Read-Host  }
+	if (!(Test-Path -Path  -PathType container)) { throw  }
 
-	Write-Host "⏳ Removing subfolders older than $numDays days in $path..."
-	$folders = Get-ChildItem -path "$path" -directory
+	Write-Host 
+	$folders = Get-ChildItem -path  -directory
 	$numRemoved = 0
 	$count = 0
 	foreach ($folder in $folders) {
 		[datetime]$folderDate = ($folder | Get-ItemProperty -Name LastWriteTime).LastWriteTime
 		$count++
 		if ($folderDate -lt (Get-Date).AddDays(-$numDays)) {
-			Write-Host "($($count)) Removing old '$folder'..."
+			Write-Host 
 			$fullPath = $folder | Select-Object -ExpandProperty FullName
-			Remove-Item -path "$fullPath" -force -recurse
+			Remove-Item -path  -force -recurse
 			$numRemoved++
 		} else {
-			Write-Host "($($count)) Skipping young '$folder'..."
+			Write-Host 
 		}
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ Removed $numRemoved of $count subfolders older than $numDays days in $elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

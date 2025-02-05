@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Searches for a pattern in files
 .DESCRIPTION
@@ -15,27 +15,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$pattern = "", [string]$files = "")
+param([string]$pattern = , [string]$files = )
 
-function ListLocations { param([string]$Pattern, [string]$Path)
-	$List = Select-String -Path $Path -Pattern "$Pattern" 
-	foreach ($Item in $List) {
-		New-Object PSObject -Property @{
-			'Path' = "$($Item.Path)"
-			'Line' = "$($Item.LineNumber)"
-			'Text' = "$($Item.Line)"
-		}
+
 	}
-	write-output "(found $($List.Count) locations with pattern '$pattern')"
+	write-output 
 }
 
 try {
-	if ($pattern -eq "" ) { $pattern = read-host "Enter search pattern" }
-	if ($files -eq "" ) { $files = read-host "Enter path to files" }
+	if ($pattern -eq  ) { $pattern = read-host  }
+	if ($files -eq  ) { $files = read-host  }
 
 	ListLocations $pattern $files | format-table -property Path,Line,Text
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

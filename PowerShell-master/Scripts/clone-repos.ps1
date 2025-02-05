@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Clones Git repos
 .DESCRIPTION
@@ -18,23 +18,23 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$TargetDir = "$PWD")
+param([string]$TargetDir = )
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host "⏳ (1) Searching for Git executable...          " -noNewline
+	Write-Host  -noNewline
 	& git --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	if ($lastExitCode -ne ) { throw  }
 
-	Write-Host "⏳ (2) Reading Data/popular-repositories.csv... " -noNewline
-	$Table = Import-CSV "$PSScriptRoot/../Data/popular-repositories.csv"
+	Write-Host  -noNewline
+	$Table = Import-CSV 
 	$NumEntries = $Table.count
-	Write-Host "$NumEntries repos"
+	Write-Host 
 
-	$TargetDirName = (Get-Item "$TargetDir").Name
-	Write-Host "⏳ (3) Checking target folder...                📂$TargetDirName"
-	if (-not(Test-Path "$TargetDir" -pathType container)) { throw "Can't access directory: $TargetDir" }
+	$TargetDirName = (Get-Item ).Name
+	Write-Host 
+	if (-not(Test-Path  -pathType container)) { throw  }
 	
 	[int]$Step = 3
 	[int]$Cloned = 0
@@ -47,26 +47,26 @@ try {
 		[string]$URL = $Row.URL
 		$Step++
 
-		if (Test-Path "$TargetDir/$FolderName" -pathType container) {
-			"⏳ ($Step/$($NumEntries + 4)) Skipping existing 📂$FolderName ($Category)..."
+		if (Test-Path  -pathType container) {
+			
 			$Skipped++
 			continue
 		}
-		if ($Shallow -eq "yes") {
-			"⏳ ($Step/$($NumEntries + 4)) Cloning into 📂$FolderName ($Category) - $Branch branch only..."
-			& git clone --branch "$Branch" --single-branch --recurse-submodules "$URL" "$TargetDir/$FolderName"
-			if ($lastExitCode -ne "0") { throw "'git clone --branch $Branch $URL' failed with exit code $lastExitCode" }
+		if ($Shallow -eq ) {
+			
+			& git clone --branch  --single-branch --recurse-submodules  
+			if ($lastExitCode -ne ) { throw  }
 		} else {
-			"⏳ ($Step/$($NumEntries + 4)) Cloning into 📂$FolderName ($Category) - $Branch branch with full history..."
-			& git clone --branch "$Branch" --recurse-submodules "$URL" "$TargetDir/$FolderName"
-			if ($lastExitCode -ne "0") { throw "'git clone --branch $Branch $URL' failed with exit code $lastExitCode" }
+			
+			& git clone --branch  --recurse-submodules  
+			if ($lastExitCode -ne ) { throw  }
 		}
 		$Cloned++
 	}
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ Cloning $Cloned of $NumEntries Git repos into folder 📂$TargetDirName took $Elapsed sec"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

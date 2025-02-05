@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the validity of the Windows system files (requires admin rights)
 .DESCRIPTION
@@ -16,11 +16,11 @@
 
 try {
 	sfc /verifyOnly
-	if ($lastExitCode -ne "0") { throw "'sfc /verifyOnly' failed" }
+	if ($lastExitCode -ne ) { throw  }
 
-	"✔️ checked Windows system files"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

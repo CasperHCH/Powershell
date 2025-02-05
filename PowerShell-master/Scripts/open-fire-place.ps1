@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Opens a fire place website
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/open-default-browser.ps1" "https://freefireplaces.com"
+&  
 exit 0 # success

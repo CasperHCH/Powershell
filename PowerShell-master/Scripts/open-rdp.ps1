@@ -12,11 +12,11 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$hostname = "")
+param([string]$hostname = )
 
-if ($hostname -eq "") {
-	& Start-Process "$env:windir\system32\mstsc.exe"
+if ($hostname -eq ) {
+	& Start-Process 
 } else {
-	& Start-Process "$env:windir\system32\mstsc.exe" -ArgumentList "/v:$hostname"
+	& Start-Process  -ArgumentList 
 }
 exit 0 # success

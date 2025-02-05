@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Writes the current date 
 .DESCRIPTION
@@ -13,11 +13,11 @@
 #>
 
 try {
-	[system.threading.thread]::currentthread.currentculture = [system.globalization.cultureinfo]"en-US"
+	[system.threading.thread]::currentthread.currentculture = [system.globalization.cultureinfo]
 	$CurrentDate = (Get-Date).ToShortDateString()
-	"📅$CurrentDate"
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

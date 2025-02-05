@@ -1,6 +1,6 @@
-﻿<#
+<#
 .SYNOPSIS
-	Replies to "Roll a dice"
+	Replies to 
 .DESCRIPTION
 	This PowerShell script rolls a dice and returns the number by text-to-speech (TTS).
 .EXAMPLE
@@ -11,8 +11,8 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-$Reply = "It's", "I get", "Now it's", "OK, I have" | Get-Random
-$Number = "1", "2", "3", "4", "5", "6" | Get-Random
+$Reply = , , ,  | Get-Random
+$Number = , , , , ,  | Get-Random
 
-& "$PSScriptRoot/speak-english.ps1" "$Reply $Number."
+&  
 exit 0 # success

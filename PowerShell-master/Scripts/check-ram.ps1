@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the RAM
 .DESCRIPTION
@@ -12,49 +12,46 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function GetRAMType { param([int]$Type)
-	switch($Type) {
-	2 { return "DRAM" }
-	5 { return "EDO RAM" }
-	6 { return "EDRAM" }
-	7 { return "VRAM" }
-	8 { return "SRAM" }
-	10 { return "ROM" }
-	11 { return "Flash" }
-	12 { return "EEPROM" }
-	13 { return "FEPROM" }
-	14 { return "EPROM" }
-	15 { return "CDRAM" }
-	16 { return "3DRAM" }
-	17 { return "SDRAM" }
-	18 { return "SGRAM" }
-	19 { return "RDRAM" }
-	20 { return "DDR RAM" }
-	21 { return "DDR2 RAM" }
-	22 { return "DDR2 FB-DIMM" }
-	24 { return "DDR3 RAM" }
-	26 { return "DDR4 RAM" }
-	27 { return "DDR5 RAM" }
-	28 { return "DDR6 RAM" }
-	29 { return "DDR7 RAM" }
-	default { return "RAM" }
+
+	5 { return  }
+	6 { return  }
+	7 { return  }
+	8 { return  }
+	10 { return  }
+	11 { return  }
+	12 { return  }
+	13 { return  }
+	14 { return  }
+	15 { return  }
+	16 { return  }
+	17 { return  }
+	18 { return  }
+	19 { return  }
+	20 { return  }
+	21 { return  }
+	22 { return  }
+	24 { return  }
+	26 { return  }
+	27 { return  }
+	28 { return  }
+	29 { return  }
+	default { return  }
 	}
 }
 
-function Bytes2String { param([int64]$Bytes)
-        if ($Bytes -lt 1024) { return "$Bytes bytes" }
+
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)KB" }
+        if ($Bytes -lt 1024) { return  }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)MB" }
+        if ($Bytes -lt 1024) { return  }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)GB" }
+        if ($Bytes -lt 1024) { return  }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)TB" }
+        if ($Bytes -lt 1024) { return  }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)PB" }
+        if ($Bytes -lt 1024) { return  }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return "$($Bytes)EB" }
+        if ($Bytes -lt 1024) { return  }
 }
 
 try {
@@ -68,12 +65,12 @@ try {
 			$Speed = $Bank.Speed
 			[float]$Voltage = $Bank.ConfiguredVoltage / 1000.0
 			$Manufacturer = $Bank.Manufacturer
-			$Location = "$($Bank.BankLabel)/$($Bank.DeviceLocator)"
-			Write-Host "✅ $Capacity $Type @ $($Speed)MHz by $Manufacturer (in $Location @ $($Voltage)V)"
+			$Location = 
+			Write-Host 
 		}
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

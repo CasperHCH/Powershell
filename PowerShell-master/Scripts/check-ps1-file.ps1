@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks PowerShell file(s) for validity
 .DESCRIPTION
@@ -14,20 +14,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$filePattern = "")
+param([string]$filePattern = )
 
 try {
-	if ($filePattern -eq "" ) { $path = Read-Host "Enter the file pattern to the PowerShell file(s)" }
+	if ($filePattern -eq  ) { $path = Read-Host  }
 
-	$files = Get-ChildItem -path "$filePattern" -attributes !Directory
+	$files = Get-ChildItem -path  -attributes !Directory
 	foreach ($file in $files) {
 		$syntaxError = @()
 		[void][System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$null, [ref]$syntaxError)
-		if ("$syntaxError" -ne "") { throw "$syntaxError" }
-		"✔️ Valid PowerShell in $($file.Name)"
+		if ( -ne ) { throw  }
+		
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

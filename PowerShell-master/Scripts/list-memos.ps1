@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists your memo entries
 .DESCRIPTION
@@ -13,26 +13,26 @@
 
 
 try {
-	$Path = "~/Memos.csv"
-	if (Test-Path "$Path" -pathType leaf) {
-		write-progress "Reading $Path ..."
-		$Table = Import-CSV "$Path"
-		write-progress -completed "Reading $Path"
+	$Path = 
+	if (Test-Path  -pathType leaf) {
+		write-progress 
+		$Table = Import-CSV 
+		write-progress -completed 
 
-		""
-		"Time                  Text"
-		"----                  ----"
+		
+		
+		
 		foreach($Row in $Table) {
 			$Time = $Row.Time
 			$Text = $Row.Text
-			"$Time  $Text"
+			
 		}
 	} else {
-		"Sorry, no memos saved yet"
+		
 		exit 1
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

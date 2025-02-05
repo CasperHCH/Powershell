@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the user's OneDrive folder
 .DESCRIPTION
@@ -13,14 +13,14 @@
 #>
 
 try {
-	$Path = Resolve-Path "$HOME/OneDrive"
-	if (-not(Test-Path "$Path" -pathType container)) {
-		throw "OneDrive folder at 📂$Path doesn't exist (yet)"
+	$Path = Resolve-Path 
+	if (-not(Test-Path  -pathType container)) {
+		throw 
 	}
-	Set-Location "$Path"
-	"📂$Path"
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

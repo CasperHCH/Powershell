@@ -1,8 +1,8 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists suggestions
 .DESCRIPTION
-	This PowerShell script lists "Did you mean?" suggestions from Google.
+	This PowerShell script lists  suggestions from Google.
 .EXAMPLE
 	PS> ./list-suggestions.ps1 Joe
 	joe biden
@@ -16,15 +16,15 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ("$text" -eq "") { $text = read-host "Enter a word or sentence to get suggestions for" }
-	$URI = [uri]::escapeuristring("suggestqueries.google.com/complete/search?client=firefox&q=$text")
+	if ( -eq ) { $text = read-host  }
+	$URI = [uri]::escapeuristring()
 	$Content = (Invoke-WebRequest -URI $URI -useBasicParsing).Content 
 	($Content | ConvertFrom-Json).SyncRoot | Select-Object -Skip 1
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

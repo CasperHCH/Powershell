@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the system health 
 .DESCRIPTION
@@ -15,7 +15,7 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-& "$PSScriptRoot/check-hardware.ps1"
-& "$PSScriptRoot/check-software.ps1"
-& "$PSScriptRoot/check-network.ps1"
+& 
+& 
+& 
 exit 0 # success

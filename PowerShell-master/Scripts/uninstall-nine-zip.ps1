@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Uninstalls 9 ZIP
 .DESCRIPTION
@@ -12,14 +12,14 @@
 #>
 
 try {
-	"Uninstalling 9 ZIP, please wait..."
+	
 
-	& winget uninstall "9 ZIP - open rar, zip, 7zip, gzip"
-	if ($lastExitCode -ne "0") { throw "Can't uninstall 9 ZIP, is it installed?" }
+	& winget uninstall 
+	if ($lastExitCode -ne ) { throw  }
 
-	"9 ZIP is uninstalled now."
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

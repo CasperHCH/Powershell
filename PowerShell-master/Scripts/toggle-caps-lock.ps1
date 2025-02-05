@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Toggle Caps Lock
 .DESCRIPTION
@@ -16,6 +16,6 @@ try {
 	$wsh.SendKeys('{CAPSLOCK}')
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

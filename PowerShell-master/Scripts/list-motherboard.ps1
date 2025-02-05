@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists motherboard details
 .DESCRIPTION
@@ -18,6 +18,6 @@ try {
 	Get-WmiObject -Class Win32_BaseBoard
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

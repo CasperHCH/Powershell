@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Speaks text in Ukrainian
 .DESCRIPTION
@@ -6,28 +6,28 @@
 .PARAMETER text
 	Specifies the Ukranian text to speak
 .EXAMPLE
-	PS> ./speak-ukrainian.ps1 "Привіт"
+	PS> ./speak-ukrainian.ps1 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "") { $text = Read-Host "Enter the Ukrainian text to speak" }
+	if ($text -eq ) { $text = Read-Host  }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like "*- Ukrainian*") { 
+		if ($voice.GetDescription() -like ) { 
 			$TTS.Voice = $voice
 			[void]$TTS.Speak($text)
 			exit 0 # success
 		}
 	}
-	throw "No Ukrainian text-to-speech voice found - please install one"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

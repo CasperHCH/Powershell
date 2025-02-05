@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the user's screenshots folder
 .DESCRIPTION
@@ -12,25 +12,22 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function GetScreenshotsFolder {
-        if ($IsLinux) {
-                $Path = "$HOME/Pictures"
-		if (-not(Test-Path "$Path" -pathType container)) { throw "Pictures folder at $Path doesn't exist (yet)"	}
-		if (Test-Path "$Path/Screenshots" -pathType container) { $Path = "$Path/Screenshots" }
+
+		if (Test-Path  -pathType container) { $Path =  }
         } else {
                 $Path = [Environment]::GetFolderPath('MyPictures')
-		if (-not(Test-Path "$Path" -pathType container)) { throw "Pictures folder at $Path doesn't exist (yet)" }
-		if (Test-Path "$Path\Screenshots" -pathType container) { $Path = "$Path\Screenshots" }
+		if (-not(Test-Path  -pathType container)) { throw  }
+		if (Test-Path  -pathType container) { $Path =  }
         }
 	return $Path
 }
 
 try {
 	$Path = GetScreenshotsFolder
-	Set-Location "$Path"
-	"📂$Path"
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

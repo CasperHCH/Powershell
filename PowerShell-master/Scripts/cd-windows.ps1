@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Sets the working directory to the Windows directory
 .DESCRIPTION
@@ -13,12 +13,12 @@
 #>
 
 try {
-	$Path = Resolve-Path "$env:WINDIR"
-	if (-not(Test-Path "$Path" -pathType container)) { throw "Windows directory at 📂$Path doesn't exist" }
-	Set-Location "$Path"
-	"📂$Path"
+	$Path = Resolve-Path 
+	if (-not(Test-Path  -pathType container)) { throw  }
+	Set-Location 
+	
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }

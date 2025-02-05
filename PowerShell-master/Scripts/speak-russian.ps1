@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Speaks text in Russian
 .DESCRIPTION
@@ -6,28 +6,28 @@
 .PARAMETER text
 	Specifies the Russian text
 .EXAMPLE
-	PS> ./speak-russian.ps1 "Привет"
+	PS> ./speak-russian.ps1 
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = "")
+param([string]$text = )
 
 try {
-	if ($text -eq "") { $text = Read-Host "Enter the Russian text" }
+	if ($text -eq ) { $text = Read-Host  }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like "*- Russian*") { 
+		if ($voice.GetDescription() -like ) { 
 			$TTS.Voice = $voice
-			[void]$TTS.Speak("Путин вторгся в Украину и проиграет войну!")
+			[void]$TTS.Speak()
 			exit 0 # success
 		}
 	}
-	throw "No Russian text-to-speech voice found - please install one"
+	throw 
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	
 	exit 1
 }
