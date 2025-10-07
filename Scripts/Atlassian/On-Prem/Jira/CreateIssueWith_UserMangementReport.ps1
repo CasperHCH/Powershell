@@ -65,9 +65,9 @@ try{
 		Add-JiraIssueAttachment -FilePath $filePath.FullName -Issue $issue.Key -ErrorAction Stop -ErrorVariable JiraAttachFile
 	}
 	catch{
-		Write-Host
+		Write-Host "Failed to attach file to Jira issue: $($_.Exception.Message)" -ForegroundColor Red
 	}
 }
 catch{
-	Write-Host
+	Write-Host "Error in Jira issue creation process: $($_.Exception.Message)" -ForegroundColor Red
 }

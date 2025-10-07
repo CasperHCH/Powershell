@@ -217,12 +217,12 @@ If ($ErrorsFound -gt 0) {
       Default {Write-Warning ; Stop-Transcript; Break}
     }
   }
-  Write-Output
+  Write-Output "Starting Jira service with monitoring error handling..."
   StartJiraService
 }
 Elseif ($ErrorsFound -eq 0) {
-  Write-Output
-  $Answer = Read-Host -Prompt
+  Write-Output "No critical errors found. Proceeding with normal restart."
+  $Answer = Read-Host -Prompt "Do you want to restart Jira service now? (y/n)"
   switch -wildcard ($Answer) {
     'j*' {StartJiraService}
     'n*' {Write-Warning ; Stop-Transcript; Break}
