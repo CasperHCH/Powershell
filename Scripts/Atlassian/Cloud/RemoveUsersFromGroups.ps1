@@ -223,7 +223,7 @@ function ImportList() {
         Try {
             $extn = [IO.Path]::GetExtension($List)
             if ($extn -eq ".xlsx" ) {
-                Load-Module ImportExcel
+                Import-ModuleIfAvailable ImportExcel
                 $script:importedList = Import-Excel $List
             }
             elseif ($extn -eq ".csv" ) {

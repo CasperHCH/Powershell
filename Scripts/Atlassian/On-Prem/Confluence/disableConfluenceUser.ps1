@@ -43,7 +43,7 @@ $sScriptVersion = '1.0'
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogFile =
+$sLogFile = "$sLogPath\$($sLogName.Replace('.ps1',''))_$(Get-Date -Format 'yyyy-MM-dd').log"
 
 #Enabling log
 Function Write-Log {

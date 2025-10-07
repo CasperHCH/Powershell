@@ -115,7 +115,7 @@ function Write-Log {
     )
 
     $Stamp = (Get-Date).toString()
-    $Line =
+    $Line = "$Stamp $msg"
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}

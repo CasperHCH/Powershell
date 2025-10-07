@@ -50,7 +50,7 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
 
 
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
   # If module is imported say that and do nothing
@@ -86,7 +86,7 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
   }
 }
 
-Load-Module PSLogging
+Import-ModuleIfAvailable PSLogging
 
 Write-LogInfo -LogPath $sLogFile -Message 'Initialisations completed'
 Write-LogInfo -LogPath $sLogFile -Message ' '
