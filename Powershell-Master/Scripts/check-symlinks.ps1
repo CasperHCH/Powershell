@@ -1,55 +1,56 @@
-<#
+﻿<#
 .SYNOPSIS
-	Checks symlinks in a folder
+	Checks all symlinks in a dir tree
 .DESCRIPTION
-	This PowerShell script checks every symbolic link in a folder (including subfolders).
-	It returns the number of broken symlinks as exit value.
-.PARAMETER folder
-	Specifies the path to the folder
+	This PowerShell script checks all symbolic links in a directory tree. It returns the number of broken symlinks as exit value.
+.PARAMETER path
+	Specifies the file path to the directory tree
 .EXAMPLE
-	PS> ./check-symlinks C:\Users
-	⏳ Checking symlinks at 📂C:\Users including subfolders...
-	✔️ Found 0 broken symlinks at 📂C:\Users in 60 sec
+	PS> ./check-symlinks C:\Windows
+	⏳ Checking symlinks at C:\Windows including subfolders...
+	✅ No symlinks at C:\Windows (took 102s).
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Folder = )
+param([string]$path = "")
 
 try {
-	if ($Folder -eq  ) { $Folder = read-host  }
+	if ($path -eq "" ) { $path = Read-Host "Enter the file path to the directory tree" }
 
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
-	$FullPath = Resolve-Path 
-	
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
+	$fullPath = Resolve-Path "$path"
+	"⏳ Checking symlinks at $fullPath including subfolders..."
 
-	[int]$NumTotal = [int]$NumBroken = 0
-	Get-ChildItem $FullPath -recurse  | Where { $_.Attributes -match  } | ForEach-Object {
+	[int]$numTotal = [int]$numBroken = 0
+	Get-ChildItem $fullPath -recurse  | Where { $_.Attributes -match "ReparsePoint" } | ForEach-Object {
 		$Symlink = $_.FullName
 		$Target = ($_ | Select-Object -ExpandProperty Target -ErrorAction Ignore)
 		if ($Target) {
-			$path = $_.FullName +  + ($_ | Select-Object -ExpandProperty Target)
+			$path = $_.FullName + "\..\" + ($_ | Select-Object -ExpandProperty Target)
 			$item = Get-Item $path -ErrorAction Ignore
 			if (!$item) {
-				$NumBroken++
-				
+				$numBroken++
+				"Broken symlink #$($numBroken) at $Symlink linking to: $Target"
 			}
 		}
-		$NumTotal++
+		$numTotal++
 	}
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	if ($NumTotal -eq 0) {
-		 
-	} elseif ($NumBroken -eq 1) {
-		
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	if ($numTotal -eq 0) {
+		"✅ No symlinks at $fullPath (took $($elapsed)s)." 
+	} elseif ($numBroken -eq 0) {
+		"✅ No broken symlinks at $fullPath ($numTotal symlinks in total, took $($elapsed)s)." 
+	} elseif ($numBroken -eq 1) {
+		"⚠️ 1 broken symlink within $fullPath ($numTotal symlinks in total, took $($elapsed)s)."
 	} else {
-		
+		"⚠️ $numBroken broken symlinks within $fullPath ($numTotal symlinks in total, took $($elapsed)s)."
 	}
-	exit $NumBroken
+	exit $numBroken
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

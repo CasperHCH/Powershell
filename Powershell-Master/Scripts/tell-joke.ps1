@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Tells a random joke by text-to-speech
 .DESCRIPTION
@@ -13,14 +13,14 @@
 #>
 
 try {
-	$table = Import-CSV 
+	$table = Import-CSV "$PSScriptRoot/../data/jokes.csv"
 
 	$randomNumberGenerator = New-Object System.Random
 	$row = [int]$randomNumberGenerator.next(0, $table.count - 1)
 
-	&  $table[$row].Joke
+	& "$PSScriptRoot/speak-english.ps1" $table[$row].Joke
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

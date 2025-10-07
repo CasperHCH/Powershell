@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Speaks file content by text-to-speech
 .DESCRIPTION
@@ -13,10 +13,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$File = )
+#requires -version 5.1
+
+param([string]$File = "")
 
 try {
-	if ($File -eq ) { $File = Read-Host  }
+	if ($File -eq "") { $File = Read-Host "Enter path to text file" }
 
 	$Text = Get-Content $File
 
@@ -24,6 +26,6 @@ try {
 	$Result = $Voice.Speak($Text)
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the time until Saint Nicholas Day
 .DESCRIPTION
@@ -13,11 +13,11 @@
 
 try {
 	$Now = [DateTime]::Now
-	$Diff = [Datetime]( + $Now.Year) – $Now
+	$Diff = [Datetime]("12/06/" + $Now.Year) – $Now
 
-	&  
+	& "$PSScriptRoot/speak-english.ps1" "Saint Nicholas Day is in $($Diff.Days) days."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the wind conditions
 .DESCRIPTION
@@ -13,18 +13,18 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$location = ) # empty means determine automatically
+param([string]$location = "") # empty means determine automatically
 
 try {
-	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent  -useBasicParsing).Content | ConvertFrom-Json
+	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
 	$WindSpeed = $Weather.current_condition.windspeedKmph
 	$WindDir = $Weather.current_condition.winddir16Point
 	$Area = $Weather.nearest_area.areaName.value
 	$Region = $Weather.nearest_area.region.value
 
-	&  
+	& "$PSScriptRoot/speak-english.ps1" "$($WindSpeed)km/h wind from $WindDir at $Area ($Region)."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

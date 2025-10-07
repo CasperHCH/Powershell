@@ -1,13 +1,13 @@
-<#
+﻿<#
 .SYNOPSIS
 	Exports all scripts as manuals
 .DESCRIPTION
-	This PowerShell script exports the comment based help of all PowerShell scripts as manuals.
+	This PowerShell script exports the comment-based help of all PowerShell scripts as manuals.
 .EXAMPLE
 	PS> ./export-to-manuals.ps1
-	⏳ (1/2) Reading PowerShell scripts from /home/mf/PowerShell/Scripts/*.ps1 ... 
-	⏳ (2/2) Exporting Markdown manuals to /home/mf/PowerShell/Scripts/../Docs ...
-	✔️ Exported 518 Markdown manuals in 28 sec
+	⏳ (1/2) Reading PowerShell scripts from /home/mf/PowerShell/scripts/*.ps1 ... 
+	⏳ (2/2) Exporting Markdown manuals to /home/mf/PowerShell/docs ...
+	✅ Exported 518 Markdown manuals in 28 sec.
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
@@ -16,23 +16,23 @@
 
 #requires -version 2
 
-param([string]$FilePattern = , [string]$TargetDir = )
+param([string]$filePattern = "$PSScriptRoot/*.ps1", [string]$targetDir = "$PSScriptRoot/../docs")
 
 try {
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	 
-	$Scripts = Get-ChildItem 
+	"⏳ (1/2) Reading PowerShell scripts from $filePattern ..." 
+	$scripts = Get-ChildItem "$filePattern"
 
-	
-	foreach ($Script in $Scripts) {
-		&   > 
+	"⏳ (2/2) Exporting Markdown manuals to $targetDir ..."
+	foreach ($script in $scripts) {
+		& "$PSScriptRoot/convert-ps2md.ps1" "$script" > "$targetDir/$($script.BaseName).md"
 	}
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	"✅ Exported $($scripts.Count) Markdown manuals in $elapsed sec."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

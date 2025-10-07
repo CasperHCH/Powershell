@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the printers 
 .DESCRIPTION
@@ -15,12 +15,12 @@ try {
 	if ($IsLinux) {
 		# TODO
 	} else {
-		$ComputerName = $(hostname)
-		Get-WMIObject -Class Win32_Printer -ComputerName $ComputerName | Format-Table
-		
+		# $ComputerName = $(hostname)
+		# Get-WMIObject -Class Win32_Printer -ComputerName $ComputerName | Format-Table
+		Get-Printer * | Select-Object Name,Type,Location,Comment,DriverName,PrinterStatus | Format-Table -autoSize
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -4,13 +4,14 @@ Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
   # If module is imported say that and do nothing
   if (Get-Module | Where-Object {$_.Name -eq $m}) {
-    write-host 
+    write-host "Module $m is already imported" -ForegroundColor Green
   }
   else {
 
     # If module is not imported, but available on disk then import
     if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $m}) {
       Import-Module $m
+      Write-Host "Module $m imported from local system" -ForegroundColor Yellow
     }
     else {
 
@@ -18,11 +19,12 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
       if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
         Install-Module -Name $m -Force -Scope CurrentUser
         Import-Module $m
+        Write-Host "Module $m installed and imported from PowerShell Gallery" -ForegroundColor Cyan
       }
       else {
 
         # If the module is not imported, not available and not in the online gallery then abort
-        write-host 
+        write-host "Module $m is not available. Please install manually." -ForegroundColor Red
         EXIT 1
       }
     }
@@ -37,7 +39,7 @@ Load-Module JiraPS
 [string]$userPassword = 'Z*r0GAV6@V2pI3ckS'
 
 # Create credential Object
-[SecureString]$secureString = $userPassword | ConvertTo-SecureString -AsPlainText -Force 
+[SecureString]$secureString = $userPassword | ConvertTo-SecureString -AsPlainText -Force
 [PSCredential]$creds = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $secureString
 
 Set-JiraConfigServer 'https://jira.miracle.dk'
@@ -45,8 +47,8 @@ New-JiraSession -Credential $creds
 #Use JiraPS to create ticket manually
 Get-ChildItem -path  | rename-item -newname { [io.path]::ChangeExtension($_.name, ) }
 $filePath = Get-ChildItem  | sort LastWriteTime | select -last 1
-#$filePath = 
-$issueSummary = 
+#$filePath =
+$issueSummary =
 $issueDescription = @Deactivate after 180 days of inactivity@
 #collect all parameters
 $parameters = @{
@@ -63,9 +65,9 @@ try{
 		Add-JiraIssueAttachment -FilePath $filePath.FullName -Issue $issue.Key -ErrorAction Stop -ErrorVariable JiraAttachFile
 	}
 	catch{
-		Write-Host 
+		Write-Host
 	}
 }
 catch{
-	Write-Host 
+	Write-Host
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Downloads a folder (including subfolders) from an URL
 .DESCRIPTION
@@ -13,23 +13,23 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$URL = )
+param([string]$URL = "")
 
 try {
-	if ($URL -eq ) { $URL = Read-Host  }
+	if ($URL -eq "") { $URL = Read-Host "Enter directory URL to download" }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	& wget --version
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'wget' - make sure wget is installed and available" }
 
 	& wget --mirror --convert-links --adjust-extension --page-requisites --no-parent $URL --directory-prefix . --no-verbose
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'wget --mirror $URL'" }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	"✅ downloaded directory from $URL in $Elapsed sec"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

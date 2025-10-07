@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Adds firewall rules for executables (needs admin rights).
 .DESCRIPTION
@@ -20,22 +20,22 @@
 #Requires -RunAsAdministrator
 
 param(
-	[string]$PathToExecutables = ,
-	[string]$Direction = ,
-	[array]$FirewallProfile  = @(, )
+	[string]$PathToExecutables = "",
+	[string]$Direction = "Inbound",
+	[array]$FirewallProfile  = @("Domain", "Private")
 )
 
 try {
 	if (-not $PathToExecutables) {
-		$PathToExecutables = Read-Host 
+		$PathToExecutables = Read-Host "Enter path to executables"
 	}
 
 	$AbsPath = Convert-Path -Path $PathToExecutables
-	$Executables = Get-ChildItem -Path $AbsPath -Filter 
+	$Executables = Get-ChildItem -Path $AbsPath -Filter "*.exe"
 
 	if (-not $Executables) {
-		Write-Warning 
-		Read-Host 
+		Write-Warning "No executables found. No Firewall rules have been created."
+		Read-Host "Press Enter to continue..."
 		return
 	}
 
@@ -43,11 +43,13 @@ try {
 		$exeName = $exe.Name
 		$exeFullPath = $exe.FullName
 
-		Write-Output 
+		Write-Output "Adding firewall rule for $exeName"
 		New-NetFirewallRule -DisplayName $exeName -Direction $Direction -Program $exeFullPath -Profile $FirewallProfile  -Action Allow
 	}
 
-	Write-Host -ForegroundColor Green 
+	Write-Host -ForegroundColor Green "Done"
 } catch {
-	Write-Error 
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
+	exit 1
 }
+

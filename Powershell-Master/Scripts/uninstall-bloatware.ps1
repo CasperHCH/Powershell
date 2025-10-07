@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
         Uninstalls bloatware
 .DESCRIPTION
@@ -11,7 +11,7 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-
+"⏳ (1/3) Removing System Applications..."
 winget uninstall 'OMEN Audio Control'
 winget uninstall 'OMEN Gaming Hub'
 winget uninstall 'Clipchamp'
@@ -45,14 +45,14 @@ winget uninstall 'Microsoft Teams'
 winget uninstall 'Mail and Calendar'
 winget uninstall 'Snipping Tool'
 
-
+"⏳ (2/3) Removing Xbox associated applications..."
 winget uninstall 'Xbox'
 winget uninstall 'Xbox TCUI'
 winget uninstall 'Xbox Game Bar Plugin'
 winget uninstall 'Xbox Identity Provider'
 winget uninstall 'Xbox Game Speech Window'
 
-
+"⏳ (3/3) Removing miscellaneous Apps that crowd the Start Menu..."
 winget uninstall 'Spotify Music'
 winget uninstall 'Messenger'
 winget uninstall 'Instagram'
@@ -61,5 +61,5 @@ winget uninstall 'Netflix'
 winget uninstall 'LinkedIn'
 winget uninstall 'Prime Video for Windows'
 
-
+"✅ Finished"
 exit 0 # success

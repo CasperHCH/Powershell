@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Queries and saves the S.M.A.R.T. data of your HDD's/SSD's
 .DESCRIPTION
@@ -17,43 +17,46 @@
 
 #Requires -RunAsAdministrator
 
-param([string]$Directory = )
+param([string]$Directory = "")
 
 
- catch {
-		write-error 
+function CheckIfInstalled {
+	try {
+		$null = $(smartctl --version)
+	} catch {
+		write-error "smartctl is not installed - make sure smartmontools are installed"
 		exit 1
 	}
 }
 
 try {
-	if ($Directory -eq ) {
-		$Directory = 
+	if ($Directory -eq "") {
+		$Directory = "$PWD"
 	}
 
-	write-output 
+	write-output "(1) Checking for 'smartctl'..."
 	CheckIfInstalled
 
-	write-output 
+	write-output "(2) Scanning for S.M.A.R.T. devices..."
 	$Devices = $(smartctl --scan-open)
 
 	[int]$DevNo = 1
 	foreach($Device in $Devices) {
-		write-output 
+		write-output "(3) Querying data from S.M.A.R.T. device $Device..."
 
 		$Time = (Get-Date)
-		$Filename = 
-		write-output 
+		$Filename = "$Directory/SMART-dev$($DevNo)-$($Time.Year)-$($Time.Month)-$($Time.Day).json"
+		write-output "(4) Saving data to $Filename..."
 
-		$Cmd =  + $Device 
+		$Cmd = "smartctl --all --json " + $Device 
 
 		Invoke-Expression $Cmd > $Filename
 		$DevNo++
 	}
 
-	
+	"✅  Done."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

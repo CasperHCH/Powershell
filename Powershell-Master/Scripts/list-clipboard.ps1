@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the contents of the clipboard
 .DESCRIPTION
@@ -13,9 +13,10 @@
 #>
 
 try {
-	
+	[string]$text = (Get-Clipboard)
+	Write-Output "📋 `“ $text `„"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

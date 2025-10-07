@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Shows the current traffic 
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-&  
+& "$PSScriptRoot/open-default-browser.ps1" "https://www.msn.com/en-us/traffic?lvl=11&intent=roadClosures"
 exit 0 # success

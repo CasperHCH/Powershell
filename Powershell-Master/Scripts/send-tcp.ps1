@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Sends a TCP message to an IP address and port
 .DESCRIPTION
@@ -10,19 +10,19 @@
 .PARAMETER Message
 	Specifies the message to send
 .EXAMPLE
-	PS> ./send-tcp 192.168.100.100 8080 
+	PS> ./send-tcp 192.168.100.100 8080 "TEST"
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$TargetIP = , [int]$TargetPort = 0, [string]$Message = )
+param([string]$TargetIP = "", [int]$TargetPort = 0, [string]$Message = "")
 
 try {
-	if ($TargetIP -eq  ) { $TargetIP = read-host  }
-	if ($TargetPort -eq 0 ) { $TargetPort = read-host  }
-	if ($Message -eq  ) { $Message = read-host  }
+	if ($TargetIP -eq "" ) { $TargetIP = read-host "Enter target IP address" }
+	if ($TargetPort -eq 0 ) { $TargetPort = read-host "Enter target port" }
+	if ($Message -eq "" ) { $Message = read-host "Enter message to send" }
 
         $IP = [System.Net.Dns]::GetHostAddresses($TargetIP) 
         $Address = [System.Net.IPAddress]::Parse($IP) 
@@ -36,9 +36,9 @@ try {
         $Stream.Close()
         $Socket.Close()
 
-	
+	"✅  Done."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

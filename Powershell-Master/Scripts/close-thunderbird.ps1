@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Closes the Thunderbird app
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im thunderbird.exe
-if ($lastExitCode -ne ) {
-	&  
+if ($lastExitCode -ne 0) {
+	& "$PSScriptRoot/speak-english.ps1" "Sorry, Mozilla Thunderbird isn't running."
 	exit 1
 }
 exit 0 # success

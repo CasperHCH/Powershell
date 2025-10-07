@@ -2,7 +2,7 @@
 .SYNOPSIS
 Functions-PSStoredCredentials - PowerShell functions to manage stored credentials for re-use
 
-.DESCRIPTION 
+.DESCRIPTION
 This script adds two functions that can be used to manage stored credentials
 on your admin workstation.
 
@@ -11,7 +11,7 @@ on your admin workstation.
 
 .LINK
 https://practical365.com/saving-credentials-for-office-365-powershell-scripts-and-scheduled-tasks
-    
+
 .NOTES
 Written by: Paul Cunningham
 
@@ -36,7 +36,7 @@ Function New-StoredCredential {
     .SYNOPSIS
     New-StoredCredential - Create a new stored credential
 
-    .DESCRIPTION 
+    .DESCRIPTION
     This function will save a new stored credential to a .cred file.
 
     .EXAMPLE
@@ -44,7 +44,7 @@ Function New-StoredCredential {
 
     .LINK
     https://practical365.com/saving-credentials-for-office-365-powershell-scripts-and-scheduled-tasks
-    
+
     .NOTES
     Written by: Paul Cunningham
 
@@ -63,24 +63,24 @@ Function New-StoredCredential {
     #>
 
     if (!(Test-Path Variable:\KeyPath)) {
-        Write-Warning 
-        $path = Read-Host -Prompt 
+        Write-Warning "The `$KeyPath variable has not been set. Consider adding `$KeyPath to your PowerShell profile to avoid this prompt."
+        $path = Read-Host -Prompt "Enter a path for stored credentials"
         Set-Variable -Name KeyPath -Scope Global -Value $path
 
         if (!(Test-Path $KeyPath)) {
-        
+
             try {
                 New-Item -ItemType Directory -Path $KeyPath -ErrorAction STOP | Out-Null
             }
             catch {
                 throw $_.Exception.Message
-            }           
+            }
         }
     }
 
-    $Credential = Get-Credential -Message 
+    $Credential = Get-Credential -Message "Enter a user name and password"
 
-    $Credential.Password | ConvertFrom-SecureString | Out-File  -Force
+    $Credential.Password | ConvertFrom-SecureString | Out-File "$($KeyPath)\$($Credential.Username).cred" -Force
 
 }
 
@@ -92,7 +92,7 @@ Function Get-StoredCredential {
     .SYNOPSIS
     Get-StoredCredential - Retrieve or list stored credentials
 
-    .DESCRIPTION 
+    .DESCRIPTION
     This function can be used to list available credentials on
     the computer, or to retrieve a credential for use in a script
     or command.
@@ -114,7 +114,7 @@ Function Get-StoredCredential {
 
     .LINK
     https://practical365.com/saving-credentials-for-office-365-powershell-scripts-and-scheduled-tasks
-    
+
     .NOTES
     Written by: Paul Cunningham
 
@@ -133,15 +133,15 @@ Function Get-StoredCredential {
     #>
 
     param(
-        [Parameter(Mandatory=$false, ParameterSetName=)]
+        [Parameter(Mandatory=$false, ParameterSetName="Get")]
         [string]$UserName,
-        [Parameter(Mandatory=$false, ParameterSetName=)]
+        [Parameter(Mandatory=$false, ParameterSetName="List")]
         [switch]$List
-    )
+        )
 
     if (!(Test-Path Variable:\KeyPath)) {
-        Write-Warning 
-        $path = Read-Host -Prompt 
+        Write-Warning "The `$KeyPath variable has not been set. Consider adding `$KeyPath to your PowerShell profile to avoid this prompt."
+        $path = Read-Host -Prompt "Enter a path for stored credentials"
         Set-Variable -Name KeyPath -Scope Global -Value $path
     }
 
@@ -149,27 +149,27 @@ Function Get-StoredCredential {
     if ($List) {
 
         try {
-            $CredentialList = @(Get-ChildItem -Path $keypath -Filter *.cred -ErrorAction STOP)
+        $CredentialList = @(Get-ChildItem -Path $keypath -Filter *.cred -ErrorAction STOP)
 
-            foreach ($Cred in $CredentialList) {
-                Write-Host 
+        foreach ($Cred in $CredentialList) {
+            Write-Host "Username: $($Cred.BaseName)"
             }
         }
-
         catch {
             Write-Warning $_.Exception.Message
         }
+
     }
 
     if ($UserName) {
+        if (Test-Path "$($KeyPath)\$($Username).cred") {
 
-        if (Test-Path ) {
-            $PwdSecureString = Get-Content  | ConvertTo-SecureString
+            $PwdSecureString = Get-Content "$($KeyPath)\$($Username).cred" | ConvertTo-SecureString
+
             $Credential = New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $PwdSecureString
         }
-
         else {
-            throw 
+            throw "Unable to locate a credential for $($Username)"
         }
 
         return $Credential

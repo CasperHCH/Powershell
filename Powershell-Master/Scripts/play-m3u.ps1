@@ -1,50 +1,40 @@
-<#
+﻿<#
 .SYNOPSIS
-	Plays a playlist (.M3U format)
+	Plays a .M3U playlist
 .DESCRIPTION
 	This PowerShell script plays the given playlist (in .M3U file format)
 .PARAMETER filename
 	Specifies the path to the playlist
 .EXAMPLE
-	PS> ./play-m3u C:\MyPlaylist.m3u
+	PS> ./play-m3u.ps1 C:\MyPlaylist.m3u
+	   ▶️ Playing '01 Sandy beach - strong waves.mp3' (02:54) ...
+	   ...
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$filename = )
+param([string]$filename = "")
 
 try {
-	if ($filename -eq  ) { $filename = read-host  }
+	if ($filename -eq "" ) { $filename = Read-Host "Enter the path to the .M3U playlist file" }
 
-	if (-not(test-path  -pathType leaf)) { throw  }
-	$Lines = get-content $filename
+	if (-not(Test-Path "$filename" -pathType leaf)) { throw "Can't access playlist file: $filename" }
+	$lines = Get-Content $filename
 
-	add-type -assemblyName presentationCore
-	$MediaPlayer = new-object system.windows.media.mediaplayer
+	Add-Type -assemblyName presentationCore
+	$MediaPlayer = New-Object system.windows.media.mediaplayer
 
-	for ([int]$i=0; $i -lt $Lines.Count; $i++) {
-		$Line = $Lines[$i]
-		if ($Line[0] -eq ) { continue }
-		if (-not(test-path  -pathType leaf)) { throw  }
-		$FullPath = (get-childItem ).fullname
-		$filename = (get-item ).name
-		do {
-			$MediaPlayer.open()
-			$Milliseconds = $MediaPlayer.NaturalDuration.TimeSpan.TotalMilliseconds
-		} until ($Milliseconds)
-		[int]$Minutes = $Milliseconds / 60000
-		[int]$Seconds = ($Milliseconds / 1000) % 60
-		
-		$MediaPlayer.Volume = 1
-		$MediaPlayer.play()
-		start-sleep -milliseconds $Milliseconds
-		$MediaPlayer.stop()
-		$MediaPlayer.close()
+	foreach ($line in $lines) {
+		if ($line[0] -eq "#") { continue }
+		if (-not(Test-Path "$line" -pathType leaf)) { throw "Can't access audio file: $line" }
+		$fullPath = (Get-ChildItem "$line").fullname
+
+		& "$PSScriptRoot/play-mp3.ps1" $fullPath
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

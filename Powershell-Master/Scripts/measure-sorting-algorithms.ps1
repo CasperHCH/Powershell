@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Measures the speed of sorting algorithms
 .DESCRIPTION
@@ -17,13 +17,13 @@
 
 param([int]$numIntegers = 3000)
 
-
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
-&  $numIntegers
+" "
+& "$PSScriptRoot/measure-BubbleSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-BucketSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-CountingSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-HeapSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-InsertionSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-MergeSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-QuickSort.ps1" $numIntegers
+& "$PSScriptRoot/measure-SelectionSort.ps1" $numIntegers
 exit 0 # success

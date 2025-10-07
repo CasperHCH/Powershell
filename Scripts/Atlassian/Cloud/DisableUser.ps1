@@ -19,7 +19,7 @@
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Disable Atlassian Cloud user accounts
-  
+
 .EXAMPLE
   .\DisableUser.ps1 -Token ATCTT3xFfGN0Xkc4ANG-yi9w9Q3cyodic4EKgcm9MpsZeO14J6x -List C:\Users\caspe\Downloads\AlmBrandAccountID.csv
 #>
@@ -54,9 +54,9 @@ function Write-Log {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet(, , , , )]
+        [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
         [String]
-        $Level = ,
+        $Level = "INFO",
 
         [Parameter(Mandatory = $True)]
         [string]
@@ -67,22 +67,34 @@ function Write-Log {
         $logfile
     )
 
-    $Stamp = (Get-Date).toString()
-    $Line = 
+    $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
+    $Line = "$Stamp $Level $Message"
     Add-Content $slogfile -Value $Line -PassThru
 }
 
 #Allowing for easier web requests
+function WebApiRequest {
+    param(
+        [parameter(Mandatory = $true)] [string]$uri,
+        [ValidateSet("GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH")]
+        [String] $method = "GET",
+        [string] $Body = "",
+        [string] $userID = ""
+    )
+    $headers = @{
+        'Authorization' = 'Bearer ' + $token
+        'Accept'        = 'application/json'
+        'content-type'  = 'application/json'
+    }
 
-
-    $uri =  + $uri
+    $uri = "https://api.atlassian.com" + $uri
 
     try {
-        If ($method -eq ) {
+        If ($method -eq "GET") {
             $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
         }
         else {
-            $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers 
+            $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
         }
     }
     catch {
@@ -91,7 +103,7 @@ function Write-Log {
         $reader.DiscardBufferedData()
         $response = $reader.ReadToEnd()
         $message = $response
-        $message +=  + $uri +  + $_.Exception
+        $message += " Url " + $uri + " : " + $_.Exception
         Write-Log -Message $message
     }
     return $response
@@ -101,7 +113,11 @@ function Write-Log {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 
-
+Function CollectList {
+    Param ()
+    Begin {
+        Write-Log -Message 'CollectList of users, and call disable function pr user account id'
+    }
     Process {
         Try {
             $UserAccounts = Import-Csv $List
@@ -121,7 +137,11 @@ ALL ACTIVE FUNCTIONS BELOW
     }
 }
 
-
+Function DisableUsers {
+    Param ($AccountID)
+    Begin {
+        Write-Log -Message 'start DisableUsers, '+$AccountID+''
+    }
     Process {
         Try {
             <# https://developer.atlassian.com/cloud/admin/user-management/rest/api-group-lifecycle/#api-users-account-id-manage-lifecycle-disable-post
@@ -131,14 +151,14 @@ ALL ACTIVE FUNCTIONS BELOW
                  --header 'Authorization: Bearer <access_token>' \
                  --header 'Content-Type: application/json' \
                  --data '{
-                 : 
+                 "message": "On 6-month suspension"
                 }'
         #>
-            $uri = 
-            Write-Log -Message +$uri
+            $uri = "/users/$($AccountID)/manage/lifecycle/disable"
+            Write-Log -Message "URI is going to: "+$uri
             #A body can be added to the script, if a custom message of why an account is being disabled, is needed.
              #$body = '{
-             #           : 
+             #           "message": "< Custom Disablement message >"
              #           }'
             WebApiRequest -method POST -uri $uri #-Body $body
         }
@@ -159,9 +179,9 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message 
+Write-Log -message "Starting Script, $sScriptVersion"
 
 #Script Execution goes here
 CollectList
 #CollectList will call the DisableUser function, foreach accountID found within the provided CSV file.
-Write-Log -message
+Write-Log -message "End of Script"

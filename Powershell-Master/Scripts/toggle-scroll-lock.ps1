@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Toggle Scroll Lock
 .DESCRIPTION
@@ -16,6 +16,6 @@ try {
 	$wsh.SendKeys('{SCROLLLOCK}')
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

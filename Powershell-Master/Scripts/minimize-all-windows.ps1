@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Minimizes all windows
 .DESCRIPTION
@@ -12,10 +12,10 @@
 #>
 
 try {
-	$shell = New-Object -ComObject 
+	$shell = New-Object -ComObject "Shell.Application"
 	$shell.minimizeall()
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

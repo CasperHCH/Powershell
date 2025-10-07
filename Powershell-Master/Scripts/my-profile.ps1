@@ -1,15 +1,20 @@
-# MY POWERSHELL PROFILE (this profile file defines the look & feel of PowerShell)
+﻿# MY POWERSHELL PROFILE 
 
 # WINDOW TITLE
-if ($IsLinux) { $Username = $(whoami) } else { $Username = $env:USERNAME }
-$host.ui.RawUI.WindowTitle = 
+if ($IsLinux) { $username = $(whoami) } else { $username = $env:USERNAME }
+$host.ui.RawUI.WindowTitle = "$username @ $(hostname)"
 
-# COMMAND PROMPT
+# GREETING
+Write-Host "✨ Welcome $username to $(hostname) - type 'FAQ' for help." -foregroundColor green
 
+# PROMPT
+function prompt { Write-Host "`n➤ " -noNewline -foregroundColor yellow; return " " }
 
-# ALIAS NAMES
-del alias:pwd -force -errorAction SilentlyContinue
-set-alias -name pwd -value list-workdir.ps1	# pwd = print working directory
-set-alias -name ll -value get-childitem		# ll = list folder (long format)
-del alias:ls -force -errorAction SilentlyContinue 
-set-alias -name ls -value list-folder.ps1	# ls = list folder (short format)
+# ALIASES
+Set-Alias -name enter -value enter-host.ps1
+Set-Alias -name FAQ -value write-help.ps1
+Set-Alias -name ll -value Get-ChildItem		# ll = list folder (long format)
+Del alias:ls -force -errorAction SilentlyContinue 
+Set-Alias -name ls -value list-folder.ps1	# ls = list folder (short format)
+Del alias:pwd -force -errorAction SilentlyContinue
+Set-Alias -name pwd -value list-workdir.ps1	# pwd = print working directory

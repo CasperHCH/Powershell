@@ -19,26 +19,26 @@
 #---------------------------------------------------------[Initialisations]--------------------------------------------------------
 
 #Set Error Action to Silently Continue
-$ErrorActionPreference = 
+$ErrorActionPreference = "SilentlyContinue"
 
 
 
 #---------------------------------------------------------[Functions]--------------------------------------------------------
 
     Catch {
-        Write-Warning 
+        Write-Warning
         $Error[0]
         Break
     }
   }
   Else {
-  Write-Output 
+  Write-Output
   }
 }
 
 
   Catch {
-      Write-Warning 
+      Write-Warning
       $Error[0]
       Break
   }
@@ -47,32 +47,32 @@ $ErrorActionPreference =
 
 
   Catch {
-      Write-Warning 
+      Write-Warning
       $Error[0]
-      Write-Warning 
+      Write-Warning
       Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\plugins\.osgi-plugins\felix'
-      Break            
+      Break
   }
 }
 Else {
-  Write-Output 
+  Write-Output
 }
 }
 
 
     Catch {
-        Write-Warning 
+        Write-Warning
         $Error[0]
-        Write-Warning 
+        Write-Warning
         Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\caches\'
-        Break            
+        Break
     }
   }
   Else {
-    Write-Output 
+    Write-Output
   }
 }
-  
+
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 $Service = 'JIRASW8_20_8'
@@ -81,89 +81,89 @@ $InsightPath = 'D:\Atlassian\jira-software-8.20.8-home\caches\insight_indexes'
 $TranscriptPath = '\\FSDKHER01\koncern$\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\Logs\Transcripts'
 $ErrorsFound = 0
 
-$LockedError_Str = 
-$JiraMonitoringError_Str = 
-$Insight_Indexes_Str = 
+$LockedError_Str =
+$JiraMonitoringError_Str =
+$Insight_Indexes_Str =
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 Start-Transcript -OutputDirectory $TranscriptPath -Append -Force
 
 #Stop Jira, clear Felix-cache and restart Jira
-Write-Warning  -WarningAction Inquire 
-Write-Warning 
+Write-Warning  -WarningAction Inquire
+Write-Warning
 
 <#-------------------[Test Webservice]----------------------
 $HTTP_Request = Invoke-WebRequest -Uri https:\\jira.lm-gruppen.dk
 If ($HTTP_Request.StatusCode -ne 200) {
-  Write-Output 
+  Write-Output
 }
 ElseIf ($HTTP_Request.StatusCode -eq 200) {
   Write-Warning  -WarningAction Inquire
 }
 #>
-Write-Output 
-Write-Verbose -Message 
+Write-Output
+Write-Verbose -Message
 StopJiraService
 
 #-------------------[Checking logs for known error]----------------------
 
-Write-Output 
-Write-Output 
+Write-Output
+Write-Output
 
   try {
     $LogFile = Get-Content  #FAKTISK PROD LOG
     #$LogFile = Get-Content  #Test-log
     #$LogFile = Get-Content 'I:\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\atlassian-jira.log' #lokal CHGY dev log
-    If ($null -ne $LogFile) { 
-    Write-Verbose 
+    If ($null -ne $LogFile) {
+    Write-Verbose
     }
     Else {
       Write-Error  -ErrorAction Stop
     }
   }
   catch {
-    Write-Warning 
+    Write-Warning
     Break
   }
 
 
-#------------------Step 1 - Jira has been locked/Felix-cache: 
-Write-Output 
+#------------------Step 1 - Jira has been locked/Felix-cache:
+Write-Output
   $LastLockedEvent = $logfile | Select-String $LockedError_Str -context 1 | Select-Object * -Last 1
   If ($null -ne $LastLockedEvent) {
     $LockedCause = $LastLockedEvent | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext
 
     If (($LockedCause -match ) -and ($LockedCause -like )) {
-      Write-Warning 
+      Write-Warning
       ClearFelixCache
       $ErrorsFound++
     }
   }
   Else {
-    Write-Output 
+    Write-Output
   }
 
 #------------------Step 2 - Insight_indexes:
-Write-Output 
+Write-Output
   $InsightErrorEvent = $logfile | Select-String $Insight_Indexes_Str | Select-Object * -First 1
   If ($null -ne $InsightErrorEvent) {
     If (($logfile | Select-String  -Context 1 | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext -First 1) -match ) {
-      Write-Warning 
-  Write-Verbose -Message 
+      Write-Warning
+  Write-Verbose -Message
   ClearInsightIndexes
   $ErrorsFound++
     }
   }
   Else {
-    Write-Output 
+    Write-Output
   }
 
-#------------------Step 3 - Monitoring plugin error: 
-  Write-Output 
+#------------------Step 3 - Monitoring plugin error:
+  Write-Output
   $MonitoringErrorEvent = $logfile | Select-String $JiraMonitoringError_Str | Select-Object * -First 1
   If ($null -ne $MonitoringErrorEvent) {
 
-    Write-Warning   
-$Answer = Read-Host -Prompt 
+    Write-Warning
+$Answer = Read-Host -Prompt
 switch -wildcard ($Answer) {
   'j*' {Invoke-Item (Get-ChildItem -Path  -Attributes !Directory Catalina*.log | Sort-Object -Descending -Property LastWriteTime | Select-Object -first 1).FullName}
   'n*' {Continue}
@@ -173,27 +173,27 @@ switch -wildcard ($Answer) {
   $ErrorsFound++
   }
   else {
-    Write-Output 
+    Write-Output
   }
 
-  Write-Output 
-Write-Output 
+  Write-Output
+Write-Output
 If ($ErrorsFound -gt 0) {
   If ($MonitoringErrorEventFound -eq 1) {
-    Write-Warning 
-    $Answer = Read-Host -Prompt 
+    Write-Warning
+    $Answer = Read-Host -Prompt
     switch -wildcard ($Answer) {
       'j*' {StartJiraService}
       'n*' {Write-Warning ; Stop-Transcript; Break}
       Default {Write-Warning ; Stop-Transcript; Break}
     }
   }
-  Write-Output 
+  Write-Output
   StartJiraService
 }
 Elseif ($ErrorsFound -eq 0) {
-  Write-Output 
-  $Answer = Read-Host -Prompt 
+  Write-Output
+  $Answer = Read-Host -Prompt
   switch -wildcard ($Answer) {
     'j*' {StartJiraService}
     'n*' {Write-Warning ; Stop-Transcript; Break}

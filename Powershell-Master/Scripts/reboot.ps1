@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Reboots the computer (needs admin rights)
 .DESCRIPTION
@@ -21,6 +21,6 @@ try {
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

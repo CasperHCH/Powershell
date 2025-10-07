@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the ISS position
 .DESCRIPTION
@@ -12,11 +12,11 @@
 #>
 
 try {
-	$ISS = (Invoke-WebRequest  -userAgent  -useBasicParsing).Content | ConvertFrom-Json
+	$ISS = (Invoke-WebRequest "http://api.open-notify.org/iss-now.json" -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
 
-	&  
+	& "$PSScriptRoot/speak-english.ps1" "The International Space Station is currently at $($ISS.iss_position.longitude)° longitude and $($ISS.iss_position.latitude)° latitude."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

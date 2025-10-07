@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the firewall status
 .DESCRIPTION
@@ -14,18 +14,18 @@
 
 try {
 	if ($IsLinux) {
-		Write-Host  -noNewline
+		Write-Host "✅ Firewall " -noNewline
 		& sudo ufw status
 	} else {
 		$enabled = (gp 'HKLM:\SYSTEM\ControlSet001\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile').EnableFirewall
 		if ($enabled) {
-			Write-Host 
+			Write-Host "✅ Firewall enabled"
 		} else {
-			Write-Host 
+			Write-Host "⚠️ Firewall disabled"
 		}
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

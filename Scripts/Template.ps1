@@ -31,9 +31,8 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet(, , , , )]
-    [String]
-    $Level = ,
+    [ValidateSet('Info', 'Warning', 'Error', 'Debug', 'Verbose')]
+    [String]$Level = "Info",
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -44,57 +43,19 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString()
-  $Line = 
-  #If($logfile) {
-  Add-Content $slogfile -Value $Line -PassThru
-  #}
-  #Else {
-  #    Write-Output $Line
-  #}
+  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss")
+  $Line = "$Stamp [$Level] $Message"
+
+  If($logfile) {
+    Add-Content $logfile -Value $Line -PassThru
+  }
+  Else {
+    Write-Output $Line
+  }
 }
 
 #Set Error Action to Silently Continue
 $ErrorActionPreference = 'SilentlyContinue'
-
-function Load-Module ($m) {
-  Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
-  Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-  # If module is imported say that and do nothing
-  if (Get-Module | Where-Object { $_.Name -eq $m }) {
-    Write-Host 
-    Write-Log -LogPath $sLogFile -TimeStamp -Message 
-    Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-  }
-  else {
-
-    # If module is not imported, but available on disk then import
-    if (Get-Module -ListAvailable | Where-Object { $_.Name -eq $m }) {
-      Import-Module $m -Verbose
-    }
-    else {
-
-      # If module is not imported, not available on disk, but is in online gallery then install and import
-      if (Find-Module -Name $m | Where-Object { $_.Name -eq $m }) {
-        Install-Module -Name $m -Force -Verbose -Scope CurrentUser
-        Import-Module $m -Verbose
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 'Module not found, install started'
-        Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-      }
-      else {
-
-        # If the module is not imported, not available and not in the online gallery then abort
-        Write-Host 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-        EXIT 1
-      }
-    }
-  }
-}
-
-#Import Modules & Snap-ins
-#Load-Module
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
@@ -114,34 +75,25 @@ New-Alias curl curl.exe
 #	Curl changed
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
-
-#Enabled Logging with timestamps, error level etc..
-function Write-Log {
-  [CmdletBinding()]
-  Param(
-    [Parameter(Mandatory = $False)]
-    [ValidateSet(, , , , )]
-    [String]
-    $Level = ,
-
-    [Parameter(Mandatory = $True)]
-    [string]
-    $Message,
-
-    [Parameter(Mandatory = $False)]
-    [string]
-    $logfile
+Function Invoke-WebRequest {
+  Param (
+    [Parameter(Mandatory = $true)]
+    [string]$url,
+    [Parameter(Mandatory = $true)]
+    [string]$uri,
+    [Parameter(Mandatory = $true)]
+    [string]$method,
+    [Parameter(Mandatory = $false)]
+    [string]$Body,
+    [Parameter(Mandatory = $false)]
+    [string]$token
   )
 
-  $Stamp = (Get-Date).toString()
-  $Line = 
-  #If($logfile) {
-  Add-Content $slogfile -Value $Line -PassThru
-  #}
-  #Else {
-  #    Write-Output $Line
-  #}
-}
+  ### On-prem Auth
+  $headers = @{}
+  $headers.Add('Accept', 'application/json')
+  $headers.Add('content-type', 'application/json')
+  $headers.Add('Authorization', 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($username + ':' + $password)))
 
 #Allowing for easier web requests
 
@@ -157,7 +109,7 @@ function Write-Log {
   $uri = $url + $uri
 
   try {
-    If ($method -eq ) {
+    If ($method -eq 'GET') {
       $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
     }
     else {
@@ -202,7 +154,11 @@ Function <FunctionName> {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 
-
+Function FunctionName {
+  Param ()
+  Begin {
+    Write-Log -Message '<description of what is going on>...'
+  }
   Process {
     Try {
       <code goes here>
@@ -230,12 +186,13 @@ ALL ACTIVE FUNCTIONS BELOW
 
 
 
+
 <#
 ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message 
+Write-Log -message
 
 
 #Script Execution goes here

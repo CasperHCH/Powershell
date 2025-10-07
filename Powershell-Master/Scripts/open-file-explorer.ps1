@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Launches the File Explorer
 .DESCRIPTION
@@ -13,16 +13,18 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = )
+#requires -version 5.1
+
+param([string]$Path = "")
 
 try {
-	if ( -ne ) {
-		start-process explorer.exe 
+	if ("$Path" -ne "") {
+		start-process explorer.exe "$Path"
 	} else {
 		start-process explorer.exe
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

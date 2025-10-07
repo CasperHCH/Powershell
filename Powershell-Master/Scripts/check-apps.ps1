@@ -1,41 +1,53 @@
-<#
+﻿<#
 .SYNOPSIS
 	Query the app status
 .DESCRIPTION
 	This PowerShell script queries the installed applications and prints it.
 .EXAMPLE
 	PS> ./check-apps.ps1
-	✅ 119 Windows apps installed, 11 upgrades available
+	⚠️ 150 Win apps installed, 72 upgrades available, 5 crash dump(s) found
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
+function CountCrashDumps {
+	[string]$path = Resolve-Path -Path "~\AppData\Local\CrashDumps"
+	$files = (Get-ChildItem -path "$path\*.dmp" -attributes !Directory)
+	return $files.Count
+}
+
 try {
+	$status = "✅"
 	if ($IsLinux) {
-		Write-Progress 
+		Write-Progress "Querying installed applications..."
 		$numPkgs = (apt list --installed 2>/dev/null).Count
 		$numSnaps = (snap list).Count - 1
-		Write-Progress -Completed 
-		Write-Host 
+		Write-Progress -completed "Done."
+		$reply = "$numPkgs Debian packages, $numSnaps snaps installed"
 	} else {
-		Write-Progress 
-		$Apps = Get-AppxPackage
-		Write-Progress -Completed 
-		Write-Host  -noNewline
+		Write-Progress "Querying installed apps..."
+		$apps = Get-AppxPackage
+		Write-Progress -completed "Done."
+		$reply = "$($apps.Count) Win apps installed"
 
-		[int]$NumNonOk = 0
-		foreach($App in $Apps) { if ($App.Status -ne ) { $NumNonOk++ } }
-		if ($NumNonOk -gt 0) { $Status +=  }
-		[int]$NumErrors = (Get-AppxLastError)
-		if ($NumErrors -gt 0) { $Status +=  }
+		[int]$numNonOk = 0
+		foreach($app in $apps) { if ($app.Status -ne "Ok") { $numNonOk++ } }
+		if ($numNonOk -gt 0) { $status = "⚠️"; $reply += ", $numNonOk non-ok" }
 
-		$NumUpdates = (winget upgrade --include-unknown).Count - 5
-		Write-Host 
+		[int]$numErrors = (Get-AppxLastError)
+		if ($numErrors -gt 0) { $status = "⚠️"; $reply += ", $numErrors errors" }
+
+		$numUpdates = (winget upgrade --include-unknown).Count - 5
+		$reply += ", $numUpdates upgrades available"
+
+		$numCrashDumps = CountCrashDumps
+		if ($numCrashDumps -ne 0) { $status = "⚠️"; $reply += ", $numCrashDumps crash dump(s) found" }
 	}
+	Write-Host "$status $reply"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

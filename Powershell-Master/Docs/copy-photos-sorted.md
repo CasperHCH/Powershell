@@ -1,18 +1,55 @@
-*copy-photos-sorted.ps1*
-================
+Script: *copy-photos-sorted.ps1*
+========================
 
-copy-photos-sorted.ps1 [[-sourceDir] <string>] [[-targetDir] <string>]
-
+This PowerShell script copies image files from <sourceDir> to <targetDir> sorted by year and month.
 
 Parameters
 ----------
 ```powershell
+PS> ./copy-photos-sorted.ps1 [[-sourceDir] <String>] [[-targetDir] <String>] [<CommonParameters>]
 
+-sourceDir <String>
+    Specifies the path to the source folder
+    
+    Required?                    false
+    Position?                    1
+    Default value                
+    Accept pipeline input?       false
+    Aliases                      
+    Accept wildcard characters?  false
+
+-targetDir <String>
+    Specifies the path to the target folder
+    
+    Required?                    false
+    Position?                    2
+    Default value                
+    Accept pipeline input?       false
+    Aliases                      
+    Accept wildcard characters?  false
 
 [<CommonParameters>]
     This script supports the common parameters: Verbose, Debug, ErrorAction, ErrorVariable, WarningAction, 
     WarningVariable, OutBuffer, PipelineVariable, and OutVariable.
 ```
+
+Example
+-------
+```powershell
+PS> ./copy-photos-sorted.ps1 D:\iPhone\DCIM C:\MyPhotos
+⏳ Copying IMG_20240903_134445.jpg to C:\MyPhotos\2024\09 SEP\...
+...
+✅ 123 photos copied to 📂C:\MyPhotos in 13s (0 skipped).
+
+```
+
+Notes
+-----
+Author: Markus Fleschutz | License: CC0
+
+Related Links
+-------------
+https://github.com/fleschutz/PowerShell
 
 Script Content
 --------------
@@ -21,15 +58,16 @@ Script Content
 .SYNOPSIS
 	Copy photos sorted by year and month
 .DESCRIPTION
-	This PowerShell script copies image files from sourceDir to targetDir sorted by year and month.
+	This PowerShell script copies image files from <sourceDir> to <targetDir> sorted by year and month.
 .PARAMETER sourceDir
 	Specifies the path to the source folder
-.PARAMTER targetDir
+.PARAMETER targetDir
 	Specifies the path to the target folder
 .EXAMPLE
 	PS> ./copy-photos-sorted.ps1 D:\iPhone\DCIM C:\MyPhotos
-	⏳ Copying IMG_20230903_134445.jpg to C:\MyPhotos\2023\09 SEP\...
-	✔️ Copied 1 photo to 📂C:\MyPhotos in 41 sec
+	⏳ Copying IMG_20240903_134445.jpg to C:\MyPhotos\2024\09 SEP\...
+	...
+	✅ 123 photos copied to 📂C:\MyPhotos in 13s (0 skipped).
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
@@ -38,7 +76,7 @@ Script Content
 
 param([string]$sourceDir = "", [string]$targetDir = "")
 
-function CopyFile { param([string]$sourcePath, [string]$targetDir, [int]$date, [string]$filename)
+function CopyPhoto([string]$sourcePath, [string]$targetDir, [int]$date, [string]$filename) {
 	[int]$year = $date / 10000
 	[int]$month = ($date / 100) % 100
 	$monthDir = switch($month) {
@@ -58,12 +96,13 @@ function CopyFile { param([string]$sourcePath, [string]$targetDir, [int]$date, [
 	$TargetPath = "$targetDir/$year/$monthDir/$filename"
 	if (Test-Path "$TargetPath" -pathType leaf) {
 		Write-Host "⏳ Skipping existing $targetDir\$year\$monthDir\$filename..."
-	} else {
-		Write-Host "⏳ Copying $filename to $targetDir\$year\$monthDir\..."
-		New-Item -path "$targetDir" -name "$year" -itemType "directory" -force | out-null
-		New-Item -path "$targetDir/$year" -name "$monthDir" -itemType "directory" -force | out-null
-		Copy-Item "$sourcePath" "$TargetPath" -force
+		return 1
 	}
+	Write-Host "⏳ Copying $filename to $targetDir\$year\$monthDir\..."
+	New-Item -path "$targetDir" -name "$year" -itemType "directory" -force | out-null
+	New-Item -path "$targetDir/$year" -name "$monthDir" -itemType "directory" -force | out-null
+	Copy-Item "$sourcePath" "$TargetPath" -force
+	return 0
 }
 
 try {
@@ -78,34 +117,40 @@ try {
 	Write-Host "⏳ Checking target directory 📂$($targetDir)..."
 	if (-not(Test-Path "$targetDir" -pathType container)) { throw "Can't access target directory: $targetDir" }
 
+	[int]$skipped = 0
 	foreach($file in $files) {
 		$filename = (Get-Item "$file").Name
 		if ("$filename" -like "IMG_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
+			$array = $filename.split("_")
+			$skipped += CopyPhoto "$file" "$targetDir" $array[1] "$filename"
 		} elseif ("$filename" -like "IMG-*-*.jpg") {
-			$Array = $filename.split("-")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
+			$array = $filename.split("-")
+			$skipped += CopyPhoto "$file" "$targetDir" $array[1] "$filename"
 		} elseif ("$filename" -like "PANO_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file"  "$targetDir" $Array[1] "$filename"
+			$array = $filename.split("_")
+			$skipped += CopyPhoto "$file"  "$targetDir" $array[1] "$filename"
 		} elseif ("$filename" -like "PANO-*-*.jpg") {
-			$Array = $filename.split("-")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
+			$array = $filename.split("-")
+			$skipped += CopyPhoto "$file" "$targetDir" $array[1] "$filename"
 		} elseif ("$filename" -like "SAVE_*_*.jpg") {
-			$Array = $filename.split("_")
-			CopyFile "$file" "$targetDir" $Array[1] "$filename"
+			$array = $filename.split("_")
+			$skipped += CopyPhoto "$file" "$targetDir" $array[1] "$filename"
+		} elseif ("$filename" -like "PXL_*_*.jpg") {
+			$array = $filename.split("_")
+			$skipped += CopyPhoto "$file" "$targetDir" $array[1] "$filename"
 		} else {
 			Write-Host "⏳ Skipping $filename with unknown filename format..."
+			$skipped++
 		}
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✔️ Copied $($files.Count) photos to 📂$targetDir in $elapsed sec"
+	[int]$copied = $files.Count - $skipped
+	"✅ $copied photos copied to 📂$targetDir in $($elapsed)s ($skipped skipped)."
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of copy-photos-sorted.ps1 as of 09/20/2023 17:04:39)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:25)*

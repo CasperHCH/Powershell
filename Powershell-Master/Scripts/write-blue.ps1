@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Writes text in a blue foreground color
 .DESCRIPTION
@@ -6,17 +6,17 @@
 .PARAMETER text
 	Specifies the text to write
 .EXAMPLE
-	PS> ./write-blue 
+	PS> ./write-blue "Hello World"
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+param([string]$text = "")
 
-if ($text -eq  ) { $text = read-host  }
+if ($text -eq "" ) { $text = read-host "Enter the text to write" }
 
-write-host -foregroundColor blue 
+write-host -foregroundColor blue "$text"
 
 exit 0 # success

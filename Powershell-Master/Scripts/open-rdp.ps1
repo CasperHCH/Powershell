@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
         Opens the RDP app
 .DESCRIPTION
@@ -12,11 +12,13 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$hostname = )
+#requires -version 5.1
 
-if ($hostname -eq ) {
-	& Start-Process 
+param([string]$hostname = "")
+
+if ($hostname -eq "") {
+	& Start-Process "$env:WINDIR\system32\mstsc.exe"
 } else {
-	& Start-Process  -ArgumentList 
+	& Start-Process "$env:WINDIR\system32\mstsc.exe" -ArgumentList "/v:$hostname"
 }
 exit 0 # success

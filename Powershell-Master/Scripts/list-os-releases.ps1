@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists OS releases and download URL
 .DESCRIPTION
@@ -12,22 +12,22 @@
 #>
 
 try {
-	write-progress 
+	write-progress "Reading OS_IPFS_hashes.csv ..."
 
-	$PathToRepo = 
-	$PathToCsvFile = 
-	invoke-webRequest -URI  -outFile 
+	$PathToRepo = "$PSScriptRoot/.."
+	$PathToCsvFile = "$PathToRepo/data/os-release.csv"
+	invoke-webRequest -URI "https://fleschutz.droppages.com/downloads/OS_IPFS_hashes.csv" -outFile "$PathToCsvFile"
 
-	$Table = import-csv 
-	remove-item -path 
+	$Table = import-csv "$PathToCsvFile"
+	remove-item -path "$PathToCsvFile"
 
-	write-output 
-	write-output 
+	write-output "Operating System Releases"
+	write-output "========================="
 	foreach ($Row in $Table) {
-		write-output 
+		write-output "* $($Row.Path.substring(3)) -> ipfs://$($Row.IPFS)"
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -47,16 +47,13 @@
     {
       #Get all domain controllers in domain
       $DomainControllers = Get-ADDomainController -Filter *
-      $PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
-      #$DomainControllers = Get-ADDomainController -Filter {Name -like  -or name -eq  -or name -eq }
-      #$DomainControllers = Get-ADDomainController -Filter {Name -like  -or name -eq }
-      #$PDCEmulator = ($DomainControllers | Where-Object {$_.OperationMasterRoles -contains })
+      $PDCEmulator = ($DomainControllers | Where-Object { $_.OperationMasterRoles -and ($_.OperationMasterRoles -contains "PDCEmulator") })
 
-      Write-Verbose 
+      Write-Verbose "Found PDC Emulator: $($PDCEmulator.HostName)"
       Foreach($DC in $DomainControllers)
       {
         $DCCounter++
-        Write-Progress -Activity  -Status  -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
+        Write-Progress -Activity "Checking Domain Controllers" -Status "Processing $($DC.HostName)" -PercentComplete (($DCCounter/$DomainControllers.Count) * 100)
         Try
         {
           $UserInfo = Get-ADUser -Identity $Identity  -Server $DC.Hostname -Properties AccountLockoutTime,LastBadPasswordAttempt,BadPwdCount,LockedOut -ErrorAction Stop
@@ -85,7 +82,7 @@
       #Get User Info
       Try
       {
-        Write-Verbose 
+        Write-Verbose "Checking for lockout events on PDC Emulator: $($PDCEmulator.HostName)"
         $LockedOutEvents = Get-WinEvent -ComputerName $PDCEmulator.HostName -FilterHashtable @{LogName='Security';Id=4740} -ErrorAction Stop | Sort-Object -Property TimeCreated -Descending
       }
       Catch
@@ -104,7 +101,7 @@
             @{Label = 'DomainController';   Expression = {$_.MachineName}}
             @{Label = 'EventId';            Expression = {$_.Id}}
             @{Label = 'LockedOutTimeStamp'; Expression = {$_.TimeCreated}}
-            @{Label = 'Message';            Expression = {$_.Message -split  | Select -First 1}}
+            @{Label = 'Message';            Expression = {$_.Message -split "`r`n" | Select-Object -First 1}}
             @{Label = 'LockedOutLocation';  Expression = {$_.Properties[1].Value}}
           )
 

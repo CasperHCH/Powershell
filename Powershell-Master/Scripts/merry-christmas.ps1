@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-	Replies to 
+	Replies to "Merry Christmas"
 .DESCRIPTION
 	This PowerShell script replies to 'Merry Christmas' by text-to-speech (TTS).
 .EXAMPLE
@@ -11,7 +11,7 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-$Reply = ,  | Get-Random
+$Reply = "Merry Christmas to you too!", "Happy Christmas to you too!" | Get-Random
 
-&  
+& "$PSScriptRoot/speak-english.ps1" "$Reply"
 exit 0 # success

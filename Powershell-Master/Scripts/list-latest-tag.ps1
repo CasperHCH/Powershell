@@ -1,32 +1,34 @@
-<#
+﻿<#
 .SYNOPSIS
-	Lists the latest tag on the current branch in a Git repository
+	Lists the repo's latest tag
 .DESCRIPTION
-	This PowerShell script lists the latest tag on the current branch in a Git repository.
+	This PowerShell script lists the latest tag in a local Git repository.
 .PARAMETER RepoDir
-	Specifies the path to the repository
+	Specifies the path to the local repository (current working dir by default)
 .EXAMPLE
 	PS> ./list-latest-tag.ps1 C:\MyRepo
-	🔖v0.8 at commit 02171a401d83b01a0cda0af426840b605e617f08
+	✅ Tag 'v1.0' at commit 4833ecbf1457dc86ad7f4d6e3 ('Version 1.0 released')
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = )
+param([string]$RepoDir = "$PWD")
 
 try {
-	if (-not(test-path  -pathType container)) { throw  }
+	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
 
 	$Null = (git --version)
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'git' - make sure Git is installed and available" }
 
-	$LatestTagCommitID = (git -C  rev-list --tags --max-count=1)
-	$LatestTag = (git -C  describe --tags $LatestTagCommitID)
-	
+	$LatestTagCommit = (git -C "$RepoDir" rev-list --tags --max-count=1)
+	$LatestTagName = (git -C "$RepoDir" describe --tags $LatestTagCommit)
+	$LatestTagMessage  = (git -C "$RepoDir" log --format=%B -n 1 $LatestTagCommit)
+
+	"✅ Tag '$LatestTagName' at commit $LatestTagCommit ('$LatestTagMessage')"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

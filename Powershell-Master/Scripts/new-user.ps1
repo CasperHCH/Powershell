@@ -1,32 +1,34 @@
-<#
+﻿<#
 .SYNOPSIS
-	Creates a new user account
+	Create a new user
 .DESCRIPTION
-	This PowerShell script creates a new user account.
+	This PowerShell script creates a new user account with an encrypted home directory.
 .EXAMPLE
-	PS> ./new-user.ps1
+	PS> ./new-user.ps1 Joe
+	✅ Created user account 'Joe' with encrypted home directory in 11s.
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Username = )
+param([string]$username = "")
 
 try {
-	if ($Username -eq ) { $Username = Read-Host  }
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	if ($username -eq "") { $username = Read-Host "Enter the new user name" }
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	if ($IsLinux) {
-		& sudo adduser --encrypt-home $Username
+ 		& sudo apt install ecryptfs-utils
+		& sudo adduser --encrypt-home $username
 	} else {
-		throw 
+		throw "Not supported yet"
 	}
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	"✅ Created user account '$username' with encrypted home directory in $($elapsed)s."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

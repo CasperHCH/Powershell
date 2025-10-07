@@ -7,34 +7,49 @@
 ##
 ######## Script will restore all data in Desktop, Documents, Downloads, Favorites, Pictures, Chrome, and Mozilla Data ########
 ##
-######## Declares the values and prompts for Technician and Username information ########
-$Technician = Read-Host -Prompt 
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$SourcePath,
+    [string]$Technician,
+    [switch]$WhatIf
+)
 
-######## Calls Eviroment Variables for the local user and data location ########
+######## Declares the values and prompts for Technician and Username information ########
+if (-not $Technician) {
+    $Technician = Read-Host -Prompt "Enter Technician Name"
+}
+
+######## Calls Environment Variables for the local user and data location ########
 $username = $env:username                 #@Motox80 modified
 $userprofile = $env:userprofile           #@Motox80 modified
 
+Write-Host "Restore Script v4.0 - Technician: $Technician, User: $username" -ForegroundColor Green
+
 ######## Declares the Restore location ########
-$source = 
+$source = $SourcePath
 If ((Test-Path -Path $source) -eq $false) {                               # Begin @Motox80 modified
-    write-host -ForegroundColor red    
-    return                                                              
-}                                                                         # End @Motox80 modified  
-return 
+    Write-Host "Source path not found: $source" -ForegroundColor Red
+    return
+}                                                                         # End @Motox80 modified
+
+Write-Host "Source verified: $source" -ForegroundColor Green
+
 ######## Declares the data to be restored ########
-$folder = ,
-,
-,
-,
-,
-,
-,
+$folder = @(
+    "Desktop",
+    "Documents",
+    "Downloads",
+    "Favorites",
+    "Pictures",
+    "Chrome",
+    "Mozilla"
+)
 
 #endregion DeclaringDataBackupSources
 
 ###### Backup Data section ########
 
-write-host -ForegroundColor green 
+Write-Host "Starting backup data restore..." -ForegroundColor Green
 
 foreach ($f in $folder)
 {
@@ -42,28 +57,28 @@ foreach ($f in $folder)
 	$currentRemoteFolder = $source +  + $f
 	$currentFolderSize = (Get-ChildItem -ErrorAction silentlyContinue $currentRemoteFolder -Recurse -Force | Measure-Object -ErrorAction Inquire -Property Length -Sum ).Sum / 1MB
 	$currentFolderSizeRounded = [System.Math]::Round($currentFolderSize)
-	write-host -ForegroundColor Magenta 
+	write-host -ForegroundColor Magenta
 	Copy-Item -Force -recurse $currentRemoteFolder $currentLocalFolder
 }
 
 ######## Begin Registry Restore ########
-$RegistryRestore = Join-Path -Path $Source -ChildPath 
+$RegistryRestore = Join-Path -Path $Source -ChildPath
 If (Test-Path -Path $RegistryRestore) {
     Try {
-        & Reg import 
-        If ($LastExitCode -NE ) {
+        & Reg import
+        If ($LastExitCode -NE 0) {
             Break
             # See https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/reg-import#remarks
         } # END If LastExistCode NE 0
     } # END Try Reg Import
     Catch {
-        Write-Warning -Message 
+        Write-Warning -Message
     } # END Catch Reg Import
 } # END If Test-Path RegistryBackup
 Else {
     Write-Warning -Message $($RegistryRestore)
 } # END Else Test-Path RegistryBackup
 
-write-host -ForegroundColor green 
+Write-Host "Restore process complete." -ForegroundColor Green
 
 Restart-Computer -confirm

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all PowerShell cmdlets
 .DESCRIPTION
@@ -21,6 +21,6 @@ try {
 	Get-Command -Command-Type cmdlet
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

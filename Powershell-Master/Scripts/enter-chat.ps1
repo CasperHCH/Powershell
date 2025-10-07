@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Enters a chat using a common network shared file
 .DESCRIPTION
@@ -13,7 +13,7 @@
 
 # make sure you adjust this path
 # it must point to a network share where you have read and write permissions
-$ServerShare = 
+$ServerShare = "\\myserver\chathome"
 
 function Enter-Chat 
 {
@@ -42,31 +42,31 @@ function Enter-Chat
     $Option = '-Tail 0'
   }
 
-  $Path = Join-Path -Path $HomeShare -ChildPath 
+  $Path = Join-Path -Path $HomeShare -ChildPath "$ChatChannelName.txt"
   $exists = Test-Path -Path $Path
   if ($exists -eq $false)
   {
     $null = New-Item -Path $Path -Force -ItemType File
   }
 
-  $process = Start-Process -FilePath powershell -ArgumentList  -PassThru
+  $process = Start-Process -FilePath powershell -ArgumentList "-noprofile -windowstyle hidden -command Get-COntent -Path '$Path' $Option -Wait | Out-GridView -Title 'Chat: [$ChatChannelName]'" -PassThru
 
-  Write-Host 
-   | Add-Content -Path $Path
+  Write-Host "To exit, enter: quit"
+  "[$Name entered the chat]" | Add-Content -Path $Path
   do
   {
-    Write-Host  -ForegroundColor Green -NoNewline
+    Write-Host "[$ChatChannelName]: " -ForegroundColor Green -NoNewline
     $inputText = Read-Host 
     
     $isStopCommand = 'quit','exit','stop','leave' -contains $inputText
     if ($isStopCommand -eq $false)
     {
-       | Add-Content -Path $Path
+      "[$Name] $inputText" | Add-Content -Path $Path
     }
     
     
   } until ($isStopCommand -eq $true)
-   | Add-Content -Path $Path
+  "[$Name left the chat]" | Add-Content -Path $Path
   
   $process | Stop-Process
 }

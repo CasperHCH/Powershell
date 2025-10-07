@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Launches the Cortana app
 .DESCRIPTION
@@ -11,10 +11,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
+#requires -version 5.1
+
 try {
 	Start-Process ms-cortana2:
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Converts Markdown file(s) into HTML 
 .DESCRIPTION
@@ -13,26 +13,26 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$FilePattern = )
+param([string]$FilePattern = "")
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	if ($FilePattern -eq  ) { $FilePattern = Read-Host  }
+	if ($FilePattern -eq "" ) { $FilePattern = Read-Host "Enter the file pattern to the Markdown file(s)" }
 
-	Write-Host  
+	Write-Host "⏳ Searching for pandoc..." 
 	$null = (pandoc --version)
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'pandoc' - make sure it's installed and available" }
 
-	Write-Host 
+	Write-Host "⏳ Converting..."
 	gci -r -i $FilePattern | foreach {
-		$TargetPath = $_.directoryname +  + $_.basename + 
-		pandoc --standalone --template  -s $_.name -o $TargetPath
+		$TargetPath = $_.directoryname + "\" + $_.basename + ".html"
+		pandoc --standalone --template "$PSScriptRoot/../data/templates/template.html" -s $_.name -o $TargetPath
 	}
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	"✅ converted in $Elapsed sec"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

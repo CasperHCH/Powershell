@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Upgrades Ubuntu Linux 
 .DESCRIPTION
@@ -12,15 +12,15 @@
 #>
 
 try {
-	
-	
-	
-	$Confirm = Read-Host 
+	""
+	"⏳ (1/4) Perform a backup!"
+	"It's strongly recommended to backup your data BEFORE the upgrade!"
+	$Confirm = Read-Host "Press <Return> to continue..."
 
-	
-	
-	$Confirm = Read-Host 
-	if ($Confirm -eq ) {
+	""
+	"⏳ (2/4) Install update-manager-core, Upgrade Packages & Reboot"
+	$Confirm = Read-Host "Enter <yes> to perform this step (otherwise it will be skipped)"
+	if ($Confirm -eq "yes") {
 		sudo apt install update-manager-core
 		sudo apt update
 		sudo apt list --upgradable
@@ -28,27 +28,27 @@ try {
 		sudo reboot 
 	}
 
-	
-	
-	$Confirm = Read-Host 
-	if ($Confirm -eq ) {
+	""
+	"⏳ (3/4) Remove obsolete kernel modules"
+	$Confirm = Read-Host "Enter <yes> to perform this step (otherwise it will be skipped)"
+	if ($Confirm -eq "yes") {
 		sudo apt --purge autoremove
 	}
 
-	
-	
-	$Confirm = Read-Host 
-	if ($Confirm -eq ) {
+	""
+	"⏳ (4/4) Upgrade Ubuntu & reboot"
+	$Confirm = Read-Host "Enter <LTS> to upgrade to latest LTS release, <latest> to upgrade to latest Ubuntu release (otherwise this step will be skipped)"
+	if ($Confirm -eq "LTS") {
 		sudo do-release-upgrade
 		sudo reboot
-	} elseif ($Confirm -eq ) {
+	} elseif ($Confirm -eq "latest") {
 		sudo do-release-upgrade -d
 		sudo reboot
 	}
 
-	
+	"✅  Done."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

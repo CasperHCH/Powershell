@@ -1,77 +1,78 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists a directory tree
 .DESCRIPTION
-	This PowerShell script lists all files and folders in a neat directory tree (including icon and size).
-.PARAMETER Path
-	Specifies the path to the directory tree
+	This PowerShell script lists all files and folders in a directory tree (including icon and size).
+.PARAMETER path
+	Specifies the file path to the directory tree
 .EXAMPLE
 	PS> ./list-dir-tree.ps1 C:\MyFolder
 	├📂Results
 	│ ├📄sales.txt (442K)
-	(2 folders, 1 file, 442K total)
+	   (2 folders, 1 file, 442K total)
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = )
+param([string]$path = "$PWD")
 
 function GetFileIcon([string]$suffix) {
 	switch ($suffix) {
-		{return }
-		{return }
-	  {return }
-		{return }
-		{return }
-		{return }
-		{return }
-		{return }
-	  {return }
-	default {return }
+	".csv"	{return "📊"}
+	".epub"	{return "📓"}
+	".exe"  {return "⚙️"}
+	".gif"	{return "📸"}
+	".iso"	{return "📀"}
+	".jpg"	{return "📸"}
+	".mp3"	{return "🎵"}
+	".mkv"	{return "🎬"}
+	".png"	{return "📸"}
+	".rar"  {return "🎁"}
+	".tar"  {return "🎁"}
+	".zip"  {return "🎁"}
+	default {return "📄"}
 	}
 }
 
 function Bytes2String([int64]$bytes) {
-	if ($bytes -lt 1000) { return  }
+	if ($bytes -lt 1000) { return "$bytes bytes" }
 	$bytes /= 1000
-	if ($bytes -lt 1000) { return  }
+	if ($bytes -lt 1000) { return "$($bytes)K" }
 	$bytes /= 1000
-        if ($bytes -lt 1000) { return  }
+        if ($bytes -lt 1000) { return "$($bytes)MB" }
         $bytes /= 1000
-        if ($bytes -lt 1000) { return  }
+        if ($bytes -lt 1000) { return "$($bytes)GB" }
         $bytes /= 1000
-	return 
+	return "$($Bytes)TB"
 }
 
-function ListDirectory([string]$path, [int]$depth) {
-	$depth++
+function ListDir([string]$path, [int]$depth) {
 	$items = Get-ChildItem -path $path
 	foreach($item in $items) {
-		$filename = $item.Name
-		for ($i = 1; $i -lt $depth; $i++) { Write-Host  -noNewline }
-		if ($item.Mode -like ) {
-			Write-Output 
-			ListDirectory  $depth
-			$global:folders++
+		Write-Host "  " -noNewline
+		for ([int]$i = 1; $i -lt $depth; $i++) { Write-Host "│  " -noNewline }
+		if ($item.Mode -like "d*") {
+			Write-Host "├📂$($item.Name)"
+			ListDir "$path\$($item.Name)" ($depth + 1)
 		} else {
-			$icon = GetFileIcon $item.Extension
-			Write-Output 
+			Write-Host "├$(GetFileIcon $item.Extension)$($item.Name) ($(Bytes2String $item.Length))"
 			$global:files++
 			$global:bytes += $item.Length
 		}
 	}
+	$global:folders++
+	if ($depth -gt $global:depth) { $global:depth = $depth }
 }
 
 try {
-	[int]$global:folders = 1
-	[int]$global:files = 0
-	[int]$global:bytes = 0
-	ListDirectory $Path 0
-	Write-Output 
+	Write-Host "`n 📂$path"
+	[int64]$global:files = $global:folders = $global:depth = $global:bytes = 0
+	ListDir $path 1
+	"     ($($global:files) files, $($global:folders) folders, depth $($global:depth), $(Bytes2String $global:bytes) total)"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

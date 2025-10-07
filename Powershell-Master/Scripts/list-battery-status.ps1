@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the battery status
 .DESCRIPTION
@@ -20,6 +20,6 @@ try {
 	[System.Windows.Forms.SystemInformation]::PowerStatus
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -1,57 +1,60 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the RAM
 .DESCRIPTION
 	This PowerShell script queries the status of the installed RAM memory modules and prints it.
 .EXAMPLE
 	PS> ./check-ram.ps1
-	✅ 16GB DDR4 RAM @ 3200MHz by Micron (in CPU0/CPU0-DIMM3 @ 1.2V)
+	✅ 16GB DDR4 RAM at 3200MHz/1.2V in CPU0/CPU0-DIMM3 by Micron
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-
-	5 { return  }
-	6 { return  }
-	7 { return  }
-	8 { return  }
-	10 { return  }
-	11 { return  }
-	12 { return  }
-	13 { return  }
-	14 { return  }
-	15 { return  }
-	16 { return  }
-	17 { return  }
-	18 { return  }
-	19 { return  }
-	20 { return  }
-	21 { return  }
-	22 { return  }
-	24 { return  }
-	26 { return  }
-	27 { return  }
-	28 { return  }
-	29 { return  }
-	default { return  }
+function GetRAMType { param([int]$Type)
+	switch($Type) {
+	2 { return "DRAM" }
+	5 { return "EDO RAM" }
+	6 { return "EDRAM" }
+	7 { return "VRAM" }
+	8 { return "SRAM" }
+	10 { return "ROM" }
+	11 { return "Flash" }
+	12 { return "EEPROM" }
+	13 { return "FEPROM" }
+	14 { return "EPROM" }
+	15 { return "CDRAM" }
+	16 { return "3DRAM" }
+	17 { return "SDRAM" }
+	18 { return "SGRAM" }
+	19 { return "RDRAM" }
+	20 { return "DDR RAM" }
+	21 { return "DDR2 RAM" }
+	22 { return "DDR2 FB-DIMM" }
+	24 { return "DDR3 RAM" }
+	26 { return "DDR4 RAM" }
+	27 { return "DDR5 RAM" }
+	28 { return "DDR6 RAM" }
+	29 { return "DDR7 RAM" }
+	default { return "RAM" }
 	}
 }
 
-
+function Bytes2String { param([int64]$Bytes)
+        if ($Bytes -lt 1024) { return "$Bytes bytes" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)KB" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)MB" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)GB" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)TB" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)PB" }
         $Bytes /= 1024
-        if ($Bytes -lt 1024) { return  }
+        if ($Bytes -lt 1024) { return "$($Bytes)EB" }
 }
 
 try {
@@ -65,12 +68,12 @@ try {
 			$Speed = $Bank.Speed
 			[float]$Voltage = $Bank.ConfiguredVoltage / 1000.0
 			$Manufacturer = $Bank.Manufacturer
-			$Location = 
-			Write-Host 
+			$Location = "$($Bank.BankLabel)/$($Bank.DeviceLocator)"
+			Write-Host "✅ $Capacity $Type at $($Speed)MHz,$($Voltage)V in $Location by $Manufacturer"
 		}
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

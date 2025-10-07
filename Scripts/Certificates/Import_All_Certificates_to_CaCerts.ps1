@@ -1,54 +1,60 @@
 <#
 .SYNOPSIS
-    Script to import CA certificates into the cacerts of an Atlassian installation.
+    Import all certificates to the Java keystore (cacerts) for Atlassian Confluence.
 .DESCRIPTION
-    This script imports all CA certificates from a specified directory into the cacerts keystore of an Atlassian installation.
+    This script imports all certificates from a specified directory to the Java keystore (cacerts) used by Atlassian Confluence.
 .PARAMETER CertificatePassword
-    The password for the certificates being imported.
+    The password for the certificate files (if applicable).
+.PARAMETER AtlassianFolder
+    The root folder for Atlassian Confluence (used to locate jre and cacerts).
+.PARAMETER CertificateFolder
+    The folder containing certificate files to import.
 .INPUTS
     None
 .OUTPUTS
-    Messages indicating the success or failure of the import process.
+    None
 .NOTES
-  Version:        1.0
-  Author:         GitHub Copilot
+  Version:        1.1
+  Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
-  Purpose/Change: Initial script development
+  Purpose/Change: Added folder parameters for flexibility
 .EXAMPLE
-    .\Import_All_Certificates_to_CaCerts.ps1 -CertificatePassword "yourpassword"
+    .\Import_All_Certificates_to_CaCerts.ps1 -CertificatePassword "yourpassword" -AtlassianFolder "C:\Atlassian\confluence" -CertificateFolder "C:\ssl"
 #>
 
 param (
-    [Parameter(Mandatory = $true)]
-    [string]$CertificatePassword
+    [Parameter(Mandatory = $false, HelpMessage = "Specify the password for the certificate files (if applicable).")]
+    [string]$CertificatePassword,
+    [Parameter(Mandatory = $false, HelpMessage = "Specify the Atlassian Confluence root folder.")]
+    [string]$AtlassianFolder = "C:\Atlassian\confluence",
+    [Parameter(Mandatory = $false, HelpMessage = "Specify the folder containing certificate files.")]
+    [string]$CertificateFolder = "C:\ssl"
 )
 
-# Define the path to the Atlassian folder and the cacerts file
-$AtlassianFolder = "C:\Atlassian"
-$cacertsPath = Join-Path -Path $AtlassianFolder -ChildPath "jre\lib\security\cacerts"
-
 # Get all certificate files from the specified directory
-$certs = Get-ChildItem -Path "C:\apache24\conf\ssl" -Include *.crt, *.key, *.pfx
+$certs = Get-ChildItem -Path $CertificateFolder -Include *.crt, *.key, *.pfx
 
-foreach ($cert in $certs) {
-    $certPath = $cert.FullName
-    $certAlias = [IO.Path]::GetFileNameWithoutExtension($cert.Name)
+# Import each certificate to the Java keystore (cacerts)
+foreach ($c in $certs) {
+    $certPath = $c.FullName
+    $certAlias = [IO.Path]::GetFileNameWithoutExtension($c.Name)
 
-    if ($cert.Extension -eq ".pfx") {
-        # Import PFX certificate
-        & keytool -importkeystore -srckeystore $certPath -srcstoretype pkcs12 -srcstorepass $CertificatePassword -destkeystore $cacertsPath -deststorepass changeit -alias $certAlias -trustcacerts -noprompt
+    if ($c.Extension -eq ".pfx") {
+        if ($CertificatePassword) {
+            & "$($AtlassianFolder)\jre\bin\keytool.exe" -importkeystore -srckeystore "$certPath" -srcstorepass "$CertificatePassword" -destkeystore "$($AtlassianFolder)\jre\lib\security\cacerts" -deststorepass changeit -trustcacerts -alias "$certAlias" -deststoretype pkcs12 -noprompt
+        } else {
+            Write-Warning "Skipping .pfx certificate $certPath because no password was provided."
+        }
     } else {
-        # Import CRT or KEY certificate
-        & keytool -import -file $certPath -keystore $cacertsPath -storepass changeit -alias $certAlias -trustcacerts -noprompt
+        & "$($AtlassianFolder)\jre\bin\keytool.exe" -import -file "$certPath" -destkeystore "$($AtlassianFolder)\jre\lib\security\cacerts" -deststorepass changeit -trustcacerts -alias "$certAlias" -noprompt
     }
 }
 
-# Backup the cacerts file
-$backupFolder = Join-Path -Path $AtlassianFolder -ChildPath "backup"
-if (-not (Test-Path -Path $backupFolder)) {
-    New-Item -Path $backupFolder -ItemType Directory
-}
-$backupCacerts = Join-Path -Path $backupFolder -ChildPath "cacerts.bak"
-Copy-Item -Path $cacertsPath -Destination $backupCacerts -Force
+# Backup the current cacerts file
+$backupCacerts = Get-ChildItem -Path "$($AtlassianFolder)\backup" -Filter cacerts -Recurse | Select-Object -First 1
 
-Write-Host "All certificates have been imported and the cacerts file has been backed up." -ForegroundColor Green
+if ($backupCacerts) {
+    & "$($AtlassianFolder)\jre\bin\keytool.exe" -importkeystore -srckeystore "$($backupCacerts.FullName)" -destkeystore "$($AtlassianFolder)\jre\lib\security\cacerts" -srcstorepass changeit -deststorepass changeit -v -noprompt
+} else {
+    Write-Warning "No backup cacerts file found in $($AtlassianFolder)\backup."
+}

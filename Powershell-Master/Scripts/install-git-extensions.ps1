@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Installs Git Extensions
 .DESCRIPTION
@@ -11,15 +11,17 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
+#requires -version 5.1
+
 try {
-	
+	"Installing Git Extensions, please wait..."
 
 	& winget install --id GitExtensionsTeam.GitExtensions --accept-package-agreements --accept-source-agreements
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'winget install' failed" }
 
-	
+	"Git Extensions installed successfully."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

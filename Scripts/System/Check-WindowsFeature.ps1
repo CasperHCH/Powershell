@@ -3,11 +3,27 @@ function Check-WindowsFeature {
     param(
         [Parameter(Position=0,Mandatory=$true)] [string]$FeatureName
     )
-  if((Get-WindowsOptionalFeature -FeatureName $FeatureName -Online).State -eq ) {
-        Write-Host $FeatureName 
-        # (simplified function to paste here)
-    } else {
-        Write-Host  $FeatureName
+
+    try {
+        $Feature = Get-WindowsOptionalFeature -FeatureName $FeatureName -Online -ErrorAction Stop
+
+        if($Feature.State -eq "Enabled") {
+            Write-Host "✅ Windows Feature '$FeatureName' is ENABLED" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "❌ Windows Feature '$FeatureName' is DISABLED" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "⚠️ Error checking Windows Feature '$FeatureName': $($_.Exception.Message)" -ForegroundColor Yellow
+        return $false
     }
-  }
- Check-WindowsFeature
+}
+
+# Example usage
+if ($args.Count -eq 0) {
+    $FeatureName = Read-Host "Enter Windows Feature name to check"
+    Check-WindowsFeature -FeatureName $FeatureName
+} else {
+    Check-WindowsFeature -FeatureName $args[0]
+}

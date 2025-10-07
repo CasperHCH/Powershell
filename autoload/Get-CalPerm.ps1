@@ -1,22 +1,25 @@
-######################################## 
-# Get-CalPerm.ps1 -Identify <mailbox>
+########################################
+# Get-CalPerm.ps1 -Identity <mailbox>
 Function Get-CalPerm {
 
     param(
-        [Parameter(Mandatory = $true, HelpMessage=)]
+        [Parameter(Mandatory = $true, HelpMessage = "Specify the mailbox identity.")]
         [ValidateNotNullOrEmpty()]
         [string]$Identity
     )
 
     # Connect to Exchange Management Shell if not already
     if (!(Get-Command Get-Mailbox -ErrorAction SilentlyContinue)) {
-        Write-Host 
+        Write-Host 'Connecting to Exchange Online ..'
         Connect-ExchangeOnline
     }
 
-    $MBX = Get-Mailbox $identity
+    $MBX = Get-Mailbox -Identity $Identity
 
-    $CalendarName = (Get-MailboxFolderStatistics -Identity $MBX.alias -FolderScope Calendar | Select-Object -First 1).Name
-    $folderID = $MBX.alias + ':\' + $CalendarName
-    Get-MailboxFolderPermission -Identity $folderID | ft -AutoSize
+    $CalendarName = (Get-MailboxFolderStatistics -Identity $MBX.Alias -FolderScope Calendar | Select-Object -First 1).Name
+    $folderID = "$($MBX.Alias):\$CalendarName"
+    Get-MailboxFolderPermission -Identity $folderID | Format-Table -AutoSize
 }
+
+# Example usage:
+# Get-CalPerm -Identity "user@example.com"

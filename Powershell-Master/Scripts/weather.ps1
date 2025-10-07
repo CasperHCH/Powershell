@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the current weather forecast
 .DESCRIPTION
@@ -13,12 +13,12 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$GeoLocation = ) # empty means determine automatically
+param([string]$GeoLocation = "") # empty means determine automatically
 
 try {
-	(Invoke-WebRequest http://wttr.in/$GeoLocation -userAgent  -useBasicParsing).Content
+	(Invoke-WebRequest http://wttr.in/$GeoLocation -userAgent "curl" -useBasicParsing).Content
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

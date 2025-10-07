@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Decrypts a file
 .DESCRIPTION
@@ -8,17 +8,47 @@
 .PARAMETER Password
 	Specifies the password 
 .EXAMPLE
-	PS> ./decrypt-file.ps1 C:\MyFile.txt 
+	PS> ./decrypt-file.ps1 C:\MyFile.txt "123"
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = , [string]$Password = )
+param([string]$Path = "", [string]$Password = "")
 
 
-
+function DecryptFile {
+[CmdletBinding(DefaultParameterSetName='SecureString')]
+[OutputType([System.IO.FileInfo[]])]
+Param(
+    [Parameter(Mandatory=$true, Position=1, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+    [Alias('PSPath','LiteralPath')]
+    [string[]]$FileName,
+    [Parameter(Mandatory=$false, Position=2, ValueFromPipelineByPropertyName=$true)]
+    [ValidateSet('AES','DES','RC2','Rijndael','TripleDES')]
+    [String]$Algorithm = 'AES',
+    [Parameter(Mandatory=$true, Position=3, ValueFromPipelineByPropertyName=$true, ParameterSetName='SecureString')]
+    [System.Security.SecureString]$Key,
+    [Parameter(Mandatory=$true, Position=3, ParameterSetName='PlainText')]
+    [String]$KeyAsPlainText,
+    [Parameter(Mandatory=$false, Position=4, ValueFromPipelineByPropertyName=$true)]
+    [System.Security.Cryptography.CipherMode]$CipherMode = 'CBC',
+    [Parameter(Mandatory=$false, Position=5, ValueFromPipelineByPropertyName=$true)]
+    [System.Security.Cryptography.PaddingMode]$PaddingMode = 'PKCS7',
+    [Parameter(Mandatory=$false, Position=6)]
+    [String]$Suffix,
+    [Parameter()]
+    [Switch]$RemoveSource
+)
+    Process
+    {
+        try
+        {
+            if($PSCmdlet.ParameterSetName -eq 'PlainText')
+            {
+                $Key = $KeyAsPlainText | ConvertTo-SecureString -AsPlainText -Force
+            }
 
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Key)
             $EncryptionKey = [System.Convert]::FromBase64String([System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR))
@@ -36,7 +66,7 @@ param([string]$Path = , [string]$Password = )
 
         if(-not $PSBoundParameters.ContainsKey('Suffix'))
         {
-            $Suffix = 
+            $Suffix = ".$Algorithm"
         }
 
         $Files = Get-Item -LiteralPath $FileName
@@ -45,11 +75,11 @@ param([string]$Path = , [string]$Password = )
         {
             If(-not $File.Name.EndsWith($Suffix))
             {
-                Write-Error 
+                Write-Error "$($File.FullName) does not have an extension of '$Suffix'."
                 Continue
             }
 
-            $DestinationFile = $File.FullName -replace 
+            $DestinationFile = $File.FullName -replace "$Suffix$"
 
             Try
             {
@@ -100,17 +130,17 @@ param([string]$Path = , [string]$Password = )
 
 
 try {
-	if ($Path -eq  ) { $Path = read-host  }
-	if ($Password -eq  ) { $Password = read-host  }
+	if ($Path -eq "" ) { $Path = read-host "Enter path to file" }
+	if ($Password -eq "" ) { $Password = read-host "Enter password" }
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	$PasswordBase64 = [System.Convert]::ToBase64String($Password)
-	DecryptFile  -Algorithm AES -KeyAsPlainText $PasswordBase64 -RemoveSource
+	DecryptFile "$Path" -Algorithm AES -KeyAsPlainText $PasswordBase64 -RemoveSource
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	"✅  file decrypted in $Elapsed sec"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

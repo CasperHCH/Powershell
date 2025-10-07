@@ -1,11 +1,11 @@
-<#
+﻿<#
 .SYNOPSIS
-	Check the DNS resolution 
+	Checks the DNS speed 
 .DESCRIPTION
-	This PowerShell script measures the DNS resolution speed (using 100 popular domains) and prints it.
+	This PowerShell script measures the DNS resolution speed using 100 internet domains and prints it.
 .EXAMPLE
 	PS> ./check-dns.ps1
-	✅ DNS resolves 56.5 domains per second
+	✅ Internet DNS with 33.6ms average lookup time
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
@@ -13,26 +13,26 @@
 #>
  
 try {
-	$table = Import-CSV 
-	$numRows = $table.Length
-	Write-Progress 
+	$table = Import-CSV "$PSScriptRoot/../data/popular-domains.csv"
 
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 	if ($IsLinux) {
 		foreach($row in $table){$nop=dig $row.Domain +short}
 	} else {
+		Clear-DnsClientCache
 		foreach($row in $table){$nop=Resolve-DNSName $row.Domain}
 	}
-	Write-Progress -completed 
-	[float]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	$average = [math]::round($numRows / $elapsed, 1)
-	if ($average -lt 10.0) {
-		Write-Output 
+	[float]$elapsed = $stopWatch.Elapsed.TotalSeconds * 1000.0
+	$speed = [math]::round($elapsed / $table.Length, 1)
+	if ($speed -lt 10.0) {
+		Write-Output "✅ Internet DNS with excellent $($speed)ms average lookup time"
+	} elseif ($speed -lt 100.0) {
+		Write-Output "✅ Internet DNS with $($speed)ms average lookup time"
 	} else {  
-		Write-Output 
+		Write-Output "⚠️ Internet DNS with slow $($speed)ms average lookup time"
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

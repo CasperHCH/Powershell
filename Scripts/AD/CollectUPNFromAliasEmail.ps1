@@ -8,7 +8,7 @@
     A full path to a CSV containing the following fields;
     Name, Mail, SamAccountName
     An example of how to produce the list could be;
-    get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
+    get-aduser -Filter {mail -like "*@domain1.com" -or mail -like "*@domain2.com"} -SearchBase "OU=Users,DC=domain,DC=com" -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
 .INPUTS
 	<Inputs if any, otherwise state None>
 .OUTPUTS
@@ -19,7 +19,7 @@
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
   <Example goes here. Repeat this attribute for more than one example>
 #>
@@ -50,7 +50,7 @@ function Write-Log {
     )
 
     $Stamp = (Get-Date).toString()
-    $Line = 
+    $Line =
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -67,8 +67,8 @@ function Load-Module ($m) {
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        Write-Host 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 
+        Write-Host
+        Write-Log -LogPath $sLogFile -TimeStamp -Message
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -89,8 +89,8 @@ function Load-Module ($m) {
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                Write-Host 
-                Write-Log -LogPath $sLogFile -TimeStamp -Message 
+                Write-Host
+                Write-Log -LogPath $sLogFile -TimeStamp -Message
                 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -99,7 +99,7 @@ function Load-Module ($m) {
 }
 
 #Import Modules & Snap-ins
-#Load-Module 
+#Load-Module
 Load-Module AzureAD
 Connect-AzureAD
 
@@ -114,9 +114,9 @@ $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $sLogName = $sLogName -replace '.ps1', '.log'
 $sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
 $sOutputPath = $MyInvocation.MyCommand.Path | Split-Path -Parent
-$sOutputName = $MyInvocation.MyCommand.Name 
+$sOutputName = $MyInvocation.MyCommand.Name
 $sOutputName = $sOutputName -replace '.ps1', '.csv'
-$sOutputFile = Join-Path -Path $sOutputPath -ChildPath $sOutputName 
+$sOutputFile = Join-Path -Path $sOutputPath -ChildPath $sOutputName
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
 #Enabled Logging with timestamps, error level etc..
@@ -138,7 +138,7 @@ function Write-Log {
     )
 
     $Stamp = (Get-Date).toString()
-    $Line = 
+    $Line =
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -179,15 +179,15 @@ ALL ACTIVE FUNCTIONS BELOW
         Try {
             #csv contains a list of users extracted from Miracle Local AD, containing only the properties mail and samaccountname
             #get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
-            Write-Log -Message 
+            Write-Log -Message
             $extn = [IO.Path]::GetExtension($UserList)
             if ($extn -eq  ) {
-                write-log -Message 
+                write-log -Message
                 $script:iul = Import-Csv $UserList
-                Write-Log -Message 
+                Write-Log -Message
             }
-            else { 
-                Write-Log -Message  
+            else {
+                Write-Log -Message
             }
         }
         Catch {
@@ -205,24 +205,24 @@ ALL ACTIVE FUNCTIONS BELOW
 
     Process {
         Try {
-            foreach ($user in $iul) { 
-                
+            foreach ($user in $iul) {
+
                     $name           = $user.name
                     $mail           = $user.mail
                     $samaccountname = $user.samaccountname
-                    $filter         = 
+                    $filter         =
                     $KnowITUser     = Get-AzureADUser -Filter $filter | Select-Object UserPrincipalName
                     $upn            = $KnowITUser.UserPrincipalName
 
                     New-Object -TypeName PSCustomObject -Property @{
-                        name=$name 
+                        name=$name
                         mail=$mail
                         samaccountname = $samaccountname
                         upn = $upn} | Export-Csv $sOutputFile -NoTypeInformation -Append
                 }
-            
-            #Write-Host 
-            #Write-Log -Message 
+
+            #Write-Host
+            #Write-Log -Message
         }
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
@@ -243,7 +243,7 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message 
+Write-Log -message
 
 
 #Script Execution goes here

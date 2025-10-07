@@ -1,14 +1,14 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the weather report
 .DESCRIPTION
-	This PowerShell script lists the hourly weather report in a nice table.
-.PARAMETER Location
-	Specifies the location to use (determined automatically per default)
+	This PowerShell script queries the 48h weather report from wttr.in and lists it in a nice table.
+.PARAMETER location
+	Specifies the location to use (determined automatically by default)
 .EXAMPLE
 	PS> ./list-weather.ps1
-	TODAY   🌡°C  ☂️mm  💧  💨km/h ☀️UV  ☁️  👁km  at Munich (Bayern, Germany)
-	 0°°   -2°   0.0   93%   ↗ 6   1    21%  10  🌙 clear
+	TODAY Temp  ☂️mm  💧  💨km/h  ☀️UV  ☁️   👁km   Munich (Bayern, Germany)
+	 0h   🌙11°  0.0  88%   ↖ 7    1    8%    10    clear
 	...
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -16,104 +16,119 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Location = ) # empty means determine automatically
+param([string]$location = "") # empty means determine automatically
 
-
-				{ return  }
-					{ return  }
-				{ return  }
-					{ return  }
-				{ return  }
-				{ return  }
-				{ return  }
-			{ return  }
-				{ return  }
-			{ return  }
-				{ return  }
-			{ return  }
-				{ return  }
-			{ return  }
-	{return  }
-	 { return  }
-	{ return  }
-				{ return  }
-		{ return  }
-				{ return  }
-					{ return  }
-				{ return  }
-				{ return  }
-			{ return  }
-	     	{ return  }
-	     	{ return  }
-	 { return  }
-			{ return  }
-			{ return  }
-	  	{ return  }
-	  	{ return  }
-					{ return  }
-		{ return  }
-	default				{ return  }
+function GetDescription([string]$text) { 
+	switch ($text) {
+	"Blizzard"			{ return "❄️" }
+	"Blowing snow"			{ return "❄️" }
+	"Clear"				{ return "🌙" }
+	"Cloudy"			{ return "☁️" }
+	"Fog"				{ return "🌫 " }
+	"Freezing fog"			{ return "🌫 " }
+	"Heavy rain"			{ return "💧" }
+	"Heavy snow"			{ return "❄️" }
+	"Light drizzle"			{ return "💧" }
+	"Light freezing rain"		{ return "💧" }
+	"Light rain"			{ return "💧" }
+	"Light rain shower"		{ return "💧" }
+	"Light sleet"			{ return "❄️" }
+	"Light sleet showers"		{ return "❄️" }
+	"Light snow"			{ return "❄️" }
+	"Light snow showers"		{ return "❄️" }
+	"Moderate or heavy freezing rain"{return "💧" }
+	"Moderate or heavy sleet"	{ return "❄️" }
+	"Moderate or heavy rain shower" { return "💧" }
+	"Moderate or heavy rain in area with thunder" { return "💧" }
+	"Moderate or heavy snow showers"{ return "❄️" }
+	"Moderate or heavy snow in area with thunder" { return "❄️" }
+	"Moderate rain"			{ return "💧" }
+	"Moderate rain at times"	{ return "💧" }
+	"Moderate snow"			{ return "❄️" }
+	"Mist"				{ return "🌫 " }
+	"Overcast"			{ return "☁️" }
+	"Partly cloudy"			{ return "⛅️" }
+	"Patchy heavy snow"		{ return "❄️" }
+	"Patchy light drizzle"     	{ return "💧" }
+	"Patchy light rain"     	{ return "💧" }
+	"Patchy light rain in area with thunder" { return "💧" }
+	"Patchy light rain with thunder" { return "💧" }
+	"Patchy light snow"		{ return "❄️" }
+	"Patchy moderate snow"		{ return "❄️" }
+	"Patchy rain possible"  	{ return "💧" }
+	"Patchy rain nearby"		{ return "💧" }
+	"Patchy sleet nearby"		{ return "❄️" }
+	"Patchy snow nearby"		{ return "❄️" }
+	"Patchy snow possible"  	{ return "❄️" }
+	"Sunny"				{ return "☀️" }
+	"Thundery outbreaks possible"	{ return "⚡️" }
+	"Thundery outbreaks in nearby"	{ return "⚡️" }
+	default				{ return "?" }
 	}
 }
 
-
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-		{ return  }
-	default { return  }
+function GetWindDir([string]$text) {
+	switch($text) {
+	"NW"	{ return "↘" }
+	"NNW"	{ return "↓" }
+	"N"	{ return "↓" }
+	"NNE"	{ return "↓" }
+	"NE"	{ return "↙" }
+	"ENE"	{ return "←" }
+	"E"	{ return "←" }
+	"ESE"	{ return "←" }
+	"SE"	{ return "↖" }
+	"SSE"	{ return "↑" }
+	"S"	{ return "↑" }
+	"SSW"	{ return "↑" }
+	"SW"	{ return "↗" }
+	"WSW"	{ return "→" }
+	"W"	{ return "→" }
+	"WNW"	{ return "→" }
+	default { return "$text" }
 	}
 }
 
 try {
-	Write-Progress 
-	$Weather = (Invoke-WebRequest -URI http://wttr.in/${Location}?format=j1 -userAgent  -useBasicParsing).Content | ConvertFrom-Json
-	Write-Progress -completed 
-	$Area = $Weather.nearest_area.areaName.value
-	$Region = $Weather.nearest_area.region.value
-	$Country = $Weather.nearest_area.country.value	
-	[int]$Day = 0
-	foreach($Hourly in $Weather.weather.hourly) {
-		$Hour = $Hourly.time / 100
-		$Temp = $(($Hourly.tempC.toString()).PadLeft(3))
-		$Precip = $Hourly.precipMM
-		$Humidity = $(($Hourly.humidity.toString()).PadLeft(3))
-		$Pressure = $Hourly.pressure
-		$WindSpeed = $(($Hourly.windspeedKmph.toString()).PadLeft(2))
-		$WindDir = GetWindDir $Hourly.winddir16Point
-		$UV = $Hourly.uvIndex
-		$Clouds = $(($Hourly.cloudcover.toString()).PadLeft(3))
-		$Visib = $(($Hourly.visibility.toString()).PadLeft(2))
-		$Desc = GetDescription $Hourly.weatherDesc.value
-		if ($Hour -eq 0) {
-			if ($Day -eq 0) {
-				Write-Host -foregroundColor green 
-			} elseif ($Day -eq 1) {
-				$Date = (Get-Date).AddDays(1)
-				[string]$Weekday = $Date.DayOfWeek
-				Write-Host -foregroundColor green 
+	Write-Progress "Loading weather data from http://wttr.in ..."
+	$weather = (Invoke-WebRequest -URI http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	$area = $weather.nearest_area.areaName.value
+	$region = $weather.nearest_area.region.value
+	$country = $weather.nearest_area.country.value
+	Write-Progress -completed "Done."
+	
+	[int]$day = 0
+	foreach($hourly in $weather.weather.hourly) {
+		$hour = $hourly.time / 100
+		$tempC = $(($hourly.tempC.toString()).PadLeft(2))
+		$precip = $($($hourly.precipMM).PadLeft(4))
+		$humidity = $(($hourly.humidity.toString()).PadLeft(3))
+		$pressure = $hourly.pressure
+		$windSpeed = $(($hourly.windspeedKmph.toString()).PadLeft(2))
+		$windDir = GetWindDir $hourly.winddir16Point
+		$UV = $hourly.uvIndex
+		$clouds = $(($hourly.cloudcover.toString()).PadLeft(3))
+		$visib = $(($hourly.visibility.toString()).PadLeft(2))
+		$desc = $hourly.weatherDesc.value.trim()
+		$icon = GetDescription $desc
+		if ($hour -eq 0) {
+			if ($day -eq 0) {
+				Write-Host "`nTODAY  Temp  ☂️mm    💧 💨km/h   ☁️  ☀️UV 👁 km  $area ($region, $country)" -foregroundColor green
+			} elseif ($day -eq 1) {
+				$date = (Get-Date).AddDays(1)
+				[string]$dayOfWeek = $date.DayOfWeek
+				Write-Host "$($dayOfWeek.toUpper())" -foregroundColor green
 			} else {
-				$Date = (Get-Date).AddDays(2)
-				[string]$Weekday = $Date.DayOfWeek
-				Write-Host -foregroundColor green 
+				$date = (Get-Date).AddDays(2)
+				[string]$dayOfWeek = $date.DayOfWeek
+				Write-Host "$($dayOfWeek.toUpper())" -foregroundColor green
 			}
-			$Day++
+			$day++
 		}
-		
+		"$(($hour.toString()).PadLeft(2))h   $($icon)$tempC°  $precip  $humidity%   $($windDir)$windSpeed   $clouds%   $UV   $visib   $desc"
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

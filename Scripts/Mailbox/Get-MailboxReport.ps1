@@ -2,7 +2,7 @@
 .SYNOPSIS
 Get-MailboxReport.ps1 - Mailbox report generation script.
 
-.DESCRIPTION 
+.DESCRIPTION
 Generates a report of useful information for
 the specified server, database, mailbox or list of mailboxes.
 Use only one parameter at a time depending on the scope of
@@ -125,7 +125,7 @@ param(
 	[Parameter(ParameterSetName='all')]
     [switch]$All,
 
-    [Parameter( Mandatory=$false)]	
+    [Parameter( Mandatory=$false)]
     [string]$Filename,
 
     [Parameter( Mandatory=$false)]
@@ -151,10 +151,10 @@ param(
 
 $now = Get-Date
 
-$ErrorActionPreference = 
-$WarningPreference = 
+$ErrorActionPreference = 'Continue'
+$WarningPreference = 'SilentlyContinue'
 
-$reportemailsubject = 
+$reportemailsubject = "Mailbox Report - $(Get-Date -Format 'yyyy-MM-dd')"
 $myDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $report = @()
@@ -198,7 +198,7 @@ else
     }
     else
     {
-        Write-Warning 
+        Write-Warning
         EXIT
     }
 
@@ -217,7 +217,7 @@ else
 {
 	$timestamp = Get-Date -UFormat %Y%m%d-%H%M
 	$random = -join(48..57+65..90+97..122 | ForEach-Object {[char]$_} | Get-Random -Count 6)
-	$reportfile = 
+	$reportfile =
 }
 
 
@@ -231,7 +231,7 @@ Import-Module ActiveDirectory -ErrorAction STOP
 
 #Get the mailbox list
 
-Write-Host -ForegroundColor White 
+Write-Host -ForegroundColor White
 
 if($all) { $mailboxes = @(Get-Mailbox -resultsize unlimited -IgnoreDefaultScope) }
 
@@ -249,7 +249,7 @@ if($mailbox) { $mailboxes = @(Get-Mailbox $mailbox) }
 
 #Get the report
 
-Write-Host -ForegroundColor White 
+Write-Host -ForegroundColor White
 
 $mailboxcount = $mailboxes.count
 $i = 0
@@ -264,14 +264,14 @@ foreach ($mb in $mailboxes)
 	Write-Progress -Activity  -Status  -PercentComplete $pct
 
 	$stats = $mb | Get-MailboxStatistics | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount,LastLogonTime,LastLoggedOnUserAccount
-    
+
     if ($mb.ArchiveDatabase)
     {
         $archivestats = $mb | Get-MailboxStatistics -Archive | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount
     }
     else
     {
-        $archivestats = 
+        $archivestats =
     }
 
     $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where {$_.FolderPath -eq }
@@ -283,48 +283,48 @@ foreach ($mb in $mailboxes)
 
 	$user = Get-User $mb
 	$aduser = Get-ADUser $mb.samaccountname -Properties Enabled,AccountExpirationDate
-    
+
     $primarydb = $mailboxdatabases | where {$_.Name -eq $mb.Database.Name}
     $archivedb = $mailboxdatabases | where {$_.Name -eq $mb.ArchiveDatabase.Name}
 
 	#Create a custom PS object to aggregate the data we're interested in
-	
+
 	$userObj = New-Object PSObject
 	$userObj | Add-Member NoteProperty -Name  -Value $mb.DisplayName
 	$userObj | Add-Member NoteProperty -Name  -Value $mb.RecipientTypeDetails
-	$userObj | Add-Member NoteProperty -Name  -Value $user.Title
-    $userObj | Add-Member NoteProperty -Name  -Value $user.Department
-    $userObj | Add-Member NoteProperty -Name  -Value $user.Office
+	$userObj | Add-Member NoteProperty -Name "Title" -Value $user.Title
+    $userObj | Add-Member NoteProperty -Name "Department" -Value $user.Department
+    $userObj | Add-Member NoteProperty -Name "Office" -Value $user.Office
 
-    $userObj | Add-Member NoteProperty -Name  -Value ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
-	$userObj | Add-Member NoteProperty -Name  -Value $stats.TotalItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name  -Value $stats.TotalDeletedItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name  -Value $stats.ItemCount
+    $userObj | Add-Member NoteProperty -Name "TotalSize" -Value ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
+	$userObj | Add-Member NoteProperty -Name "ItemSize" -Value $stats.TotalItemSize.Value.ToMB()
+	$userObj | Add-Member NoteProperty -Name "DeletedItemSize" -Value $stats.TotalDeletedItemSize.Value.ToMB()
+	$userObj | Add-Member NoteProperty -Name "ItemCount" -Value $stats.ItemCount
 
-    $userObj | Add-Member NoteProperty -Name  -Value $inboxstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name  -Value $sentitemsstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name  -Value $deleteditemsstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name "InboxSize" -Value $inboxstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name "SentItemsSize" -Value $sentitemsstats.FolderandSubFolderSize.ToMB()
+    $userObj | Add-Member NoteProperty -Name "DeletedItemsSize" -Value $deleteditemsstats.FolderandSubFolderSize.ToMB()
 
-    if ($archivestats -eq )
+    if ($archivestats -eq $null)
     {
-        $userObj | Add-Member NoteProperty -Name  -Value 
-	    $userObj | Add-Member NoteProperty -Name  -Value 
-	    $userObj | Add-Member NoteProperty -Name  -Value 
-	    $userObj | Add-Member NoteProperty -Name  -Value 
+        $userObj | Add-Member NoteProperty -Name "ArchiveTotalSize" -Value "N/A"
+	    $userObj | Add-Member NoteProperty -Name "ArchiveItemSize" -Value "N/A"
+	    $userObj | Add-Member NoteProperty -Name "ArchiveDeletedItemSize" -Value "N/A"
+	    $userObj | Add-Member NoteProperty -Name "ArchiveItemCount" -Value "N/A"
     }
     else
     {
-        $userObj | Add-Member NoteProperty -Name  -Value ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
-	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.TotalItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.TotalDeletedItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name  -Value $archivestats.ItemCount
+        $userObj | Add-Member NoteProperty -Name "ArchiveTotalSize" -Value ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
+	    $userObj | Add-Member NoteProperty -Name "ArchiveItemSize" -Value $archivestats.TotalItemSize.Value.ToMB()
+	    $userObj | Add-Member NoteProperty -Name "ArchiveDeletedItemSize" -Value $archivestats.TotalDeletedItemSize.Value.ToMB()
+	    $userObj | Add-Member NoteProperty -Name "ArchiveItemCount" -Value $archivestats.ItemCount
     }
 
-    $userObj | Add-Member NoteProperty -Name  -Value $mb.AuditEnabled
-    $userObj | Add-Member NoteProperty -Name  -Value $mb.EmailAddressPolicyEnabled
-    $userObj | Add-Member NoteProperty -Name  -Value $mb.HiddenFromAddressListsEnabled
+    $userObj | Add-Member NoteProperty -Name "AuditEnabled" -Value $mb.AuditEnabled
+    $userObj | Add-Member NoteProperty -Name "EmailAddressPolicyEnabled" -Value $mb.EmailAddressPolicyEnabled
+    $userObj | Add-Member NoteProperty -Name "HiddenFromAddressListsEnabled" -Value $mb.HiddenFromAddressListsEnabled
     $userObj | Add-Member NoteProperty -Name  -Value $mb.UseDatabaseQuotaDefaults
-    
+
     if ($mb.UseDatabaseQuotaDefaults -eq $true)
     {
         $userObj | Add-Member NoteProperty -Name  -Value $primarydb.IssueWarningQuota
@@ -342,7 +342,7 @@ foreach ($mb in $mailboxes)
 	$userObj | Add-Member NoteProperty -Name  -Value $aduser.AccountExpirationDate
 	$userObj | Add-Member NoteProperty -Name  -Value $lastlogon
 	$userObj | Add-Member NoteProperty -Name  -Value $stats.LastLoggedOnUserAccount
-    
+
 
 	$userObj | Add-Member NoteProperty -Name  -Value $mb.Database
 	$userObj | Add-Member NoteProperty -Name  -Value $primarydb.MasterServerOrAvailabilityGroup
@@ -353,7 +353,7 @@ foreach ($mb in $mailboxes)
     $userObj | Add-Member NoteProperty -Name  -Value $mb.PrimarySMTPAddress
     $userObj | Add-Member NoteProperty -Name  -Value $user.OrganizationalUnit
 
-	
+
 	#Add the object to the report
 	$report = $report += $userObj
 }
@@ -363,19 +363,19 @@ $reportcount = $report.count
 
 if ($reportcount -eq 0)
 {
-	Write-Host -ForegroundColor Yellow 
+	Write-Host -ForegroundColor Yellow
 }
 else
 {
 	#Output single mailbox report to console, otherwise output to CSV file
-	if ($mailbox) 
+	if ($mailbox)
 	{
 		$report | Format-List
 	}
 	else
 	{
 		$report | Export-Csv -Path $reportfile -NoTypeInformation -Encoding UTF8
-		Write-Host -ForegroundColor White 
+		Write-Host -ForegroundColor White
 		Get-Item $reportfile
 	}
 }
@@ -389,23 +389,23 @@ if ($SendEmail)
     $reporthtml = $report | ConvertTo-Html -Fragment
 
 	$htmlhead=
-    
-    $spacer = 
 
-	$htmltail = 
+    $spacer =
+
+	$htmltail =
 
 	$htmlreport = $htmlhead + $topmailboxeshtml + $htmltail
 
 	try
     {
-        Write-Host 
+        Write-Host "Sending mailbox report email..." -ForegroundColor Green
         Send-MailMessage @smtpsettings -Body $htmlreport -BodyAsHtml -Encoding ([System.Text.Encoding]::UTF8) -Attachments $reportfile -ErrorAction STOP
-        Write-Host 
+        Write-Host "Email sent successfully!" -ForegroundColor Green
     }
     catch
     {
-        Write-Warning 
-        $_.Exception.Message | Out-File 
+        Write-Warning
+        $_.Exception.Message | Out-File
         EXIT
     }
 }

@@ -23,15 +23,15 @@
 # Function to prompt the user for the script path
 function Get-ScriptToSign {
     param (
-        [string]$Prompt = 
+        [string]$Prompt = "Please enter the full path to the PowerShell script you want to sign:"
     )
     # Prompt the user for the script path
     Write-Host $Prompt -ForegroundColor Yellow
-    Write-Host  -ForegroundColor Yellow
+    Write-Host "Example: C:\Scripts\MyScript.ps1" -ForegroundColor Yellow
     $scriptPath = Read-Host
     # Check if the provided path exists
     if (-not (Test-Path $scriptPath)) {
-        Write-Host  -ForegroundColor Red
+        Write-Host "Error: The specified path does not exist: $scriptPath" -ForegroundColor Red
         return $null
     }
     return $scriptPath

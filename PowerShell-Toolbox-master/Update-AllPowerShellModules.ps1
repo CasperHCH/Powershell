@@ -16,7 +16,7 @@ Write-Host -ForegroundColor cyan 'Define PowerShell to use TLS1.2 in this sessio
 # Register-PSRepository -Default -ErrorAction SilentlyContinue
 # Set-PSRepository -Name PSGallery -InstallationPolicy trusted -ErrorAction SilentlyContinue
 
-Write-Host -ForegroundColor Cyan 
+Write-Host -ForegroundColor Cyan
 
 $modules = Get-InstalledModule
 
@@ -27,61 +27,61 @@ foreach ($module in $modules.Name) {
         $currentVersion = (Get-InstalledModule -Name $module -AllVersions -ErrorAction Stop).Version
     }
     catch {
-        Write-Host -ForegroundColor red 
+        Write-Host -ForegroundColor red
         continue
     }
 
     $moduleInfos = Find-Module -Name $module
 
     if ($null -eq $currentVersion) {
-        Write-Host -ForegroundColor Cyan 
+        Write-Host -ForegroundColor Cyan
 
         try {
             Install-Module -Name $module -Force
         }
         catch {
-            Write-Host -ForegroundColor Red 
+            Write-Host -ForegroundColor Red
         }
     }
     elseif ($moduleInfos.Version -eq $currentVersion) {
-        Write-Host -ForegroundColor Green 
+        Write-Host -ForegroundColor Green
     }
     elseif ($currentVersion.count -gt 1) {
-        Write-Warning 
-        Write-Host -ForegroundColor Cyan 
+        Write-Warning
+        Write-Host -ForegroundColor Cyan
 
         try {
             $oldVersions = Get-InstalledModule -Name $module -AllVersions -ErrorAction Stop | Where-Object { $_.Version -ne $moduleInfos.Version }
 
             foreach ($oldVersion in $oldVersions) {
-                Write-Host -ForegroundColor Cyan 
+                Write-Host -ForegroundColor Cyan
                 Remove-Module $module -ErrorAction SilentlyContinue
                 Uninstall-Module $oldVersion -Force
             }
 
         }
         catch {
-            Write-Host -ForegroundColor red 
+            Write-Host -ForegroundColor red
         }
 
         if ($moduleInfos.Version -ne $currentVersion) {
-            Write-Host -ForegroundColor Cyan 
+            Write-Host -ForegroundColor Cyan
 
             try {
                 Install-Module -Name $module -Force
             }
             catch {
-                Write-Host -ForegroundColor red 
+                Write-Host -ForegroundColor red
             }
         }
     }
     else {
-        Write-Host -ForegroundColor Cyan 
+        Write-Host -ForegroundColor Cyan
         try {
             Update-Module -Name $module -Force
         }
         catch {
-            Write-Host -ForegroundColor red 
+            Write-Host -ForegroundColor red
         }
     }
 }

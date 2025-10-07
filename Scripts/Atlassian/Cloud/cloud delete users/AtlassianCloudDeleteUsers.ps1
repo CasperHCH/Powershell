@@ -1,7 +1,7 @@
-#requires -version 4
+﻿#requires -version 4
 <#
 .SYNOPSIS
-  Needed a  way to deleting bulk users, created from the single line of 
+  Needed a "smart" way to deleting bulk users, created from the single line of "curl --request DELETE --url 'https://test-site.atlassian.net/rest/api/3/user?accountId=USER-AAID' --user 'test@domain.com:XYZ"
 .DESCRIPTION
   <Brief description of script>
 .PARAMETER OrgKey
@@ -71,8 +71,8 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host 
-		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
+        write-host "Module $m is already imported."
+		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
 		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -93,8 +93,8 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host 
-				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
+                write-host "Module $m not imported, not available and not in an online gallery, exiting."
+				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
 				Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -128,8 +128,8 @@ function GetUrl(){
 
 	$script:url = read-host -prompt 'provide the URL of your jira cloud site, from where you want to delete users - e.g. https://jiracloudtest.atlassian.net OBS! Remember to remove any trailing / '
 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '	
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "url imported"
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
 ######### Collect CSV #########
 function CollectList(){
@@ -138,8 +138,8 @@ function CollectList(){
 
 	$script:AAIDList = import-csv -path (read-host -prompt 'provide csv path')
 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '	
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Hopefully a CSV has been provided, but we are not testing it"
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
 ######### Import provided CSV #########
 function ImportCSV(){
@@ -148,18 +148,18 @@ function ImportCSV(){
 
 	$script:AAIDList = import-csv -path $List
 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '	
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Hopefully a CSV has been provided, but we are not testing it"
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
 ######### Collect Admin account email #########
 function CollectAdminAccount(){
 	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'CollectAdminAccount started'
 	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ''
- 
+
 	$script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '	
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "Email address provided"
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
 ######### Provide API Token#########
 function ProvideAPIToken(){
@@ -167,25 +167,23 @@ function ProvideAPIToken(){
 	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 
 	$script:ApiToken = read-host -prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-	
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 
-	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '	
+
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message "API Token collected as $ApiToken"
+	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
 ######### DELETE BULK USERS FROM LIST #########
 function Delete(){
 	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Deletion started'
 	Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ''
-	
-#	foreach ($aaid in $AAIDList){
-#	curl --request DELETE --url  --user 
-#		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message $aaid.userid
-#	}
-$AAIDList | ForEach-Object -Parallel {
-    curl --request DELETE --url  --user 
-    Write-LogInfo -LogPath $using:sLogFile -TimeStamp -Message $_.userid
-	}
 
+	foreach ($aaid in $AAIDList){
+	curl --request DELETE --url "$url/rest/api/3/user?accountId=$($aaid.'User id')" --user "${AdminAccount}:${ApiToken}"
+		Write-LogInfo -LogPath $sLogFile -TimeStamp -Message $aaid.userid
+	}
+    Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Deletion completed'
+    Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 }
+
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 

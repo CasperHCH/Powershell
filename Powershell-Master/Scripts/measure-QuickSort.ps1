@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
         Measures the speed of QuickSort
 .DESCRIPTION
@@ -49,6 +49,6 @@ $list = (1..$numIntegers | foreach{Get-Random -minimum 1 -maximum $numIntegers})
 $stopWatch = [system.diagnostics.stopwatch]::startNew()
 [QuickSort]::Sort($list, 0, $list.Count-1)
 [float]$elapsed = $stopWatch.Elapsed.TotalSeconds
-$elapsed3 =  -f $elapsed # formatted to 3 decimal places
-
+$elapsed3 = "{0:N3}" -f $elapsed # formatted to 3 decimal places
+"🧭 $elapsed3 sec to sort $numIntegers integers by QuickSort"
 exit 0 # success

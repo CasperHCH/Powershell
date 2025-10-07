@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Opens the DuckDuckGo website 
 .DESCRIPTION
@@ -11,5 +11,7 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-&  
+#requires -version 5.1
+
+& "$PSScriptRoot/open-default-browser.ps1" "https://duckduckgo.com"
 exit 0 # success

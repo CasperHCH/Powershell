@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Speaks text in Hindi 
 .DESCRIPTION
@@ -6,28 +6,30 @@
 .PARAMETER text
 	Specifies the Hindi text to speak
 .EXAMPLE
-	PS> ./speak-hindi.ps1 
+	PS> ./speak-hindi.ps1 "नमस्ते"
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+#requires -version 5.1
+
+param([string]$text = "")
 
 try {
-	if ($text -eq ) { $text = Read-Host  }
+	if ($text -eq "") { $text = Read-Host "Enter the Hindi text to speak" }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like ) { 
+		if ($voice.GetDescription() -like "*- Hindi*") { 
 			$TTS.Voice = $voice
 			[void]$TTS.Speak($text)
 			exit 0 # success
 		}
 	}
-	throw 
+	throw "No Hindi text-to-speech voice found - please install one"
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

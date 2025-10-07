@@ -1,6 +1,6 @@
 ##  Change Title on Window  ##
-#$Host.UI.RawUI.WindowTitle = 
-#$Host.UI.RawUI.WindowTitle = 
+$Host.UI.RawUI.WindowTitle = "PowerShell - $env:USERNAME"
+#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
 Remove-Module PSReadline
 Import-Module PSReadLine
@@ -17,7 +17,7 @@ Set-PSReadLineOption -colors @{
 }
 ##  change dir to PS-Drive ps:  ##
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name  -Root  #| Out-Null
+    New-PSDrive -PSProvider FileSystem -Name PS -Root "C:\PS" | Out-Null
 }
 
 ##  Change location to PS  ##
@@ -45,32 +45,36 @@ if (!(Test-Path ps:)) {
 #    Get-PSSession | ? { $_.ComputerName -eq  } | Remove-PSSession
 #}
 #
-#Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description 
-#Set-Alias -Name d-mbx -Value Remove-OnPremPS -Description 
-#Set-Alias -Name c-exo -Value Connect-ExchangeOnline -Description 
-#Set-Alias -Name d-exo -Value Disconnect-EXO -Description 
+#Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description
+#Set-Alias -Name d-mbx -Value Remove-OnPremPS -Description
+#Set-Alias -Name c-exo -Value Connect-ExchangeOnline -Description
+#Set-Alias -Name d-exo -Value Disconnect-EXO -Description
 
 # directory of scripts to auto-load in PS
-$psdir = 
+$psdir =c:\ps
 
 # load all 'autoload' scripts
-Get-ChildItem  | ForEach-Object { .$_ } | out-null
+Get-ChildItem "C:\PS\autoload\*.ps1" | ForEach-Object { .$_ } | out-null
 
 # Load scripts from the following locations
 # Get environmental folders for PS scripts
-$CustomScripts = Get-ChildItem -path  -Directory -Recurse | ForEach-Object{$_.FullName}
+$CustomScripts = Get-ChildItem -path "C:\PS" -Directory -Recurse | ForEach-Object{$_.FullName}
+# Ensure $env:Path is initialized before appending
+if (-not $env:Path) { $env:Path = "" }
 foreach($s in $CustomScripts)
 {
-    $env:Path += 
+    if ($null -ne $s -and $s -ne "") {
+        $env:Path += ";$s"
+    }
 }
 
 #####  CREDENTIAL MANAGER #####
-$KeyPath = 
+$KeyPath = "$env:USERPROFILE\\.creds"
 
 #Test if creds exist, if not create
 $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
 if ($TestCredsPath.count -eq '0'){
-$creds = Get-Credential -Message | New-StoredCredential -target $KeyPath
+$creds = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
 }else{
 $creds = (Get-StoredCredential -UserName chcadmin)
 }
@@ -91,11 +95,11 @@ if (Test-Path $HistFile) { Import-Clixml $HistFile | Add-History }
 
 ## Update help if today is tuesday ##
 $dt = Get-Date
-if ($dt.DayOfWeek -match ) {
+if ($dt.DayOfWeek -eq "Tuesday") {
     $error.Clear()
     Update-Help -ErrorAction 0 -Force
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
-         ; $error[$i].exception
+         Write-Host $error[$i].exception
     }
     C:\PS\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1
 }
@@ -104,7 +108,7 @@ if ($dt.DayOfWeek -match ) {
 function Load-Module ($m) {
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-      write-host 
+      write-host "Module $m is already loaded" -ForegroundColor Green
     }
     else {
 
@@ -122,7 +126,7 @@ function Load-Module ($m) {
         else {
 
           # If the module is not imported, not available and not in the online gallery then abort
-          write-host 
+          write-host "Module $m not found and cannot be installed" -ForegroundColor Red
           EXIT 1
         }
       }
@@ -134,7 +138,7 @@ function Load-Module ($m) {
   $uri = $url + $uri
 
   try {
-      If($method -eq ) {
+      If($method -eq "GET") {
           $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
       }
       else{
@@ -148,7 +152,7 @@ function Load-Module ($m) {
       $StatusCode = [string]$_.Exception.Response.StatusCode.value__
       $StatusDescription = [string]$_.Exception.Response.StatusDescription
       $message = $response
-      $message +=   + $uri +  + $_.Exception
+      $message += " URI: " + $uri + " Exception: " + $_.Exception
       Write-Log -Message $message
   }
   return $response

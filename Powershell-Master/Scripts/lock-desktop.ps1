@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Locks the desktop
 .DESCRIPTION
@@ -12,10 +12,10 @@
 #>
 
 try {
-	
+	"Bye bye."
 	rundll32.exe user32.dll,LockWorkStation
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

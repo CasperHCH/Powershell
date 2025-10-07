@@ -9,12 +9,14 @@ Import-Module ActiveDirectory
 
 # Functions to connect / disconnect Remote Exchange Management Shell
 Function Connect-ExchPowershell {
-    $RPSession = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionURI http://BQ-MBX-02/Powershell
+    $RPSession = New-PSSession -Name "ExchangeOffboarding" -ConfigurationName Microsoft.Exchange -ConnectionURI http://BQ-MBX-02/Powershell
     Import-PSSession $RPSession -Prefix local
+    Write-Host "Connected to Exchange Server for offboarding" -ForegroundColor Green
 } #end function
 
 Function Disconnect-ExchPowershell {
-    Get-PSSession -Name  | Remove-PSSession
+    Get-PSSession -Name "ExchangeOffboarding" | Remove-PSSession
+    Write-Host "Disconnected from Exchange Server" -ForegroundColor Yellow
 } #end function
 
 ### END EXCHANGE ###
@@ -24,9 +26,10 @@ Function Disconnect-ExchPowershell {
 
 # Functions to connect / disconnect remote Exchange Management Shell on O365
 Function Connect-O365Powershell {
-Write-Host  -ForegroundColor Yellow
-    $O365Session = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential (Get-Credential) -Authentication Basic -AllowRedirection
+    Write-Host "Connecting to Office 365 for offboarding process..." -ForegroundColor Yellow
+    $O365Session = New-PSSession -Name "O365Offboarding" -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential (Get-Credential) -Authentication Basic -AllowRedirection
     Import-PSSession $O365Session -DisableNameChecking -Prefix cloud
+    Write-Host "Connected to Office 365" -ForegroundColor Green
 }
 
 Function Disconnect-O365Powerhell {
@@ -41,7 +44,7 @@ Function Disconnect-O365Powerhell {
 
 
 # read username
-$DisableUserName = read-host 
+$DisableUserName = read-host
 
 # Get the properties of the account and set variables
 $user = Get-ADuser $DisableUserName -properties *
@@ -65,8 +68,8 @@ $Upn = $user.UserPrincipalName
 
 
 # Path for safekeeping User AD Groups
-$pathForADUserGroups1 = 
-$pathForADUserGroups2 = 
+$pathForADUserGroups1 =
+$pathForADUserGroups2 =
 $pathForADUserGroupsFinal = $pathForADUserGroups1 + $din + $pathForADUserGroups2
 
 # Check if folder exist, if not, create it
@@ -77,14 +80,14 @@ If(!(test-path $pathForADUserGroups1))
 
 
 # Path for safekeeping User Email Aliases
-$pathForADUserEmailALias1 = 
-$pathForADUserEmailALias2 = 
+$pathForADUserEmailALias1 =
+$pathForADUserEmailALias2 =
 $pathForADUserEmailALiasFinal = $pathForADUserEmailALias1 + $din + $pathForADUserEmailALias2
 
 
 # Check if file exist, if it does, delete it
 # File contains Custom OoO message
-$file = 
+$file =
 If(test-path $file)
 {
      Remove-Item -Path $file -Recurse
@@ -96,9 +99,9 @@ If(test-path $file)
 #Read the desired disable date
 while(1)
     {
-	$d = read-host 
+	$d = read-host
     	Try{
-    
+
             # Extract the default Date/Time formatting from the local computer's  settings, and then create the format to use when parsing the date/time information pull from AD.
             $CultureDateTimeFormat = (Get-Culture).DateTimeFormat
             $DateFormat = $CultureDateTimeFormat.ShortDatePattern
@@ -117,33 +120,33 @@ while(1)
 
 ##Check if the user is a manager, if so, move any users within to a different manager
 function ChangeManager(){
-if(!$DirectReports) { Write-Host -ForegroundColor Yellow } 
-   else { 
+if(!$DirectReports) { Write-Host -ForegroundColor Yellow }
+   else {
 
 
     Write-Host  -ForegroundColor Green
     Write-Host -ForegroundColor Green
     Write-Host -ForegroundColor Green
 
-    $Selection = Read-Host 
+    $Selection = Read-Host
     switch ($Selection)
         {
             '1' {#Option 1 is selected
                     'You chose option #1 - Change Manager to next in line'
-                    
-                    foreach ($DR in $DirectReports) 
+
+                    foreach ($DR in $DirectReports)
                     {
                        Set-ADUser $DR -Manager $UManagerSAM
                     }#End Foreach
                 }#End Option 1
-               
-                
-                 
+
+
+
             '2' {#Option 2 is selected
                 'You chose option #2 - Change Manager to Custom User'
-                
+
                 while(1){
-                $NewManager = Read-Host 
+                $NewManager = Read-Host
                 try
                     {
                     if(Get-ADUser -Identity $NewManager)
@@ -151,14 +154,14 @@ if(!$DirectReports) { Write-Host -ForegroundColor Yellow }
                             Set-ADUser $DR -Manager $NewManager
                         }#End If
                     }#End Try
-                    
+
                 catch
                     {
-                        Write-Host  -fore red}
+                        Write-Host "Error setting manager: $($_.Exception.Message)" -ForegroundColor Red
                     }#End Catch
-                
+
                 }#end option 2
-        Default {Write-Host  -ForegroundColor Red}
+        Default {Write-Host "Invalid selection." -ForegroundColor Red}
         }#End Switch
     }#End Else
 }#End Function
@@ -169,105 +172,108 @@ if(!$DirectReports) { Write-Host -ForegroundColor Yellow }
 function MoveUserToWantedDeletionOU($TargetOUMonth)
 {
    # Move the account to the Disabled Users OU
-    Move-ADObject -Identity $dn -TargetPath 
-    Write-Host ( + $din + ) -ForegroundColor Yellow
+    Move-ADObject -Identity $dn -TargetPath $TargetOUMonth
+    Write-Host "User moved to deletion OU: $din" -ForegroundColor Yellow
 
 }
 
 #Show a menu, allowing the user to select a month the user should be deleted etc.
 function Show-Delete-Menu([string]$Title)
 {#Start Function
-    Write-Host  -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
+    Write-Host "$Title" -ForegroundColor Green
+    Write-Host "========================================" -ForegroundColor Green
+    Write-Host "Select the month for user deletion:" -ForegroundColor Green
+    Write-Host "1. January" -ForegroundColor Green
+    Write-Host "2. February" -ForegroundColor Green
+    Write-Host "3. March" -ForegroundColor Green
+    Write-Host "4. April" -ForegroundColor Green
+    Write-Host "5. May" -ForegroundColor Green
+    Write-Host "6. June" -ForegroundColor Green
+    Write-Host "7. July" -ForegroundColor Green
+    Write-Host "8. August" -ForegroundColor Green
+    Write-Host "9. September" -ForegroundColor Green
+    Write-Host "10. October" -ForegroundColor Green
+    Write-Host "11. November" -ForegroundColor Green
+    Write-Host "12. December" -ForegroundColor Green
+    Write-Host "Enter your choice (1-12):" -ForegroundColor Green
 
-    $TargetOUMonth = Read-Host 
+    $TargetOUMonth = Read-Host
 
     switch ($TargetOUMonth)
         {
             '1' {#Option 1 is selected
-                $TargetOUMonth = 
-                'You chose option #1 - '+ $TargetOUMonth
+                $TargetOUMonth = "OU=January,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #1 - January" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
                 }
-                 
+
             '2' {#Option 2 is selected
-                $TargetOUMonth = 
-                'You chose option #2 - '+ $TargetOUMonth 
+                $TargetOUMonth = "OU=February,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #2 - February" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
                 }
-                 
+
             '3' {#Option 3 is selected
-                $TargetOUMonth = 
-                'You chose option #3 - '+ $TargetOUMonth
+                $TargetOUMonth = "OU=March,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #3 - March" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
+                }
 
             '4' {#Option 4 is selected
-                $TargetOUMonth = 
-                'You chose option #4 - '+ $TargetOUMonth
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
-
-            '5' {#Option 5 is selected
-                $TargetOUMonth = 
-                'You chose option #5 - '+ $TargetOUMonth
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
-
-            '6' {#Option 6 is selected
-                $TargetOUMonth = 
-                'You chose option #6 - '+ $TargetOUMonth
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
-
-            '7' {#Option 7 is selected
-                $TargetOUMonth = 
-                'You chose option #7 - '+ $TargetOUMonth
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
-
-            '8' {#Option 8 is selected
-                $TargetOUMonth = 
-                'You chose option #8 - '+ $TargetOUMonth
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
-
-            '9' {#Option 9 is selected
-                $TargetOUMonth = 
-                'You chose option #9 - '+ $TargetOUMonth
+                $TargetOUMonth = "OU=April,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #4 - April" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
                 }
-                 
-           '10' {#Option 10 is selected
-                $TargetOUMonth = 
-                'You chose option #10 - '+ $TargetOUMonth
+
+            '5' {#Option 5 is selected
+                $TargetOUMonth = "OU=May,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #5 - May" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
+                }
+
+            '6' {#Option 6 is selected
+                $TargetOUMonth = "OU=June,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #6 - June" -ForegroundColor Yellow
+                MoveUserToWantedDeletionOU($TargetOUMonth)
+                }
+
+            '7' {#Option 7 is selected
+                $TargetOUMonth = "OU=July,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #7 - July" -ForegroundColor Yellow
+                MoveUserToWantedDeletionOU($TargetOUMonth)
+                }
+
+            '8' {#Option 8 is selected
+                $TargetOUMonth = "OU=August,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #8 - August" -ForegroundColor Yellow
+                MoveUserToWantedDeletionOU($TargetOUMonth)
+                }
+
+            '9' {#Option 9 is selected
+                $TargetOUMonth = "OU=September,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #9 - September" -ForegroundColor Yellow
+                MoveUserToWantedDeletionOU($TargetOUMonth)
+                }
+
+           '10' {#Option 10 is selected
+                $TargetOUMonth = "OU=October,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #10 - October" -ForegroundColor Yellow
+                MoveUserToWantedDeletionOU($TargetOUMonth)
+                }
 
            '11' {#Option 11 is selected
-                $TargetOUMonth = 
-                'You chose option #11 - '+ $TargetOUMonth
+                $TargetOUMonth = "OU=November,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #11 - November" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
-                } 
+                }
 
            '12' {#Option 12 is selected
-                $TargetOUMonth = 
-                'You chose option #12 - '+ $TargetOUMonth
+                $TargetOUMonth = "OU=December,OU=ToBeDeleted,DC=domain,DC=com"
+                Write-Host "You chose option #12 - December" -ForegroundColor Yellow
                 MoveUserToWantedDeletionOU($TargetOUMonth)
                 }
                 #a none valid option was chosen, thus reverting to Default, and rerunning the menu
-          Default {Write-Host  -ForegroundColor Red
+          Default {Write-Host "Invalid selection. Please choose 1-12." -ForegroundColor Red
           Show-Delete-Menu($Title)
           }
      }
@@ -281,9 +287,9 @@ function Show-Delete-Menu([string]$Title)
 ## Add OU path to User Description
 ## Export Group membership to TXT file
 ## Strip of all group memberships
- 
+
     # Assign 21 byte array of all zeros to the logonHours attribute of the user
-    set-aduser -identity  -Replace @{logonHours=$LH}    
+    set-aduser -identity  -Replace @{logonHours=$LH}
 
     #Check if the user is a manager, and if so, change the direct reports to a different manager
     ChangeManager
@@ -295,12 +301,12 @@ function Show-Delete-Menu([string]$Title)
     #set account expiration
         Set-ADAccountExpiration -Identity  -DateTime $DisableUserOnDate
 
-    
+
     }
 }#End DisableUser
 
 ).name}}
-    
+
     $count = 0
     $arrlist =  New-Object System.Collections.ArrayList
     do{
@@ -310,13 +316,13 @@ function Show-Delete-Menu([string]$Title)
         })
         $count++
     }until($count -eq $groupinfo.GroupMembership.count)
-    
+
     $arrlist | select groupmembership | convertto-csv -NoTypeInformation | select -Skip 1 |out-file $pathForADUserGroupsFinal
-    Write-Host ( + $din +  + $pathForADUserGroupsFinal) -ForegroundColor Yellow
-    
+    Write-Host ($din + " " + $pathForADUserGroupsFinal) -ForegroundColor Yellow
+
     # Strip the permissions from the account
     Get-ADUser $User -Properties MemberOf | Select -Expand MemberOf | %{Remove-ADGroupMember $_ -member $User} -Confirm:$false
-    Write-Host ( + $din + ) -ForegroundColor Yellow
+    Write-Host ($din) -ForegroundColor Yellow
     }
 <# --------------------------------- Exchange email account section --------------------------------- #>
 
@@ -325,15 +331,15 @@ function Show-Delete-Menu([string]$Title)
             }catch{}
             try{
             #Check if the user exist in O365
-        if(get-cloudMailbox -Identity $())
+        if(get-cloudMailbox -Identity $username)
            {
-              Get-CloudMailbox -Identity $() | select -ExpandProperty emailaddresses alias |Out-File $pathForADUserEmailALiasFinal
-              
+              Get-CloudMailbox -Identity $username | select -ExpandProperty emailaddresses alias |Out-File $pathForADUserEmailALiasFinal
+
            }
         }
-        
+
         catch{}
-    
+
 }
 
 
@@ -344,21 +350,21 @@ function Show-EmailForward-Menu([string]$Title)
     Write-Host -ForegroundColor Green
     Write-Host -ForegroundColor Green
 
-    $Selection = Read-Host 
+    $Selection = Read-Host
     switch ($Selection)
         {
             '1' {#Option 1 is selected
                 'You chose option #1'
                 write-host 'This is the default, No forward will be enabled' -ForegroundColor Yellow
-                
+
                 }
-                 
+
             '2' {#Option 2 is selected
                 'You chose option #2'
                  write-host 'An forward is about to be enabled' -ForegroundColor Yellow
 
                     while($ReceiverEmail -ne ){
-                    $ReceiverEmail = Read-Host 
+                    $ReceiverEmail = Read-Host
                     try{
                         if(get-localmailbox $ReceiverEmail)
                             {
@@ -367,7 +373,7 @@ function Show-EmailForward-Menu([string]$Title)
                                     {
                                         Set-Mailbox $Upn -DeliverToMailboxAndForward $ReceiverEmail
                                         write-host -ForegroundColor Yellow
-                                        $receiverEmail = 
+                                        $receiverEmail =
                                     }
                             }
                         if(get-cloudmailbox $ReceiverEmail)
@@ -376,21 +382,21 @@ function Show-EmailForward-Menu([string]$Title)
                               if(get-cloudmailbox $Upn){
                               Set-CloudMailbox $Upn -ForwardingAddress $ReceiverEmail -DeliverToMailboxAndForward $true
                               write-host -ForegroundColor Yellow
-                              $receiverEmail = 
+                              $receiverEmail =
                               }
                            }
                         }
-                        
+
                     catch{Write-Host  -fore red}
-                    
+
                     }
                 }
             '3' {#Open 3 is selected
                 'You chose option #3'
                 Write-Host 'You have chosen to skip this step' -ForegroundColor Yellow
                 }
-               
-                
+
+
           #a none valid option was chosen, thus reverting to Default, and rerunning the menu
           Default {Write-Host  -ForegroundColor Red
           Show-EmailForward-Menu($Title)
@@ -406,28 +412,28 @@ function AddFullAccessToMailbox([string]$Title)
     Write-Host -ForegroundColor Green
     Write-Host  -ForegroundColor Green
 
-    $Selection = Read-Host 
+    $Selection = Read-Host
     switch ($Selection)
         {
             '1' {#Option 1 is selected
                 'You chose option #1'
-                
+
                 if(get-LocalMailbox $upn){
                     Add-MailboxPermission -Identity $upn -User $UManagerSAM -AccessRights FullAccess -InheritanceType All -AutoMapping $true
                     write-host  -ForegroundColor Yellow
                     }
-                
+
                     if(get-cloudmailbox $upn){
                         Add-MailboxPermission -Identity $upn -User $UManagerSAM -AccessRights FullAccess -InheritanceType All -AutoMapping $true
                         write-host -ForegroundColor Yellow
                         }
-               
+
                 }
-                 
+
             '2' {#Option 2 is selected
                 'You chose option #2'
                     while(1){
-                    $GrantFullAccessTo = Read-Host            
+                    $GrantFullAccessTo = Read-Host
                     Try{
 		                $GrantFullAccessToUser = Get-ADuser $GrantFullAccessTo -properties Name, SamAccountName
 		                break
@@ -449,7 +455,7 @@ function AddFullAccessToMailbox([string]$Title)
                     }
                     }
                     catch{}
-                
+
                 }
 
 
@@ -457,7 +463,7 @@ function AddFullAccessToMailbox([string]$Title)
                 'You chose option #3'
                 Write-Host  -ForegroundColor Yellow
 
-            
+
             }
           #a none valid option was chosen, thus reverting to Default, and rerunning the menu
           Default {Write-Host  -ForegroundColor Red
@@ -496,7 +502,7 @@ $upn = $user.UserPrincipalName
     }
     }catch{}
 
-    try{                
+    try{
     if(get-cloudmailbox $upn){
         Set-CloudMailboxAutoReplyConfiguration -Identity $upn -AutoReplyState Enabled -ExternalAudience All -InternalMessage $OoOMessage -ExternalMessage $OoOMessage
         AddFullAccessToMailbox()
@@ -516,7 +522,7 @@ $upn = $user.UserPrincipalName
         }
 }#End Function
 
-#Show a menu, allowing the script runner to select 
+#Show a menu, allowing the script runner to select
 #between the default or a custom OoO Message
 function Show-OoOMessage-Menu([string]$Title)
 {#Start Function
@@ -524,42 +530,42 @@ function Show-OoOMessage-Menu([string]$Title)
     Write-Host -ForegroundColor Green
     Write-Host -ForegroundColor Green
 
-    $Selection = Read-Host 
+    $Selection = Read-Host
     switch ($Selection)
         {
             '1' {#Option 1 is selected
             'You chose option #1'
-            $OoOMessage =    
+            $OoOMessage =
 
-                
+
                 SetOutOfOfficeMessage($OoOMessage)
                 Show-EmailForward-Menu()
                 }
-                 
+
             '2' {#Option 2 is selected
                 'You chose option #2'
                 write-host  -ForegroundColor Yellow
                     #Create a file to contain the custom OoO message
-                    $file = 
-                    
+                    $file =
+
                     #Read the host to a new line in the file, for each line break
                     #Exit the while loop when the script runner types done on an empty line
                     While($i -ne )
                     {
-	                    If ($i -ne $NULL) 
+	                    If ($i -ne $NULL)
                             {
 		                        $i | Out-File $file -append
                             }
-	                    $i = Read-Host 
+	                    $i = Read-Host
                     }
-                
+
                 # Replace line breaks from `n (Normal txt breaks) to <br> html breaks
                 $file2 = Get-Content -Path C:\temp\tomail.txt -Raw
                 $file3 = $file2.Replace(,) | out-file -FilePath C:\temp\tomail.txt
-                
+
                 #Read the custom OoO message into a variable
                 $OoOMessage = Get-Content -Path $file
-                
+
                 #Call function to set the OoO Message with variable
                 SetOutOfOfficeMessage($OoOMessage)
                 }
@@ -593,10 +599,10 @@ ExportEmailAliasToCSV
 RemoveADUserGroups
 }
 if($DisableUserOnDate -ne (Get-Date).Date){
-Write-Host 
+Write-Host "User will be disabled on: $DisableUserOnDate" -ForegroundColor Yellow
 }
 
-Write-Host  -ForegroundColor Cyan
+Write-Host "Offboarding process completed." -ForegroundColor Cyan
 <# --------------------------------- !! --- REMOVE MODULES --- !! --------------------------------- #>
 
 ##disconnect from and remove required modules##

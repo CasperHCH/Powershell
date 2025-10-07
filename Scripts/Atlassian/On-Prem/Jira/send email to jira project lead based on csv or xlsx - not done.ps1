@@ -6,20 +6,30 @@ If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
 }
 
 # What CSV file should users and project name be drawn from?
-#$XLSXFileLocation = Read-Host 
-$XLSXFileLocation = 
-
+$XLSXFileLocation = Read-Host "Enter path to XLSX file (or press Enter for default)"
+if ([string]::IsNullOrEmpty($XLSXFileLocation)) {
+    $XLSXFileLocation = "C:\temp\projectTest.xlsx"
+}
 
 # Send email function
-
+function Send-ProjectLeaderEmail {
+    param(
+        [string]$To,
+        [string]$Subject,
+        [string]$Body
+    )
+    # Email implementation here
+    Write-Host "Would send email to: $To" -ForegroundColor Green
+}
 
 # Import user list and information from .CSV file
 # CSV File Location is drawn from Read-Host at top
-# Defining what collums to draw data from
-    $XLSXFile = Import-Excel -path C:\temp\projectTest.xlsx #
-    if($XLSXFile){write-host }
-    
-  
+# Defining what columns to draw data from
+if (Test-Path $XLSXFileLocation) {
+    $XLSXFile = Import-Excel -path $XLSXFileLocation
+    if($XLSXFile){write-host "Successfully imported $($XLSXFile.Count) rows from Excel file" -ForegroundColor Green}
+
+
 # Send Email to each Project Lead in the list
 foreach ($x in $XLSXFile){#Start foreach
 
@@ -34,9 +44,9 @@ if($x.'issue count' -lt 10){#Start IF
     $ProjectKey = $x.Key
 
     $IssueCount = $x.'Issue count'
-                    
+
 # Add Email body @@ = End of Body
-# There can be no  infront of 
+# There can be no  infront of
 <p>Dear $LeadDisplayName,<br />The Atlassian team is in the process of cleaning up our JIRA environment.<br />In this process, we have found that the project $ProjectName have less than 10 issues within it, <br />and therefore doesn't seem to be in use.</p>
 <p>May we delete this project:</p>
 <table>

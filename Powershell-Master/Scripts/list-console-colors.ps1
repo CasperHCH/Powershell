@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all console colors
 .DESCRIPTION
@@ -16,20 +16,19 @@
 #>
 
 try {
-	$Colors = [Enum]::GetValues([ConsoleColor])
-	
-	
-	
-	foreach($Color in $Colors) {
-		$Color = 
-		$Color = $Color.substring(0, 15)
-		write-host -noNewline 
-		write-host -noNewline -foregroundcolor $Color 
-		write-host -noNewline -backgroundcolor $Color 
-		write-host 
+	$colors = [Enum]::GetValues([ConsoleColor])
+	""
+	"COLOR          FOREGROUND     BACKGROUND"
+	"-----          ----------     ----------"
+	foreach($color in $colors) {
+		$color = "$color              "
+		$color = $color.substring(0, 15)
+		Write-Host "$color" -noNewline
+		Write-Host "$color" -foregroundColor $color -noNewline
+		Write-Host "$color" -backgroundColor $color
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

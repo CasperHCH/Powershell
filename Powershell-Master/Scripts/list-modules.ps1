@@ -17,9 +17,16 @@
 #>
 
 try {
+	Write-Host "Listing installed PowerShell modules..." -ForegroundColor Cyan
 	Get-Module | Format-Table -property Name,Version,ModuleType,ExportedCommands
+	Write-Host "✅ Module list completed" -ForegroundColor Green
 	exit 0 # success
 } catch {
-	
+	Write-Host "❌ Error: $($Error[0])" -ForegroundColor Red
+	exit 1
+}
+	exit 0 # success
+} catch {
+
 	exit 1
 }

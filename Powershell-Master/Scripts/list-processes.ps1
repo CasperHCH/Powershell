@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all local computer processes
 .DESCRIPTION
@@ -17,9 +17,9 @@
 #>
 
 try {
-	Get-Process | Format-Table -Property Id, @{Label=;Expression={$_.CPU.ToString()+};Alignment=}, ProcessName -AutoSize
+	Get-Process | Format-Table -Property Id, @{Label="CPU(s)";Expression={$_.CPU.ToString("N")+"%"};Alignment="Right"}, ProcessName -AutoSize
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

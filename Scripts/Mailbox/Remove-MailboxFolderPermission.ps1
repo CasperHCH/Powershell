@@ -2,7 +2,7 @@
 .SYNOPSIS
 Remove-MailboxFolderPermissions.ps1
 
-.DESCRIPTION 
+.DESCRIPTION
 A proof of concept script for removing mailbox folder
 permissions to all folders in a mailbox.
 
@@ -43,7 +43,7 @@ V1.00, 12/01/2014 - Initial version
 param (
 	[Parameter( Mandatory=$true)]
 	[string]$Mailbox,
-    
+
 	[Parameter( Mandatory=$true)]
 	[string]$User
 )
@@ -60,7 +60,7 @@ $exclusions = @(,
                 ,
                 ,
                 ,
-                
+
                 )
 
 
@@ -102,18 +102,18 @@ $mailboxfolders = @(Get-MailboxFolderStatistics $Mailbox | Where {!($exclusions 
 foreach ($mailboxfolder in $mailboxfolders)
 {
     $folder = $mailboxfolder.FolderPath.Replace(,)
-    if ($folder -match )
+    if ($folder -match "Top of Information Store")
     {
        $folder = $folder.Replace(“\Top of Information Store”,”\”)
     }
-    $identity = 
-    Write-Host 
+    $identity = "$mailbox:$folder"
+    Write-Host "Processing folder: $identity"
     if (Get-MailboxFolderPermission -Identity $identity -User $user -ErrorAction SilentlyContinue)
     {
         try
         {
             Remove-MailboxFolderPermission -Identity $identity -User $User -Confirm:$false -ErrorAction STOP
-            Write-Host -ForegroundColor Green 
+            Write-Host -ForegroundColor Green
         }
         catch
         {

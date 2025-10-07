@@ -1,4 +1,4 @@
-#requires -version 4
+﻿#requires -version 4
 <#
 .SYNOPSIS
 	<Overview of script>
@@ -15,7 +15,7 @@
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
   <Example goes here. Repeat this attribute for more than one example>
 #>
@@ -43,8 +43,8 @@ function Load-Module ($m) {
   Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   # If module is imported say that and do nothing
   if (Get-Module | Where-Object { $_.Name -eq $m }) {
-    Write-Host 
-    Write-Log -LogPath $sLogFile -TimeStamp -Message 
+    Write-Host "Module $m is already imported."
+    Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already imported."
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   }
   else {
@@ -65,8 +65,8 @@ function Load-Module ($m) {
       else {
 
         # If the module is not imported, not available and not in the online gallery then abort
-        Write-Host 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 
+        Write-Host "Module $m not imported, not available and not in an online gallery, exiting."
+        Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m not imported, not available and not in an online gallery, exiting."
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
         EXIT 1
       }
@@ -75,7 +75,7 @@ function Load-Module ($m) {
 }
 
 #Import Modules & Snap-ins
-#Import-Module 
+#Import-Module
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
 #Script Version
@@ -100,9 +100,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet(, , , , )]
+    [ValidateSet("INFO", "WARN", "ERROR", "FATAL", "DEBUG")]
     [String]
-    $Level = ,
+    $Level = "INFO",
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -113,8 +113,8 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString()
-  $Line = 
+  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss.fff")
+  $Line = "$Stamp $Level $Message"
   #If($logfile) {
   Add-Content $slogfile -Value $Line -PassThru
   #}
@@ -149,16 +149,33 @@ Function <FunctionName> {
 ALL ACTIVE FUNCTIONS BELOW
 #>
 #Allowing for easier web requests
+function WebApiRequest {
+  param(
+    [parameter(Mandatory = $true)] [string]$uri,
+    [Parameter(Mandatory = $False)] [ValidateSet("DEFAULT", "DELETE", "GET", "HEAD", "MERGE", "OPTIONS", "PATCH", "POST", "PUT", "TRACE")]
+    [String] $Method = "GET",
+    [string] $Body = "",
+    [string] $userID = ""
+  )
 
+  $pair = "$($AdminAccount):$($token)"
+  $encodedCreds = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($pair))
+  $basicAuthValue = "Basic $encodedCreds"
+
+  $headers = @{
+    Authorization  = $basicAuthValue
+    'Content-Type' = 'application/json'
+    'Accept'       = 'application/json'
+  }
 
   $uri = $url + $uri
 
   try {
-    If ($method -eq ) {
+    If ($method -eq "GET") {
       $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
     }
     else {
-      $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers 
+      $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
     }
   }
   catch {
@@ -169,80 +186,100 @@ ALL ACTIVE FUNCTIONS BELOW
     $StatusCode = [string]$_.Exception.Response.StatusCode.value__
     $StatusDescription = [string]$_.Exception.Response.StatusDescription
     $message = $response
-    $message +=  + $uri +  + $_.Exception
-    #$message +=  + $StatusCode +  + $StatusDescription
+    $message += " Url " + $uri + " : " + $_.Exception
+    #$message += " Status Code " + $StatusCode + " Status Description: " + $StatusDescription
 
     Write-Log -Message $message
   }
   return $response
 }
 ######### GetUrl #########
+Function GetUrl {
+  Param()
 
-    
+  Begin {
+    Write-Log -Message 'GetUrl started'
+    Write-Log -Message 'Asking initiator to insert a URL for an Atlassian Cloud site.'
+  }
+
   Process {
     Try {
       $url = Read-Host -Prompt 'provide the URL of your jira cloud site, from where you want to delete users - e.g. https://jiracloudtest.atlassian.net OBS! Remember to remove any trailing / '
       $script:url = $url.TrimEnd('/')
     }
-     
+
     Catch {
       Write-Log -Message $_.Exception
       Break
     }
   }
-    
+
   End {
     If ($?) {
-      Write-Log -Message 
+      Write-Log -Message "GetUrl Completed Successfully."
     }
   }
 }
-   
-######### Collect Admin account email #########
 
-    
+######### Collect Admin account email #########
+Function CollectAdminAccount {
+  Param()
+
+  Begin {
+    Write-Log -Message 'CollectAdminAccount started'
+  }
+
   Process {
     Try {
       $script:AdminAccount = Read-Host -Prompt 'Please provide your Atlassian Admin account Email, with which you have generated a token'
-      Write-Log -Message 
+      Write-Log -Message "AdminAccount Token collected as $AdminAccount"
     }
-     
+
     Catch {
       Write-Log -Message $_.Exception
       Break
     }
   }
-    
+
   End {
     If ($?) {
-      Write-Log -Message 
+      Write-Log -Message "CollectAdminAccount Completed Successfully."
     }
   }
 }
-   
-######### Provide API Token#########
 
-    
+######### Provide API Token#########
+Function Providetoken {
+  Param()
+
+  Begin {
+    Write-Log -Message 'Providetoken started'
+  }
+
   Process {
     Try {
       $script:token = Read-Host -Prompt 'Please insert your API Token, can be created here; https://id.atlassian.com/manage-profile/security/api-tokens'
-      Write-Log -Message 
+      Write-Log -Message "API Token collected as $token"
     }
-     
+
     Catch {
       Write-Log -Message $_.Exception
       Break
     }
   }
-    
+
   End {
     If ($?) {
-      Write-Log -Message 
+      Write-Log -Message "ProvidetokenCompleted Successfully."
     }
   }
 }
 ######### Import list of Custom Field Options #########
-
+Function CollectOrProvideCustomFieldOptions {
+  Param ()
+  Begin {
+    Write-Log -Message '<description of what is going on>...'
+  }
   Process {
     Try {
       #Code here
@@ -251,15 +288,15 @@ ALL ACTIVE FUNCTIONS BELOW
           $options = Import-Excel -Path $ListOfOptions
         }
         catch {
-          $script:ListOfOptions = Read-Host 
+          $script:ListOfOptions = Read-Host "provide path to excel of custom field options"
           $options = Import-Excel -Path $ListOfOptions
         }
         else {
           <# Action when all if and elseif conditions are false #>
-          $ListOfOptions = Read-Host 
+          $ListOfOptions = Read-Host "provide path to excel of custom field options"
           $script:options = Import-Excel -Path $ListOfOptions
         }
-        
+
       }
     }
     Catch {
@@ -275,12 +312,16 @@ ALL ACTIVE FUNCTIONS BELOW
   }
 }
 ######### Collect Custom Field ID based on name #########
-
+Function CollectCustomFieldID {
+  Param ()
+  Begin {
+    Write-Log -Message '<description of what is going on>...'
+  }
   Process {
     Try {
-      $CustomFieldName = Read-Host 
+      $CustomFieldName = Read-Host "please provide the custom field name, if you do not know the ID"
       #https://docs.atlassian.com/software/jira/docs/api/REST/9.10.0/#api/2/customFields-getCustomFields
-      #GET 
+      #GET
       $CollectIDUri = '/rest/api/2/customFields'
       $listOfCustomFields = WebApiRequest -uri $CollectIDUri -Method GET
       foreach ($lcf in $listOfCustomFields) {
@@ -301,13 +342,17 @@ ALL ACTIVE FUNCTIONS BELOW
     }
   }
 }
-######### Collect the Context ID of a custom field, ensuring we edit the right context. ######### 
-
+######### Collect the Context ID of a custom field, ensuring we edit the right context. #########
+Function CollectContextID {
+  Param ()
+  Begin {
+    Write-Log -Message '<description of what is going on>...'
+  }
   Process {
     Try {
       #https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-group-issue-custom-field-contexts/#api-rest-api-2-field-fieldid-context-get
       #/rest/api/2/field/{fieldId}/context
-      $CollectContextUri = 
+      $CollectContextUri = "/rest/api/latest/field/$($CustomFieldID)/context"
       $ListOfContexts = WebApiRequest -uri $CollectContextUri -Method GET
       $script:ContextID = $ListOfContexts.id
     }
@@ -324,19 +369,23 @@ ALL ACTIVE FUNCTIONS BELOW
   }
 }
 ######### Add the provided options to the Custom Field within the correct Context #########
-
+Function AddOptionsToCustomFieldID {
+  Param ()
+  Begin {
+    Write-Log -Message '<description of what is going on>...'
+  }
   Process {
     Try {
       #https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-custom-field-options/#api-rest-api-3-field-fieldid-context-contextid-option-post
       #POST /rest/api/3/field/{fieldId}/context/{contextId}/option
       foreach ($o in $options) {
-        $NewOption = Company Name
+        $NewOption = "$($o.ARE) - $($o."Company Name")"
         $NewOption
-        $data = '{{: [{: false,: }]}}'
+        $data = '{{"options": [{"disabled": false,"value": "' + $NewOption + '"}]}}'
         $data
-        $webRequestUri = 
+        $webRequestUri = "/rest/api/3/field/$($CustomFieldID)/context/$($ContextID)/option"
         WebApiRequest -uri $webRequestUri -Body $data -method POST
-      }        
+      }
     }
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
@@ -355,7 +404,7 @@ ALL ACTIVE FUNCTIONS BELOW
 ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
-Write-Log -message 
+Write-Log -message "Starting Script, $sScriptVersion"
 
 #Script Execution goes here
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -386,4 +435,4 @@ CollectOrProvideCustomFieldOptions
 AddOptionsToCustomFieldID
 #----------------------------------------------------------------------------------------------------------------------------------
 #End of Script
-Write-Log -message
+Write-Log -message "End of Script"

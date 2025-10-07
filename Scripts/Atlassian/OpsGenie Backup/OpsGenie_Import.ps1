@@ -18,7 +18,7 @@
 .EXAMPLE
   .\OpsGenie_Import.ps1
   Will start a switch case for known API keys, and then ask for the exact backup path
-  
+
  .EXAMPLE
   .\OpsGenie_Import.ps1 -apiKey XX-YY-ZZ -BackupPath
   Will start the import process of the given API Key site.
@@ -58,8 +58,8 @@ Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host 
-		Write-LogInfo -LogPath $sLogFile -Message 
+        write-host
+		Write-LogInfo -LogPath $sLogFile -Message
 		Write-LogInfo -LogPath $sLogFile -Message ' '
     }
     else {
@@ -80,8 +80,8 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host 
-				Write-LogInfo -LogPath $sLogFile -Message 
+                write-host
+				Write-LogInfo -LogPath $sLogFile -Message
 				Write-LogInfo -LogPath $sLogFile -Message ' '
                 EXIT 1
             }
@@ -115,66 +115,70 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 ######### SELECT Account #########
 function SelectAPI(){
-	Write-LogInfo -LogPath $sLogFile -Message 
+	Write-LogInfo -LogPath $sLogFile -Message
     Write-Host  -ForegroundColor Green
     Write-Host -ForegroundColor Green
     Write-Host -ForegroundColor Green
 	Write-Host -ForegroundColor Green
 
-    $Selection = Read-Host 
+    $Selection = Read-Host
     switch ($Selection)
         {
             '1' {#Option 1 is selected
                     'You chose option #1 - TrialSite'
-                    
+
                     $script:apiKey = '3df04bcd-b699-4fae-b19f-50f219666590'
-					Write-LogInfo -LogPath $sLogFile -Message 
+					Write-LogInfo -LogPath $sLogFile -Message
 					Write-LogInfo -LogPath $sLogFile -Message ' '
                 }#End Option 1
-               
-                
-                 
+
+
+
             '2' {#Option 2 is selected
                 'You chose option #2 - PandoraDigital'
-                 
+
                     $script:apiKey = '39500cda-727f-424f-b53e-d9829b9c93aa'
-					 Write-LogInfo -LogPath $sLogFile -Message  
-					 Write-LogInfo -LogPath $sLogFile -Message ' '					 
+					 Write-LogInfo -LogPath $sLogFile -Message
+					 Write-LogInfo -LogPath $sLogFile -Message ' '
                 }#end option 2
-				
-				
+
+
 			'3' {#Option 3 is selected
                 'You chose option #3 - to be filled in'
-                 
+
                     $script:apiKey = 'xxx'
 					Write-LogInfo -LogPath $sLogFile -Message 'to be filled in selected'
 					Write-LogInfo -LogPath $sLogFile -Message ' '
-                
+
                 }#end option 3
         Default {Write-Host  -ForegroundColor Red
-				Write-LogInfo -LogPath $sLogFile -Message 
+				Write-LogInfo -LogPath $sLogFile -Message
 				Write-LogInfo -LogPath $sLogFile -Message ' '}
         }#End Switch
 }#End Function
 
 ######### SELECT BACKUP PATH #########
 
-function Get-Folder($initialDirectory=)
-	{	Write-LogInfo -LogPath $sLogFile -Message 
-		[System.Reflection.Assembly]::LoadWithPartialName()|Out-Null
-		
-		$foldername = New-Object System.Windows.Forms.FolderBrowserDialog
-		$foldername.Description = 
-		$foldername.rootfolder = 
-		$foldername.SelectedPath = $initialDirectory
-		
-		if($foldername.ShowDialog() -eq )
-		{
-			$folder += $foldername.SelectedPath
-		}
-		return $folder
-		Write-LogInfo -LogPath $sLogFile -Message 
-	}	
+function Get-Folder($initialDirectory="C:\")
+    {
+        Write-LogInfo -LogPath $sLogFile -Message "Opening folder browser dialog"
+        [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms")|Out-Null
+
+        $foldername = New-Object System.Windows.Forms.FolderBrowserDialog
+        $foldername.Description = "Select OpsGenie backup folder to import"
+        $foldername.rootfolder = "MyComputer"
+        $foldername.SelectedPath = $initialDirectory
+
+        if($foldername.ShowDialog() -eq "OK")
+        {
+            $folder = $foldername.SelectedPath
+            Write-LogInfo -LogPath $sLogFile -Message "Selected folder: $folder"
+        }
+        else {
+            Write-LogInfo -LogPath $sLogFile -Message "No folder selected, operation cancelled"
+        }
+        return $folder
+    }
 
 ######### Do Backup #########
 

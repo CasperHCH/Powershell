@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Changes the wallpaper
 .DESCRIPTION
@@ -13,24 +13,25 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Category = )
+param([string]$Category = "")
 
-
-        if ( -ne )  { return  }
-        if ($IsLinux) { return  }
-        return 
+function GetTempDir {
+        if ("$env:TEMP" -ne "") { return "$env:TEMP" }
+        if ("$env:TMP" -ne "")  { return "$env:TMP" }
+        if ($IsLinux) { return "/tmp" }
+        return "C:\Temp"
 }
 
 try {
-	&  
+	& "$PSScriptRoot/speak-english.ps1" "Just a second..."
 
-	$Path = 
-	& wget -O $Path 
-	if ($lastExitCode -ne ) { throw  }
+	$Path = "$(GetTempDir)/next_wallpaper.jpg"
+	& wget -O $Path "https://source.unsplash.com/3840x2160?$Category"
+	if ($lastExitCode -ne 0) { throw "Download failed" }
 
-	&  -ImageFile 
+	& "$PSScriptRoot/set-wallpaper.ps1" -ImageFile "$Path"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

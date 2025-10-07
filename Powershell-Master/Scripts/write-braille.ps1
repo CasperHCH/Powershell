@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Writes text in Braille
 .DESCRIPTION
@@ -6,232 +6,306 @@
 .PARAMETER text
 	Specifies the text to write
 .EXAMPLE
-	PS> ./write-braille 
+	PS> ./write-braille "Hello World"
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+param([string]$text = "")
 
-
-	2 { return  }
-	3 { return  }
+function BrailleA { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "oo" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleB { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleC { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "oo" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleD { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "o." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleE { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "o." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleF { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleG { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleH { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleI { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleJ { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleK { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "oo" }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleL { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".o" }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleM { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "oo" }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleN { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "o." }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleO { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "o." }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleP { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".o" }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleQ { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".." }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleR { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".." }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleS { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".o" }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleT { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".." }
+	3 { return ".o" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleU { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "oo" }
+	3 { return ".." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleV { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".o" }
+	3 { return ".." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleW { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".." }
+	3 { return "o." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleX { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "oo" }
+	3 { return ".." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleY { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "o." }
+	3 { return ".." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function BrailleZ { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "o." }
+	3 { return ".." }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille1 { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "oo" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille2 { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille3 { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "oo" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille4 { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return "o." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille5 { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return "o." }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille6 { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
+function Braille7 { param([int]$Row)
+	switch($Row) {
+	1 { return ".." }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
+function Braille8 { param([int]$Row)
+	switch($Row) {
+	1 { return ".o" }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
+function Braille9 { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".o" }
+	3 { return "oo" }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
+function Braille0 { param([int]$Row)
+	switch($Row) {
+	1 { return "o." }
+	2 { return ".." }
+	3 { return "oo" }
 	}
 }
 
-
+function BrailleChar { param([string]$Char, [int]$Row)
+	switch($Char) {
+	'A' { return BrailleA $Row }
 	'B' { return BrailleB $Row }
 	'C' { return BrailleC $Row }
 	'D' { return BrailleD $Row }
@@ -268,25 +342,25 @@ param([string]$text = )
 	'9' { return Braille9 $Row }
 	'0' { return Braille0 $Row }
 	}
-	return 
+	return "    "
 }
 
 try {
-	if ($text -eq  ) { $text = read-host  }
+	if ($text -eq "" ) { $text = read-host "Enter text to write" }
 
 	[char[]]$ArrayOfChars = $text.ToUpper()
-	write-output 
+	write-output ""
 	for ($Row = 1; $Row -lt 4; $Row++) {
-		$Line = 
+		$Line = ""
 		foreach($Char in $ArrayOfChars) {
 			$Line += BrailleChar $Char $Row
-			$Line += 
+			$Line += "  "
 		}
 		write-output $Line
 	}
-	write-output 
+	write-output ""
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

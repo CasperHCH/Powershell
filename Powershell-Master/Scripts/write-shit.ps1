@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Writes shit
 .DESCRIPTION
@@ -12,5 +12,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-Write-Output 
+Write-Output "💩"
 exit 0 # success

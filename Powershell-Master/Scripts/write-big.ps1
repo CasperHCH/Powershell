@@ -1,345 +1,425 @@
-<#
+﻿<#
 .SYNOPSIS
 	Writes text in big letters
 .DESCRIPTION
 	This PowerShell script writes the given text in big letters.
 .PARAMETER text
-	Specifies the text to write
+	Specifies the text to write ("Hello World" by default)
 .EXAMPLE
-	PS> ./write-big 
+	PS> ./write-big.ps1
+	 _   _  ____  _     _      ___         __    __   ___   ____  _     ____
+	| |_| || ___)| |   | |    / _ \       \  \/\/  / / _ \ |  _ \| |   |  _ \
+	|  _  || __) | |__ | |__ ( (_) )       \      / ( (_) )|    /| |__ | (_) )
+	|_| |_||____)|____)|____) \___/         \_/\_/   \___/ |_|\_)|____)|____/
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+param([string]$text = "Hello World")
 
 Set-StrictMode -Version Latest
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigA { param([int]$row)
+	switch($row) {
+	1 { return "   __   " }
+	2 { return "  /__\  " }
+	3 { return " /(__)\ " }
+	4 { return "(__/\__)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigB { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "| _  )" }
+	3 { return "| _ ( " }
+	4 { return "|____)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigC { param([int]$row)
+	switch($row) {
+	1 { return "  ___ " }
+	2 { return " / __)" }
+	3 { return "( (__ " }
+	4 { return " \___)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigD { param([int]$row)
+	switch($row) {
+	1 { return " ____  " }
+	2 { return "|  _ \ " }
+	3 { return "| (_) )" }
+	4 { return "|____/ " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigE { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "| ___)" }
+	3 { return "| __) " }
+	4 { return "|____)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigF { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "| ___)" }
+	3 { return "| __) " }
+	4 { return "|_)   " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigG { param([int]$row)
+	switch($row) {
+	1 { return "  ____ " }
+	2 { return " / ___)" }
+	3 { return "( (__-." }
+	4 { return " \____|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigH { param([int]$row)
+	switch($row) {
+	1 { return " _   _ " }
+	2 { return "| |_| |" }
+	3 { return "|  _  |" }
+	4 { return "|_| |_|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigI { param([int]$row)
+	switch($row) {
+	1 { return " _ " }
+	2 { return "| |" }
+	3 { return "| |" }
+	4 { return "|_|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigJ { param([int]$row)
+	switch($row) {
+	1 { return "   __ " }
+	2 { return "  (  |" }
+	3 { return ".-_) |" }
+	4 { return "\____|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigK { param([int]$row)
+	switch($row) {
+	1 { return " _  _ " }
+	2 { return "| |/ )" }
+	3 { return "|   ( " }
+	4 { return "|_|\_)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigL { param([int]$row)
+	switch($row) {
+	1 { return " _    " }
+	2 { return "| |   " }
+	3 { return "| |__ " }
+	4 { return "|____)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigM { param([int]$row)
+	switch($row) {
+	1 { return " _    _ " }
+	2 { return "| \  / |" }
+	3 { return "|  \/  |" }
+	4 { return "|_|  |_|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigN { param([int]$row)
+	switch($row) {
+	1 { return " _   _ " }
+	2 { return "| \ | |" }
+	3 { return "|  \| |" }
+	4 { return "|_| \_|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigO { param([int]$row)
+	switch($row) {
+	1 { return "  ___  " }
+	2 { return " / _ \ " }
+	3 { return "( (_) )" }
+	4 { return " \___/ " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigP { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "|  _ \" }
+	3 { return "|  __/" }
+	4 { return "|_|   " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigQ { param([int]$row)
+	switch($row) {
+	1 { return "  ____  " }
+	2 { return " / _  \ " }
+	3 { return "( (_) ( " }
+	4 { return " \___/\\" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigR { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "|  _ \" }
+	3 { return "|    /" }
+	4 { return "|_|\_)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigS { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "/  __)" }
+	3 { return "\__  \" }
+	4 { return "(____/" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigT { param([int]$row)
+	switch($row) {
+	1 { return " _____ " }
+	2 { return "|_   _|" }
+	3 { return "  | |  " }
+	4 { return "  |_|  " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigU { param([int]$row)
+	switch($row) {
+	1 { return " _   _ " }
+	2 { return "| | | |" }
+	3 { return "| |_| |" }
+	4 { return "|_____|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigV { param([int]$row)
+	switch($row) {
+	1 { return " _  _ " }
+	2 { return "( \/ )" }
+	3 { return " \  / " }
+	4 { return "  \/  " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigW { param([int]$row)
+	switch($row) {
+	1 { return " __    __ " }
+	2 { return "\  \/\/  /" }
+	3 { return " \      / " }
+	4 { return "  \_/\_/  " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigX { param([int]$row)
+	switch($row) {
+	1 { return " _  _ " }
+	2 { return "( \/ )" }
+	3 { return " )  ( " }
+	4 { return "(_/\_)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigY { param([int]$row)
+	switch($row) {
+	1 { return " _  _ " }
+	2 { return "( \/ )" }
+	3 { return " \  / " }
+	4 { return " (__) " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigZ { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "(_   )" }
+	3 { return " / /_ " }
+	4 { return "(____)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big0 { param([int]$row)
+	switch($row) {
+	1 { return "  ___  " }
+	2 { return " / _ \ " }
+	3 { return "( (_) )" }
+	4 { return " \___/ " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big1 { param([int]$row)
+	switch($row) {
+	1 { return " ___ " }
+	2 { return "/_  |" }
+	3 { return "  | |" }
+	4 { return "  |_|" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big2 { param([int]$row)
+	switch($row) {
+	1 { return " ___  " }
+	2 { return "(__ \ " }
+	3 { return " / _/ " }
+	4 { return "(____)" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big3 { param([int]$row)
+	switch($row) {
+	1 { return " ___ " }
+	2 { return "(__ )" }
+	3 { return " (_ \" }
+	4 { return "(___/" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big4 { param([int]$row)
+	switch($row) {
+	1 { return "  __  " }
+	2 { return " /. | " }
+	3 { return "(_  _)" }
+	4 { return "  |_| " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big5 { param([int]$row)
+	switch($row) {
+	1 { return " ____ " }
+	2 { return "| ___)" }
+	3 { return "|__ \ " }
+	4 { return "(___/ " }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big6 { param([int]$row)
+	switch($row) {
+	1 { return "  _  " }
+	2 { return " / ) " }
+	3 { return "/ _ \" }
+	4 { return "\___/" }
 	}
 }
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big7 { param([int]$row)
+	switch($row) {
+	1 { return " ___ " }
+	2 { return "(__ )" }
+	3 { return " / / " }
+	4 { return "(_/  " }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big8 { param([int]$row)
+	switch($row) {
+	1 { return " ___ " }
+	2 { return "( _ )" }
+	3 { return "/ _ \" }
+	4 { return "\___/" }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function Big9 { param([int]$row)
+	switch($row) {
+	1 { return " ___ " }
+	2 { return "/ _ \" }
+	3 { return "\_  /" }
+	4 { return " (_/ " }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigColon { param([int]$row)
+	switch($row) {
+	1 { return "   " }
+	2 { return " o " }
+	3 { return " o " }
+	4 { return "   " }
 	}
 } 
 
-
-	2 { return  }
-	3 { return  }
-	4 { return  }
+function BigMinus { param([int]$row)
+	switch($row) {
+	1 { return "      " }
+	2 { return " ____ " }
+	3 { return "(____)" }
+	4 { return "      " }
 	}
 } 
 
-
-	'B' { return BigB $Row }
-	'C' { return BigC $Row }
-	'D' { return BigD $Row }
-	'E' { return BigE $Row }
-	'F' { return BigF $Row }
-	'G' { return BigG $Row }
-	'H' { return BigH $Row }
-	'I' { return BigI $Row }
-	'J' { return BigJ $Row }
-	'K' { return BigK $Row }
-	'L' { return BigL $Row }
-	'M' { return BigM $Row }
-	'N' { return BigN $Row }
-	'O' { return BigO $Row }
-	'P' { return BigP $Row }
-	'Q' { return BigQ $Row }
-	'R' { return BigR $Row }
-	'S' { return BigS $Row }
-	'T' { return BigT $Row }
-	'U' { return BigU $Row }
-	'V' { return BigV $Row }
-	'W' { return BigW $Row }
-	'X' { return BigX $Row }
-	'Y' { return BigY $Row }
-	'Z' { return BigZ $Row }
-	'0' { return Big0 $Row }
-	'1' { return Big1 $Row }
-	'2' { return Big2 $Row }
-	'3' { return Big3 $Row }
-	'4' { return Big4 $Row }
-	'5' { return Big5 $Row }
-	'6' { return Big6 $Row }
-	'7' { return Big7 $Row }
-	'8' { return Big8 $Row }
-	'9' { return Big9 $Row }
-	':' { return BigColon $Row }
-	'-' { return BigMinus $Row }
+function BigChar { param([string]$char, [int]$row)
+	switch($char) {
+	'A' { return BigA $row }
+	'B' { return BigB $row }
+	'C' { return BigC $row }
+	'D' { return BigD $row }
+	'E' { return BigE $row }
+	'F' { return BigF $row }
+	'G' { return BigG $row }
+	'H' { return BigH $row }
+	'I' { return BigI $row }
+	'J' { return BigJ $row }
+	'K' { return BigK $row }
+	'L' { return BigL $row }
+	'M' { return BigM $row }
+	'N' { return BigN $row }
+	'O' { return BigO $row }
+	'P' { return BigP $row }
+	'Q' { return BigQ $row }
+	'R' { return BigR $row }
+	'S' { return BigS $row }
+	'T' { return BigT $row }
+	'U' { return BigU $row }
+	'V' { return BigV $row }
+	'W' { return BigW $row }
+	'X' { return BigX $row }
+	'Y' { return BigY $row }
+	'Z' { return BigZ $row }
+	'0' { return Big0 $row }
+	'1' { return Big1 $row }
+	'2' { return Big2 $row }
+	'3' { return Big3 $row }
+	'4' { return Big4 $row }
+	'5' { return Big5 $row }
+	'6' { return Big6 $row }
+	'7' { return Big7 $row }
+	'8' { return Big8 $row }
+	'9' { return Big9 $row }
+	':' { return BigColon $row }
+	'-' { return BigMinus $row }
 	}
-	return 
+	return "      "
 }
 
 try {
-	if ($text -eq  ) { [String]$text = read-host  }
-
-	[char[]]$ArrayOfChars = $text.ToUpper()
-	write-output 
-	for ($Row = 1; $Row -lt 5; $Row++) {
-		$Line = 
-		foreach($Char in $ArrayOfChars) {
-			$Line += BigChar $Char $Row
+	Write-Output ""
+	[char[]]$arrayOfChars = $text.ToUpper()
+	for ($row = 1; $row -lt 5; $row++) {
+		$line = ""
+		foreach($char in $arrayOfChars) {
+			$line += BigChar $char $row
 		}
-		write-output $Line
+		Write-Output $line
 	}
-	write-output 
+	Write-Output ""
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

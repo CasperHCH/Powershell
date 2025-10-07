@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Sends an email message
 .DESCRIPTION
@@ -19,14 +19,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$From = , [string]$To = , [string]$Subject = , [string]$Body = , [string]$SMTPServer = )
+param([string]$From = "", [string]$To = "", [string]$Subject = "", [string]$Body = "", [string]$SMTPServer = "")
 
 try {
-	if ($From -eq ) {    $From = Read-Host  }
-	if ($To -eq ) {      $To = Read-Host  }
-	if ($Subject -eq ) { $Subject = Read-Host  }
-	if ($Body -eq ) {    $Body = Read-Host  }
-	if ($SMTPServer -eq ) { $SMTPServer = Read-Host  }
+	if ($From -eq "") {    $From = Read-Host "Enter sender email address" }
+	if ($To -eq "") {      $To = Read-Host "Enter recipient email address" }
+	if ($Subject -eq "") { $Subject = Read-Host "Enter subject line" }
+	if ($Body -eq "") {    $Body = Read-Host "Enter body message" }
+	if ($SMTPServer -eq "") { $SMTPServer = Read-Host "Enter SMTP server" }
 
 	$msg = New-Object Net.Mail.MailMessage
 	$smtp = New-Object Net.Mail.SmtpClient($smtpServer)
@@ -36,9 +36,9 @@ try {
 	$msg.subject = $Subject
 	$msg.body = $Body
 	$smtp.Send($msg)
-	
+	"✅  Message sent."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

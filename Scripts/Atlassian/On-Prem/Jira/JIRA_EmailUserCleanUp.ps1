@@ -1,13 +1,19 @@
-# Define local Exchange server info for message relay. 
+# Define local Exchange server info for message relay.
+    # Ensure that any servers running this script have permission to relay.
+        $smtpserver = "smtp.gmail.com"
+        $FromAddress = "atlassian-admin@your-domain.com"
+        $Username = "your-username@your-domain.com"
+        $Pass = "your-app-password"  # Use App Password for Gmail
+        $ToAddress = "team-leads@your-domain.com"e local Exchange server info for message relay.
     # Ensure that any servers running this script have permission to relay.
         $smtpserver = “smtp.gmail.com”
-        $FromAddress =  
-        $Username = 
-        $Pass =  
+        $FromAddress =
+        $Username =
+        $Pass =
         $ToAddress
-		
+
 # Add Email body @@ = End of Body
-# There can be no  infront of 
+# There can be no  infront of
 <p>Så er det igen blevet tid til at rydde op i inaktive brugere.</p>
 <p>Al dokumenteret info omkring denne opgave findes her:</p>
 <p>Se her, for at generer en liste over alle brugere, husk det kun er eksterne vi er interesseret i:</p>
@@ -36,10 +42,10 @@
 </tbody>
 </table>
 Automated Request: Atlassian User Clean Up"
-    
+
     # Add Text to the email Body, will be defined later to allow for individual variables
     # E.g. Project Names, Project Lead Name, etc.
        $msg.Body = $EmailBody
-    
+
     # Send email
        $Smtp.Send($msg)

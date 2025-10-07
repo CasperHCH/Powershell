@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Closes the VLC media player application
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-&    
+& "$PSScriptRoot/close-program.ps1" "VLC media player" "vlc" "vlc"
 exit 0 # success

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
         Moves the mouse pointer
 .DESCRIPTION
@@ -28,6 +28,6 @@ try {
 	[System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($x, $y)
 	exit 0 # success
 } catch {
-        
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
         exit 1
 }

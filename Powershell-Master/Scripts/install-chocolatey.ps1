@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
         Installs Chocolatey (needs admin rights)
 .DESCRIPTION
@@ -11,13 +11,13 @@
         Author: Markus Fleschutz | License: CC0
 #>
 
-#Requires -RunAsAdministrator
+#requires -version 5.1 -RunAsAdministrator
 
 try {
 	[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
 	iwr https://community.chocolatey.org/install.ps1 -UseBasicParsing | iex
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

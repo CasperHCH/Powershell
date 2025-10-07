@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Closes OBS Studio
 .DESCRIPTION
@@ -12,8 +12,8 @@
 #>
 
 TaskKill /im obs64.exe
-if ($lastExitCode -ne ) {
-	&  
+if ($lastExitCode -ne 0) {
+	& "$PSScriptRoot/speak-english.ps1" "Sorry, OBS Studio isn't running"
 	exit 1
 }
 exit 0 # success

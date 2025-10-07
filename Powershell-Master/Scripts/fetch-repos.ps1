@@ -1,15 +1,15 @@
-<#
+﻿<#
 .SYNOPSIS
 	Fetches updates into Git repos
 .DESCRIPTION
 	This PowerShell script fetches updates into all Git repositories in a folder (including submodules).
-.PARAMETER ParentDir
+.PARAMETER parentDirPath
 	Specifies the path to the parent folder
 .EXAMPLE
 	PS> ./fetch-repos.ps1 C:\MyRepos
-	⏳ (1) Searching for Git executable...  git version 2.41.0.windows.3
-	⏳ (2) Checking parent folder...        33 subfolders
-	⏳ (3/35) Fetching into 📂base256unicode...
+	⏳ (1) Searching for Git executable...       git version 2.46.0.windows.1
+	⏳ (2) Checking parent folder...             33 subfolders
+	⏳ (3/35) Fetching into 📂curl...
 	...
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -17,36 +17,36 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$parentDirPath = )
+param([string]$parentDirPath = "$PWD")
 
 try {
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host  -noNewline
+	Write-Host "⏳ (1) Searching for Git executable...     " -noNewline
 	& git --version
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'git' - make sure Git is installed and available" }
 
-	Write-Host  -noNewline
-	if (-not(Test-Path  -pathType container)) { throw  }
-	$folders = (Get-ChildItem  -attributes Directory)
+	Write-Host "⏳ (2) Checking parent folder...           " -noNewline
+	if (-not(Test-Path "$parentDirPath" -pathType container)) { throw "Can't access folder: $parentDirPath" }
+	$folders = (Get-ChildItem "$parentDirPath" -attributes Directory)
 	$numFolders = $folders.Count
-	$parentDirPathName = (Get-Item ).Name
-	Write-Host 
+	$parentDirPathName = (Get-Item "$parentDirPath").Name
+	Write-Host "$numFolders subfolders"
 
 	[int]$step = 3
 	foreach ($folder in $folders) {
-		$folderName = (Get-Item ).Name
-		Write-Host 
+		$folderName = (Get-Item "$folder").Name
+		Write-Host "⏳ ($step/$($numFolders + 2)) Fetching into 📂$folderName...`t`t"
 
-		& git -C  fetch --all --recurse-submodules --prune --prune-tags --force
-		if ($lastExitCode -ne ) { throw  }
+		& git -C "$folder" fetch --all --recurse-submodules --prune --prune-tags --force
+		if ($lastExitCode -ne 0) { throw "'git fetch --all' in 📂$folder failed with exit code $lastExitCode" }
 
 		$step++
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	
+	"✅ Fetched into $numFolders Git repos at 📂$parentDirPath in $($elapsed)s."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

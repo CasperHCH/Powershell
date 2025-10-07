@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists FRITZ!Box's known devices
 .DESCRIPTION
@@ -17,15 +17,22 @@
 
 #Requires -Version 3
 
-param([string]$Username = , [string]$Password = )
+param([string]$Username = "", [string]$Password = "")
 
-if ($Username -eq ) { $Username = read-host  }
-if ($Password -eq ) { $Password = read-host  }
+if ($Username -eq "") { $Username = read-host "Enter username for FRITZ!Box" }
+if ($Password -eq "") { $Password = read-host "Enter password for FRITZ!Box" }
 
-write-progress 
-[string]$HostURL = 
-[string]$SOAPAction=
-[string]$SOAPrequest = @1.0http://schemas.xmlsoap.org/soap/envelope/http://schemas.xmlsoap.org/soap/encoding/urn:dslforum-org:service:Hosts:1@
+write-progress "Contacting FRITZ!Box ..."
+[string]$HostURL = "https://fritz.box:49443"
+[string]$SOAPAction="urn:dslforum-org:service:Hosts:1#X_AVM-DE_GetHostListPath"
+[string]$SOAPrequest = @"
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:X_AVM-DE_GetHostListPath xmlns:u="urn:dslforum-org:service:Hosts:1" />
+  </s:Body>
+</s:Envelope>
+"@
 
 $SecurePassword = $Password | ConvertTo-SecureString -AsPlainText -Force
 $Credentials = New-Object System.Management.Automation.PSCredential -ArgumentList $Username, $SecurePassword
@@ -33,7 +40,7 @@ $Credentials = New-Object System.Management.Automation.PSCredential -ArgumentLis
 $XmlResult = invoke-restMethod `
    -Method POST `
    -Headers @{'SOAPAction'=($SOAPAction)} `
-   -Uri ($HostURL+) `
+   -Uri ($HostURL+"/upnp/control/hosts") `
    -Credential $Credentials `
    -ContentType 'text/xml' `
    -Body $SOAPrequest

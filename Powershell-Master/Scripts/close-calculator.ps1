@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Closes the calculator application
 .DESCRIPTION
@@ -11,5 +11,5 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-Stop-Process -name 
+Stop-Process -name "CalculatorApp"
 exit 0 # success

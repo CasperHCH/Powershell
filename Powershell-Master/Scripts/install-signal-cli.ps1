@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Installs signal-cli 
 .DESCRIPTION
@@ -14,34 +14,36 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Version = )
+#requires -version 5.1
+
+param([string]$Version = "")
 
 try {
-	if ($Version -eq ) { $Version = read-host  }
+	if ($Version -eq "") { $Version = read-host "Enter version to install (see https://github.com/AsamK/signal-cli)" }
 
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
 	set-location /tmp
 
 	& wget --version
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'wget' - make sure wget is installed and available" }
 
-	& wget 
-	if ($lastExitCode -ne ) { throw  }
+	& wget "https://github.com/AsamK/signal-cli/releases/download/v$Version/signal-cli-$($Version).tar.gz"
+	if ($lastExitCode -ne 0) { throw "'wget' failed" }
 
-	sudo tar xf  -C /opt
-	if ($lastExitCode -ne ) { throw  }
+	sudo tar xf "signal-cli-$Version.tar.gz" -C /opt
+	if ($lastExitCode -ne 0) { throw "'sudo tar xf' failed" }
 
-	sudo ln -sf  /usr/local/bin/
-	if ($lastExitCode -ne ) { throw  }
+	sudo ln -sf "/opt/signal-cli-$Version/bin/signal-cli" /usr/local/bin/
+	if ($lastExitCode -ne 0) { throw "'sudo ln -sf' failed" }
 
-	rm 
-	if ($lastExitCode -ne ) { throw  }
+	rm "signal-cli-$Version.tar.gz"
+	if ($lastExitCode -ne 0) { throw "'rm' failed" }
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	[int]$elapsed = $StopWatch.Elapsed.TotalSeconds
+	"✅ Signal-cli $Version installed to /opt and /usr/local/bin in $elapsed sec."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

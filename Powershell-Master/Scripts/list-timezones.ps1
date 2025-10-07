@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all available time zones
 .DESCRIPTION
@@ -21,6 +21,6 @@ try {
 	Get-Timezone -listavailable | Format-Table -property Id,DisplayName,SupportsDaylightSavingTime
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

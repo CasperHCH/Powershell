@@ -1,51 +1,64 @@
-######################################################### 
-# 
-# Name: Search-GPOs.ps1 
-# Author: Tony Murray 
-# Version: 1.0 
-# Date: 13/07/2016 
-# Comment: Simple search for GPOs within a domain 
-# that match a given string 
-######################################################## 
- 
+#########################################################
+#
+# Name: Search-GPOs.ps1
+# Author: Tony Murray
+# Version: 1.0
+# Date: 13/07/2016
+# Comment: Simple search for GPOs within a domain
+# that match a given string
+########################################################
+
 Function Search-GPO {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory = $True, HelpMessage = "Specify the string to search for within the GPOs.")]
         [string]$String
     )
 
-    # Get the string we want to search for
-    #$String = Read-Host -Prompt 
+    Begin {
+        # Set the domain to search for GPOs
+        $DomainName = $env:USERDNSDOMAIN
 
-    # Set the domain to search for GPOs
-    $DomainName = $env:USERDNSDOMAIN
-
-    # Find all GPOs in the current domain
-    write-host 
-    Import-Module grouppolicy
-    $allGposInDomain = Get-GPO -All -Domain $DomainName
-    [string[]] $MatchedGPOList = @()
-
-    # Look through each GPO's XML for the string
-    Write-Host 
-    
-    foreach ($gpo in $allGposInDomain) {
-        $report = Get-GPOReport -Guid $gpo.Id -ReportType Xml
-    
-        if ($report -match $String) {
-            #write-host  -foregroundcolor 
-            $MatchedGPOList += ;
+        # Import the GroupPolicy module
+        Try {
+            Import-Module GroupPolicy -ErrorAction Stop
+        } Catch {
+            Write-Warning "Failed to import GroupPolicy module: $_"
+            Break
         }
 
-        else {
-            #Write-Host 
+        # Initialize the matched GPO list
+        [string[]]$MatchedGPOList = @()
+    }
+
+    Process {
+        # Find all GPOs in the current domain
+        Write-Host "Searching for GPOs in domain: $DomainName" -ForegroundColor Cyan
+        $allGposInDomain = Get-GPO -All -Domain $DomainName
+
+        # Look through each GPO's XML for the string
+        foreach ($gpo in $allGposInDomain) {
+            $report = Get-GPOReport -Guid $gpo.Id -ReportType Xml
+
+            if ($report -match $String) {
+                Write-Host "Match found in GPO: $($gpo.DisplayName)" -ForegroundColor Green
+                $MatchedGPOList += $gpo.DisplayName
+            }
+        }
+
+        # Output the matched GPOs
+        if ($MatchedGPOList.Count -gt 0) {
+            Write-Host "Matched GPOs:" -ForegroundColor Cyan
+            $MatchedGPOList | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+        } else {
+            Write-Host "No GPOs matched the search string." -ForegroundColor Red
         }
     }
-    
-    Write-Host  -foregroundcolor 
-    
-    foreach ($match in $MatchedGPOList) {
-        write-host  -foregroundcolor 
+
+    End {
+        Write-Host "Search completed." -ForegroundColor Cyan
     }
 }
+
+# Example usage:
+# Search-GPO -String "example"

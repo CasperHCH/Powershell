@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the Windows Defender settings
 .DESCRIPTION
@@ -17,12 +17,13 @@
 #>
 
 try {
-	Write-Host 
-	Write-Host  -noNewline
+	Write-Host " "
+	Write-Host "Windows Defender Settings                               Value"
+	Write-Host "-------------------------                               -----" -noNewline
 	Get-MpPreference
-	
+	"NOTE: Documentation at: https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/dn455323(v=vs.85)"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

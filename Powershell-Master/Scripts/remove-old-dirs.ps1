@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Removes old directories
 .DESCRIPTION
@@ -8,38 +8,39 @@
 .PARAMETER numDays
 	Specifies the number of days (1000 by default)
 .EXAMPLE
-	PS> ./remove-old-dirs.ps1 C:\Temp 90
+	PS> ./remove-old-dirs.ps1 C:\Temp 365
+	⏳ Scanning C:\Temp for subfolders older than 365 days...
+	⏳ Removing old 'TestFolder'...
+	✅ Removed 1 of 49 subfolders in 1s.
+.LINK
+        https://github.com/fleschutz/PowerShell
 .NOTES
-	Author: Markus Fleschutz
+	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$path = , [int]$numDays = 1000)
+param([string]$path = "", [int]$numDays = 1000)
 
 try {
+	if ("$path" -eq "") { $path = Read-Host "Enter the file path to the parent folder" }
 	$stopWatch = [system.diagnostics.stopwatch]::startNew()
-	if ( -eq ) { $path = Read-Host  }
-	if (!(Test-Path -Path  -PathType container)) { throw  }
+	if (!(Test-Path -Path "$path" -PathType container)) { throw "Given path doesn't exist - enter a valid path, please" }
 
-	Write-Host 
-	$folders = Get-ChildItem -path  -directory
+	Write-Host "⏳ Searching in '$path' for subfolders older than $numDays days..."
 	$numRemoved = 0
-	$count = 0
+	$folders = Get-ChildItem -path "$path" -directory
 	foreach ($folder in $folders) {
 		[datetime]$folderDate = ($folder | Get-ItemProperty -Name LastWriteTime).LastWriteTime
-		$count++
 		if ($folderDate -lt (Get-Date).AddDays(-$numDays)) {
-			Write-Host 
+			Write-Host "⏳ Removing old '$folder'..."
 			$fullPath = $folder | Select-Object -ExpandProperty FullName
-			Remove-Item -path  -force -recurse
+			Remove-Item -path "$fullPath" -force -recurse
 			$numRemoved++
-		} else {
-			Write-Host 
 		}
 	}
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	
+	"✅ Removed $numRemoved of $($folders.Count) subfolders in $($elapsed)s."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -2,7 +2,7 @@
 .SYNOPSIS
 Add-MailboxFolderPermissions.ps1
 
-.DESCRIPTION 
+.DESCRIPTION
 A proof of concept script for adding mailbox folder
 permissions to all folders in a mailbox.
 
@@ -46,10 +46,10 @@ V1.00, 15/10/2014 - Initial version
 param (
 	[Parameter( Mandatory=$true)]
 	[string]$Mailbox,
-    
+
 	[Parameter( Mandatory=$true)]
 	[string]$User,
-    
+
   	[Parameter( Mandatory=$true)]
 	[string]$Access
 )
@@ -66,7 +66,7 @@ $exclusions = @(,
                 ,
                 ,
                 ,
-                
+
                 )
 
 
@@ -107,8 +107,8 @@ foreach ($mailboxfolder in $mailboxfolders) {
         $folder = $folder.Replace(“\Top of Information Store”,”\”)
     }
 
-    $identity = 
-    Write-Host 
+    $identity = "$mailbox:$folder"
+    Write-Host "Adding permission for $user to $identity"
 
     try {
         Add-MailboxFolderPermission -Identity $identity -User $user -AccessRights $Access -ErrorAction STOP

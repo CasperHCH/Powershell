@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Installs basic apps
 .DESCRIPTION
@@ -6,51 +6,51 @@
 	NOTE: Apps from Microsoft Store are preferred (due to security and automatic updates). 
 .EXAMPLE
 	PS> ./install-basic-apps.ps1
-	⏳ (1/37) Loading Data/basic-apps.csv...            35 apps
-	⏳ (2/37) These apps will be installed or upgraded: 7-Zip · Aquile Reader ...
+	⏳ (1) Loading basic-apps.csv from data/ folder...
+	⏳ (2) Will install/upgrade 39 basic apps: 7-Zip, Aquile Reader ...
+	NOTE: Installation starts in 15 seconds or press <Control> <C> to abort...
+	...
+	✅ 39 basic apps installed (0 skipped, took 387s)
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
+#requires -version 5.1
+
 try {
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host  -NoNewline
-	$Table = Import-Csv 
-	$NumEntries = $Table.count
-	
-	Write-Host  -NoNewline
-	foreach ($Row in $Table) {
-		[string]$AppName = 
-		Write-Host  -NoNewline
+	Write-Host "⏳ (1) Loading basic-apps.csv from data/ folder..."
+	$table = Import-CSV "$PSScriptRoot/../data/basic-apps.csv"
+	$numEntries = $table.count
+	Write-Host "⏳ (2) Will install/upgrade $numEntries basic apps: " -noNewline
+	foreach($row in $table) {
+		[string]$appName = $row.APPLICATION
+		Write-Host "$appName, " -noNewline
 	}
-	
-	
-	
-	Start-Sleep -Seconds 15
+	""
+	"NOTE: Installation starts in 15 seconds or press <Control> <C> to abort..."
+	Start-Sleep -seconds 15
 
-	[int]$Step = 3
-	[int]$Skipped = 0
-	foreach ($Row in $Table) {
-		[string]$AppName = 
-		[string]$Category = 
-		[string]$AppID = 
-		[string]$skip = 
-		Write-Host 
-		if ($skip -eq ) {
-			& winget install --id $AppID --accept-package-agreements --accept-source-agreements
-		}
-		if ($lastExitCode -ne ) { $Skipped++ }
-		$Step++
+	[int]$step = 3
+	[int]$numSkipped = 0
+	foreach($row in $table) {
+		[string]$appName = $row.APPLICATION
+		[string]$category = $row.CATEGORY
+		[string]$appID = $row.APPID
+		Write-Host " "
+		Write-Host "⏳ ($step/$($numEntries + 2)) Installing $category '$appName'..."
+		& winget install --id $appID --silent --accept-package-agreements --accept-source-agreements
+        	if ($lastExitCode -ne 0) { $numSkipped++ }
+		$step++
 	}
-	[int]$Installed = ($NumEntries - $Skipped)
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	[int]$numInstalled = ($numEntries - $numSkipped)
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	"✅ $numInstalled basic apps installed ($numSkipped skipped, took $($elapsed)s)"
 	exit 0 # success
-}
-catch {
-	
+} catch {
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

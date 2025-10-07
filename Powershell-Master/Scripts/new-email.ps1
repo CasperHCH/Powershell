@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Opens the default email client to write a new email
 .DESCRIPTION
@@ -13,13 +13,13 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$EmailAddress = )
+param([string]$EmailAddress = "markus@fleschutz.de")
 
 try {
-	$URL=
+	$URL="mailto:$EmailAddress"
 	Start-Process $URL
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

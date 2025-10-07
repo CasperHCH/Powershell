@@ -1,5 +1,5 @@
-*install-powershell.ps1*
-================
+Script: *install-powershell.ps1*
+========================
 
 By default, the latest PowerShell release package will be installed.
 If '-Daily' is specified, then the latest PowerShell daily package will be installed.
@@ -18,6 +18,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -Daily [<SwitchParameter>]
@@ -28,6 +29,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -DoNotOverwrite [<SwitchParameter>]
@@ -37,6 +39,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -AddToPath [<SwitchParameter>]
@@ -48,6 +51,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -UseMSI [<SwitchParameter>]
@@ -56,6 +60,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -Quiet [<SwitchParameter>]
@@ -64,6 +69,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -AddExplorerContextMenu [<SwitchParameter>]
@@ -72,6 +78,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -EnablePSRemoting [<SwitchParameter>]
@@ -80,6 +87,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 -Preview [<SwitchParameter>]
@@ -88,6 +96,7 @@ PS> ./install-powershell.ps1 [-UseMSI] [-Quiet] [-AddExplorerContextMenu] [-Enab
     Position?                    named
     Default value                False
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 [<CommonParameters>]
@@ -138,6 +147,9 @@ Script Content
     Invoke this script directly from GitHub
     Invoke-Expression "& { $(Invoke-RestMethod 'https://aka.ms/install-powershell.ps1') } -daily"
 #>
+
+#requires -version 5.1
+
 [CmdletBinding(DefaultParameterSetName = "Daily")]
 param(
     [Parameter(ParameterSetName = "Daily")]
@@ -179,7 +191,11 @@ if (-not $Destination) {
     if ($IsWinEnv) {
         $Destination = "$env:LOCALAPPDATA\Microsoft\powershell"
     } else {
-        $Destination = "~/.powershell"
+	if (Test-Path -path "/opt/PowerShell" -pathType container) {
+		$Destination = "/opt/PowerShell"
+	} else {
+        	$Destination = "~/.powershell"
+	}
     }
 
     if ($Daily) {
@@ -190,7 +206,7 @@ if (-not $Destination) {
 $Destination = $PSCmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Destination)
 
 if (-not $UseMSI) {
-    Write-Host "Installation destination path: $Destination"
+    #Write-Host "Installation destination path: $Destination"
 } else {
     if (-not $IsWinEnv) {
         throw "-UseMSI is only supported on Windows"
@@ -227,16 +243,16 @@ function Expand-ArchiveInternal {
     }
 }
 
-function Remove-Destination([string] $Destination) {
-    if (Test-Path -Path $Destination) {
+function Remove-Destination([string]$Destination) {
+    if (Test-Path -path $Destination -pathType container) {
         if ($DoNotOverwrite) {
             throw "Destination folder '$Destination' already exist. Use a different path or omit '-DoNotOverwrite' to overwrite."
         }
-        Write-Host "Removing old installation at: $Destination" 
-        if (Test-Path -Path "$Destination.old") {
+        if (Test-Path -path "$Destination.old") {
             Remove-Item "$Destination.old" -Recurse -Force
         }
         if ($IsWinEnv -and ($Destination -eq $PSHOME)) {
+       	    Write-Host "⏳ (3/4) Removing old installation at $Destination... "
             # handle the case where the updated folder is currently in use
             Get-ChildItem -Recurse -File -Path $PSHOME | ForEach-Object {
                 if ($_.extension -eq ".old") {
@@ -246,8 +262,9 @@ function Remove-Destination([string] $Destination) {
                 }
             }
         } else {
+       	    Write-Host "⏳ (3/5) Moving old installation to $($Destination).old... " 
             # Unix systems don't keep open file handles so you can just move files/folders even if in use
-            Move-Item "$Destination" "$Destination.old"
+            sudo mv "$Destination" "$($Destination).old"
         }
     }
 }
@@ -362,20 +379,12 @@ function Add-PathTToSettings {
 }
 
 if ($IsLinux) {
-    $Name = $PSVersionTable.OS
-    if ($Name -like "*-generic *") {
-        if ([System.Environment]::Is64BitOperatingSystem) {
-            $architecture = "x64"
-	} else {
-            $architecture = "x86"
-	}
-    } elseif ($Name -like "*-raspi *") {
-        if ([System.Environment]::Is64BitOperatingSystem) {
-            $architecture = "arm64"
-	} else {
-            $architecture = "arm32"
-	}
-    }
+    $platform = (uname -i)
+    if ($platform -eq "x86_64") { $architecture = "x64" }
+    elseif ($platform -eq "x86_32") { $architecture = "x86" }
+    elseif ($platform -eq "aarch64") { $architecture = "arm64" }
+    elseif ($platform -eq "aarch32") { $architecture = "arm32" }
+    else { Write-Host "Unknown platform $platform" }
 } elseif (-not $IsWinEnv) {
     $architecture = "x64"
 } elseif ($(Get-ComputerInfo -Property OsArchitecture).OsArchitecture -eq "ARM 64-bit Processor") {
@@ -473,6 +482,7 @@ try {
             tar zxf $packagePath -C $contentPath
         }
     } else {
+        Write-Host "⏳ (1/5) Querying infos from https://raw.githubusercontent.com ..."
         $metadata = Invoke-RestMethod https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/metadata.json
         if ($Preview) {
             $release = $metadata.PreviewReleaseTag -replace '^v'
@@ -495,9 +505,10 @@ try {
         } elseif ($IsMacOSEnv) {
             $packageName = "powershell-${release}-osx-${architecture}.tar.gz"
         }
+	Write-Host "         Latest release is $release for $architecture (package name: $packageName)"
 
         $downloadURL = "https://github.com/PowerShell/PowerShell/releases/download/v${release}/${packageName}"
-        Write-Host "Downloading: $downloadURL"
+        Write-Host "⏳ (2/5) Loading $downloadURL"
 
         $packagePath = Join-Path -Path $tempDir -ChildPath $packageName
         if (!$PSVersionTable.ContainsKey('PSEdition') -or $PSVersionTable.PSEdition -eq "Desktop") {
@@ -540,23 +551,34 @@ try {
                 Expand-ArchiveInternal -Path $packagePath -DestinationPath $contentPath
             }
         } else {
-            tar zxf $packagePath -C $contentPath
+            Write-Host "⏳ (3/5) Extracting to $contentPath..."
+            & tar zxf $packagePath -C $contentPath
         }
     }
 
     if (-not $UseMSI) {
-        Remove-Destination $Destination
+        Write-Host "⏳ (4/5) Removing old installation at $Destination ..."
+        if ($IsLinuxEnv) { 
+		& sudo rm -rf "$Destination"
+	} else {
+        	Remove-Destination "$Destination"
+	}
+
         if (Test-Path $Destination) {
-            Write-Verbose "Copying files" -Verbose
+            Write-Host "⏳ (5/5) Copying files to $Destination... "
             # only copy files as folders will already exist at $Destination
             Get-ChildItem -Recurse -Path "$contentPath" -File | ForEach-Object {
                 $DestinationFilePath = Join-Path $Destination $_.fullname.replace($contentPath, "")
                 Copy-Item $_.fullname -Destination $DestinationFilePath
             }
-        } else {
+        } elseif ($IsWinEnv) {
+            Write-Host "⏳ (5/5) Moving new installation to $Destination... "
             $null = New-Item -Path (Split-Path -Path $Destination -Parent) -ItemType Directory -ErrorAction SilentlyContinue
             Move-Item -Path $contentPath -Destination $Destination
-        }
+        } else {
+            Write-Host "⏳ (5/5) Moving new installation to $Destination... "
+            & sudo mv "$contentPath" "$Destination"
+	}
     }
 
     ## Change the mode of 'pwsh' to 'rwxr-xr-x' to allow execution
@@ -591,7 +613,7 @@ try {
             if ($IsLinuxEnv) { $symlink = "/usr/bin/pwsh" } elseif ($IsMacOSEnv) { $symlink = "/usr/local/bin/pwsh" }
             $needNewSymlink = $true
 
-            if (Test-Path -Path $symlink) {
+            if (Test-Path -path $symlink) {
                 $linkItem = Get-Item -Path $symlink
                 if ($linkItem.LinkType -ne "SymbolicLink") {
                     Write-Warning "'$symlink' already exists but it's not a symbolic link. Abort adding to PATH."
@@ -624,10 +646,12 @@ try {
     }
 
     if (-not $UseMSI) {
-        Write-Host "PowerShell has been installed at: $Destination"
+        Write-Host "✅ PowerShell $release installed at $Destination" -noNewline
         if ($Destination -eq $PSHOME) {
-            Write-Host "Please restart pwsh" -ForegroundColor Magenta
-        }
+            Write-Host " - Please restart pwsh now."
+        } else {
+	    Write-Host " "
+	}
     }
 } finally {
     # Restore original value
@@ -638,4 +662,4 @@ try {
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of install-powershell.ps1 as of 09/20/2023 17:04:40)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:25)*

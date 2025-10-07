@@ -1,20 +1,22 @@
-*build-repo.ps1*
-================
+Script: *build-repo.ps1*
+========================
 
-This PowerShell script builds a repository by supporting: cmake, configure, autogen, Imakefile, and Makefile.
+This PowerShell script builds a Git repository by supporting the following build
+systems: autogen, cargo, cmake, configure, Gradle, Imakefile, Makefile, and Meson.
 
 Parameters
 ----------
 ```powershell
-PS> ./build-repo.ps1 [[-RepoDir] <String>] [<CommonParameters>]
+PS> ./build-repo.ps1 [[-path] <String>] [<CommonParameters>]
 
--RepoDir <String>
-    Specifies the path to the Git repository
+-path <String>
+    Specifies the file path to the Git repository (default: current working directory)
     
     Required?                    false
     Position?                    1
     Default value                "$PWD"
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 [<CommonParameters>]
@@ -25,7 +27,10 @@ PS> ./build-repo.ps1 [[-RepoDir] <String>] [<CommonParameters>]
 Example
 -------
 ```powershell
-PS> ./build-repo.ps1 C:\MyRepo
+PS> ./build-repo.ps1 C:\Repos\ninja
+⏳ Building 'ninja' by executing cmake...
+...
+✅ Build of 'ninja' succeeded in 47s, results at: 📂C:\Repos\ninja\_results
 
 ```
 
@@ -42,139 +47,172 @@ Script Content
 ```powershell
 <#
 .SYNOPSIS
-	Builds a repository 
+	Builds a repo
 .DESCRIPTION
-	This PowerShell script builds a repository by supporting: cmake, configure, autogen, Imakefile, and Makefile.
-.PARAMETER RepoDir
-	Specifies the path to the Git repository
+	This PowerShell script builds a Git repository by supporting the following build
+	systems: autogen, cargo, cmake, configure, Gradle, Imakefile, Makefile, and Meson.
+.PARAMETER path
+	Specifies the file path to the Git repository (default: current working directory)
 .EXAMPLE
-	PS> ./build-repo.ps1 C:\MyRepo
+	PS> ./build-repo.ps1 C:\Repos\ninja
+	⏳ Building 'ninja' by executing cmake...
+	...
+	✅ Build of 'ninja' succeeded in 47s, results at: 📂C:\Repos\ninja\_results
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RepoDir = "$PWD")
+param([string]$path = "$PWD")
 
-function BuildInDir { param($Path)
-	$DirName = (Get-Item "$Path").Name
-	if (Test-Path "$Path/CMakeLists.txt" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using CMakeLists.txt into subfolder _My_Build ..."
-		if (-not(Test-Path "$Path/_My_Build/" -pathType container)) { 
-			& mkdir "$Path/_My_Build/"
+function BuildFolder([string]$path) {
+	$dirName = (Get-Item "$path").Name
+	if (Test-Path "$path/CMakeLists.txt" -pathType leaf) {
+		"⏳ (1/3) Building '$dirName' by executing cmake..."
+		$global:results = "$path/_results/"
+		if (-not(Test-Path $global:results -pathType container)) { 
+			& mkdir $global:results
 		}
-		Set-Location "$Path/_My_Build/"
-
+		Set-Location $global:results
 		& cmake ..
-		if ($lastExitCode -ne "0") { throw "Executing 'cmake ..' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'cmake ..' failed with exit code $lastExitCode" }
 
+		"⏳ (2/3) Executing 'make -j4' to compile and link..."
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
 
-		& make test
-		if ($lastExitCode -ne "0") { throw "Executing 'make test' has failed" }
+		"⏳ (3/3) Checking '$dirName' by executing 'ctest -V'... (if tests are provided)"
+		& ctest -V
+		if ($lastExitCode -ne 0) { throw "Executing 'ctest -V' failed with exit code $lastExitCode" }
+	} elseif (Test-Path "$path/.cargo/release.toml" -pathType leaf) { 
 
-	} elseif (Test-Path "$Path/configure" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'configure'..."
-		Set-Location "$Path/"
+		"⏳ Building '$dirName' by executing 'cargo build'..."
+		Set-Location "$path/"
+		& cargo build --config .cargo/release.toml --release
+		if ($lastExitCode -ne 0) { throw "Executing 'cargo build' failed with exit code $lastExitCode" }
 
+	} elseif (Test-Path "$path/autogen.sh" -pathType leaf) { 
+
+		"⏳ (1/3) Building '$dirName' by executing 'autogen.sh'..."
+		Set-Location "$path/"
+		& ./autogen.sh --force
+		if ($lastExitCode -ne 0) { throw "Executing './autogen.sh --force' failed with exit code $lastExitCode" }
+		"⏳ (2/3) Executing './configure'..."
 		& ./configure
-		#if ($lastExitCode -ne "0") { throw "Script 'configure' exited with error code $lastExitCode" }
+		if ($lastExitCode -ne 0) { throw "Executing './configure' failed with exit code $lastExitCode" }
 
+		"⏳ (3/3) Executing 'make -j4' to compile and link..."
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
 
+	} elseif (Test-Path "$path/configure" -pathType leaf) { 
+
+		"⏳ (1/3) Building '$dirName' by executing './configure'..."
+		Set-Location "$path/"
+		& ./configure
+		#if ($lastExitCode -ne 0) { throw "Executing './configure' exited with error code $lastExitCode" }
+
+		"⏳ (2/3) Compiling and linking '$dirName' by executing 'make -j4'..."
+		& make -j4
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
+
+		"⏳ (3/3) Checking '$dirName' by executing 'make test'..."
 		& make test
-		if ($lastExitCode -ne "0") { throw "Executing 'make test' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'make test' failed with exit code $lastExitCode" }
 
-	} elseif (Test-Path "$Path/autogen.sh" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'autogen.sh'..."
-		Set-Location "$Path/"
+	} elseif (Test-Path "$path/build.gradle" -pathType leaf) {
 
-		& ./autogen.sh
-		if ($lastExitCode -ne "0") { throw "Script 'autogen.sh' exited with error code $lastExitCode" }
-
-		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
-
-	} elseif (Test-Path "$Path/build.gradle" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using build.gradle..."
-		Set-Location "$Path"
-
+		"⏳ (1/2) Building '$dirName' by executing 'gradle build'..."
+		Set-Location "$path"
 		& gradle build
-		if ($lastExitCode -ne "0") { throw "'gradle build' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'gradle build' failed with exit code $lastExitCode" }
 
+		"⏳ (2/2) Checking '$dirName' by executing 'gradle test'..."
 		& gradle test
-		if ($lastExitCode -ne "0") { throw "'gradle test' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'gradle test' failed with exit code $lastExitCode" }
 
-	} elseif (Test-Path "$Path/Imakefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using Imakefile..."
-		Set-Location "$RepoDir/"
+	} elseif (Test-Path "$path/meson.build" -pathType leaf) {
+		"⏳ Building '$dirName' by using Meson..."
+		Set-Location "$path"
+		& meson . build --prefix=/usr/local
+		if ($lastExitCode -ne 0) { throw "Executing 'meson . build' failed with exit code $lastExitCode" }
 
+	} elseif (Test-Path "$path/Imakefile" -pathType leaf) {
+		"⏳ Building '$dirName' by using Imakefile..."
+		Set-Location "$path/"
 		& xmkmf 
-		if ($lastExitCode -ne "0") { throw "Executing 'xmkmf' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'xmkmf' failed with exit code $lastExitCode" }
+
+		"⏳ Executing 'make -j4' to compile and link..."
+		& make -j4
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
+
+	} elseif (Test-Path "$path/Makefile" -pathType leaf) {
+
+		"⏳ Building '$dirName' by using Makefile..."
+		Set-Location "$path"
+		& make -j4
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
+
+	} elseif (Test-Path "$path/makefile" -pathType leaf) {
+		"⏳ Building '$dirName' by using makefile..."
+		Set-Location "$path"
 
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
 
-	} elseif (Test-Path "$Path/Makefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using Makefile..."
-		Set-Location "$Path"
+	} elseif (Test-Path "$path/compile.sh" -pathType leaf) { 
 
-		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
-
-	} elseif (Test-Path "$Path/makefile" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using makefile..."
-		Set-Location "$Path"
-
-		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
-
-	} elseif (Test-Path "$Path/compile.sh" -pathType leaf) { 
-		"⏳ Building repo 📂$DirName using 'compile.sh'..."
-		Set-Location "$Path/"
-
+		"⏳ Building '$dirName' by executing 'compile.sh'..."
+		Set-Location "$path/"
 		& ./compile.sh
-		if ($lastExitCode -ne "0") { throw "Script 'compile.sh' exited with error code $lastExitCode" }
+		if ($lastExitCode -ne 0) { throw "Executing './compile.sh' failed with exit code $lastExitCode" }
 
+		"⏳ Executing 'make -j4' to compile and link..."
 		& make -j4
-		if ($lastExitCode -ne "0") { throw "Executing 'make -j4' has failed" }
+		if ($lastExitCode -ne 0) { throw "Executing 'make -j4' failed with exit code $lastExitCode" }
 
-	} elseif (Test-Path "$Path/attower/src/build/DevBuild/build.bat" -pathType leaf) {
-		"⏳ Building repo 📂$DirName using build.bat ..."
-		Set-Location "$Path/attower/src/build/DevBuild/"
+	} elseif (Test-Path "$path/attower/src/build/DevBuild/build.bat" -pathType leaf) {
 
-		& ./build.bat build-all-release
-		if ($lastExitCode -ne "0") { throw "Script 'build.bat' exited with error code $lastExitCode" }
+		Write-Host "⏳ Building '$dirName' by executing 'build.bat'..."
+		Set-Location "$path/attower/src/build/DevBuild/"
+		& ./build.bat build-core-release
+		if ($lastExitCode -ne 0) { throw "Executing 'build.bat' failed with exit code $lastExitCode" }
+		$global:results = "$path\attower\Executables"
 
-	} elseif (Test-Path "$Path/$DirName" -pathType container) {
-		"⏳ No make rule found, trying subfolder 📂$($DirName)..."
-		BuildInDir "$Path/$DirName"
+	} elseif (Test-Path "$path/$dirName" -pathType container) {
+		"⏳ No make rule found, trying subfolder '$($dirName)'..."
+		BuildFolder "$path/$dirName"
 	} else {
-		Write-Warning "Sorry, no make rule applies to: 📂$DirName"
+		Write-Warning "Sorry, no make rule applies to: 📂$dirName"
 		exit 0 # success
 	}
 }
 
 try {
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
+	$previousPath = Get-Location
 
-	if (-not(Test-Path "$RepoDir" -pathType container)) { throw "Can't access directory: $RepoDir" }
-	$RepoDirName = (Get-Item "$RepoDir").Name
+	if (-not(Test-Path "$path" -pathType container)) { throw "The file path '$path' doesn't exist (yet)" }
 
-	$PreviousPath = Get-Location
-	BuildInDir "$RepoDir"
-	Set-Location "$PreviousPath"
+	$global:results = ""
+	BuildFolder "$path"
+	Set-Location "$previousPath"
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ built repo 📂$RepoDirName in $Elapsed sec"
+	$dirName = (Get-Item "$path").Name
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	if ($global:results -eq "") {
+		"✅ Build of '$dirName' succeeded in $($elapsed)s."
+	} else {
+		"✅ Build of '$dirName' succeeded in $($elapsed)s, results at: 📂$($global:results)"
+	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
+	Set-Location "$previousPath"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of build-repo.ps1 as of 09/20/2023 17:04:37)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:24)*

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Copies newer EXE's + DLL's from the build directory to the installation directory
 .DESCRIPTION
@@ -12,7 +12,7 @@
 #>
 
 set SRC_DIR=%1
-set 
+set "DST_DIR=C:\Program Files\MyApp\bin"
 set FILTER=*.exe *.dll
 set OPTIONS=/E /njh /np
 
@@ -23,9 +23,9 @@ try {
 	echo ------------------------------------------------------------------------------
 	echo.
 
-	
+	"✅ synced to %DST_DIR%"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

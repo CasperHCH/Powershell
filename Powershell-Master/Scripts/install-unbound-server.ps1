@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Installs Unbound server (needs admin rights)
 .DESCRIPTION
@@ -11,56 +11,56 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-#Requires -RunAsAdministrator
+#requires -version 5.1 -RunAsAdministrator
 
 try {
 	$StopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	
+	"⏳ (1/10) Updating package infos..."
 	& sudo apt update -y
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'apt update' failed" }
 
-	
+	"⏳ (2/10) Installing the Unbound packages..."
 	& sudo apt install unbound unbound-anchor -y
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'apt install unbound' failed" }
 
-	
+	"⏳ (3/10) Setting up Unbound..."
 	& sudo unbound-control-setup
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'unbound-control-setup' failed" }
 
-	
+	"⏳ (4/10) Updating DNSSEC Root Trust Anchors..."
 	& sudo unbound-anchor
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'unbound-anchor' failed" }
 
-	
-	& unbound-checkconf 
-	if ($lastExitCode -ne ) { throw  }
+	"⏳ (5/10) Checking config file..."
+	& unbound-checkconf "$PSScriptRoot/../data/unbound.conf"
+	if ($lastExitCode -ne 0) { throw "'unbound-checkconf' failed - check the syntax" }
 
-	
-	& sudo cp  /etc/unbound/unbound.conf
-	if ($lastExitCode -ne ) { throw  }
+	"⏳ (6/10) Copying config file to /etc/unbound/unbound.conf ..."
+	& sudo cp "$PSScriptRoot/../data/unbound.conf" /etc/unbound/unbound.conf
+	if ($lastExitCode -ne 0) { throw "'cp' failed" }
 
-	
+	"⏳ (7/10) Stopping default DNS cache daemon systemd-resolved..."
 	& sudo systemctl stop systemd-resolved
 	& sudo systemctl disable systemd-resolved
 
-	
+	"⏳ (8/10) (Re-)starting Unbound..."
 	& sudo unbound-control stop
 	& sudo unbound-control start
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'unbound-control start' failed" }
 
-	
+	"⏳ (9/10) Checking status of Unbound..."
 	& sudo unbound-control status
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "'unbound-control status' failed" }
 
-	
-	&  
-	if ($lastExitCode -ne ) { throw  }
+	"⏳ (10/10) Training Unbound with 100 popular domain names..."
+	& "$PSScriptRoot/check-dns.ps1" 
+	if ($lastExitCode -ne 0) { throw "'unbound-control status' failed" }
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	"✅ Installed Unbound in $Elapsed sec"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists Outlook's Inbox 
 .DESCRIPTION
@@ -13,11 +13,11 @@
 
 try {
 	$Outlook = New-Object -com Outlook.application
-	$MAPI = $Outlook.GetNameSpace()
+	$MAPI = $Outlook.GetNameSpace("MAPI")
 	$Inbox = $MAPI.GetDefaultFolder(6) # 6 = olFolderInbox
 	$Inbox.items | Select Received,Subject | Format-Table -AutoSize
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

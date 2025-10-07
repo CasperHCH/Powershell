@@ -1,46 +1,64 @@
 ##   In order to create a token, do the following:
 ##   1. When you are logged in click your Profile in the top right then click Edit Profile.
-##   
+##
 ##   2. Click the Apps tab on the left and then create a new script token.
-##   
-##   3. Change Group Management to 
-##   
-##   4. Change Computers & Contacts to 
-##   
+##
+##   3. Change Group Management to
+##
+##   4. Change Computers & Contacts to
+##
 ##   5. Click Save then copy your API Token into the script.
 
-$token =  #Change this token to the one provided through Teamviewer Management Console.
-$bearer = ,$token
+##   TeamViewer API Cleanup Script - Remove Old/Offline Devices
+##   In order to create a token, do the following:
+##   1. When you are logged in click your Profile in the top right then click Edit Profile.
+##   2. Click the Apps tab on the left and then create a new script token.
+##   3. Change Group Management to "Create, read, edit and delete your groups"
+##   4. Change Computers & Contacts to "Create, read, edit and delete your computers & contacts"
+##   5. Click Save then copy your API Token into the script.
 
-$header = New-Object 
-$header.Add(, $bearer)
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$Token,
+    [int]$DaysOffline = 60,
+    [switch]$WhatIf
+)
 
-$devices = (Invoke-RestMethod -Uri  -Method Get -Headers $header).devices
+$token = $Token #Change this token to the one provided through Teamviewer Management Console.
+$bearer = "Bearer", $token
 
-$60Days = ((Get-Date).AddDays(-60)).GetDateTimeFormats()[22]
+$header = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$header.Add("Authorization", $bearer -join " ")
 
-ForEach($device in $devices)
-{
+try {
+    Write-Host "Fetching devices from TeamViewer API..." -ForegroundColor Cyan
+    $devices = (Invoke-RestMethod -Uri "https://webapi.teamviewer.com/api/v1/devices" -Method Get -Headers $header).devices
+    Write-Host "Found $($devices.Count) devices" -ForegroundColor Green
+} catch {
+    Write-Error "Failed to fetch devices: $($_.Exception.Message)"
+    exit 1
+}
 
-    if ($device.online_state -eq )
-    {
+$cutoffDate = (Get-Date).AddDays(-$DaysOffline)
+$60Days = $cutoffDate.ToString("yyyy-MM-dd")
 
-    $ID = $device.device_id
+$devicesToRemove = @()
+ForEach($device in $devices) {
+    if ($device.online_state -eq "offline") {
+        $ID = $device.device_id
+        $Lastseen = $device.last_seen
 
-    $Lastseen = $device.last_seen
-
-            if ($Lastseen -ne $null)
-            {
-
+        if ($Lastseen -ne $null) {
             $LastSeen = ($device.last_seen).Split()[0]
             [datetime]$DateLastSeen = $LastSeen
 
-                    if ($DateLastSeen -le $60Days)
-                    {
+            if ($DateLastSeen -le $cutoffDate) {
+                $devicesToRemove += $device
+                Write-Host "Device marked for removal: $($device.alias) (ID: $ID, Last seen: $LastSeen)" -ForegroundColor Yellow
 
                     Invoke-WebRequest -Uri  -Method Delete -Headers $header
                     Write-Host $device.alias -ForegroundColor Yellow
-                    
+
                     }$Lastseen = $null
             }
     }

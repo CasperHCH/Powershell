@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Converts a .CSV file into a text file
 .DESCRIPTION
@@ -13,18 +13,18 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Path = )
+param([string]$Path = "")
 
 try {
-	if ($Path -eq  ) { $Path = read-host  }
+	if ($Path -eq "" ) { $Path = read-host "Enter path to CSV file" }
 
-	$Table = Import-CSV -path  -header A,B,C,D,E,F,G,H
+	$Table = Import-CSV -path "$Path" -header A,B,C,D,E,F,G,H
 
 	foreach($Row in $Table) {
-		write-output 
+		write-output "* $($Row.A) $($Row.B) $($Row.C) $($Row.D) $($Row.E) $($Row.F) $($Row.G) $($Row.H)"
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

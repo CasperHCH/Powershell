@@ -1,8 +1,8 @@
-<#
+﻿<#
 .SYNOPSIS
-	Lists the installed text-to-speech voices
+	List installed text-to-speech voices
 .DESCRIPTION
-	This PowerShell script lists the installed text-to-speech (TTS) voices.
+	This PowerShell script queries the installed text-to-speech (TTS) voices and prints them to the console.
 .EXAMPLE
 	PS> ./list-voices.ps1
 
@@ -16,16 +16,16 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-#Requires -Version 2.0
+#requires -version 5.1
 
 try {
 	Add-Type -AssemblyName System.Speech
-	$Synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-	$Synth.GetInstalledVoices() | 
+	$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+	$synth.GetInstalledVoices() | 
 		Select-Object -ExpandProperty VoiceInfo | 
 		Select-Object -Property Name, Culture, Gender, Age
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

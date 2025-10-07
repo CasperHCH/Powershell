@@ -5,21 +5,44 @@ If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
     Install-Module ImportExcel -Confirm:$False -Force
 }
 
-# What CSV file should users and project name be drawn from?
-#$XLSXFileLocation = Read-Host 
-$XLSXFileLocation = 
+# What Excel file should users and project name be drawn from?
+$XLSXFileLocation = Read-Host "Enter path to Excel file with project data"
+if (-not $XLSXFileLocation) {
+    $XLSXFileLocation = "C:\temp\projectTest.xlsx"
+    Write-Host "Using default file: $XLSXFileLocation" -ForegroundColor Yellow
+}
 
+if (-not (Test-Path $XLSXFileLocation)) {
+    Write-Error "Excel file not found: $XLSXFileLocation"
+    exit 1
+}
 
 # Send email function
+function Send-ProjectLeadEmail {
+    param(
+        [string]$ToAddress,
+        [string]$LeadDisplayName,
+        [string]$ProjectName,
+        [int]$IssueCount
+    )
+
+    # Email configuration would go here - implement Send-MailMessage or similar
+    Write-Host "Would send email to $LeadDisplayName ($ToAddress) about project $ProjectName with $IssueCount issues" -ForegroundColor Cyan
+}
+
+# Import user list and information from Excel file
+# Excel File Location is drawn from Read-Host above
+# Defining what columns to draw data from
+Write-Host "Importing data from: $XLSXFileLocation" -ForegroundColor Cyan
+$XLSXFile = Import-Excel -path $XLSXFileLocation
+if($XLSXFile){
+    Write-Host "Successfully imported $($XLSXFile.Count) records from Excel file" -ForegroundColor Green
+} else {
+    Write-Error "Failed to import data from Excel file"
+    exit 1
+}
 
 
-# Import user list and information from .CSV file
-# CSV File Location is drawn from Read-Host at top
-# Defining what collums to draw data from
-    $XLSXFile = Import-Excel -path C:\temp\projectTest.xlsx #
-    if($XLSXFile){write-host }
-    
-  
 # Send Email to each Project Lead in the list
 foreach ($x in $XLSXFile){#Start foreach
 
@@ -34,9 +57,9 @@ if($x.'issue count' -lt 10){#Start IF
     $ProjectKey = $x.Key
 
     $IssueCount = $x.'Issue count'
-                    
+
 # Add Email body @@ = End of Body
-# There can be no  infront of 
+# There can be no  infront of
 <p>Dear $LeadDisplayName,<br />The Atlassian team is in the process of cleaning up our JIRA environment.<br />In this process, we have found that the project $ProjectName have less than 10 issues within it, <br />and therefore doesn't seem to be in use.</p>
 <p>May we delete this project:</p>
 <table>

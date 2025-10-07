@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the time until Independence Day
 .DESCRIPTION
@@ -13,16 +13,16 @@
 
 try {
 	$Now = [DateTime]::Now
-	$IndependenceDay = [Datetime]( + $Now.Year)
+	$IndependenceDay = [Datetime]("07/04/" + $Now.Year)
 	if ($Now -lt $IndependenceDay) {
 		$Diff = $IndependenceDay – $Now
-		&  
+		& "$PSScriptRoot/speak-english.ps1" "Independence Day on July 4th is in $($Diff.Days) days."
 	} else {
 		$Diff = $Now - $IndependenceDay
-		&  
+		& "$PSScriptRoot/speak-english.ps1" "Independence Day on July 4th was $($Diff.Days) days ago."
 	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

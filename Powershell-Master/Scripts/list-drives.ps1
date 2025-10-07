@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all drives
 .DESCRIPTION
@@ -6,9 +6,9 @@
 .EXAMPLE
 	PS> ./list-drives.ps1
 
-	Name Root Used (GB) Free (GB)
-	---- ---- --------- ---------
-	C    C:\     6648,1     744,2
+	DriveLetter FriendlyName     FileSystemType DriveType HealthStatus OperationalStatus SizeRemaining      Size
+	----------- ------------     -------------- --------- ------------ ----------------- -------------      ----
+	C           SSD              NTFS           Fixed     Healthy      OK                    449.65 GB 930.43 GB
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
@@ -16,9 +16,9 @@
 #>
 
 try {
-	Get-PSDrive -PSProvider FileSystem | format-table -property Name,Root,@{n=;e={[math]::Round($_.Used/1GB,1)}},@{n=;e={[math]::Round($_.Free/1GB,1)}}
+	Get-Volume
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

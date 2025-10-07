@@ -5,7 +5,7 @@ Function Get-Uptime {
 				   ValueFromPipeline = $True,
 				   ValueFromPipelineByPropertyName = $True,
 				   HelpMessage = 'What Server to query for Uptime')]
-		[string[]]$servers = $env:COMPUTERNAME 
+		[string[]]$servers = $env:COMPUTERNAME
     )
 
     process {
@@ -14,10 +14,11 @@ Function Get-Uptime {
             $boottime = $OS.converttodatetime($OS.LastBootUpTime)
             $uptime = New-TimeSpan (Get-Date $boottime)
             $uptime_days = [int]$uptime.days
-            Write-Host $server
-            Write-Host  $boottime
-            Write-Host  $uptime_days
-            Echo ''
+            Write-Host "Server: $server" -ForegroundColor Cyan
+            Write-Host "Boot Time: $boottime" -ForegroundColor Yellow
+            Write-Host "Uptime: $uptime_days days" -ForegroundColor Green
+            Write-Host "Full Uptime: $($uptime.Days) days, $($uptime.Hours) hours, $($uptime.Minutes) minutes" -ForegroundColor White
+            Write-Host ''
         }
     }
 }

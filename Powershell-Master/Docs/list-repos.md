@@ -1,20 +1,21 @@
-*list-repos.ps1*
-================
+Script: *list-repos.ps1*
+========================
 
-This PowerShell script lists details of all Git repositories in a folder.
+This PowerShell script lists all Git repositories under a folder with details such as latest tag, branch, remote URL, and status.
 
 Parameters
 ----------
 ```powershell
-PS> ./list-repos.ps1 [[-ParentDir] <String>] [<CommonParameters>]
+PS> ./list-repos.ps1 [[-parentDir] <String>] [<CommonParameters>]
 
--ParentDir <String>
-    Specifies the path to the parent directory.
+-parentDir <String>
+    Specifies the path to the parent directory (current working directory by default)
     
     Required?                    false
     Position?                    1
     Default value                "$PWD"
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 [<CommonParameters>]
@@ -25,13 +26,13 @@ PS> ./list-repos.ps1 [[-ParentDir] <String>] [<CommonParameters>]
 Example
 -------
 ```powershell
-PS> ./list-repos C:\MyRepos
+PS> ./list-repos.ps1 C:\MyRepos
 
 
 
-Repository   Latest Tag   Branch    Status    Remote
-----------   ----------   ------    ------    ------
-📂cmake      v3.23.0      main      ✔️clean    git@github.com:Kitware/CMake ↓0
+REPOSITORY   LATEST TAG   BRANCH    REMOTE URL                             STATUS
+----------   ----------   ------    ----------                             ------
+📂cmake      v3.30.2      master    https://github.com/Kitware/CMake ↓0    ✅clean 
 ...
 
 ```
@@ -49,17 +50,17 @@ Script Content
 ```powershell
 <#
 .SYNOPSIS
-	Lists Git repos
+	Lists Git repositories
 .DESCRIPTION
-	This PowerShell script lists details of all Git repositories in a folder.
-.PARAMETER ParentDir
-	Specifies the path to the parent directory.
+	This PowerShell script lists all Git repositories under a folder with details such as latest tag, branch, remote URL, and status.
+.PARAMETER parentDir
+	Specifies the path to the parent directory (current working directory by default)
 .EXAMPLE
-	PS> ./list-repos C:\MyRepos
+	PS> ./list-repos.ps1 C:\MyRepos
 	
-	Repository   Latest Tag   Branch    Status    Remote
-	----------   ----------   ------    ------    ------
-	📂cmake      v3.23.0      main      ✔️clean    git@github.com:Kitware/CMake ↓0
+	REPOSITORY   LATEST TAG   BRANCH    REMOTE URL                             STATUS
+	----------   ----------   ------    ----------                             ------
+	📂cmake      v3.30.2      master    https://github.com/Kitware/CMake ↓0    ✅clean 
 	...
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -67,40 +68,40 @@ Script Content
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$ParentDir = "$PWD")
+param([string]$parentDir = "$PWD")
 
 function ListRepos { 
-	$Folders = (Get-ChildItem "$ParentDir" -attributes Directory)
-	foreach($Folder in $Folders) {
-		$Repository = (Get-Item "$Folder").Name
-		$LatestTagCommitID = (git -C "$Folder" rev-list --tags --max-count=1)
-		if ($LatestTagCommitID -ne "") {
-	        	$LatestTag = (git -C "$Folder" describe --tags $LatestTagCommitID)
+	$dirs = (Get-ChildItem "$parentDir" -attributes Directory)
+	foreach($dir in $dirs) {
+		$dirName = (Get-Item "$dir").Name
+		$latestTagCommitID = (git -C "$dir" rev-list --tags --max-count=1)
+		if ("$latestTagCommitID" -ne "") {
+	        	$latestTag = (git -C "$dir" describe --tags $latestTagCommitID)
 		} else {
-			$LatestTag = ""
+			$latestTag = ""
 		}
-		$Branch = (git -C "$Folder" branch --show-current)
-		$RemoteURL = (git -C "$Folder" remote get-url origin)
-		$NumCommits = (git -C "$Folder" rev-list HEAD...origin/$Branch --count)
-		$Status = (git -C "$Folder" status --short)
-		if ("$Status" -eq "") { $Status = "✔️clean" }
-		elseif ("$Status" -like " M *") { $Status = "⚠️modified" }
-		New-Object PSObject -property @{'Repository'="📂$Repository";'Latest Tag'="$LatestTag";'Branch'="$Branch";'Status'="$Status";'Remote'="$RemoteURL ↓$NumCommits";}
+		$branch = (git -C "$dir" branch --show-current)
+		$remoteURL = (git -C "$dir" remote get-url origin)
+		$numCommits = (git -C "$dir" rev-list HEAD...origin/$branch --count)
+		$status = (git -C "$dir" status --short)
+		if ("$status" -eq "") { $status = "✅clean" }
+		elseif ("$status" -like " M *") { $status = "⚠️changed" }
+		New-Object PSObject -property @{'REPOSITORY'="📂$dirName";'LATEST TAG'="$latestTag";'BRANCH'="$branch";'REMOTE URL'="$remoteURL ↓$numCommits";'STATUS'="$status"}
 	}
 }
 
 try {
-	if (-not(Test-Path "$ParentDir" -pathType container)) { throw "Can't access directory: $ParentDir" }
+	if (-not(Test-Path "$parentDir" -pathType container)) { throw "Can't access parent directory at: $parentDir" }
 
-	$Null = (git --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'git' - make sure Git is installed and available" }
+	$null = (git --version)
+	if ($lastExitCode -ne 0) { throw "Can't execute 'git' - make sure Git is installed and available" }
 
-	ListRepos | Format-Table -property @{e='Repository';width=20},@{e='Latest Tag';width=18},@{e='Branch';width=20},@{e='Status';width=10},Remote
+	ListRepos | Format-Table -property @{e='REPOSITORY';width=19},@{e='LATEST TAG';width=16},@{e='BRANCH';width=19},@{e='REMOTE URL';width=50},@{e='STATUS';width=10}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of list-repos.ps1 as of 09/20/2023 17:04:41)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:26)*

@@ -1,36 +1,51 @@
-*install-calibre-server.ps1*
-================
+Script: *install-calibre-server.ps1*
+========================
 
-This PowerShell script installs and starts a local Calibre server as background process (using Web port 8099 by default).
+This PowerShell script installs and starts a local Calibre server as background process.
 
 Parameters
 ----------
 ```powershell
-PS> ./install-calibre-server.ps1 [[-Port] <Int32>] [[-UserDB] <String>] [[-Logfile] <String>] [<CommonParameters>]
+PS> ./install-calibre-server.ps1 [[-port] <Int32>] [[-mediaFolder] <String>] [[-userDB] <String>] [[-logfile] <String>] [<CommonParameters>]
 
--Port <Int32>
+-port <Int32>
     Specifies the Web port number (8099 by default)
     
     Required?                    false
     Position?                    1
     Default value                8099
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
--UserDB <String>
+-mediaFolder <String>
+    Specifies the file path to the media ('/opt/Calibre Library' by default)
     
     Required?                    false
     Position?                    2
-    Default value                "$HOME/CalibreUsers.sqlite"
+    Default value                /opt/Calibre Library
     Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
--Logfile <String>
+-userDB <String>
+    Specifies the file path to the user database ('/opt/CalibreUsers.sqlite' by default)
     
     Required?                    false
     Position?                    3
-    Default value                "$HOME/CalibreServer.log"
+    Default value                /opt/CalibreUsers.sqlite
     Accept pipeline input?       false
+    Aliases                      
+    Accept wildcard characters?  false
+
+-logfile <String>
+    Specifies the file path to the log file ('/opt/CalibreServer.log' by default)
+    
+    Required?                    false
+    Position?                    4
+    Default value                /opt/CalibreServer.log
+    Accept pipeline input?       false
+    Aliases                      
     Accept wildcard characters?  false
 
 [<CommonParameters>]
@@ -42,6 +57,8 @@ Example
 -------
 ```powershell
 PS> ./install-calibre-server.ps1
+⏳ (1/5) Updating package infos...
+...
 
 ```
 
@@ -58,51 +75,62 @@ Script Content
 ```powershell
 <#
 .SYNOPSIS
-	Installs Calibre server (needs admin rights)
+	Installs the Calibre server (needs admin rights)
 .DESCRIPTION
-	This PowerShell script installs and starts a local Calibre server as background process (using Web port 8099 by default).
+	This PowerShell script installs and starts a local Calibre server as background process.
 .PARAMETER port
 	Specifies the Web port number (8099 by default)
+.PARAMETER mediaFolder
+	Specifies the file path to the media ('/opt/Calibre Library' by default)
+.PARAMETER userDB
+	Specifies the file path to the user database ('/opt/CalibreUsers.sqlite' by default)
+.PARAMETER logfile
+	Specifies the file path to the log file ('/opt/CalibreServer.log' by default)
 .EXAMPLE
 	PS> ./install-calibre-server.ps1
+	⏳ (1/5) Updating package infos...
+	...
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-#Requires -RunAsAdministrator
+#requires -version 5.1 -RunAsAdministrator
 
-param([int]$Port = 8099, [string]$UserDB = "$HOME/CalibreUsers.sqlite", [string]$Logfile = "$HOME/CalibreServer.log")
+param([int]$port = 8099, [string]$mediaFolder = "/opt/Calibre Library", [string]$userDB = "/opt/CalibreUsers.sqlite", [string]$logfile = "/opt/CalibreServer.log")
 
 try {
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	if (-not $IsLinux) { throw "Sorry, currently only supported on Linux" }
 
-	"⏳ (1/5) Updating package infos..."
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
+
+	"`n⏳ (1/5) Updating package infos..."
 	& sudo apt update -y
-	if ($lastExitCode -ne "0") { throw "'apt update' failed" }
+	if ($lastExitCode -ne 0) { throw "'apt update' failed" }
 
-	"⏳ (2/5) Installing the Calibre package..."
+	"`n⏳ (2/5) Installing Calibre package..."
 	& sudo apt install calibre -y
-	if ($lastExitCode -ne "0") { throw "'apt install calibre' failed" }
+	if ($lastExitCode -ne 0) { throw "'apt install calibre' failed" }
 
-	"⏳ (3/5) Searching for Calibre server executable..."
+	"`n⏳ (3/5) Searching for Calibre server executable..." 
 	& calibre-server --version
-	if ($lastExitCode -ne "0") { throw "Can't execute 'calibre-server' - make sure Calibre server is installed and available" }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'calibre-server' - make sure Calibre server is installed and available" }
 
-	"⏳ (4/5) Creating folder 'Calibre Library' in your home directory..."
-	mkdir $HOME/'Calibre Library'
+	"`n⏳ (4/5) Creating media folder at: $mediaFolder ... (if non-existent)"
+	& mkdir $mediaFolder
 
-	"⏳ (5/5) Starting Calibre server as background process..."
-	& calibre-server --port $Port --num-per-page 100 --userdb $UserDB --log $Logfile --daemonize $HOME/'Calibre Library'
+	"`n⏳ (5/5) Starting Calibre server as background process..."
+	& nohup sudo calibre-server --port $port --num-per-page 100 --userdb $userDB --log $logfile --disable-use-bonjour $mediaFolder &
 
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	"✔️ installed Calibre in $Elapsed sec (Web port $Port, user DB at $UserDB, log file at $Logfile)"
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	"✅ Calibre server installed in $($elapsed)s."
+	"   (URL=http://$(hostname):$port media=$mediaFolder userDB=$userDB log=$logfile)."
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of install-calibre-server.ps1 as of 09/20/2023 17:04:39)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:25)*

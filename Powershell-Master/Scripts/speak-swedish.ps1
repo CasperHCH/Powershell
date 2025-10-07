@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Speaks text in Swedish
 .DESCRIPTION
@@ -13,21 +13,23 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+#requires -version 5.1
+
+param([string]$text = "")
 
 try {
-	if ($text -eq ) { $text = Read-Host  }
+	if ($text -eq "") { $text = Read-Host "Enter the Swedish text to speak" }
 
 	$TTS = New-Object -ComObject SAPI.SPVoice
 	foreach ($voice in $TTS.GetVoices()) {
-		if ($voice.GetDescription() -like ) { 
+		if ($voice.GetDescription() -like "*- Swedish*") { 
 			$TTS.Voice = $voice
 			[void]$TTS.Speak($text)
 			exit 0 # success
 		}
 	}
-	throw 
+	throw "No Swedish text-to-speech voice found - please install one"
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

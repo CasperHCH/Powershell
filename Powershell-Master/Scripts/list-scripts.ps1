@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the PowerShell scripts
 .DESCRIPTION
@@ -18,11 +18,11 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$category = )
+param([string]$category = "*")
 
 function ListScripts([string]$category) { 
-	Write-Progress 
-	$table = Import-CSV 
+	Write-Progress "Loading data from ../data/script.csv..."
+	$table = Import-CSV "$PSScriptRoot/../data/scripts.csv"
 	[int]$No = 1
 	foreach($row in $table) {
 		if ($row.CATEGORY -like $category) { 
@@ -34,18 +34,18 @@ function ListScripts([string]$category) {
 			}
 		}
 	}
-	Write-Progress -completed 
+	Write-Progress -completed " "
 }
 
 try {
 	ListScripts $category | Format-Table -property No,Script,Category,Description
-#	$files = Get-ChildItem -path  -attributes !Directory
+#	$files = Get-ChildItem -path "./*.ps1" -attributes !Directory
 #	foreach ($file in $files) {
 #		$help = Get-Help $file -full
-#		Write-Output $($help.Synopsis)`
+#		Write-Output "$($file.Name), ,`"$($help.Synopsis)`","
 #	}
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

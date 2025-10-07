@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Speaks text by the default text-to-speech voice
 .DESCRIPTION
@@ -13,15 +13,17 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$text = )
+#requires -version 5.1
+
+param([string]$text = "")
 
 try {
-	if ($text -eq ) { $text = Read-Host  }
+	if ($text -eq "") { $text = Read-Host "Enter the text to speak" }
 
 	$Voice = new-object -ComObject SAPI.SPVoice
 	[void]$Voice.Speak($text)
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

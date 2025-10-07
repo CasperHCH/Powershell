@@ -7,29 +7,30 @@ If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
 
 # What XLSX file should users and project name be drawn from?
 # Match proper provided FullName path for XLSX file
-Do {$XLSXFileLocation = Read-Host } 
+Do {$XLSXFileLocation = Read-Host "Enter the full path to the XLSX file"}
 Until ((Test-Path $XLSXFileLocation) -and $XLSXFileLocation -match '.xlsx')
 
+Write-Host "XLSX file validated: $XLSXFileLocation" -ForegroundColor Green
 
 # Ensure that the user inputs an Integer as the Issue Count
-while(1)
+while($true)
     {
     try{
-        [uint16]$LessThanIssueCount = Read-Host  -Prompt 
+        [uint16]$LessThanIssueCount = Read-Host "Enter the maximum issue count threshold" -Prompt "Issue Count"
 
-        write-Host 
+        write-Host "You entered: $LessThanIssueCount. Projects with FEWER issues will be processed." -ForegroundColor Yellow
 
-        $selection = Read-Host 
+        $selection = Read-Host "Is this correct? (Yes/No)"
         Switch($selection){
             'Yes'{
-                 Write-Host 
+                 Write-Host "Proceeding with issue count threshold: $LessThanIssueCount" -ForegroundColor Green
                  break}
             'No'{
-            # Set the variable to something not an integer
-            $LessThanIssueCount = 'a'
+            # Set the variable to something not an integer to retry
+            $LessThanIssueCount = 'retry'
                 }
            Default {
-                 Write-Host 
+                 Write-Host
                  break}
             }#End Switch statement
 
@@ -37,20 +38,20 @@ while(1)
 
         }# End Try
         catch{
-            Write-Host 
+            Write-Host
         }
     }# End While
 
 #Read the desired disable date
 do
 {
-    Write-Host 
-    $date= read-host 
+    Write-Host
+    $date= read-host
 
     $date = $date -as [datetime]
 
     if (!$date) {
-        
+
     }
 } while ($date -isnot [datetime])
 
@@ -65,11 +66,11 @@ do
 # Import user list and information from .CSV file
 # XLSX File Location is drawn from Read-Host at top
 # Can be modified to include specific columns to draw data from
-# 
-    $XLSXFile = Import-Excel -path 
+#
+    $XLSXFile = Import-Excel -path
     if($XLSXFile){write-host }
-    
-  
+
+
 # Send Email to each Project Lead in the list
 foreach ($x in $XLSXFile){#Start foreach
 
@@ -84,9 +85,9 @@ if($x.'issue count' -lt $LessThanIssueCount){#Start IF
     $ProjectKey = $x.Key
 
     $IssueCount = $x.'Issue count'
-                    
+
 # Add Email body @@ = End of Body
-# There can be no  infront of 
+# There can be no  infront of
 <p>Dear $LeadDisplayName,<br />The Atlassian team is in the process of cleaning up our JIRA environment.<br />In this process, we have found that the project $ProjectName have less than $LessThanIssueCount issues within it, <br />and therefore doesn't seem to be in use.</p>
 <p>May we delete this project:</p>
 <table>

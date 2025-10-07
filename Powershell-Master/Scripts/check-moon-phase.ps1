@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Checks the Moon phase
 .DESCRIPTION
@@ -14,7 +14,7 @@
 try {
 	$LunarCycle = 29.53058868 # synodic period in days, time between successive new moons
 	$LunarHalfCycle = $LunarCycle / 2.0
-	$Phases = @(, , , , , , , )
+	$Phases = @("New moon", "Waxing crescent moon", "First quarter moon", "Waxing gibbous moon", "Full moon", "Waning gibbous moon", "Last quarter moon", "Waning crescent moon")
 	$PhaseLength = $LunarCycle / 8.0
 	$PhaseHalfLength = $PhaseLength / 2.0
 
@@ -27,17 +27,17 @@ try {
 	$PhaseIndex = [int]($MDays * (8.0 / $LunarCycle))
 
 	$Visibility = [math]::Round((($Days % $LunarHalfCycle) * 100) / $LunarHalfCycle)
-	$Reply = 
+	$Reply = "$($Phases[$PhaseIndex]) with $($Visibility)% visibility"
 
 	$MoonAge = [math]::Round($Days % $LunarCycle)	
-	if ($MoonAge -eq ) {	      $Reply += 
-	} elseif ($MoonAge -eq ) { $Reply += 
-	} else {                      $Reply += 
+	if ($MoonAge -eq "0") {	      $Reply += " today"
+	} elseif ($MoonAge -eq "1") { $Reply += " since yesterday"
+	} else {                      $Reply += ", last new moon was $MoonAge days ago"
 	}
 
-	&  
+	& "$PSScriptRoot/speak-english.ps1" "$Reply"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

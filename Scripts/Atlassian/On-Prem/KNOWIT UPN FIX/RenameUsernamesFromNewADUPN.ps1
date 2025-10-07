@@ -1,345 +1,159 @@
+#requires -version 4
 <#
 .SYNOPSIS
-	<Overview of script>
+    Replace Jira usernames and email fields with new UPNs from Azure AD.
 .DESCRIPTION
-	Collect Old Active Directory SamAccountNames and Mail, along with Azure UPN, then replace Jira Usernames and email fields with the UPN based on usernames from old AD
+    This script collects old Active Directory `SamAccountNames` and emails, along with Azure UPNs, and updates Jira usernames and email fields accordingly.
 .PARAMETER jirabaseurl
-    the url address, including https:// of your jira instance
+    The URL address, including `https://`, of your Jira instance.
+.PARAMETER UserList
+    Path to the CSV file containing old AD user data (SamAccountName and email).
 .PARAMETER AdminAccount
-    Admin Account username
+    Jira admin account username.
 .PARAMETER Token
-    Password for Admin account
+    Jira admin account API token.
 .INPUTS
-	<Inputs if any, otherwise state None>
+    None.
 .OUTPUTS
-	A log file will be generated at the same location as this script, with the same name .log
+    A log file will be generated at the same location as this script, with the same name but `.log` extension.
 .NOTES
-  Version:        1.0
-  Author:         Casper Hjorth Christensen
-  Creation Date:  <Date>
-  Purpose/Change: To replace and change usernames and emails of Jira account, as Miracle has been purchased by KnowIT and is to replace their current AD with KnowIT AD.
-  OBS!!!:         In current version, 1.0, the function, GetOldADUserObjects is hardcoded to a csv file, on developers machine. The query to generate a new is provided within the funciton.
-
+    Version:        1.1
+    Author:         Casper Hjorth Christensen
+    Purpose/Change: To replace and change usernames and emails of Jira accounts after an AD migration.
 .EXAMPLE
-  RenameUsernamesFromNewADUPN -jirabaseurl https://jira-new-test.miracle.dk -AdminAccount chcadmin -token password
+    RenameUsernamesFromNewADUPN -jirabaseurl https://jira-instance.example.com -UserList C:\Temp\Users.csv -AdminAccount admin -Token password
 #>
-#---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
+# --- Parameters ---
 Param (
-    #Script parameters go here
-    [Parameter(Mandatory = $true)]$jirabaseurl,
-    [Parameter(Mandatory = $true)]$UserList,
-    [Parameter(Mandatory = $true)]$AdminAccount,
-    [Parameter(Mandatory = $true)]$Token
+    [Parameter(Mandatory = $true)]
+    [string]$jirabaseurl,
+
+    [Parameter(Mandatory = $true)]
+    [string]$UserList,
+
+    [Parameter(Mandatory = $true)]
+    [string]$AdminAccount,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Token
 )
-#---------------------------------------------------------[Logging function has to come first]------------------------------------------------------
-#Enabled Logging with timestamps, error level etc..
+
+# --- Log File Setup ---
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$logFile = Join-Path -Path $scriptDirectory -ChildPath "$($MyInvocation.MyCommand.Name -replace '.ps1$', '.log')"
+
 function Write-Log {
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $False)]
-        [ValidateSet(, , , , )]
-        [String]
-        $Level = ,
-
-        [Parameter(Mandatory = $True)]
-        [string]
-        $Message,
-
-        [Parameter(Mandatory = $False)]
-        [string]
-        $logfile
+    param (
+        [string]$Message,
+        [ValidateSet("INFO", "WARNING", "ERROR")]
+        [string]$Level = "INFO"
     )
-
-    $Stamp = (Get-Date).toString()
-    $Line = 
-    Add-Content $slogfile -Value $Line -PassThru
-}
-#---------------------------------------------------------[Logging function has to come first]------------------------------------------------------
-
-
-#---------------------------------------------------------[TEMP HARDCODED ADDITION]--------------------------------------------------------
-if ($null -eq $jirabaseurl) {
-    #BaseUrl
-    #JiraTest
-    $script:jirabaseurl = 
-    #JiraProd
-    #$jirabaseurl =
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $entry = "$timestamp [$Level] $Message"
+    Add-Content -Path $logFile -Value $entry
+    Write-Host $entry
 }
 
-if ($null -eq $UserList) {
-    $UserList = 
-}
-#---------------------------------------------------------[TEMP HARDCODED ADDITION]--------------------------------------------------------
-
-#---------------------------------------------------------[Initialisations]--------------------------------------------------------
-
-#Set Error Action to Silently Continue
-$ErrorActionPreference = 'SilentlyContinue'
-
-function Load-Module ($m) {
-    Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
-    Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-    # If module is imported say that and do nothing
-    if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        Write-Host 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
+# --- Azure AD Connection ---
+function Connect-AzureAD {
+    Write-Log -Message "Connecting to Azure AD..." -Level "INFO"
+    try {
+        Import-Module AzureAD -ErrorAction Stop
+        Connect-AzureAD -ErrorAction Stop
+        Write-Log -Message "Connected to Azure AD successfully." -Level "INFO"
+    } catch {
+        Write-Log -Message "Failed to connect to Azure AD: $($_.Exception.Message)" -Level "ERROR"
+        throw
     }
-    else {
+}
 
-        # If module is not imported, but available on disk then import
-        if (Get-Module -ListAvailable | Where-Object { $_.Name -eq $m }) {
-            Import-Module $m -Verbose
+# --- Load User List ---
+function Load-UserList {
+    Write-Log -Message "Loading user list from $UserList..." -Level "INFO"
+    try {
+        $users = Import-Csv -Path $UserList
+        if (-not $users) {
+            Write-Log -Message "The user list is empty." -Level "ERROR"
+            throw "User list is empty."
         }
-        else {
+        Write-Log -Message "User list loaded successfully." -Level "INFO"
+        return $users
+    } catch {
+        Write-Log -Message "Failed to load user list: $($_.Exception.Message)" -Level "ERROR"
+        throw
+    }
+}
 
-            # If module is not imported, not available on disk, but is in online gallery then install and import
-            if (Find-Module -Name $m | Where-Object { $_.Name -eq $m }) {
-                Install-Module -Name $m -Force -Verbose -Scope CurrentUser
-                Import-Module $m -Verbose
-                Write-Log -LogPath $sLogFile -TimeStamp -Message 'Module not found, install started'
-                Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
+# --- Update Jira User ---
+function Update-JiraUser {
+    param (
+        [string]$OldUsername,
+        [string]$OldEmail,
+        [string]$NewUPN
+    )
+    Write-Log -Message "Updating Jira user: $OldUsername -> $NewUPN" -Level "INFO"
+    try {
+        $uri = "$jirabaseurl/rest/api/3/user?username=$OldUsername"
+        $body = @{
+            name = $NewUPN
+            emailAddress = $NewUPN
+        } | ConvertTo-Json -Depth 10
+
+        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$AdminAccount`:$Token"))
+        $headers = @{
+            Authorization = "Basic $base64AuthInfo"
+            "Content-Type" = "application/json"
+        }
+
+        $response = Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body -ErrorAction Stop
+        Write-Log -Message "Successfully updated user: $OldUsername -> $NewUPN" -Level "INFO"
+    } catch {
+        Write-Log -Message "Failed to update user $($OldUsername): $($_.Exception.Message)" -Level "ERROR"
+    }
+}
+
+# --- Process Users ---
+function Process-Users {
+    param (
+        [array]$UserList
+    )
+    foreach ($user in $UserList) {
+        $OldUsername = $user.samaccountname
+        $OldEmail = $user.mail
+
+        Write-Log -Message "Processing user: $OldUsername ($OldEmail)" -Level "INFO"
+
+        try {
+            $filter = "mail eq '$($OldEmail)'"
+            $AzureUser = Get-AzureADUser -Filter $filter | Select-Object -First 1 -Property UserPrincipalName
+
+            if ($null -eq $AzureUser) {
+                Write-Log -Message "No matching Azure AD user found for $OldEmail." -Level "WARNING"
+                continue
             }
-            else {
 
-                # If the module is not imported, not available and not in the online gallery then abort
-                Write-Host 
-                Write-Log -LogPath $sLogFile -TimeStamp -Message 
-                Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-                EXIT 1
+            $NewUPN = $AzureUser.UserPrincipalName
+            if ($NewUPN -ne $OldUsername) {
+                Update-JiraUser -OldUsername $OldUsername -OldEmail $OldEmail -NewUPN $NewUPN
+            } else {
+                Write-Log -Message "No update needed for $OldUsername." -Level "INFO"
             }
+        } catch {
+            Write-Log -Message "Error processing user $($OldUsername): $($_.Exception.Message)" -Level "ERROR"
         }
     }
 }
 
-#Import Modules & Snap-ins
-#Load-Module
+# --- Execution ---
+Write-Log -Message "Script execution started." -Level "INFO"
 
-#Load-Module AzureAD
-Load-Module AzureAD
-
-Connect-AzureAD
-
-##	Change Aliases	##
-#	Changing alias for Curl
-Remove-Item alias:curl -Force
-New-Alias curl curl.exe
-#	Curl changed
-
-#----------------------------------------------------------[Declarations]----------------------------------------------------------
-
-#Script Version
-$sScriptVersion = '1.0'
-
-#Log File Info
-write-log -Message 
-$sLogName = $MyInvocation.MyCommand.Name
-$sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogName = $sLogName -replace '.ps1', '.log'
-$sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
-write-log -Message 
-
-$pair = 
-
-#-----------------------------------------------------------[Functions]------------------------------------------------------------
-
-
-
-#Was unable to connect to domain to collect user info from old AD, therefor they where extracted as CSV from server, and imported here...
-
-    Process {
-        Try {
-            #csv contains a list of users extracted from Miracle Local AD, containing only the properties mail and samaccountname
-            #get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\Users.csv
-            Write-Log -Message 
-            if (Test-Path $UserList) {
-                $extn = [IO.Path]::GetExtension($UserList)
-                if ($extn -eq  ) {
-                    $script:iul = Import-Csv $UserList
-                }
-
-            }
-            else {
-                Write-Log -Message 
-            }
-        }
-        Catch {
-            Write-Log -Level ERROR -Message $_.Exception
-            Break
-        }
-    }
-    End {
-        If ($?) {
-            Write-Log -Message 'GetOldADUserObjects Completed Successfully.'
-            Write-Log -Message ' '
-        }
-    }
+try {
+    Connect-AzureAD
+    $users = Load-UserList
+    Process-Users -UserList $users
+} catch {
+    Write-Log -Message "Script execution failed: $($_.Exception.Message)" -Level "ERROR"
+} finally {
+    Write-Log -Message "Script execution completed." -Level "INFO"
 }
-
-    Process {
-        Try {
-            foreach ($user in $iul) {
-                $email = $user.mail
-                $username = $user.samaccountname
-                $filter = 
-                $KnowITUser = Get-AzureADUser -Filter $filter | Select-Object UserPrincipalName
-                $KnowITUserUPN = $KnowITUser.UserPrincipalName
-                #Write-Host 
-                Write-Log -Message 
-                if ($null -ne $KnowITUserUPN) {
-                    if ($KnowITUserUPN -ne $username) {
-                        ChangeUsernameAndEmail -email $email -username $username -upn $KnowITUserUPN
-                    }
-                }
-            }
-        }
-        Catch {
-            Write-Log -Level ERROR -Message $_.Exception
-            Break
-        }
-    }
-    End {
-        If ($?) {
-            Write-Log -Message 'GetAzureUserObject Completed Successfully.'
-            Write-Log -Message ' '
-        }
-    }
-}
-
-    Process {
-        Try {
-            $result = $exists = $overlapped = 
-            $tries = 0
-            do {
-                $failed = $false
-
-                #region Handle overlap - check if destination user exists already and rename if it is. And if there's something super odd and even renamed user exists already, do some tricks until renamed or tired 3 times.
-                $innertries = 0
-                do {
-                    $innerfailed = $false
-                    try {
-                        #check if account already exist with upn as username
-                        $uri = 
-                        $exists = curl -H 'Content-Type: application/json' -X GET -u $pair $uri | ConvertFrom-Json
-                    }
-                    catch {
-                        if ($exists.errormessages -like ) {
-                            # Expected, continue
-                            $exists = $null
-                        }
-                        else {
-                            write-log -message yyyy-MM-dd HH:mm:ss.fff
-                        }
-                    }
-                    if ($null -ne $exists) {
-                        if ($exists.key -eq $username) {
-                            write-log -message yyyy-MM-dd HH:mm:ss.fff
-                            return
-                        }
-                        else {
-                            $overlap = 
-                            try {
-                                #If account already exist, rename to overlap-.-upn
-                                $uri = 
-                                $body = '{: , : }' | ConvertTo-Json
-                                $overlapped = curl -H 'Content-Type: application/json' -X PUT -u $pair -d $body $uri
-                            }
-                            catch {
-                                if ($null -eq $(try { $overlapped.message | ConvertFrom-Json -ErrorAction stop }catch {})) {
-                                    $innerfailed = $true
-                                    write-log -Level WARN -message 
-                                }
-                                else {
-                                    $errmsg = $overlapped.message | ConvertFrom-Json
-                                    if ($errmsg.errors.username -like ) {
-                                        # Silent retry
-                                        $innerfailed = $true
-                                        if ($innertries -ge 3) {
-                                            write-log -message yyyy-MM-dd HH:mm:ss.fff, , 
-                                        }
-                                    }
-                                    else {
-                                        write-log -message yyyy-MM-dd HH:mm:ss.fff, , 
-                                    }
-                                }
-                            }
-                            if ($null -ne $overlapped.name) {
-                                $jiraOverlap.Add($overlap) | Out-Null
-                            }
-                        }
-                    }
-                    $innertries++
-                }while ($innerfailed -and $innertries -lt 4)
-                if ($innerfailed) {
-                    write-log -Level WARN -message 
-                }
-                #endregion
-
-                try {
-                    #if no account is found, rename the account username and email to the knowit upn
-                    $uri = 
-                    $body = '{: , : }' | ConvertTo-Json
-                    $result = curl -H 'Content-Type: application/json' -X PUT -u $pair -d $body $uri | ConvertFrom-Json
-                }
-                catch {
-                    if ($result.messages -like ) {
-                        write-log -message yyyy-MM-dd HH:mm:ss.fff
-                    }
-                    else {
-                        # UPN might have been changed to incorrect one already so double-checking
-                        $failed = $true
-                        if ($null -eq $(try { $result.message | ConvertFrom-Json -ErrorAction stop }catch {})) {
-                            write-log -Level WARN -message 
-                        }
-                        else {
-                            $chngerrmsg = $result.message | ConvertFrom-Json
-                            write-log -message yyyy-MM-dd HH:mm:ss.fff, , 
-                        }
-                    }
-                }
-                if ($null -ne $result -and $result.name -ne $upn) {
-                    write-log -Level WARN -message 
-                }
-                $tries++
-            }while ($failed -and $tries -lt 4)
-            if ($failed) {
-                write-log -Level WARN -message 
-            }
-        }
-
-
-        Catch {
-            Write-Log -Level ERROR -Message $_.Exception
-            Break
-        }
-    }
-    End {
-        If ($?) {
-            Write-Log -Message 'ChangeUsernameAndEmail Completed Successfully.'
-            Write-Log -Message ' '
-        }
-    }
-}
-
-
-<#
-ALL FUNCTIONS ABOVE
-#>
-#-----------------------------------------------------------[Execution]------------------------------------------------------------
-
-Write-Log -message 
-
-
-#Script Execution goes here
-GetOldADUserObjects
-GetAzureUserObject
-
-<#
-the function
-ChangeUsernameAndEmail
-will be called from GetAzureUserObject, as to only make changes to one user account at a time
-#>
-
-
-Write-Log -message

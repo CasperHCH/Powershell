@@ -1,15 +1,15 @@
-<#
+﻿<#
 .SYNOPSIS
 	Pulls updates into Git repos
 .DESCRIPTION
 	This PowerShell script pulls updates into all Git repositories in a folder (including submodules).
-.PARAMETER ParentDir
+.PARAMETER parentDir
 	Specifies the path to the parent folder
 .EXAMPLE
 	PS> ./pull-repos C:\MyRepos
-	⏳ (1) Searching for Git executable...  git version 2.41.0.windows.3
-	⏳ (2) Checking parent folder...        33 subfolders
-	⏳ (3/35) Pulling into 📂base256unicode...
+	⏳ (1) Searching for Git executable...       git version 2.43.0
+	⏳ (2) Checking parent folder...             33 subfolders
+	⏳ (3/35) Pulling into 'base256U'...
 	...
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -17,39 +17,44 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$ParentDir = )
+param([string]$parentDir = "$PWD")
 
 try {
-	$StopWatch = [system.diagnostics.stopwatch]::startNew()
+	$stopWatch = [system.diagnostics.stopwatch]::startNew()
 
-	Write-Host  -NoNewline
+	Write-Host "⏳ (1) Searching for Git executable...`t`t" -NoNewline
 	& git --version
-	if ($lastExitCode -ne ) { throw  }
+	if ($lastExitCode -ne 0) { throw "Can't execute 'git' - make sure Git is installed and available" }
 
-	Write-Host  -NoNewline
-	if (-not(Test-Path  -pathType container)) { throw  }
-	$Folders = (Get-ChildItem  -attributes Directory)
-	$NumFolders = $Folders.Count
-	$ParentDirName = (Get-Item ).Name
-	Write-Host 
+	Write-Host "⏳ (2) Checking parent folder...`t`t" -NoNewline
+	if (-not(Test-Path "$parentDir" -pathType container)) { throw "Can't access folder: $parentDir" }
+	$folders = (Get-ChildItem "$parentDir" -attributes Directory)
+	$numFolders = $folders.Count
+	$parentDirName = (Get-Item "$parentDir").Name
+	Write-Host "$parentDir with $numFolders subfolders"
 
-	[int]$Step = 3
-	[int]$Failed = 0
-	foreach ($Folder in $Folders) {
-		$FolderName = (Get-Item ).Name
-		Write-Host  -NoNewline
+	[int]$step = 3
+	[int]$numFailed = 0
+	foreach ($folder in $folders) {
+		$folderName = (Get-Item "$folder").Name
+		Write-Host "⏳ ($step/$($numFolders + 2)) Pulling into '$folderName'...`t`t" -NoNewline
 
-		& git -C  pull --recurse-submodules --jobs=4
-		if ($lastExitCode -ne ) { $Failed++; write-warning  }
+		& git -C "$folder" pull --recurse-submodules=yes
+		if ($lastExitCode -ne 0) { $numFailed++; Write-Warning "'git pull' into 📂$folderName failed" }
 
-		& git -C  submodule update --init --recursive
-		if ($lastExitCode -ne ) { throw  }
-		$Step++
+		& git -C "$folder" submodule update --init --recursive
+		if ($lastExitCode -ne 0) { $numFailed++; Write-Warning "'git submodule update' in 📂$folderName failed with exit code $lastExitCode" }
+		$step++
 	}
-	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
-	exit 0 # success
+	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
+	if ($numFailed -eq 0) {
+		"✅ Pulled into $numFolders Git repos at 📂$parentDir in $($elapsed)s."
+		exit 0 # success
+	} else {
+		"⚠️ Pulled into $numFolders Git repos at 📂$parentDir but $numFailed failed (took $($elapsed)s)!"
+		exit 1
+	}
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

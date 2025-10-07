@@ -1,5 +1,5 @@
-*list-cli-tools.ps1*
-================
+Script: *list-cli-tools.ps1*
+========================
 
 list-cli-tools.ps1 
 
@@ -25,9 +25,9 @@ Script Content
 .EXAMPLE
 	PS> ./list-cli-tools.ps1
 
-	Tool         Version         Path                                          FileSize
-	----         -------         ----                                          --------
-	at           10.0.19041.1    C:\WINDOWS\system32\at.exe                    31232
+	NAME      VERSION           PATH
+	----      -------           ----
+	arp       10.0.22621.4111   C:\Windows\system32\ARP.EXE (45K)
 	...
 .LINK
 	https://github.com/fleschutz/PowerShell
@@ -35,7 +35,19 @@ Script Content
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function ListTool { param([string]$Name, [string]$VersionArg)
+function Bytes2String([int64]$bytes) {
+        if ($bytes -lt 1000) { return "$bytes bytes" }
+        $bytes /= 1000
+        if ($bytes -lt 1000) { return "$($bytes)K" }
+        $bytes /= 1000
+        if ($bytes -lt 1000) { return "$($bytes)MB" }
+        $bytes /= 1000
+        if ($bytes -lt 1000) { return "$($bytes)GB" }
+        $bytes /= 1000
+        return "$($Bytes)TB"
+}
+
+function ListTool([string]$Name, [string]$VersionArg) {
 	try {
 		$Info = Get-Command $Name -ErrorAction Stop
 		$Path = $Info.Source
@@ -60,13 +72,13 @@ function ListTool { param([string]$Name, [string]$VersionArg)
 		} else {
 			$Size = 0
 		}
-		New-Object PSObject -Property @{ Tool=$Name; Version=$Version; Path=$Path; FileSize=$Size }
+		New-Object PSObject -Property @{ 'NAME'=$Name; 'VERSION'=$Version; 'PATH'="$Path ($(Bytes2String $Size))" }
 	} catch {
 		return
 	}
 }
 
-function ListTools { 
+function List-CLI-Tools {
 	ListTool 7z		"-version"
 	ListTool ant		"-v"
 	ListTool apt		"--version"
@@ -77,9 +89,10 @@ function ListTools {
 	ListTool ar		"--version"
 	ListTool arch		"--version"
 	ListTool arecord	"--version"
-	ListTool arp		""
+	ListTool arp		"--version"
 	ListTool at		""
 	ListTool attrib		""
+	ListTool auditpol       ""
 	ListTool awk		"--version"
 	ListTool b2sum		"--version"
 	ListTool base32		"--version"
@@ -88,24 +101,31 @@ function ListTools {
 	ListTool basenc		"--version"
 	ListTool bash		"--version"
 	ListTool bc		"--version"
+	ListTool bcdboot        ""
 	ListTool bcdedit	""
+	ListTool bitsadmin      ""
 	ListTool bunzip2	"--version"
 	ListTool bzcat		"--version"
 	ListTool bzip2		"--version"
 	ListTool bzip2recover	"--version"
 	ListTool captoinfo	"-V"
-	ListTool cat		"-version"
+	ListTool cat		"--version"
 	ListTool cc		"--version"
-	ListTool chattr		"--version"
+	ListTool certutil       "/?"
+	ListTool chattr		"--help"
 	ListTool chcon		"--version"
 	ListTool chcpu		"--version"
 	ListTool chdsk		""
+	ListTool chglogon       ""
+	ListTool chgport        ""
+	ListTool chgusr         ""
 	ListTool chgrp		"--version"
 	ListTool chmod		"--version"
 	ListTool chkntfs	""
 	ListTool chmem		"--version"
+	ListTool choice         "/?"
 	ListTool chown		"--version"
-	ListTool chpasswd	"--version"
+	ListTool chpasswd	"--help"
 	ListTool chroot		"--version"
 	ListTool choco		"--version"
 	ListTool cipher		""
@@ -114,15 +134,18 @@ function ListTools {
 	ListTool clear		"-V"
 	ListTool cmake		"--version"
 	ListTool cmd		""
+	ListTool cmdkey         "/list"
 	ListTool cmp		"--version"
 	ListTool column		"--version"
 	ListTool comp		""
 	ListTool compact	""
 	ListTool cp		"--version"
 	ListTool cpack		"--version"
+	ListTool cscript        ""
 	ListTool csplit		"--version"
 	ListTool ctest		"--version"
 	ListTool curl		"--version"
+	ListTool curl.exe       "--version"
 	ListTool cut		"--version"
 	ListTool cygcheck	"--version"
 	ListTool cygpath	"--version"
@@ -130,24 +153,29 @@ function ListTools {
 	ListTool dash		"--version"
 	ListTool date		""
 	ListTool dd		"--version"
+	ListTool defrag.exe	"/?"
 	ListTool delgroup	"--version"
 	ListTool deluser	"--version"
 	ListTool df		"--version"
 	ListTool diff		"--version"
 	ListTool diff3		"--version"
+	ListTool difft		"--version"
 	ListTool dir		"--version"
 	ListTool dircolors	"--version"
 	ListTool dirname	"--version"
 	ListTool dism		""
 	ListTool dmidecode	"--version"
 	ListTool dos2unix	"--version"
+	ListTool doskey         "/?"
 	ListTool dotnet         "--info"
 	ListTool driverquery	""
 	ListTool du		"--version"
 	ListTool echo		"--version"
+	ListTool edit.exe	"--version"
 	ListTool egrep		"--version"
 	ListTool emacs		"--version"
 	ListTool env		"--version"
+	ListTool eventcreate    "/?"
 	ListTool ex		"--version"
 	ListTool expand		"--version"
 	ListTool expr		"--version"
@@ -163,7 +191,7 @@ function ListTools {
 	ListTool fmt		"--version"
 	ListTool fold		"--version"
 	ListTool ftp		"-?"
-	ListTool funzip		"--version"
+	ListTool funzip		"-version"
 	ListTool gawk		"--version"
 	ListTool gencat		"--version"
 	ListTool getconf	"--version"
@@ -175,6 +203,7 @@ function ListTools {
 	ListTool git		"--version"
 	ListTool gkill		"--version"
 	ListTool gmondump	"--version"
+	ListTool go		"version"
 	ListTool gpg		"--version"
 	ListTool gpg-agent	"--version"
 	ListTool gpgconf	"--version"
@@ -192,9 +221,11 @@ function ListTools {
 	ListTool hostid		"--version"
 	ListTool hostname	""
 	ListTool htop		"--version"
+	ListTool hx		"--version" # Helix editor
 	ListTool icacls		"--version"
 	ListTool iconv		"--version"
 	ListTool id		"--version"
+	ListTool ip		"help"
 	ListTool ipfs		"--version"
 	ListTool java		"--version"
 	ListTool jcli		"version"
@@ -225,10 +256,12 @@ function ListTools {
 	ListTool mktemp		"--version"
 	ListTool mount		"--version"
 	ListTool MpCmdRun	"-h"
+	ListTool msedit		"--version"
 	ListTool nano		"--version"
 	ListTool netsh		""
 	ListTool netstat	""
 	ListTool nice		"--version"
+	ListTool nmap		"--version"
 	ListTool nohup		"--version"
 	ListTool nroff		"--version"
 	ListTool nslookup	""
@@ -242,6 +275,7 @@ function ListTools {
 	ListTool pip		"--version"
 	ListTool pip3		"--version"
 	ListTool pip3.8		"--version"
+	ListTool pnputil	"/?"
 	ListTool powercfg	"/?"
 	ListTool powershell	"--version"
 	ListTool print		""
@@ -255,10 +289,13 @@ function ListTools {
 	ListTool replace	"--version"
 	ListTool robocopy	"--version"
 	ListTool route		""
+	ListTool rpcping        ""
 	ListTool rsh		""
 	ListTool rsync		"--version"
 	ListTool rundll32	"--version"
+	ListTool sc.exe		"/?"
 	ListTool scp		""
+	ListTool setx           ""
 	ListTool sftp		""
 	ListTool sh		"--version"
 	ListTool sha1sum	"--version"
@@ -273,6 +310,7 @@ function ListTools {
 	ListTool strings	"--version"
 	ListTool strip		"--version"
 	ListTool sudo		"--version"
+	ListTool syncthing	"--version"
 	ListTool systeminfo	""
 	ListTool tail		"--version"
 	ListTool tar		"--version"
@@ -284,6 +322,7 @@ function ListTools {
 	ListTool time		""
 	ListTool timeout	""
 	ListTool top		"--version"
+	ListTool tracert	""
 	ListTool tskill		""
 	ListTool typeperf	""
 	ListTool tzsync		"--version"
@@ -291,6 +330,8 @@ function ListTools {
 	ListTool uniq		"--version"
 	ListTool vi		"--version"
 	ListTool vim		"--version"
+	ListTool vlc		"--version"
+	ListTool vssadmin       "/?"
 	ListTool vulkaninfo	"--version"
 	ListTool w32tm		"/?"
 	ListTool waitfor	"--version"
@@ -307,6 +348,7 @@ function ListTools {
 	ListTool wsl		"--version"
 	ListTool xcopy		"--version"
 	ListTool yes		"--version"
+	ListTool zig		"--version"
 	ListTool zip		"--version"
 	ListTool zipcloak	"--version"
 	ListTool zipdetails	""
@@ -315,15 +357,17 @@ function ListTools {
 	ListTool zipnote	""
 	ListTool zipsplit	""
 	ListTool zsh		"--version"
+	ListTool zstd		"--version"
+	ListTool zvm		"--version"
 }
  
 try {
-	ListTools | Format-Table -property @{e='Tool';width=12},@{e='Version';width=15},@{e='Path';width=70},@{e='FileSize';width=10}
+	List-CLI-Tools | Format-Table -property @{e='NAME';width=15},@{e='VERSION';width=16},@{e='PATH';width=90}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of list-cli-tools.ps1 as of 09/20/2023 17:04:40)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:26)*

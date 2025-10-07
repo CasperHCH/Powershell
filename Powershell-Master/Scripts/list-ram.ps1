@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists RAM details
 .DESCRIPTION
@@ -19,6 +19,6 @@ try {
 	Get-WmiObject -Class Win32_PhysicalMemory
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

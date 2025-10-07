@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Launches the Chrome browser
 .DESCRIPTION
@@ -13,12 +13,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$URL = )
+#requires -version 5.1
+
+param([string]$URL = "http://www.fleschutz.de")
 
 try {
-	Start-Process chrome.exe 
+	Start-Process chrome.exe "$URL"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

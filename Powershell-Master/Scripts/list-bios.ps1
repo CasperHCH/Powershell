@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists BIOS details
 .DESCRIPTION
@@ -19,6 +19,6 @@ try {
 	Get-CimInstance -ClassName Win32_BIOS
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

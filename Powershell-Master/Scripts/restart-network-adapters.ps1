@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Restarts the network adapters (needs admin rights)
 .DESCRIPTION
@@ -19,9 +19,9 @@ try {
 	Get-NetAdapter | Restart-NetAdapter 
 
 	[int]$Elapsed = $StopWatch.Elapsed.TotalSeconds
-	
+	"✅ restarted all local network adapters in $Elapsed sec"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

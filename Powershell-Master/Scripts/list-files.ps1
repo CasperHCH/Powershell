@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all files in a directory tree
 .DESCRIPTION
@@ -13,14 +13,14 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$DirTree = )
+param([string]$DirTree = "")
 
 try {
-	if ($DirTree -eq  ) { $DirTree = read-host  }
+	if ($DirTree -eq "" ) { $DirTree = read-host "Enter path to directory tree" }
 
 	Get-ChildItem -path $DirTree -recurse | select FullName
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

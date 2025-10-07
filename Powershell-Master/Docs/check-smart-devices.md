@@ -1,5 +1,5 @@
-*check-smart-devices.ps1*
-================
+Script: *check-smart-devices.ps1*
+========================
 
 check-smart-devices.ps1 
 
@@ -24,75 +24,100 @@ Script Content
 	This PowerShell script queries the status of the SSD/HDD devices (supporting S.M.A.R.T.) and prints it.
 .EXAMPLE
 	PS> ./check-smart-devices.ps1
-	✅ 1TB Samsung SSD 970 EVO via NVMe (2388 hours, 289x on, v2B2QEXE7, 37°C, selftest passed)
+	✅ 1TB Samsung SSD 970 EVO 1TB via NVMe (35°C, 6142h, 770x on/off, 34TB read, 64TB written, v2B2QEXE7, test passed)
 .LINK
 	https://github.com/fleschutz/PowerShell
 .NOTES
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function Bytes2String { param([int64]$Bytes)
-	if ($Bytes -lt 1000) { return "$Bytes bytes" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)KB" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)MB" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)GB" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)TB" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)PB" }
-	$Bytes /= 1000
-	if ($Bytes -lt 1000) { return "$($Bytes)EB" }
+function Bytes2String([int64]$bytes) {
+	if ($bytes -lt 1000) { return "$bytes bytes" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)KB" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)MB" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)GB" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)TB" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)PB" }
+	$bytes /= 1000
+	if ($bytes -lt 1000) { return "$($bytes)EB" }
 }
 
 try {
-	Write-Progress "⏳ (1/3) Searching for smartmontools..."
-	$Result = (smartctl --version)
-	if ($lastExitCode -ne "0") { throw "Can't execute 'smartctl' - make sure smartmontools are installed" }
+	$result = (smartctl --version)
+	if ($lastExitCode -ne 0) { throw "Can't execute 'smartctl' - make sure smartmontools are installed" }
 
-	Write-Progress "⏳ (2/3) Scanning S.M.A.R.T devices..."
 	if ($IsLinux) {
-		$Devices = $(sudo smartctl --scan-open)
+		$devices = $(sudo smartctl --scan-open)
 	} else {
-		$Devices = $(smartctl --scan-open)
+		$devices = $(smartctl --scan-open)
 	}
 
-	foreach($Device in $Devices) {
-		Write-Progress "⏳ (3/3) Querying S.M.A.R.T devices..."
-		$Array = $Device.split(" ")
-		$Device = $Array[0]
-		if ("$Device" -eq "#") {
+	foreach($device in $devices) {
+		$array = $device.split(" ")
+		$dev = $array[0]
+		if ("$dev" -eq "#") {
 			continue
 		} elseif ($IsLinux) {
-			$Details = (sudo smartctl --all --json $Device) | ConvertFrom-Json
-			$null = (sudo smartctl --test=short $Device)
+			$details = (sudo smartctl --all --json $dev) | ConvertFrom-Json
+			$null = (sudo smartctl --test=conveyance $dev)
 		} else {
-			$Details = (smartctl --all --json $Device) | ConvertFrom-Json
-			$null = (smartctl --test=short $Device)
+			$details = (smartctl --all --json $dev) | ConvertFrom-Json
+			$null = (smartctl --test=conveyance $dev)
 		}
-		$ModelName = $Details.model_name
-		$Protocol = $Details.device.protocol
-		[int64]$GBytes = $Details.user_capacity.bytes
-		if ($GBytes -gt 0) {
-			$Capacity = "$(Bytes2String $GBytes) "
+		$status = "✅"
+		$modelName = $details.model_name
+		$protocol = $details.device.protocol
+		[int64]$bytes = $details.user_capacity.bytes
+		if ($bytes -gt 0) {
+			$capacity = "$(Bytes2String $bytes) "
 		} else {
-			$Capacity = ""
+			$capacity = ""
 		}
-		$Temp = $Details.temperature.current
-		$Firmware = $Details.firmware_version
-		$PowerOn = $Details.power_cycle_count
-		$Hours = $Details.power_on_time.hours
-		if ($Details.smart_status.passed) { $Status = "passed" } else { $Status = "FAILED" }
-		Write-Progress -completed " "
-		Write-Host "✅ $($Capacity)$ModelName via $Protocol ($Hours hours, $($PowerOn)x on, v$($Firmware), $($Temp)°C, selftest $Status)"
+		$infos = ""
+		if ($details.temperature.current -gt 50) {
+			$infos = "$($details.temperature.current)°C TOO HOT"
+			$status = "⚠️"
+		} elseif ($details.temperature.current -lt 0) {
+			$infos = "$($details.temperature.current)°C TOO COLD"
+			$status = "⚠️"
+		} else {
+			$infos = "$($details.temperature.current)°C"
+		}
+		if ($details.power_on_time.hours -gt 87600) { # 10 years
+			$infos += ", $($details.power_on_time.hours)h (!)"
+			$status = "⚠️"
+		} else {
+			$infos += ", $($details.power_on_time.hours)h"
+		}
+		if ($details.power_cycle_count -gt 100000) { 
+			$infos += ", $($details.power_cycle_count)x on/off (!)"
+			$status = "⚠️"
+		} else {
+			$infos += ", $($details.power_cycle_count)x on/off"
+		}
+		if ($details.nvme_smart_health_information_log.host_reads) {
+			$infos += ", $(Bytes2String ($details.nvme_smart_health_information_log.data_units_read * 512 * 1000)) read"
+			$infos += ", $(Bytes2String ($details.nvme_smart_health_information_log.data_units_written * 512 * 1000)) written"
+		}
+		$infos += ", v$($details.firmware_version)"
+		if ($details.smart_status.passed) {
+			$infos += ", test passed"
+		} else {
+			$infos += ", test FAILED"
+			$status = "⚠️"
+		}
+		Write-Host "$status $capacity$modelName via $protocol ($infos)"
 	}
 	exit 0 # success
 } catch {
-	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
 ```
 
-*(generated by convert-ps2md.ps1 using the comment-based help of check-smart-devices.ps1 as of 09/20/2023 17:04:38)*
+*(page generated by convert-ps2md.ps1 as of 08/25/2025 16:51:24)*

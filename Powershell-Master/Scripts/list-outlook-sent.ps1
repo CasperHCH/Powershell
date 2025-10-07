@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists Outlook's Sent Mails
 .DESCRIPTION
@@ -13,11 +13,11 @@
 
 try {
 	$Outlook = New-Object -com Outlook.application
-	$MAPI = $Outlook.GetNameSpace()
+	$MAPI = $Outlook.GetNameSpace("MAPI")
 	$Inbox = $MAPI.GetDefaultFolder(5) # 5 = olFolderSentMail
 	$Inbox.items | Select SentOn,Subject | Format-Table -AutoSize
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

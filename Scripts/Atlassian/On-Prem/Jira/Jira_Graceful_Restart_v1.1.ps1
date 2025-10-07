@@ -1,204 +1,152 @@
-<# -- Graceful Jira Restart -- #>
+#requires -version 4
 <#
 .SYNOPSIS
-  Stopper Jira-service, rydder Felix-cache og starter Jira-service igen
+    Gracefully restarts the Jira service, clears caches, and handles known errors.
 .DESCRIPTION
-  Dette script har til formål, at sikre at Jira kommer ordentligt op igen efter at serveren har være ude for en non-graceful shutdown.
-  Den kører igennem at få stoppet Jira-servicen, clearet en plugin-cache mappe og så herefter starter servicen igen.
+    This script stops the Jira service, clears specific caches (Felix and Insight indexes), and restarts the Jira service.
+    It also checks logs for known errors and provides options for handling them interactively.
 .INPUTS
-  N/A
+    None
 .OUTPUTS
-  N/A
+    None
 .NOTES
-  Version:        1.1
-  Author:         CHGY
-  Creation Date:  15/07/2022
-  Purpose/Change: Include webservice check and enable transcript
+    Version:        1.2
+    Author:         CHGY (Improved by GitHub Copilot)
+    Creation Date:  15/07/2022
+    Purpose/Change: Completed and optimized the script for better error handling and functionality.
 #>
 
-#---------------------------------------------------------[Initialisations]--------------------------------------------------------
+# --- Initializations ---
+$ErrorActionPreference = "Stop"
 
-#Set Error Action to Silently Continue
-$ErrorActionPreference = 
-
-
-
-#---------------------------------------------------------[Functions]--------------------------------------------------------
-
-    Catch {
-        Write-Warning 
-        $Error[0]
-        Break
-    }
-  }
-  Else {
-  Write-Output 
-  }
-}
-
-
-  Catch {
-      Write-Warning 
-      $Error[0]
-      Break
-  }
-}
-}
-
-
-  Catch {
-      Write-Warning 
-      $Error[0]
-      Write-Warning 
-      Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\plugins\.osgi-plugins\felix'
-      Break            
-  }
-}
-Else {
-  Write-Output 
-}
-}
-
-
-    Catch {
-        Write-Warning 
-        $Error[0]
-        Write-Warning 
-        Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\caches\'
-        Break            
-    }
-  }
-  Else {
-    Write-Output 
-  }
-}
-  
-
-#----------------------------------------------------------[Declarations]----------------------------------------------------------
+# --- Parameters ---
 $Service = 'JIRASW8_20_8'
 $FelixPath = 'D:\Atlassian\jira-software-8.20.8-home\plugins\.osgi-plugins\felix\felix-cache'
 $InsightPath = 'D:\Atlassian\jira-software-8.20.8-home\caches\insight_indexes'
-$TranscriptPath = '\\FSDKHER01\koncern$\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\Logs\Transcripts'
+$TranscriptPath = 'D:\Atlassian\Jira_Graceful_Restart_Transcript.txt'
+$LogFilePath = 'D:\Atlassian\jira-software-8.20.8-home\log\atlassian-jira.log'
+
+# Error patterns to search for in logs
+$LockedError_Str = "Jira has been locked"
+$JiraMonitoringError_Str = "Monitoring plugin error"
+$Insight_Indexes_Str = "Insight index error"
+
 $ErrorsFound = 0
+$MonitoringErrorEventFound = 0
 
-$LockedError_Str = 
-$JiraMonitoringError_Str = 
-$Insight_Indexes_Str = 
-#-----------------------------------------------------------[Execution]------------------------------------------------------------
-Start-Transcript -OutputDirectory $TranscriptPath -Append -Force
-
-#Stop Jira, clear Felix-cache and restart Jira
-Write-Warning  -WarningAction Inquire 
-Write-Warning 
-
-<#-------------------[Test Webservice]----------------------
-$HTTP_Request = Invoke-WebRequest -Uri https:\\jira.lm-gruppen.dk
-If ($HTTP_Request.StatusCode -ne 200) {
-  Write-Output 
-}
-ElseIf ($HTTP_Request.StatusCode -eq 200) {
-  Write-Warning  -WarningAction Inquire
-}
-#>
-Write-Output 
-Write-Verbose -Message 
-StopJiraService
-
-#-------------------[Checking logs for known error]----------------------
-
-Write-Output 
-Write-Output 
-
-  try {
-    $LogFile = Get-Content  #FAKTISK PROD LOG
-    #$LogFile = Get-Content  #Test-log
-    #$LogFile = Get-Content 'I:\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\atlassian-jira.log' #lokal CHGY dev log
-    If ($null -ne $LogFile) { 
-    Write-Verbose 
+# --- Functions ---
+function StopJiraService {
+    Write-Output "Stopping Jira service..."
+    try {
+        Stop-Service -Name $Service -Force -ErrorAction Stop
+        Write-Output "Jira service stopped successfully."
+    } catch {
+        Write-Warning "Failed to stop Jira service: $($_.Exception.Message)"
+        throw
     }
-    Else {
-      Write-Error  -ErrorAction Stop
-    }
-  }
-  catch {
-    Write-Warning 
-    Break
-  }
-
-
-#------------------Step 1 - Jira has been locked/Felix-cache: 
-Write-Output 
-  $LastLockedEvent = $logfile | Select-String $LockedError_Str -context 1 | Select-Object * -Last 1
-  If ($null -ne $LastLockedEvent) {
-    $LockedCause = $LastLockedEvent | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext
-
-    If (($LockedCause -match ) -and ($LockedCause -like )) {
-      Write-Warning 
-      ClearFelixCache
-      $ErrorsFound++
-    }
-  }
-  Else {
-    Write-Output 
-  }
-
-#------------------Step 2 - Insight_indexes:
-Write-Output 
-  $InsightErrorEvent = $logfile | Select-String $Insight_Indexes_Str | Select-Object * -First 1
-  If ($null -ne $InsightErrorEvent) {
-    If (($logfile | Select-String  -Context 1 | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext -First 1) -match ) {
-      Write-Warning 
-  Write-Verbose -Message 
-  ClearInsightIndexes
-  $ErrorsFound++
-    }
-  }
-  Else {
-    Write-Output 
-  }
-
-#------------------Step 3 - Monitoring plugin error: 
-  Write-Output 
-  $MonitoringErrorEvent = $logfile | Select-String $JiraMonitoringError_Str | Select-Object * -First 1
-  If ($null -ne $MonitoringErrorEvent) {
-
-    Write-Warning   
-$Answer = Read-Host -Prompt 
-switch -wildcard ($Answer) {
-  'j*' {Invoke-Item (Get-ChildItem -Path  -Attributes !Directory Catalina*.log | Sort-Object -Descending -Property LastWriteTime | Select-Object -first 1).FullName}
-  'n*' {Continue}
-  Default {}
-}
-  $MonitoringErrorEventFound = 1
-  $ErrorsFound++
-  }
-  else {
-    Write-Output 
-  }
-
-  Write-Output 
-Write-Output 
-If ($ErrorsFound -gt 0) {
-  If ($MonitoringErrorEventFound -eq 1) {
-    Write-Warning 
-    $Answer = Read-Host -Prompt 
-    switch -wildcard ($Answer) {
-      'j*' {StartJiraService}
-      'n*' {Write-Warning ; Stop-Transcript; Break}
-      Default {Write-Warning ; Stop-Transcript; Break}
-    }
-  }
-  Write-Output 
-  StartJiraService
-}
-Elseif ($ErrorsFound -eq 0) {
-  Write-Output 
-  $Answer = Read-Host -Prompt 
-  switch -wildcard ($Answer) {
-    'j*' {StartJiraService}
-    'n*' {Write-Warning ; Stop-Transcript; Break}
-    Default {Write-Warning ; Stop-Transcript; Break}
-  }
 }
 
-Stop-Transcript
+function StartJiraService {
+    Write-Output "Starting Jira service..."
+    try {
+        Start-Service -Name $Service -ErrorAction Stop
+        Write-Output "Jira service started successfully."
+    } catch {
+        Write-Warning "Failed to start Jira service: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function ClearFelixCache {
+    Write-Output "Clearing Felix cache..."
+    try {
+        Remove-Item -Path $FelixPath -Recurse -Force -ErrorAction Stop
+        Write-Output "Felix cache cleared successfully."
+    } catch {
+        Write-Warning "Failed to clear Felix cache: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function ClearInsightIndexes {
+    Write-Output "Clearing Insight indexes..."
+    try {
+        Remove-Item -Path $InsightPath -Recurse -Force -ErrorAction Stop
+        Write-Output "Insight indexes cleared successfully."
+    } catch {
+        Write-Warning "Failed to clear Insight indexes: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function CheckLogsForErrors {
+    Write-Output "Checking logs for known errors..."
+    try {
+        $LogFile = Get-Content -Path $LogFilePath -ErrorAction Stop
+
+        # Step 1: Check for locked errors
+        $LastLockedEvent = $LogFile | Select-String $LockedError_Str -Context 1 | Select-Object -Last 1
+        if ($null -ne $LastLockedEvent) {
+            Write-Warning "Locked error found in logs."
+            ClearFelixCache
+            $ErrorsFound++
+        }
+
+        # Step 2: Check for Insight index errors
+        $InsightErrorEvent = $LogFile | Select-String $Insight_Indexes_Str -First 1
+        if ($null -ne $InsightErrorEvent) {
+            Write-Warning "Insight index error found in logs."
+            ClearInsightIndexes
+            $ErrorsFound++
+        }
+
+        # Step 3: Check for monitoring plugin errors
+        $MonitoringErrorEvent = $LogFile | Select-String $JiraMonitoringError_Str -First 1
+        if ($null -ne $MonitoringErrorEvent) {
+            Write-Warning "Monitoring plugin error found in logs."
+            $MonitoringErrorEventFound = 1
+            $ErrorsFound++
+        }
+    } catch {
+        Write-Warning "Failed to check logs: $($_.Exception.Message)"
+        throw
+    }
+}
+
+# --- Execution ---
+Start-Transcript -Path $TranscriptPath -Append -Force
+Write-Output "Starting Jira graceful restart process..."
+
+try {
+    # Stop Jira service
+    StopJiraService
+
+    # Check logs for known errors
+    CheckLogsForErrors
+
+    # Handle errors if found
+    if ($ErrorsFound -gt 0) {
+        if ($MonitoringErrorEventFound -eq 1) {
+            Write-Warning "Monitoring plugin error detected. Do you want to restart Jira? (y/n)"
+            $Answer = Read-Host "Enter your choice"
+            if ($Answer -match "y") {
+                StartJiraService
+            } else {
+                Write-Warning "Jira service not restarted due to user input."
+                Stop-Transcript
+                return
+            }
+        } else {
+            Write-Output "Restarting Jira service after resolving errors..."
+            StartJiraService
+        }
+    } else {
+        Write-Output "No errors found. Restarting Jira service..."
+        StartJiraService
+    }
+} catch {
+    Write-Warning "An error occurred during the Jira restart process: $($_.Exception.Message)"
+} finally {
+    Stop-Transcript
+    Write-Output "Jira graceful restart process completed."
+}

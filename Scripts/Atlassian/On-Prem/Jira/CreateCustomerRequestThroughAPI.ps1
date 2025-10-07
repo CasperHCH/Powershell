@@ -29,9 +29,9 @@
    https://Jira.Domain.com
    The script will trim the trailing slash from the base URL
 .PARAMETER Summary
-  Add the summary of the wanted ticket - Format: 
+  Add the summary of the wanted ticket - Format:
 .PARAMETER Description
-Add the wanted ticket description - Format: 
+Add the wanted ticket description - Format:
 .INPUTS
 	none
 .OUTPUTS
@@ -43,7 +43,7 @@ Add the wanted ticket description - Format:
   Purpose/Change: Create a new Customer Request within JSM on-prem through API
 
 .EXAMPLE
-  Replace , , , , and 
+  Replace , , , , and
   with your actual Jira Service Management credentials and the details for the ticket you want to create.
 
   Ensure that you are in the correct directory or provide the full path to your script (replace YourScript.ps1 with the actual name of your PowerShell script).
@@ -53,14 +53,14 @@ Add the wanted ticket description - Format:
   and the log file will capture the details of the script execution.
 
   Specify the necessary parameters
-  $username = 
-  $password = 
-  $baseUrl = 
-  $summary = 
-  $description = 
+  $username = "your-jira-username"
+  $password = "your-api-token"
+  $baseUrl = "https://your-jira-server.com"
+  $summary = "Customer Request Summary"
+  $description = "Detailed description of the customer request"
 
   # Execute the script with the provided parameters
-  .\YourScript.ps1 -username $username -password $password -baseUrl $baseUrl -summary $summary -description $description
+  .\CreateCustomerRequestThroughAPI.ps1 -username $username -password $password -baseUrl $baseUrl -summary $summary -description $description
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
@@ -79,9 +79,9 @@ function Write-Log {
   [CmdletBinding()]
   Param(
     [Parameter(Mandatory = $False)]
-    [ValidateSet(, , , , )]
+    [ValidateSet("INFO", "WARN", "ERROR", "DEBUG", "VERBOSE")]
     [String]
-    $Level = ,
+    $Level = "INFO",
 
     [Parameter(Mandatory = $True)]
     [string]
@@ -89,12 +89,16 @@ function Write-Log {
 
     [Parameter(Mandatory = $False)]
     [string]
-    $logfile
+    $LogFile
   )
 
-  $Stamp = (Get-Date).toString()
-  $Line = 
-  Add-Content $slogfile -Value $Line -PassThru
+  $Stamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+  $Line = "$Stamp [$Level] $Message"
+  if ($LogFile) {
+      Add-Content $LogFile -Value $Line -PassThru
+  } else {
+      Add-Content $sLogFile -Value $Line -PassThru
+  }
 }
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
@@ -116,13 +120,27 @@ New-Alias curl curl.exe
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 
+function CreateTicket {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory=$true)]
+    [string]$UserName,
+    [Parameter(Mandatory=$true)]
+    [string]$Password,
+    [Parameter(Mandatory=$true)]
+    [string]$BaseUrl,
+    [string]$Summary,
+    [string]$Description
+  )
 
   Process {
     Try {
-      $Cred = 
+      # Create credential object for authentication
+      $Cred = "$($UserName):$($Password)"
       $TrimmedURL = $BaseUrl.TrimEnd('/')
-      $Url = 
-      Write-Log -Message 
+      $Url = "$TrimmedURL/rest/servicedeskapi/request"
+      Write-Log -Message "Starting ticket creation process for summary: $Summary"
+      Write-Log -Message "Target URL: $Url"
 
       # ServiceDeskID 58 is a static variable - please dont change it
 
@@ -136,22 +154,43 @@ New-Alias curl curl.exe
       688 = Atlassian Workshop eller Kursus
       802 = Licenser
       #>
-      if ($null -eq $Summary) { $summary =  }
-      else {
-        Write-Log -Message 
-        Write-Log -message 
+      if ($null -eq $Summary -or $Summary -eq "") {
+          $Summary = Read-Host "Enter ticket summary"
+          if ($Summary -eq "") {
+              throw "Summary is required for ticket creation"
+          }
       }
-      if ($null -eq $description) { $description =  }
       else {
-        Write-Log -Message 
-        write-log -message 
+        Write-Log -Message "Using provided summary: $Summary"
+        Write-Log -Message "Summary validation passed"
       }
-      $data = @serviceDeskId58requestTypeId624requestFieldValuessummary$Summarydescription$description@
-      Write-Log -Message 
-      write-log -Message 
+      if ($null -eq $Description -or $Description -eq "") {
+          $Description = Read-Host "Enter ticket description"
+          if ($Description -eq "") {
+              $Description = "No description provided"
+          }
+      }
+      else {
+        Write-Log -Message "Using provided description: $Description"
+        Write-Log -Message "Description validation passed"
+      }
+      # Construct JSON payload for the API request
+      $data = @{
+          serviceDeskId = 58
+          requestTypeId = 624  # Support request type
+          requestFieldValues = @{
+              summary = $Summary
+              description = $Description
+          }
+      } | ConvertTo-Json -Depth 3
 
-      $curlResponse = curl -u $cred -X POST -H  --data $data --url $url
-      write-log -Message 
+      Write-Log -Message "JSON payload constructed successfully"
+      Write-Log -Message "Payload: $data"
+
+      # Execute curl command to create the ticket
+      Write-Log -Message "Executing API request to create ticket..."
+      $curlResponse = curl -u $Cred -X POST -H "Content-Type: application/json" --data $data --url $Url
+      Write-Log -Message "API response received: $curlResponse"
     }
     Catch {
       Write-Log -Level ERROR -Message $_.Exception
@@ -172,12 +211,23 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message 
+Write-Log -Message "=== Jira Service Management Ticket Creation Script Started ==="
+Write-Log -Message "Script Version: $sScriptVersion"
+Write-Log -Message "Log File: $sLogFile"
 
+# Validate required parameters
+if (-not $UserName) {
+    throw "UserName parameter is required"
+}
+if (-not $Password) {
+    throw "Password parameter is required"
+}
+if (-not $BaseUrl) {
+    throw "BaseUrl parameter is required"
+}
 
 #Script Execution goes here
+Write-Log -Message "Calling CreateTicket function with provided parameters"
+CreateTicket -UserName $UserName -Password $Password -BaseUrl $BaseUrl -Summary $Summary -Description $Description
 
-CreateTicket
-
-
-Write-Log -message
+Write-Log -Message "=== Jira Service Management Ticket Creation Script Completed ==="

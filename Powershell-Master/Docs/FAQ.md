@@ -3,31 +3,39 @@
 
 <details><summary>What is PowerShell?</summary>
  
-**PowerShell is a task automation and configuration management framework from Microsoft, consisting of a command-line shell and associated scripting language.**
- 
+**PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework. PowerShell runs on Linux, Mac OS, and Windows.**
 </details>
 
 <details><summary>Why use PowerShell?</summary>
  
-✔️ **It's powerful** - fully control your computer
+* **It's powerful** - fully control your computer.
+* **It's easy to learn** - see the tutorial at: https://www.guru99.com/powershell-tutorial.html.
+* **It's cross-platform** - available for Linux, Mac OS and Windows.
+* **It's open-source and free** - see the Github repository at: https://github.com/PowerShell/PowerShell.
+* **It's fully documented** - see the official documentation at: https://docs.microsoft.com/en-us/powershell.
+* **It's got modern features** such as Unicode support, metadata header, try-catch-blocks, and many more.
+</details>
 
-✔️ **It's easy to learn** - see the tutorial at: https://www.guru99.com/powershell-tutorial.html
+<details><summary>How to learn PowerShell?</summary>
 
-✔️ **It's cross-platform** - available for Linux, Mac OS and Windows
-
-✔️ **It's open-source and free** - see the Github repository at: https://github.com/PowerShell/PowerShell
-
-✔️ **It's fully documented** - see the PowerShell documentation at: https://docs.microsoft.com/en-us/powershell
+* **Please find tutorials at:** https://www.guru99.com/powershell-tutorial.html
+* **See a cheat sheet at:** [PowerShell/Docs/cheat-sheet.md](cheat-sheet.md)
+* **Visit the official PowerShell documentation at:** https://docs.microsoft.com/en-us/powershell/
 </details>
 
 <details><summary>How to install PowerShell on Linux?</summary>
  
-1. **On Linux with Snap support just execute:**
+1. **Your Linux supports Snap packages? Then execute:**
 ```
- $ snap install PowerShell
- $ ln -s /snap/bin/pwsh /usr/bin/pwsh
+ $ sudo snap install PowerShell
+ $ sudo ln -s /snap/bin/pwsh /usr/bin/pwsh
 ```
-2. **Otherwise, please visit:** https://github.com/PowerShell/PowerShell **and scroll down to: 'Get PowerShell'.**
+2. **Otherwise, visit:** https://github.com/PowerShell/PowerShell **and scroll down to: *Get PowerShell*.**
+3. **Want to set PowerShell as your default shell?**
+   * Make sure the file **/etc/shells** (contains valid login shells) has a **/usr/bin/pwsh** line, otherwise add it.
+   * Now execute: `chsh -s /usr/bin/pwsh <USERNAME>` (replace &lt;USERNAME&gt; by your user name).
+4. **SSH login is too verbose?**
+   * Just execute: `echo > ~/.hushlogin`
 </details>
 
 <details><summary>How to install PowerShell on MacOS?</summary>
@@ -37,23 +45,33 @@
 
 <details><summary>How to install PowerShell on Windows?</summary>
 
-**Good news:** it's preinstalled, **but** the script execution policy is *restricted* (forbidden) by default! To change this: open the *Windows PowerShell (Administrator)* console and enter:
+**Good news:** It's preinstalled, but not enabled yet (script execution policy is *restricted*). Therefore, **open *Windows PowerShell (Admin)* console** and enter:
 ```
- PS> Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser
+> Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 **NOTE:** the group policy object (GPO) settings of your organization might disallow changes. In that case contact your system administrator for help.
 </details>
 
-<details><summary>How to get the Mega collection of PowerShell scripts?</summary>
+<details><summary>Which PowerShell version should be used?</summary>
+
+* **PowerShell 2.0** (or lower) is out-dated and will be removed in newer Windows releases.
+* **PowerShell 5.1** is preinstalled on Windows 10 or 11.
+* **PowerShell 7.5.2** is the very latest (as of July 2025), but needs to be installed manually.
+* **Version history** can be found at: https://github.com/PowerShell/PowerShell/releases
+* **Scripts** should specify the required version, e.g.: `#Requires -Version 5`. This also helps to identify out-dated scripts.  
+</details>
+
+
+<details><summary>How to get the 500+ PowerShell sample scripts?</summary>
  
-1. **When using Git, execute in a terminal window:** `> git clone https://github.com/fleschutz/PowerShell`
+1. **When using Git, execute in a terminal window:** `git clone https://github.com/fleschutz/PowerShell`
 2. **Otherwise, download and unzip it from:** https://github.com/fleschutz/PowerShell/archive/master.zip
 </details>
 
 <details><summary>How to execute PowerShell scripts on Windows?</summary>
 
 1. **In the Windows desktop:** right-click the script and select: *Execute with PowerShell*
-2. **On the command-line:** launch a terminal application (e.g. *Windows Terminal*), then type: `./<SCRIPT>.ps1`.
+2. **On the command-line:** launch a terminal application (e.g. *Windows Terminal*), then type: `cd <PATH>`, then: `./<SCRIPT>.ps1`.
 3. **By remote login:** use *SSH* to login to the Windows machine, then type: `cd <PATH>`, then: `./<SCRIPT>.ps1`.
 4. **By context menu:** see below.
 5. **By voice control:** see repo [talk2windows](https://github.com/fleschutz/talk2windows) for more information.
@@ -75,23 +93,29 @@
  
 <details><summary>How to execute PowerShell scripts in Jenkins?</summary>
  
-1. **Install the Jenkins plugin:** `PowerShell plugin` (it uses PowerShell.exe on Windows and pwsh on Linux).
+1. **Install the Jenkins plugin** *"PowerShell plugin"* from https://plugins.jenkins.io/ (the plugin uses PowerShell.exe on Windows and pwsh on Linux).
 2. **Add or reference your PowerShell scripts in the Jenkins jobs or in your Jenkinsfiles.**
 </details>
 
-<details><summary>How to learn PowerShell?</summary>
+<details><summary>What about PowerShell security?</summary>
 
-* **Please find tutorials at:** https://www.guru99.com/powershell-tutorial.html
-* **See a cheat sheet at:** [PowerShell/Docs/cheat-sheet.md](cheat-sheet.md)
-* **The official PowerShell documentation can be found here:** https://docs.microsoft.com/en-us/powershell/
+1. **DO NOT execute scripts or executables from untrusted sources! Watch out for fake profiles!**
+2. **CHECK the script content prior execution.**
+3. **Prefer SSH Remoting instead of PowerShell Remoting**
+4. **More recommendations by NSA and cyber security centers in the U.S. (CISA), New Zealand (NZ NCSC), and the U.K. (NCSC-UK) can be found here:** https://media.defense.gov/2022/Jun/22/2003021689/-1/-1/1/CSI_KEEPING_POWERSHELL_SECURITY_MEASURES_TO_USE_AND_EMBRACE_20220622.PDF
+ </details>
+
+ <details><summary>How to get the ultimate PowerShell experience?</summary>
+
+1. **Install *PowerShell* (free)** on all your Linux/Mac OS/Windows machines and configure it as your default shell.
+2. **Install *SSH client & server* (free)** on all your Linux/Mac OS/Windows machines for remote control via SSH.
+3. **Install *Windows Terminal* (free)** on Windows with 50% transparency, font 'Fira Code' and no PowerShell banner message.
+4. **Install *Visual Studio Code* (free)** with plugin 'PowerShell' to edit PowerShell scripts.
+5. **Install this GitHub repo** and set the PATH environment variable to the 📂scripts subfolder.
+6. **Set an own PowerShell profile,** e.g. by executing: './update-powershell-profile.ps1'.
+7. **For Jenkins** install the *PowerShell plugin* and use PowerShell in your Jenkins jobs.
 </details>
 
-<details><summary>What about security?</summary>
-
-1. **Execute scripts only that you trust (and/or where you have checked the code before)!**
-2. **Prefer SSH Remoting instead of PowerShell Remoting**
-3. **More recommendations by NSA and cyber security centers in the U.S. (CISA), New Zealand (NZ NCSC), and the U.K. (NCSC-UK) can be found here:** https://media.defense.gov/2022/Jun/22/2003021689/-1/-1/1/CSI_KEEPING_POWERSHELL_SECURITY_MEASURES_TO_USE_AND_EMBRACE_20220622.PDF
- </details>
 
 <details><summary>Why do some scripts show gibberish characters?</summary>
   
@@ -100,21 +124,16 @@
 **Use a modern one such as *Windows Terminal*, please.**
 </details>
 
-<details><summary>How to configure PowerShell as my default shell on Linux?</summary>
-  
-**Make sure PowerShell is installed, then execute: `chsh -s /usr/bin/pwsh USERNAME`. In case you experience an "invalid shell" error, add "/usr/bin/pwsh" to /etc/shells.**
-</details>
-
-<details><summary>How to install a custom PowerShell profile?</summary>
+<details><summary>How to set a custom PowerShell profile?</summary>
    
-**Execute: `./set-profile.ps1` in the *Scripts* subfolder, this will install **my-profile.ps1** as your PowerShell profile. It's a nice looking base profile, but can easily be changed to your needs.**
+**Execute: `./update-powershell-profile.ps1` in the *Scripts* subfolder, this will install **my-profile.ps1** as your PowerShell profile. It's a nice looking basic profile and can easily be adapted to your needs.**
 </details>
 
  <details><summary>How to add the scripts to the search path?</summary>
 
 Want to use the PowerShell scripts everywhere on the command-line? Then you need to add the Scripts/ subfolder to the search path:
 
-* **On Linux using Bash:** edit .profile in your home directory and add the line: PATH="$PATH:/path/to/PowerShell/Scripts"
+* **On Linux using Bash:** edit .profile in your home directory and add the line: PATH="$PATH:/path/to/PowerShell/scripts (replace '/path/to/)."
 * **On Windows:** open Settings > System > About > Advanced system settings > Environment Variables, edit the user's variable "Path", and add the full path to the Scripts/ directory.
    </details>
 
@@ -128,6 +147,19 @@ Want to use the PowerShell scripts everywhere on the command-line? Then you need
 * **SublimeText package** - an add-on with PowerShell language support for Sublime Text.
 * or simply your **favorite text editor** as an alternative.
 </details>
+
+<details><summary>How to remove the banner message in PowerShell?</summary>
+
+* **In general:** start powershell.exe with option '-nologo'.
+* **For Windows Terminal:** open Settings > Profiles > Windows PowerShell > Command line and add " -nologo".
+</details>
+
+<details><summary>Where to find more scripts?</summary>
+
+* [PowerShellGallery.com](https://www.powershellgallery.com/) - The central repository for sharing and acquiring PowerShell code including PowerShell modules, scripts, and DSC resources.
+* [ScriptShare.io](https://www.scriptshare.io/) - ScriptShare is an evergrowing library of scripts and automations.
+</details>
+
 
 <details><summary>How to write good PowerShell scripts?</summary>
  

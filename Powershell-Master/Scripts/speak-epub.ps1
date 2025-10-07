@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Speaks an Epub file by text-to-speech (TTS).
 .DESCRIPTION
@@ -13,9 +13,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$Filename = )
+#requires -version 5.1
 
+param([string]$Filename = "")
 
+function Speak { param([string]$Text)
+	write-output "$Text"
+	$Voice = new-object -ComObject SAPI.SPVoice
+	$Voices = $Voice.GetVoices()
+	foreach ($OtherVoice in $Voices) {
+		$Description = $OtherVoice.GetDescription()
+		if ($Description -like "*- English (United States)") {
+			$Voice.Voice = $OtherVoice
+			break
+		}
 	}
 	[void]$Voice.Speak($Text)
 }
@@ -23,18 +34,18 @@ param([string]$Filename = )
 function ReadBook() { param([string]$book, [string]$bookPath, [int]$lineNumber = 0)
 	$data = Get-Content $book
 	for([int]$i=$lineNumber;$i -lt $data.Count;$i++) {
-		Set-Content -Path $bookPath -Value ($book++$i)
+		Set-Content -Path $bookPath"\progress.txt" -Value ($book+","+$i)
 		$line = $data[$i]
-		if ($line.Contains()) {
-			$line = $line -Replace ,
+		if ($line.Contains("<title>")) {
+			$line = $line -Replace "<.+?>",""
 		 	Speak $line
 		}
-		if ($line.contains()) {
-			$line = $line -Replace ,
+		if ($line.contains("<p")) {
+			$line = $line -Replace "<.+?>",""
 			Speak $line
 		}
 	 }
-	 Set-Content -Path $bookPath -Value ()
+	 Set-Content -Path $bookPath"\progress.txt" -Value ("")
 }
 
 function UnzipFile() { param([string]$file, [string]$dest)
@@ -45,43 +56,43 @@ function UnzipFile() { param([string]$file, [string]$dest)
 	}
 }
  
-if ($Filename -eq ) {
-	$Filename = Read-Host 
+if ($Filename -eq "") {
+	$Filename = Read-Host "Enter path to .epub file"
 }
-write-output 
+write-output "Reading $Filename ..."
 $file = get-item $Filename
-if (-not(Test-Path $file.DirectoryName++$file.Name+)) {
-	$zipFile = $file.DirectoryName++$file.Name+
+if (-not(Test-Path $file.DirectoryName+"\"+$file.Name+".zip")) {
+	$zipFile = $file.DirectoryName+"\"+$file.Name+".zip"
 	$file.CopyTo($zipFile)
 }
 
-$destination = $file.DirectoryName++$file.Name.Replace($file.Extension,)
+$destination = $file.DirectoryName+"\"+$file.Name.Replace($file.Extension,"")
 if (-not(Test-Path $destination)) {
 	md $destination
 	UnzipFile -file $zipFile -dest $destination
 }
  
-[xml]$container = Get-Content $destination
-$contentFilePath = $container.container.rootfiles.rootfile.
-[xml]$content = Get-Content $destination$contentFilePath
-$tmpPath = Get-Item $destination$contentFilePath
+[xml]$container = Get-Content $destination"\META-INF\container.xml"
+$contentFilePath = $container.container.rootfiles.rootfile."full-path"
+[xml]$content = Get-Content $destination"\"$contentFilePath
+$tmpPath = Get-Item $destination"\"$contentFilePath
 $bookPath = $tmpPath.DirectoryName
 $progress = $null
  
 foreach($item in $content.package.manifest.Item) {
-	if ($item. -eq ) {
-		if (Test-Path $bookPath+) {
-			$progress = Get-Content $bookPath
-			$progress = $progress.Split()
+	if ($item."media-type" -eq "application/xhtml+xml") {
+		if (Test-Path $bookPath+"\progress.txt") {
+			$progress = Get-Content $bookPath"\progress.txt"
+			$progress = $progress.Split(",")
 		}
 		$bookFileName = $item.href
 		if ($progress.Count -eq 2) {
-			if ($progress[0] -eq $bookPath++$bookFileName) {
-				ReadBook -book $bookPath$bookFileName -bookPath $bookPath -lineNumber $progress[1]
+			if ($progress[0] -eq $bookPath+"\"+$bookFileName) {
+				ReadBook -book $bookPath"\"$bookFileName -bookPath $bookPath -lineNumber $progress[1]
 			}
 		}
 		else {
-			ReadBook -book $bookPath$bookFileName -bookPath $bookPath
+			ReadBook -book $bookPath"\"$bookFileName -bookPath $bookPath
 		}
 	}
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Simulate a human against burglars
 .DESCRIPTION
@@ -13,20 +13,20 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$IPaddress = )
+param([string]$IPaddress = "")
 
 try {
-	if ($IPaddress -eq  ) { $IPaddress = Read-Host  }
+	if ($IPaddress -eq "" ) { $IPaddress = Read-Host "Enter IP address of the Shelly1 device" }
 
 	for ([int]$i = 0; $i -lt 1000; $i++) {
-		&  $IPaddress on 0
+		& "$PSScriptRoot/switch-shelly1.ps1" $IPaddress on 0
 		Start-Sleep -seconds 10 # on for 10 seconds
-		&  $IPaddress off 0
+		& "$PSScriptRoot/switch-shelly1.ps1" $IPaddress off 0
 		Start-Sleep -seconds 60 # off for 60 seconds
 	}
-	
+	"✅ Done."
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

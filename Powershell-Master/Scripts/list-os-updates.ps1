@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists OS updates
 .DESCRIPTION
@@ -15,24 +15,24 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param([string]$RSS_URL = , [int]$MaxCount = 30)
+param([string]$RSS_URL = "https://distrowatch.com/news/dwd.xml", [int]$MaxCount = 30)
 
 try {
-	
-	
-	
-	[xml]$Content = (Invoke-WebRequest -URI $RSS_URL -userAgent  -useBasicParsing).Content
+	" "
+	"Date  OS Update"
+	"----  ---------"
+	[xml]$Content = (Invoke-WebRequest -URI $RSS_URL -userAgent "curl" -useBasicParsing).Content
 
 
 	[int]$Count = 0
 	foreach ($item in $Content.rss.channel.item) {
-		
+		"$($item.title)"
 		$Count++
 		if ($Count -eq $MaxCount) { break }
 	}
-	
+	"      (source: DistroWatch.com)"
 	exit 0 # success
 } catch {
-	
+	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }

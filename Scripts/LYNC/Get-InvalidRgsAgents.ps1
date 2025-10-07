@@ -1,22 +1,22 @@
-<#  
-.SYNOPSIS  
-	This script searches for the most recent instances of Lync Server warnings 31137 & 31138 (RGS Agents not enabled for UC or EV) 
-	and identifies the Agent Groups to which they belong. Command-line switches provide options for the user to effortlessly 
+<#
+.SYNOPSIS
+	This script searches for the most recent instances of Lync Server warnings 31137 & 31138 (RGS Agents not enabled for UC or EV)
+	and identifies the Agent Groups to which they belong. Command-line switches provide options for the user to effortlessly
 	correct the situation.
 
-.DESCRIPTION  
-	This script searches for the most recent instances of Lync Server warnings 31137 & 31138 (RGS Agents not enabled for UC or EV) 
-	and identifies the Agent Groups to which they belong. If a user still exists on the system but is Disabled for Enterprise 
-	Voice, the  switch will re-enable Enterprise Voice. If a user is no longer present in Lync (and presumably no longer 
-	in AD) the  switch will remove them from all Groups. If someone else has already corrected the warnings reported in 
+.DESCRIPTION
+	This script searches for the most recent instances of Lync Server warnings 31137 & 31138 (RGS Agents not enabled for UC or EV)
+	and identifies the Agent Groups to which they belong. If a user still exists on the system but is Disabled for Enterprise
+	Voice, the  switch will re-enable Enterprise Voice. If a user is no longer present in Lync (and presumably no longer
+	in AD) the  switch will remove them from all Groups. If someone else has already corrected the warnings reported in
 	these events, the  and  switches will have no effect.
 
-.NOTES  
+.NOTES
     Version				: 1.3
 	Date				: 29th May 2016
 	Author    			: Greig Sheridan
 	There are lots of credits at the bottom of the script
-	
+
 	Revision History:
 	v1.3 29May 2016		: Corrected bug where invalid agents in Distribution Group resulted in the group being replaced by the list of remaining (good) agents
 						  Added code-signing certificate. (Thank you DigiCert)
@@ -27,36 +27,36 @@
 						  Changed command tests to try/catch blocks for improved error handling
 						  Added ProgressBar to provide a visual indication as it's reading the users returned from the event logs
 						  Changed the way the Agent Groups are read - now only once, rather than repeatedly for each nominated user
-						  
+
 	v1.2 13Sept2013		: Updated the conjoining of events 31137 & 31138 to correctly capture multiple agents (Tks again Chris)
 	v1.1 08Sept2013		: Corrected bug where Event31138 entries were over-writing those of 31137. (Thanks Chris!)
 	v1.0 22Aug2013	 	: Initial release.
-	
-	
-.LINK  
-    https://greiginsydney.com/Get-InvalidRgsAgents.ps1 
+
+
+.LINK
+    https://greiginsydney.com/Get-InvalidRgsAgents.ps1
 
 .EXAMPLE
-	.\Get-InvalidRgsAgents.ps1 
- 
+	.\Get-InvalidRgsAgents.ps1
+
 	Description
 	-----------
     Searches the Lync error log for the most recent instance of Lync Server warnings 31137 & 31138 (). The users named are then passed to Get-CsRgsAgentGroup to identify the groups
-	they belong to & this output is written to the screen. If you have Response Groups across multiple pools, all are tested, 
+	they belong to & this output is written to the screen. If you have Response Groups across multiple pools, all are tested,
 	however ONLY users homed to the local Front-End will be identified in that machine's event log.
 
 
 .EXAMPLE
 	.\Get-InvalidRgsAgents.ps1 -restore
- 
+
 	Description
 	-----------
-	Reads the event log and identifies agent groups, then re-enables for EV any non-EV user that still exists on the system. Other 
+	Reads the event log and identifies agent groups, then re-enables for EV any non-EV user that still exists on the system. Other
 	users are not changed.
 
 .EXAMPLE
 	.\Get-InvalidRgsAgents.ps1 -remove
- 
+
 	Description
 	-----------
 	Reads the event log and identifies agent groups, then deletes the agents from the groups. The script won't touch any users
@@ -64,14 +64,14 @@
 
 
 .PARAMETER Restore
-		Boolean. If $True (or simply present), any agents that are EV disabled will be re-enabled. Use of the 
+		Boolean. If $True (or simply present), any agents that are EV disabled will be re-enabled. Use of the
 		parameter  is mutually exclusive - the script will abort if both are specified.
 
 .PARAMETER Remove
-		Boolean. If $True (or simply present), any agents not reporting as  will be removed from the group. If the group's agents 
-		are populated from a Distribution Group the script will make no change and instead report the group's e-mail address so you can 
+		Boolean. If $True (or simply present), any agents not reporting as  will be removed from the group. If the group's agents
+		are populated from a Distribution Group the script will make no change and instead report the group's e-mail address so you can
 		manually remove them. Use of the parameter  is mutually exclusive - the script will abort if both are specified.
-		
+
 
 #>
 
@@ -82,7 +82,7 @@ param(
 		parametersetname=
 	)]
 		[switch]$Restore,
-		
+
 	[parameter(
 		mandatory=$false,
 		parametersetname=
@@ -97,14 +97,14 @@ $Error.Clear()          #Clear PowerShell's error variable
 # START MAIN CODE EXECUTION -----
 #--------------------------------
 
-write-progress -id 1 -Activity  -Status 
+write-progress -id 1 -Activity  -Status
 if(-not(Get-Module -name ActiveDirectory)){Import-Module ActiveDirectory}
 
-write-progress -id 1 -Activity  -Status 
+write-progress -id 1 -Activity  -Status
 $Event31137 = Get-EventLog  | ? {$_.eventid -eq 31137} | Select Message -First 1
 $users31137 = $Event31137 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
 
-write-progress -id 1 -Activity  -Status 
+write-progress -id 1 -Activity  -Status
 $Event31138 = Get-EventLog  | ? {$_.eventid -eq 31138} | Select Message -First 1
 $users31138 = $Event31138 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
 write-progress -id 1 -Activity  -Status  -Completed
@@ -116,22 +116,22 @@ if ($users31138.count -ne 0) {$users  += $users31138.Split(' ')}
 $users = $users | select -uniq #Remove dupes
 
 $Grouptable = @()
-$status = 
-$action = 
+$status =
+$action =
 
-write-progress -id 1 -Activity  -Status 
+write-progress -id 1 -Activity  -Status
 $AllGroups = Get-CsRgsAgentGroup
-write-progress -id 1 -Activity  -Status 
-	
+write-progress -id 1 -Activity  -Status
+
 foreach ($user in $users)
 {
-	write-progress -id 1 -Activity  -Status 
+	write-progress -id 1 -Activity  -Status
 	if ($thisUser = get-csuser -Identity  -ea silentlyContinue -wa silentlyContinue)
 	{
 		#OK, they're in Lync.
 		if ($thisUser.EnterpriseVoiceEnabled -eq $false)
 		{
-			$status = 
+			$status =
 		}
 		else
 		{
@@ -140,14 +140,14 @@ foreach ($user in $users)
 	}
 	else
 	{
-		$status = 
-	}	
-	
+		$status =
+	}
+
 	$Groups = $AllGroups | where {$_.agentsbyuri -contains }
 	foreach ($Group in $groups)
 	{
 		$DG =  $group.DistributionGroupAddress
-		$action = 
+		$action =
 		if ($Restore)
 		{
 			if  ($status -eq )
@@ -155,17 +155,17 @@ foreach ($user in $users)
 				try
 				{
 					set-csuser -Identity  -EnterpriseVoiceEnabled $true -AudioVideoDisabled $false -wa silentlyContinue
-					$action = 
+					$action =
 				}
 				catch
 				{
-					#$_ | fl * -f	
-					$action = 
+					#$_ | fl * -f
+					$action =
 				}
 			}
 			else
 			{
-				$action = 
+				$action =
 			}
 		}
 		if ($Remove)
@@ -178,22 +178,22 @@ foreach ($user in $users)
 					try
 					{
 						Set-CsRgsAgentGroup -Instance $Group
-						$action = 
+						$action =
 					}
 					catch
 					{
-						$_ | fl * -f	
-						$action = 
+						$_ | fl * -f
+						$action =
 					}
 				}
 				else
 				{
-					$action = 
+					$action =
 				}
 			}
 			else
 			{
-				$action = 
+				$action =
 			}
 		}
 		#Now create a custom object so we can output all this into a table:
@@ -202,12 +202,12 @@ foreach ($user in $users)
 		$GroupTable += $TableRow
 	}
 }
-$myFormatShow = @{Expression={$_.User};Label=}, `
-			@{Expression={$_.Group};Label=}, `
-			@{Expression={$_.Owner};Label=}, `
-			@{Expression={$_.Status};Label=}, `
-			@{Expression={$_.Action};Label=}, `
-			@{Expression={$_.DistributionGroup};Label=}
+$myFormatShow = @{Expression={$_.User};Label="User"}, `
+			@{Expression={$_.Group};Label="Group"}, `
+			@{Expression={$_.Owner};Label="Owner"}, `
+			@{Expression={$_.Status};Label="Status"}, `
+			@{Expression={$_.Action};Label="Action"}, `
+			@{Expression={$_.DistributionGroup};Label="DistributionGroup"}
 $GroupTable | format-table $myFormatShow -auto
 
 
