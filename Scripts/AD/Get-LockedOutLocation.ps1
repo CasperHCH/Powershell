@@ -91,12 +91,12 @@
         Continue
       }#end catch
 
-      Foreach($LockedEvent in $LockedOutEvents)
+      Foreach($LockedOutEvent in $LockedOutEvents)
       {
-        If($LockedEvent | Where-Object {$_.Properties[2].value -match $UserInfo.SID.Value})
+        If($LockedOutEvent | Where-Object {$_.Properties[2].value -match $UserInfo.SID.Value})
         {
 
-          $LockedEvent | Select-Object -Property @(
+          $LockedOutEvent | Select-Object -Property @(
             @{Label = 'User';               Expression = {$_.Properties[0].Value}}
             @{Label = 'DomainController';   Expression = {$_.MachineName}}
             @{Label = 'EventId';            Expression = {$_.Id}}
