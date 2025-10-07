@@ -273,7 +273,7 @@ function ImportList() {
     Process {
         Try {
             $InputGroupName = read-host -prompt 'Provide the full group name, of the group you want to add users to'
-            $script:GroupName =
+            $script:GroupName = $InputGroupName
         }
 
         Catch {

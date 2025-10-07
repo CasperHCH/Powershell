@@ -1,4 +1,8 @@
-# Define local Exchange server info for message relay.
+# Define        $smtpserver = "smtp.gmail.com"
+        $FromAddress = "your-username@your-domain.com"
+        $Username = "your-username@your-domain.com"
+        $Pass = "your-app-password"
+        $ToAddress = "team-leads@your-domain.com"l Exchange server info for message relay.
     # Ensure that any servers running this script have permission to relay.
         $smtpserver = "smtp.gmail.com"
         $FromAddress = "atlassian-admin@your-domain.com"
