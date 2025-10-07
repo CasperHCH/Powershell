@@ -61,7 +61,7 @@ openssl pkcs12 -in $PfxFile -clcerts -nokeys -out $crtFile -passin pass:$PfxPass
 openssl rsa -in $keyFile -out $decryptedKeyFile -passin pass:$PfxPassword
 
 # Combine the certificate and decrypted key into a .pem file
-cat $crtFile, $decryptedKeyFile | Out-File -FilePath $pemFile -Encoding ascii
+Get-Content $crtFile, $decryptedKeyFile | Out-File -FilePath $pemFile -Encoding ascii
 
 Write-Host "Conversion completed. The following files have been created:"
 Write-Host "Certificate (.crt): $crtFile"

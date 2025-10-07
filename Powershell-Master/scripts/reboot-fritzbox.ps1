@@ -97,5 +97,5 @@ function Reboot-FritzBox {
 }
 
 $Result = Reboot-FritzBox
-echo $Result
+Write-Output $Result
 exit 0 # success

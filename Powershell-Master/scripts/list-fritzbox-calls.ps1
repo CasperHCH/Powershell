@@ -98,5 +98,5 @@ function GetCallList { param([int]$MaxEntries = 999, [int]$MaxDays = 999
 }
 
 GetCallList | format-table -property Date,Duration,Caller,Called
-echo $Result
+Write-Output $Result
 exit 0 # success

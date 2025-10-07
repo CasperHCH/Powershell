@@ -10,7 +10,7 @@ Function Get-Uptime {
 
     process {
         foreach ($server in $servers) {
-            $os = gwmi Win32_OperatingSystem -ComputerName $server
+            $os = Get-WmiObject Win32_OperatingSystem -ComputerName $server
             $boottime = $OS.converttodatetime($OS.LastBootUpTime)
             $uptime = New-TimeSpan (Get-Date $boottime)
             $uptime_days = [int]$uptime.days

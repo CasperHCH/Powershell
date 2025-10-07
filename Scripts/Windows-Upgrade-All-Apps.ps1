@@ -30,7 +30,7 @@ Write-Host "--------------------------------------------"
 $Winget = ((Get-ChildItem "C:\Program Files\WindowsApps" -Recurse -File | Where-Object { ($_.fullname -match 'C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_' -and $_.name -match 'winget.exe') } | Sort-Object fullname -Descending | ForEach-Object{$_.FullName}) -Split [Environment]::NewLine)[0]
 
 # WinGet version
-echo $winget
+Write-Output $winget
 & "$Winget" --info
 
 # Update source
