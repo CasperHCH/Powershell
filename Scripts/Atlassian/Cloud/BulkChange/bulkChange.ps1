@@ -163,13 +163,13 @@ function CollectList(){
 	 'CollectList started'
 	while(1){
 		try{
-			Write-Log -Message
+			Write-Log -Message "Importing Excel file"
 			$script:Excel = Import-Excel (read-host -prompt 'provide Excel path')
 		break
 		}
 		Catch{
-			write-host
-			Write-Log -Level ERROR -Message
+			Write-Host "Failed to import Excel file: $($_.Exception.Message)" -ForegroundColor Red
+			Write-Log -Level ERROR -Message "Failed to import Excel file: $($_.Exception.Message)"
 		}
 	}
 

@@ -58,8 +58,8 @@ Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host
-		Write-LogInfo -LogPath $sLogFile -Message
+        Write-Host "Module $m is already loaded"
+		Write-LogInfo -LogPath $sLogFile -Message "Module $m is already loaded"
 		Write-LogInfo -LogPath $sLogFile -Message ' '
     }
     else {
@@ -80,8 +80,8 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host
-				Write-LogInfo -LogPath $sLogFile -Message
+                Write-Host "Module $m is not available and cannot be installed"
+				Write-LogInfo -LogPath $sLogFile -Message "Module $m is not available and cannot be installed"
 				Write-LogInfo -LogPath $sLogFile -Message ' '
                 EXIT 1
             }

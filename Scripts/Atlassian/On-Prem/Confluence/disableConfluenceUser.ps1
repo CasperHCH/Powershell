@@ -76,8 +76,8 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host
-		Write-Log -LogPath $sLogFile -TimeStamp -Message
+        Write-Host "Module $m is already loaded"
+		Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is already loaded"
 		Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -92,14 +92,14 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
                 Install-Module -Name $m -Force -Verbose -Scope CurrentUser
                 Import-Module $m -Verbose
-				Write-Log -LogPath $sLogFile -TimeStamp -Message
+				Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m installed and imported successfully"
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             }
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host
-				Write-Log -LogPath $sLogFile -TimeStamp -Message
+                Write-Host "Module $m is not available and cannot be installed"
+				Write-Log -LogPath $sLogFile -TimeStamp -Message "Module $m is not available and cannot be installed"
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }

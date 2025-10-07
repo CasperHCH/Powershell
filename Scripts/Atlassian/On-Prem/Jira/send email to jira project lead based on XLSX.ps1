@@ -30,7 +30,7 @@ while($true)
             $LessThanIssueCount = 'retry'
                 }
            Default {
-                 Write-Host
+                 Write-Host "Invalid option selected"
                  break}
             }#End Switch statement
 
@@ -38,14 +38,14 @@ while($true)
 
         }# End Try
         catch{
-            Write-Host
+            Write-Host "An error occurred: $($_.Exception.Message)" -ForegroundColor Red
         }
     }# End While
 
 #Read the desired disable date
 do
 {
-    Write-Host
+    Write-Host "Please enter a date (format: MM/dd/yyyy or yyyy-MM-dd):"
     $date= read-host
 
     $date = $date -as [datetime]

@@ -123,34 +123,34 @@ Write-Warning "This will stop the Jira service temporarily"
 <#-------------------[Test Webservice]----------------------
 $HTTP_Request = Invoke-WebRequest -Uri https:\\jira.lm-gruppen.dk
 If ($HTTP_Request.StatusCode -ne 200) {
-  Write-Output
+  Write-Output "HTTP request failed with status: $($HTTP_Request.StatusCode)"
 }
 ElseIf ($HTTP_Request.StatusCode -eq 200) {
-  Write-Warning  -WarningAction Inquire
+  Write-Warning "HTTP request successful. Proceeding with Jira restart." -WarningAction Inquire
 }
 #>
-Write-Output
-Write-Verbose -Message
+Write-Output "Starting Jira graceful restart process..."
+Write-Verbose -Message "Verbose logging enabled for restart process"
 StopJiraService
 
 #-------------------[Checking logs for known error]----------------------
 
-Write-Output
-Write-Output
+Write-Output "Checking Jira logs for known errors..."
+Write-Output "This may take a moment..."
 
   try {
     $LogFile = Get-Content  #FAKTISK PROD LOG
     #$LogFile = Get-Content  #Test-log
     #$LogFile = Get-Content 'I:\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\atlassian-jira.log' #lokal CHGY dev log
     If ($null -ne $LogFile) {
-    Write-Verbose
+    Write-Verbose "Log file loaded successfully for analysis"
     }
     Else {
-      Write-Error  -ErrorAction Stop
+      Write-Error "Unable to access Jira log file" -ErrorAction Stop
     }
   }
   catch {
-    Write-Warning
+    Write-Warning "Failed to read Jira log file: $($_.Exception.Message)"
     Break
   }
 
@@ -183,15 +183,15 @@ Write-Output "Checking for Insight indexes issues"
     }
   }
   Else {
-    Write-Output
+    Write-Output "No connection pool errors found in log"
   }
 
 #------------------Step 3 - Monitoring plugin error:
-  Write-Output
+  Write-Output "Step 3: Checking for monitoring plugin errors..."
   $MonitoringErrorEvent = $logfile | Select-String $JiraMonitoringError_Str | Select-Object * -First 1
   If ($null -ne $MonitoringErrorEvent) {
 
-    Write-Warning
+    Write-Warning "Monitoring plugin error detected. Manual intervention may be required."
 $Answer = Read-Host -Prompt
 switch -wildcard ($Answer) {
   'j*' {Invoke-Item (Get-ChildItem -Path  -Attributes !Directory Catalina*.log | Sort-Object -Descending -Property LastWriteTime | Select-Object -first 1).FullName}
@@ -202,14 +202,14 @@ switch -wildcard ($Answer) {
   $ErrorsFound++
   }
   else {
-    Write-Output
+    Write-Output "No monitoring plugin errors found"
   }
 
-  Write-Output
-Write-Output
+  Write-Output "Log analysis completed."
+Write-Output "Preparing restart decision based on error analysis..."
 If ($ErrorsFound -gt 0) {
   If ($MonitoringErrorEventFound -eq 1) {
-    Write-Warning
+    Write-Warning "Critical monitoring errors detected. Proceed with caution."
     $Answer = Read-Host -Prompt
     switch -wildcard ($Answer) {
       'j*' {StartJiraService}
