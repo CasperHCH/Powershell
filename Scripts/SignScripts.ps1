@@ -51,19 +51,19 @@ function Get-CodeSigningCertificate {
 
 # Function to create a new self-signed code-signing certificate
 function New-CodeSigningCertificate {
-    Write-Host  -ForegroundColor Yellow
+    Write-Host "Creating a new self-signed code-signing certificate..." -ForegroundColor Yellow
     # Create a new self-signed certificate
-    $cert = New-SelfSignedCertificate -CertStoreLocation Cert:\CurrentUser\My -Subject  -KeyUsage DigitalSignature -Type CodeSigningCert
+    $cert = New-SelfSignedCertificate -CertStoreLocation Cert:\CurrentUser\My -Subject "CN=PowerShell Code Signing" -KeyUsage DigitalSignature -Type CodeSigningCert
     if ($cert) {
-        Write-Host  -ForegroundColor Green
+        Write-Host "Certificate created successfully." -ForegroundColor Green
     } else {
-        Write-Host  -ForegroundColor Red
+        Write-Host "Failed to create certificate." -ForegroundColor Red
     }
     return $cert
 }
 
 # Function to sign the script with the provided certificate
-function Sign-Script {
+function Set-ScriptSignature {
     param (
         [string]$scriptPath,
         [System.Security.Cryptography.X509Certificates.X509Certificate2]$certificate
@@ -72,13 +72,13 @@ function Sign-Script {
         # Attempt to sign the script
         $signature = Set-AuthenticodeSignature -FilePath $scriptPath -Certificate $certificate
         if ($signature.Status -eq 'Valid') {
-            Write-Host  -ForegroundColor Green
+            Write-Host "Script signed successfully." -ForegroundColor Green
         } else {
-            Write-Host  -ForegroundColor Red
-            Write-Host  -ForegroundColor Red
+            Write-Host "Failed to sign script." -ForegroundColor Red
+            Write-Host "Signature status: $($signature.Status)" -ForegroundColor Red
         }
     } catch {
-        Write-Host  -ForegroundColor Red
+        Write-Host "Error occurred while signing script." -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
     }
 }
