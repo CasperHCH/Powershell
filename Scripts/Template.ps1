@@ -43,8 +43,7 @@ function Write-Log {
     $logfile
   )
 
-  $Stamp = (Get-Date).toString("yyyy-MM-dd HH:mm:ss")
-  $Line = "$Stamp [$Level] $Message"
+  $Line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
 
   If($logfile) {
     Add-Content $logfile -Value $Line -PassThru
@@ -192,7 +191,7 @@ ALL ACTIVE FUNCTIONS ABOVE
 #>
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message
+Write-Log -message "Starting script execution - Version: $sScriptVersion" -logfile $sLogFile
 
 
 #Script Execution goes here
