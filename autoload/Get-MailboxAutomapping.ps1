@@ -17,6 +17,6 @@ Function Get-MailboxAutomapping {
     }
 
     Process {
-        Get-ADUser -Identity $Identity -Properties msExchDelegateListBL | select -ExpandProperty msExchDelegateListBL
+        Get-ADUser -Identity $Identity -Properties msExchDelegateListBL | Select-Object -ExpandProperty msExchDelegateListBL
     }
 }
