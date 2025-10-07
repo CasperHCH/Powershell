@@ -7,10 +7,12 @@ A comprehensive collection of PowerShell scripts for various automation tasks, i
 
 ## 🚀 Recent Updates
 - **October 2025**: Major repository restoration completed - all 1,571 files recovered
-- **Error Correction**: Systematic fixing of 751 identified PowerShell best practice violations
-- **Code Quality**: Fixed 10+ files - removing deprecated aliases, unapproved verbs, syntax errors
-- **Progress**: Template.ps1, Install_Modules.ps1, autoload scripts, Atlassian tools, system scripts
-- **Documentation**: Enhanced README and inline documentation with progress tracking
+- **Error Correction**: Systematic fixing of PowerShell best practice violations (756 → ongoing)
+- **Aliases Fixed**: gci→Get-ChildItem, select→Select-Object, Where→Where-Object, foreach→ForEach-Object, iex→Invoke-Expression, fl→Format-List, Group→Group-Object
+- **Unapproved Verbs**: Load-Module→Import-ModuleIfAvailable across 15+ Atlassian scripts
+- **Syntax Fixes**: Profile errors, unused variables, missing expressions corrected
+- **Files Clean**: 50+ files now showing "No errors found" including LYNC, IIS, Mailbox, AD scripts
+- **Exclusions**: Powershell-Master directory excluded from active maintenance per user request
 
 ## 📁 Folder Structure
 
