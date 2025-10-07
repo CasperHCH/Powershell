@@ -46,8 +46,8 @@ Set-JiraConfigServer 'https://jira.miracle.dk'
 New-JiraSession -Credential $creds
 #Use JiraPS to create ticket manually
 # Get-ChildItem -path "C:\Reports" | Rename-Item -NewName { [io.path]::ChangeExtension($_.name, ".txt") }
+# Get the latest report file from the Reports directory
 $filePath = Get-ChildItem "C:\Reports" | Sort-Object LastWriteTime | Select-Object -Last 1
-#$filePath = # Placeholder for file path
 $issueSummary = "User Management Report"
 $issueDescription = "Deactivate after 180 days of inactivity"
 #collect all parameters

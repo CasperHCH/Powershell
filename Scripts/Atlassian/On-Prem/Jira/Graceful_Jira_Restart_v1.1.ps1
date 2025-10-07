@@ -25,19 +25,48 @@ $ErrorActionPreference = "SilentlyContinue"
 
 #---------------------------------------------------------[Functions]--------------------------------------------------------
 
+Function StopJiraService {
+    Try {
+        Write-Output "Stopping $Service service"
+        Stop-Service -Name $Service -Force
+        Write-Output "$Service service stopped successfully"
+    }
     Catch {
-        Write-Warning "An error occurred"
+        Write-Warning "Failed to stop $Service service"
         $Error[0]
         Break
     }
-  }
-  Else {
-  Write-Output "Operation completed successfully"
-  }
 }
 
+Function ClearFelixCache {
+    Try {
+        Write-Output "Clearing Felix cache at $FelixPath"
+        if (Test-Path $FelixPath) {
+            Remove-Item $FelixPath -Recurse -Force
+            Write-Output "Felix cache cleared successfully"
+        }
+    }
+    Catch {
+        Write-Warning "Failed to clear Felix cache"
+        $Error[0]
+        Break
+    }
+}
 
-  Catch {
+Function ClearInsightIndexes {
+    Try {
+        Write-Output "Clearing Insight indexes at $InsightPath"
+        if (Test-Path $InsightPath) {
+            Remove-Item $InsightPath -Recurse -Force
+            Write-Output "Insight indexes cleared successfully"
+        }
+    }
+    Catch {
+        Write-Warning "Failed to clear Insight indexes"
+        $Error[0]
+        Break
+    }
+}
       Write-Warning "An error occurred during operation"
       $Error[0]
       Break
@@ -81,15 +110,15 @@ $InsightPath = 'D:\Atlassian\jira-software-8.20.8-home\caches\insight_indexes'
 $TranscriptPath = '\\FSDKHER01\koncern$\Centrale funk\Økonomi og IT\IT\Drift og Support\Servicedesk\Powershell\Logs\Transcripts'
 $ErrorsFound = 0
 
-$LockedError_Str =
-$JiraMonitoringError_Str =
-$Insight_Indexes_Str =
+$LockedError_Str = "locked"
+$JiraMonitoringError_Str = "monitoring"
+$Insight_Indexes_Str = "indexes"
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 Start-Transcript -OutputDirectory $TranscriptPath -Append -Force
 
 #Stop Jira, clear Felix-cache and restart Jira
-Write-Warning  -WarningAction Inquire
-Write-Warning
+Write-Warning "Starting Jira restart process" -WarningAction Inquire
+Write-Warning "This will stop the Jira service temporarily"
 
 <#-------------------[Test Webservice]----------------------
 $HTTP_Request = Invoke-WebRequest -Uri https:\\jira.lm-gruppen.dk
@@ -143,12 +172,12 @@ Write-Output "Checking for Jira locked/Felix-cache issues"
   }
 
 #------------------Step 2 - Insight_indexes:
-Write-Output
+Write-Output "Checking for Insight indexes issues"
   $InsightErrorEvent = $logfile | Select-String $Insight_Indexes_Str | Select-Object * -First 1
   If ($null -ne $InsightErrorEvent) {
-    If (($logfile | Select-String  -Context 1 | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext -First 1) -match ) {
-      Write-Warning
-  Write-Verbose -Message
+    If (($logfile | Select-String $Insight_Indexes_Str -Context 1 | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext -First 1) -match "error") {
+      Write-Warning "Insight indexes issue detected - clearing cache"
+  Write-Verbose -Message "Clearing Insight indexes cache"
   ClearInsightIndexes
   $ErrorsFound++
     }
