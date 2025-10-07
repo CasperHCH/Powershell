@@ -118,7 +118,7 @@ function Import-ModuleIfAvailable ($m) {
 #Load-Module
 
 #Load-Module AzureAD
-Load-Module AzureAD
+Import-ModuleIfAvailable AzureAD
 
 Connect-AzureAD
 

@@ -31,7 +31,7 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
   }
 }
 
-Load-Module JiraPS
+Import-ModuleIfAvailable JiraPS
 
 # CREATE CREDS!
 # Define Credentials

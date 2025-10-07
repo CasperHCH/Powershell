@@ -95,7 +95,7 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
     }
 }
 
-Load-Module PSLogging
+Import-ModuleIfAvailable PSLogging
 
 Write-LogInfo -LogPath $sLogFile -Message 'Initialisations completed'
 Write-LogInfo -LogPath $sLogFile -Message ' '

@@ -199,7 +199,7 @@ function CollectList() {
             Write-Log -Message  "While loop entered, waiting for List path"
             $extn = [IO.Path]::GetExtension($List)
             if ($extn -eq ".xlsx" ) {
-                Load-Module ImportExcel
+                Import-ModuleIfAvailable ImportExcel
                 $script:importedList = Import-Excel (read-host -prompt 'provide List path')
 
             }

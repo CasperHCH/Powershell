@@ -223,8 +223,8 @@ function CollectList() {
         try {
             Write-Log -Message
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq  ) {
-                Load-Module ImportExcel
+            if ($extn -eq ".xlsx") {
+                Import-ModuleIfAvailable ImportExcel
                 $script:importedList = Import-Excel (read-host -prompt 'provide List path')
 
             }
@@ -247,11 +247,11 @@ function ImportList() {
     Process {
         Try {
             $extn = [IO.Path]::GetExtension($List)
-            if ($extn -eq  ) {
-                Load-Module ImportExcel
+            if ($extn -eq ".xlsx") {
+                Import-ModuleIfAvailable ImportExcel
                 $script:importedList = Import-Excel $List
             }
-            elseif ($extn -eq  ) {
+            elseif ($extn -eq ".csv") {
                 $script:importedList = Import-Csv $List
             }
             else { CollectList }
