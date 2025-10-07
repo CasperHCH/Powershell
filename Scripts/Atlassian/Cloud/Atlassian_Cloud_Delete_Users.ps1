@@ -69,7 +69,7 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
 
 
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
@@ -105,7 +105,7 @@ Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '
     }
 }
 
-Load-Module PSLogging
+Import-ModuleIfAvailable JiraPS
 
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message 'Initialisations completed'
 Write-LogInfo -LogPath $sLogFile -TimeStamp -Message ' '

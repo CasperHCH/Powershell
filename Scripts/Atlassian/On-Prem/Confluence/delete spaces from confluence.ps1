@@ -5,6 +5,12 @@ param(
     [string]$CSVFilePath
 )
 
+# Validate CSV file exists
+if (-not (Test-Path $CSVFilePath)) {
+    Write-Error "CSV file not found: $CSVFilePath"
+    exit 1
+}
+
 #import modules
 try {
     Import-Module ConfluencePS -ErrorAction Stop

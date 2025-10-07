@@ -35,7 +35,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 
 
 
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 Write-Log -Message 'Import Modules'
 
     # If module is imported say that and do nothing

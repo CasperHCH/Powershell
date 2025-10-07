@@ -75,10 +75,10 @@ $KeyPath = "$env:USERPROFILE\\.creds"
 $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
 if ($TestCredsPath.count -eq '0'){
 # Create stored credential if none exists
-Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
+$creds = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
 }else{
 # Retrieve existing stored credential
-Get-StoredCredential -UserName chcadmin
+$creds = Get-StoredCredential -UserName chcadmin
 }
 
 ###  RUN PROGRAMS AS ADMIN ###
@@ -159,6 +159,7 @@ function Invoke-RestApiCall {
       $reader.BaseStream.Position = 0
       $reader.DiscardBufferedData()
       $response = $reader.ReadToEnd()
+      $reader.Close()
       # $StatusCode = [string]$_.Exception.Response.StatusCode.value__  # Variable assigned but never used
       # $StatusDescription = [string]$_.Exception.Response.StatusDescription  # Variable assigned but never used
       $message = $response

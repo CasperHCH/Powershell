@@ -113,7 +113,7 @@ $users = @()
 if ($users31137.count -ne 0) {$users  += $users31137.Split(' ')}
 if ($users31138.count -ne 0) {$users  += $users31138.Split(' ')}
 
-$users = $users | select -uniq #Remove dupes
+$users = $users | Select-Object -Unique #Remove dupes
 
 $Grouptable = @()
 $status =

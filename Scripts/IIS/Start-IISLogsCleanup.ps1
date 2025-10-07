@@ -247,7 +247,7 @@ foreach ($logfile in $logstoremove)
 
 #Calculate unique yyyy-MM dates from logfiles in hashtable
 $hashtable = $hashtable.GetEnumerator() | Sort-Object Value
-$dates = @($hashtable | Group -Property:Value | Select Name)
+$dates = @($hashtable | Group-Object -Property:Value | Select-Object Name)
 
 #For each yyyy-MM date add those logfiles to a zip file
 foreach ($date in $dates)
