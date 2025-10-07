@@ -25,7 +25,7 @@ try {
 	if ($lastExitCode -ne 0) { throw "Can't execute 'pandoc' - make sure it's installed and available" }
 
 	Write-Host "⏳ Converting..."
-	gci -r -i $FilePattern | foreach {
+	Get-ChildItem -r -i $FilePattern | ForEach-Object {
 		$TargetPath = $_.directoryname + "\" + $_.basename + ".html"
 		pandoc --standalone --template "$PSScriptRoot/../data/templates/template.html" -s $_.name -o $TargetPath
 	}

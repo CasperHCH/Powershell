@@ -318,7 +318,7 @@ if($user)
 	if(Test-Path $user)
 	{
 		color_out
-		[array]$u_array = (Get-Content $user | Where-Object {$_} | Foreach {$_.Trim()})
+		[array]$u_array = (Get-Content $user | Where-Object {$_} | ForEach-Object {$_.Trim()})
 	}
 	elseif($user.contains())
 	{
@@ -333,7 +333,7 @@ if($user)
 }
 else
 {
-	[array]$u_array = Get-Mailbox -ResultSize Unlimited | foreach{$_.PrimarySmtpAddress}
+	[array]$u_array = Get-Mailbox -ResultSize Unlimited | ForEach-Object{$_.PrimarySmtpAddress}
 	$All_Mailboxes = $True
 }
 
