@@ -1,6 +1,6 @@
 # PowerShell Library
 
-> **Last Updated:** October 2025  
+> **Last Updated:** October 2025
 > **Status:** Active maintenance and error correction in progress
 
 A comprehensive collection of PowerShell scripts for various automation tasks, including user management, system monitoring, and API integrations. This library has been recently restored and is undergoing systematic error correction and optimization.

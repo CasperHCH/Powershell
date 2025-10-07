@@ -1,4 +1,4 @@
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
@@ -27,9 +27,9 @@ function Load-Module ($m) {
     }
 }
 
-Load-Module AADRM
-Load-Module AzureAD
-Load-Module AzureADPreview
-Load-Module MSOnline
-Load-Module JiraPS
-Load-Module MicrosoftTeams
+Import-ModuleIfAvailable AADRM
+Import-ModuleIfAvailable AzureAD
+Import-ModuleIfAvailable AzureADPreview
+Import-ModuleIfAvailable MSOnline
+Import-ModuleIfAvailable JiraPS
+Import-ModuleIfAvailable MicrosoftTeams
