@@ -1,4 +1,4 @@
-function Check-WindowsFeature {
+function Test-WindowsFeature {
     [CmdletBinding()]
     param(
         [Parameter(Position=0,Mandatory=$true)] [string]$FeatureName

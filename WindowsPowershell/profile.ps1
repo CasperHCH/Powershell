@@ -41,7 +41,7 @@ Register-EngineEvent PowerShell.Exiting -Action { Get-History | Export-Clixml $H
 if (Test-Path $HistFile) { Import-Clixml $HistFile | Add-History }
 
 # Function to load modules and snap-ins
-function Load-Module {
+function Import-ModuleIfAvailable {
     param (
         [string]$ModuleName
     )

@@ -101,7 +101,7 @@ if ($dt.DayOfWeek -match "Tuesday") {
 }
 
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
       write-host

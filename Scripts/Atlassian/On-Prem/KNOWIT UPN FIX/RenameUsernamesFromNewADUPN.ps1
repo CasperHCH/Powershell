@@ -69,7 +69,7 @@ function Connect-AzureAD {
 }
 
 # --- Load User List ---
-function Load-UserList {
+function Get-UserList {
     Write-Log -Message "Loading user list from $UserList..." -Level "INFO"
     try {
         $users = Import-Csv -Path $UserList
@@ -86,7 +86,7 @@ function Load-UserList {
 }
 
 # --- Update Jira User ---
-function Update-JiraUser {
+function Set-JiraUser {
     param (
         [string]$OldUsername,
         [string]$OldEmail,
@@ -114,7 +114,7 @@ function Update-JiraUser {
 }
 
 # --- Process Users ---
-function Process-Users {
+function Invoke-UserProcessing {
     param (
         [array]$UserList
     )
@@ -150,7 +150,7 @@ Write-Log -Message "Script execution started." -Level "INFO"
 
 try {
     Connect-AzureAD
-    $users = Load-UserList
+    $users = Get-UserList
     Process-Users -UserList $users
 } catch {
     Write-Log -Message "Script execution failed: $($_.Exception.Message)" -Level "ERROR"

@@ -71,7 +71,7 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
 
 
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
