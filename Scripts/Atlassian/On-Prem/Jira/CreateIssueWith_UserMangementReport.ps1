@@ -1,5 +1,5 @@
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
 Write-LogInfo -LogPath $sLogFile -Message 'Import Modules'
 Write-LogInfo -LogPath $sLogFile -Message ' '
   # If module is imported say that and do nothing
@@ -45,11 +45,11 @@ Load-Module JiraPS
 Set-JiraConfigServer 'https://jira.miracle.dk'
 New-JiraSession -Credential $creds
 #Use JiraPS to create ticket manually
-Get-ChildItem -path  | rename-item -newname { [io.path]::ChangeExtension($_.name, ) }
-$filePath = Get-ChildItem  | sort LastWriteTime | select -last 1
-#$filePath =
-$issueSummary =
-$issueDescription = @Deactivate after 180 days of inactivity@
+# Get-ChildItem -path "C:\Reports" | Rename-Item -NewName { [io.path]::ChangeExtension($_.name, ".txt") }
+$filePath = Get-ChildItem "C:\Reports" | Sort-Object LastWriteTime | Select-Object -Last 1
+#$filePath = # Placeholder for file path
+$issueSummary = "User Management Report"
+$issueDescription = "Deactivate after 180 days of inactivity"
 #collect all parameters
 $parameters = @{
 	Project = 'MHD'

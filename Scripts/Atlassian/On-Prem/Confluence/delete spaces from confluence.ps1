@@ -23,14 +23,14 @@ if (-not (Test-Path $CSVFilePath)) {
 Set-ConfluenceInfo -BaseUri $BaseUri -PromptCredentials
 
 #Get all the spaces
-Get-ConfluenceSpace | select Key | export-csv 'C:\users\Caspe\Downloads\AllSpaces.csv' -Delimiter ','
+Get-ConfluenceSpace | Select-Object Key | Export-Csv 'C:\users\Caspe\Downloads\AllSpaces.csv' -Delimiter ','
 
 #Collect CSV of spaces to keep
 $AllSpaces = import-csv 'C:\users\Caspe\Downloads\AllSpaces.csv'
 
 
 $SpacesToKeep = @{}
-Import-Csv 'C:\users\Caspe\Downloads\confluence-spaces-to-keep.csv' | ForEach-Object {
+Import-Csv $CSVFilePath | ForEach-Object {
     $SpacesToKeep[$_.Key] = $true
 }
 
