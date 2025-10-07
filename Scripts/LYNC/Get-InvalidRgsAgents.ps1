@@ -182,7 +182,7 @@ foreach ($user in $users)
 					}
 					catch
 					{
-						$_ | fl * -f
+						$_ | Format-List * -f
 						$action =
 					}
 				}

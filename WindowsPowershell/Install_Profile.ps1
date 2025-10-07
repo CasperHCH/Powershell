@@ -1,4 +1,4 @@
-irm "https://github.com/ChrisTitusTech/powershell-profile/raw/main/setup.ps1" | iex
+Invoke-RestMethod "https://github.com/ChrisTitusTech/powershell-profile/raw/main/setup.ps1" | Invoke-Expression
 
 # Append contents of local profile.ps1 to the current user's all-hosts profile, avoiding duplication
 $sourceProfile = "C:\PS\WindowsPowerShell\profile.ps1"
