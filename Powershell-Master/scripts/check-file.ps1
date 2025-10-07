@@ -104,9 +104,9 @@ function Test-Header { param( $path )
 "zip","50 4B 03 04"
 "epub","50 4B 03 04 0A 00 02 00"
 '@ | ConvertFrom-Csv | Sort-Object {$_.header.length} -Descending
-    
+
     $known | ForEach-Object {$_.header = $_.header -replace '\s'}
-    
+
     try {
         # Get content of each file (up to 4 bytes) for analysis
         $HeaderAsHexString = New-Object System.Text.StringBuilder
@@ -117,7 +117,7 @@ function Test-Header { param( $path )
                 $null = $HeaderAsHexString.Append('{0:X}' -f $_)
             }
         }
-      
+
         # Validate file header
         # might change .startswith() to -match.
         # might remove 'select -f 1' to get all possible matching extensions, or just somehow make it a better match.

@@ -47,6 +47,8 @@ function Write-Log {
 
   If($logfile) {
     Add-Content $logfile -Value $Line -PassThru
+  } Else {
+    Write-Output $Line
   }
   Else {
     Write-Output $Line
@@ -130,7 +132,7 @@ Function Invoke-WebRequest {
 Function <FunctionName> {
   Param ()
   Begin {
-    Write-Log -Message '<description of what is going on>...'
+    Write-Log -Message "Function started - Script v$sScriptVersion" -logfile $sLogFile
   }
   Process {
     Try {

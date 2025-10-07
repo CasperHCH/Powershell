@@ -50,6 +50,17 @@ This repository contains a collection of PowerShell scripts for various automati
 - Prioritize the use of `curl` for API calls.
 - Add or update documentation as needed.
 - Refer to `autoload/` for reusable functions and modules.
+- Ensure all scripts include appropriate comments and documentation.
+- Maintain consistent formatting and style across all scripts.
+- Include error handling and logging in all scripts.
+- Use `Pester` for testing and ensure scripts are well-tested before committing.
+- Consider performance implications and optimize scripts for efficiency.
+- Ensure scripts are secure, especially when handling sensitive data or credentials.
+- Follow best practices for PowerShell scripting.
+- Use version control effectively, with clear commit messages and branches for new features or fixes.
+- Document any new scripts or updates in the `README.md` files.
+- Regularly review and update scripts to ensure they remain relevant and effective.
+- Ensure all scripts are properly documented and include usage examples.
 
 ## Contact
 For any questions or contributions, please contact the repository maintainer.

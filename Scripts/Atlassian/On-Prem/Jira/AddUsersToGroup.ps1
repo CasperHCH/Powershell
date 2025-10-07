@@ -15,7 +15,7 @@
   Author:         Casper Hjorth Christensen
   Creation Date:  <Date>
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
   <Example goes here. Repeat this attribute for more than one example>
 #>
@@ -42,8 +42,8 @@ function Import-ModuleIfAvailable ($m) {
     Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        write-host 
-        Write-Log -LogPath $sLogFile -TimeStamp -Message 
+        write-host
+        Write-Log -LogPath $sLogFile -TimeStamp -Message
         Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -64,8 +64,8 @@ function Import-ModuleIfAvailable ($m) {
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host 
-                Write-Log -LogPath $sLogFile -TimeStamp -Message 
+                write-host
+                Write-Log -LogPath $sLogFile -TimeStamp -Message
                 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -74,7 +74,7 @@ function Import-ModuleIfAvailable ($m) {
 }
 
 #Import Modules & Snap-ins
-#Import-Module 
+#Import-Module
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
@@ -115,7 +115,7 @@ function Write-Log {
     )
 
     $Stamp = (Get-Date).toString()
-    $Line = 
+    $Line =
     #If($logfile) {
     Add-Content $slogfile -Value $Line -PassThru
     #}
@@ -148,70 +148,70 @@ Function <FunctionName> {
 #>
 ######### GetUrl #########
 
-    
+
     Process {
         Try {
             $UserInputURL = read-host -prompt 'provide the URL of your jira cloud site, from where you want to delete users - e.g. https://jiracloudtest.atlassian.net OBS! Remember to remove any trailing / '
             $script:url = $UserInputURL.TrimEnd('/')
         }
-     
+
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
             Break
         }
     }
-    
+
     End {
         If ($?) {
-            Write-Log -Message 
-            Write-Log -Message 
+            Write-Log -Message
+            Write-Log -Message
         }
     }
 }
 ######### Collect Admin account email #########
 
-    
+
     Process {
         Try {
             $script:AdminAccount = read-host -prompt 'Please provide your Atlassian Admin account username'
-            Write-Log -Message 
+            Write-Log -Message
             Write-Log -Message ' '
         }
-     
+
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
             Break
         }
     }
-    
+
     End {
         If ($?) {
-            Write-Log -Message 
-            Write-Log -Message 
+            Write-Log -Message
+            Write-Log -Message
         }
     }
 }
-   
+
 ######### Provide API Token#########
 
-    
+
     Process {
         Try {
             $script:ApiToken = read-host -prompt 'Please insert admin account password'
-            Write-Log -Message 
+            Write-Log -Message
             Write-Log -Message ' '
         }
-     
+
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
             Break
         }
     }
-    
+
     End {
         If ($?) {
-            Write-Log -Message 
-            Write-Log -Message 
+            Write-Log -Message
+            Write-Log -Message
         }
     }
 }
@@ -221,23 +221,23 @@ function CollectList() {
     write-log -message 'CollectList started'
     while (1) {
         try {
-            Write-Log -Message  
+            Write-Log -Message
             $extn = [IO.Path]::GetExtension($List)
             if ($extn -eq  ) {
                 Load-Module ImportExcel
                 $script:importedList = Import-Excel (read-host -prompt 'provide List path')
-                
+
             }
             else {
                 $script:importedList = Import-Csv (read-host -prompt 'provide List path')
             }
         }
         Catch {
-            Write-Log -Message  
+            Write-Log -Message
         }
     }
 
-    Write-Log -Message  
+    Write-Log -Message
 }
 ########## Import provided List #########
 function ImportList() {
@@ -258,34 +258,34 @@ function ImportList() {
         }
         Catch {
             Write-Log -Message $_.Exception
-            
+
         }
     }
     End {
         If ($?) {
-            Write-Log -Message 
+            Write-Log -Message
         }
     }
 }
 ######### GetGroupName #########
 
-    
+
     Process {
         Try {
             $InputGroupName = read-host -prompt 'Provide the full group name, of the group you want to add users to'
-            $script:GroupName = 
+            $script:GroupName =
         }
-     
+
         Catch {
             Write-Log -Level ERROR -Message $_.Exception
             Break
         }
     }
-    
+
     End {
         If ($?) {
-            Write-Log -Message 
-            Write-Log -Message 
+            Write-Log -Message
+            Write-Log -Message
         }
     }
 }
@@ -297,7 +297,7 @@ function ImportList() {
                 $prejson = '{: }'
                 $data = ConvertTo-Json $prejson
                 $data
-                curl -i -H 'Content-Type: application/json' -X POST -d $data -u  
+                curl -i -H 'Content-Type: application/json' -X POST -d $data -u
             }
         }
         Catch {
@@ -315,7 +315,7 @@ function ImportList() {
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -message 
+Write-Log -message
 
 
 #Script Execution goes here

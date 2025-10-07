@@ -2,7 +2,7 @@
 .SYNOPSIS
 IISLogsCleanup.ps1 - IIS Log File Cleanup Script
 
-.DESCRIPTION 
+.DESCRIPTION
 A PowerShell script to compress and archive IIS log files.
 
 This script will check the folder that you specify, and any files older
@@ -30,12 +30,12 @@ The path to a location where zip files are moved to, for example
 a central log repository stored on a NAS.
 
 .EXAMPLE
-.\IISLogsCleanup.ps1 -Logpath 
+.\IISLogsCleanup.ps1 -Logpath
 This example will compress the log files in  and leave
 the zip files in that location.
 
 .EXAMPLE
-.\IISLogsCleanup.ps1 -Logpath  -ArchivePath 
+.\IISLogsCleanup.ps1 -Logpath  -ArchivePath
 This example will compress the log files in  and move
 the zip files to the archive path.
 
@@ -113,15 +113,15 @@ $previousmonth = ((Get-Date).AddMonths(-1)).Month
 $firstdayofpreviousmonth = (Get-Date -Year $currentyear -Month $currentmonth -Day 1).AddMonths(-1)
 
 $myDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$output = 
+$output =
 $logpathfoldername = $logpath.Split()[-1]
 
 #...................................
 # Logfile Strings
 #...................................
 
-$logstring0 = 
-$logstring1 = 
+$logstring0 =
+$logstring1 =
 
 
 #-------------------------------------------------
@@ -193,29 +193,29 @@ function IsFileLocked( [string]$path)
 $timestamp = Get-Date -DisplayHint Time
  | Out-File $output
 Write-Logfile $logstring1
-Write-Logfile 
+Write-Logfile
 Write-Logfile $logstring0w
 
 
 #Check whether IIS Logs path exists, exit if it does not
 if ((Test-Path $Logpath) -ne $true)
 {
-    $tmpstring = 
+    $tmpstring =
     Write-Warning $tmpstring
     Write-Logfile $tmpstring
     EXIT
 }
 
 
-$tmpstring = 
+$tmpstring =
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
-$tmpstring = 
+$tmpstring =
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
-$tmpstring = 
+$tmpstring =
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
@@ -231,7 +231,7 @@ else
     $logcount = $($logstoremove.Count)
 }
 
-$tmpstring = 
+$tmpstring =
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 
@@ -252,12 +252,12 @@ $dates = @($hashtable | Group -Property:Value | Select Name)
 #For each yyyy-MM date add those logfiles to a zip file
 foreach ($date in $dates)
 {
-    $zipfilename = 
+    $zipfilename =
 
     if(-not (test-path($zipfilename)))
     {
         set-content $zipfilename ( + [char]5 + [char]6 + ( * 18))
-        (Get-ChildItem $zipfilename).IsReadOnly = $false 
+        (Get-ChildItem $zipfilename).IsReadOnly = $false
     }
 
     $shellApplication = new-object -com shell.application
@@ -265,15 +265,15 @@ foreach ($date in $dates)
 
     $zipfiles = $hashtable | Where {$_.Value -eq }
 
-    $tmpstring = 
+    $tmpstring =
     Write-Host $tmpstring
     Write-Logfile $tmpstring
 
-    foreach($file in $zipfiles) 
-    { 
+    foreach($file in $zipfiles)
+    {
         $fn = $file.key.ToString()
-        
-        $tmpstring = 
+
+        $tmpstring =
         Write-Host $tmpstring
         Write-Logfile $tmpstring
 
@@ -290,23 +290,23 @@ foreach ($date in $dates)
 
     #Compare count of log files on disk to count of log files in zip file
     $zippedcount = ($zipPackage.Items()).Count
-    
-    $tmpstring = 
+
+    $tmpstring =
     Write-Host $tmpstring
     Write-Logfile $tmpstring
-    
-    $tmpstring = 
+
+    $tmpstring =
     Write-Host $tmpstring
     Write-Logfile $tmpstring
 
     #If counts match it is safe to delete the log files from disk
     if ($zippedcount -eq $($zipfiles.Count))
     {
-        $tmpstring = 
+        $tmpstring =
         Write-Host $tmpstring
         Write-Logfile $tmpstring
-        foreach($file in $zipfiles) 
-        { 
+        foreach($file in $zipfiles)
+        {
             $fn = $file.key.ToString()
             Remove-Item $fn
         }
@@ -317,7 +317,7 @@ foreach ($date in $dates)
             #Check whether archive path is accessible
             if ((Test-Path $ArchivePath) -ne $true)
             {
-                $tmpstring = 
+                $tmpstring =
                 Write-Warning $tmpstring
                 Write-Logfile $tmpstring
             }
@@ -326,7 +326,7 @@ foreach ($date in $dates)
                 #Check if subfolder of archive path exists
                 if ((Test-Path $ArchivePath\$computername) -ne $true)
                 {
-                    try 
+                    try
                     {
                         #Create subfolder based on server name
                         New-Item -Path $ArchivePath\$computername -ItemType Directory -ErrorAction STOP
@@ -334,7 +334,7 @@ foreach ($date in $dates)
                     catch
                     {
                         #Subfolder creation failed
-                        $tmpstring = 
+                        $tmpstring =
                         Write-Host $tmpstring
                         Write-Logfile $tmpstring
 
@@ -354,7 +354,7 @@ foreach ($date in $dates)
                     catch
                     {
                         #Subfolder creation failed
-                        $tmpstring = 
+                        $tmpstring =
                         Write-Host $tmpstring
                         Write-Logfile $tmpstring
 
@@ -365,30 +365,30 @@ foreach ($date in $dates)
                 }
 
                 #Now move the zip file to the archive path
-                try 
+                try
                 {
                     #Move the zip file
                     Move-Item $zipfilename -Destination $ArchivePath\$computername\$logpathfoldername -ErrorAction STOP
-                    $tmpstring = 
+                    $tmpstring =
                     Write-Host $tmpstring
                     Write-Logfile $tmpstring
                 }
                 catch
                 {
                     #Move failed, log the error
-                    $tmpstring = 
+                    $tmpstring =
                     Write-Host $tmpstring
                     Write-Logfile $tmpstring
                     Write-Warning $_.Exception.Message
                     Write-Logfile $_.Exception.Message
-                }   
+                }
             }
         }
 
     }
     else
     {
-        $tmpstring = 
+        $tmpstring =
         Write-Host $tmpstring
         Write-Logfile $tmpstring
     }
@@ -397,7 +397,7 @@ foreach ($date in $dates)
 
 
 #Finished
-$tmpstring = 
+$tmpstring =
 Write-Host $tmpstring
 Write-Logfile $tmpstring
 

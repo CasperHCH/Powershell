@@ -21,9 +21,9 @@
   Author:         OpenAI
   Creation Date:  2022-12-22
   Purpose/Change: Initial script development
-  
+
 .EXAMPLE
-  Disable-ConfluenceUser -confluenceUrl  -USERNAME  -adminUsername  -adminPassword 
+  Disable-ConfluenceUser -confluenceUrl  -USERNAME  -adminUsername  -adminPassword
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
@@ -43,7 +43,7 @@ $sScriptVersion = '1.0'
 #Log File Info
 $sLogName = $MyInvocation.MyCommand.Name
 $sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogFile = 
+$sLogFile =
 
 #Enabling log
 Function Write-Log {
@@ -76,8 +76,8 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
 Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        write-host 
-		Write-Log -LogPath $sLogFile -TimeStamp -Message 
+        write-host
+		Write-Log -LogPath $sLogFile -TimeStamp -Message
 		Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
     }
     else {
@@ -92,14 +92,14 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
                 Install-Module -Name $m -Force -Verbose -Scope CurrentUser
                 Import-Module $m -Verbose
-				Write-Log -LogPath $sLogFile -TimeStamp -Message 
+				Write-Log -LogPath $sLogFile -TimeStamp -Message
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
             }
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                write-host 
-				Write-Log -LogPath $sLogFile -TimeStamp -Message 
+                write-host
+				Write-Log -LogPath $sLogFile -TimeStamp -Message
 				Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
                 EXIT 1
             }
@@ -122,58 +122,58 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
 #Use this template:
 <#Function <FunctionName>{
   Param()
-  
+
   Begin{
-    Write-Log -Entry 
+    Write-Log -Entry
   }
-  
+
   Process{
     Try{
       <code goes here>
     }
-    
+
     Catch{
       Log-Error -LogPath $sLogFile -ErrorDesc $_.Exception -ExitGracefully $True
       Break
     }
   }
-  
+
   End{
     If($?){
-      Write-Log -Entry 
-      Write-Log -Entry 
+      Write-Log -Entry
+      Write-Log -Entry
     }
   }
 }
 #>
 
 
-  
+
   Process{
     Try{
-     # Set the user's status to 
-		$updateUserUrl = 
+     # Set the user's status to
+		$updateUserUrl =
 		$updateUserBody = '{:false}'
 		$updateUserResponse = Invoke-RestMethod -Method Put -Uri $updateUserUrl -Body $updateUserBody -ContentType  -Headers $headers
 	# Check the response to see if the update was successful
 		if ($updateUserResponse.status -eq ) {
-			Write-Log 
+			Write-Log
 			}
 		else {
-			Write-Log 
+			Write-Log
 			}
 		}
-    
+
     Catch{
       Write-Log -ExitGracefully $True
       Break
     }
   }
-  
+
   End{
     If($?){
-      Write-Log -Entry 
-      Write-Log -Entry 
+      Write-Log -Entry
+      Write-Log -Entry
     }
   }
 }
@@ -181,9 +181,9 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Write-Log -Entry 
-Write-Log -Entry 
-Write-Log -Entry 
+Write-Log -Entry
+Write-Log -Entry
+Write-Log -Entry
 #Script Execution goes here
 
 # Set up the basic auth header

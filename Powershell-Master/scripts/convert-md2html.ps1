@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-	Converts Markdown file(s) into HTML 
+	Converts Markdown file(s) into HTML
 .DESCRIPTION
 	This PowerShell script converts Markdown file(s) into HTML.
 .PARAMETER FilePattern
@@ -20,7 +20,7 @@ try {
 
 	if ($FilePattern -eq "" ) { $FilePattern = Read-Host "Enter the file pattern to the Markdown file(s)" }
 
-	Write-Host "⏳ Searching for pandoc..." 
+	Write-Host "⏳ Searching for pandoc..."
 	$null = (pandoc --version)
 	if ($lastExitCode -ne 0) { throw "Can't execute 'pandoc' - make sure it's installed and available" }
 

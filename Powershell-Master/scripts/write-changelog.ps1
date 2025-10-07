@@ -8,7 +8,7 @@
 	Specifies the path to the local Git repository (default is current working dir)
 .EXAMPLE
         PS> ./write-changelog.ps1
-	  
+
 	Changelog of Repo 'PowerShell'
 	==============================
 	...
@@ -19,7 +19,7 @@
 #>
 
 param([string]$RepoDir = "$PWD")
- 
+
 try {
 	[system.threading.thread]::currentthread.currentculture = [system.globalization.cultureinfo]"en-US"
 
