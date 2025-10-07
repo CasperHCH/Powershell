@@ -92,7 +92,7 @@ function Write-Log {
     $uri = $url + $uri
 
     try {
-        If($method -eq ) {
+        If($method -eq "GET") {
             $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
         }
         else{

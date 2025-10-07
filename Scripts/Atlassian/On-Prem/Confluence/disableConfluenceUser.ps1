@@ -152,15 +152,15 @@ Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
   Process{
     Try{
      # Set the user's status to
-		$updateUserUrl =
-		$updateUserBody = '{:false}'
-		$updateUserResponse = Invoke-RestMethod -Method Put -Uri $updateUserUrl -Body $updateUserBody -ContentType  -Headers $headers
+		$updateUserUrl = "$baseUrl/rest/api/user?username=$username"
+		$updateUserBody = '{"active":false}'
+		$updateUserResponse = Invoke-RestMethod -Method Put -Uri $updateUserUrl -Body $updateUserBody -ContentType "application/json" -Headers $headers
 	# Check the response to see if the update was successful
-		if ($updateUserResponse.status -eq ) {
-			Write-Log
+		if ($updateUserResponse.status -eq "success") {
+			Write-Log "User $username disabled successfully"
 			}
 		else {
-			Write-Log
+			Write-Log "Failed to disable user $username"
 			}
 		}
 
