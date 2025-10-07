@@ -274,9 +274,9 @@ foreach ($mb in $mailboxes)
         $archivestats =
     }
 
-    $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where {$_.FolderPath -eq }
-    $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems | Where {$_.FolderPath -eq }
-    $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems | Where {$_.FolderPath -eq }
+    $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where-Object {$_.FolderPath -eq "/Inbox"}
+    $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems | Where-Object {$_.FolderPath -eq "/Sent Items"}
+    $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems | Where-Object {$_.FolderPath -eq "/Deleted Items"}
     #FolderandSubFolderSize.ToMB()
 
 	$lastlogon = $stats.LastLogonTime
@@ -284,8 +284,8 @@ foreach ($mb in $mailboxes)
 	$user = Get-User $mb
 	$aduser = Get-ADUser $mb.samaccountname -Properties Enabled,AccountExpirationDate
 
-    $primarydb = $mailboxdatabases | where {$_.Name -eq $mb.Database.Name}
-    $archivedb = $mailboxdatabases | where {$_.Name -eq $mb.ArchiveDatabase.Name}
+    $primarydb = $mailboxdatabases | Where-Object {$_.Name -eq $mb.Database.Name}
+    $archivedb = $mailboxdatabases | Where-Object {$_.Name -eq $mb.ArchiveDatabase.Name}
 
 	#Create a custom PS object to aggregate the data we're interested in
 
@@ -384,7 +384,7 @@ else
 if ($SendEmail)
 {
 
-    $topmailboxeshtml = $report | Sort  -Desc | Select -First $top | Select DisplayName,Title,Department,Office, | ConvertTo-Html -Fragment
+    $topmailboxeshtml = $report | Sort-Object TotalItemSize -Descending | Select-Object -First $top | Select-Object DisplayName,Title,Department,Office,TotalItemSize | ConvertTo-Html -Fragment
 
     $reporthtml = $report | ConvertTo-Html -Fragment
 

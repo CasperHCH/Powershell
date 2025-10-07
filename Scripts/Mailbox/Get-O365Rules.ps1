@@ -248,7 +248,7 @@ else
 {
 	#Find and load the separate O365 MFA powershell library
 	$cwd = Convert-Path .
-	$CreateEXOPSSession = (Get-ChildItem -Path $env:userprofile -Filter CreateExoPSSession.ps1 -Recurse -ErrorAction SilentlyContinue -Force | Select -Last 1).DirectoryName
+	$CreateEXOPSSession = (Get-ChildItem -Path $env:userprofile -Filter CreateExoPSSession.ps1 -Recurse -ErrorAction SilentlyContinue -Force | Select-Object -Last 1).DirectoryName
 	.  *>$null
 	cd $cwd
 
@@ -429,7 +429,7 @@ else
 
 		if($mb.ForwardingSmtpAddress -ne $null)
 		{
-			$SMTP_Forwards.Add(($mb | Select UserPrincipalName,ForwardingSmtpAddress,DelivertoMailboxAndForward)) | Out-Null
+			$SMTP_Forwards.Add(($mb | Select-Object UserPrincipalName,ForwardingSmtpAddress,DelivertoMailboxAndForward)) | Out-Null
 		}
 	}
 
@@ -454,7 +454,7 @@ For ($i=0; $i -lt $userCount; $i++)
 		Start-Sleep -m 200
 		try
 		{
-			if(!(Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" -And $_.State -eq "Opened" }))
+			if(!(Get-PSSession | Where-Object { $_.ConfigurationName -eq "Microsoft.Exchange" -And $_.State -eq "Opened" }))
 			{
 				While(!(Test-Connection outlook.office365.com -Count 1 -Quiet -ErrorAction SilentlyContinue))
 				{
@@ -544,7 +544,7 @@ For ($i=0; $i -lt $userCount; $i++)
 			{
 				if($csv)
 				{
-					$outrule = $rule | Select name,priority,description
+					$outrule = $rule | Select-Object name,priority,description
 					Add-Member -InputObject $outrule -NotePropertyName  -NotePropertyValue $u_array[$i]
 					$outrules.Add($outrule) | Out-Null
 				}

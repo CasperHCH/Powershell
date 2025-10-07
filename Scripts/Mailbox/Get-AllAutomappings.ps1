@@ -36,12 +36,12 @@ process {
     $targets= @()
 
     foreach ($User in $automapped) {
-        $Delegates = $user | select @{ N="Name"; e= {$_ |select -ExpandProperty MsExchDelegateListLink}}
-        $delegatesExp = $Delegates | Select -ExpandProperty Name
+        $Delegates = $user | Select-Object @{ N="Name"; e= {$_ |Select-Object -ExpandProperty MsExchDelegateListLink}}
+        $delegatesExp = $Delegates | Select-Object -ExpandProperty Name
 
         foreach ($delegate in $delegatesExp) {
             If ($delegate -notlike "") {
-                $DelegatedUserUPN = Get-ADUser -Identity ($Delegate.tostring()) -Properties Userprincipalname | Select UserPrincipalName
+                $DelegatedUserUPN = Get-ADUser -Identity ($Delegate.tostring()) -Properties Userprincipalname | Select-Object UserPrincipalName
                 $DelegatedName = ($Delegate.split("/")[0]).replace("CN=","")
                 $target = New-Object psobject
                 $target | Add-Member -type noteproperty -Name "UserName" -Value ($user.Name) -force

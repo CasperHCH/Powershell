@@ -101,7 +101,7 @@ write-progress -id 1 -Activity  -Status
 if(-not(Get-Module -name ActiveDirectory)){Import-Module ActiveDirectory}
 
 write-progress -id 1 -Activity  -Status
-$Event31137 = Get-EventLog  | ? {$_.eventid -eq 31137} | Select Message -First 1
+$Event31137 = Get-EventLog -LogName Application | Where-Object {$_.eventid -eq 31137} | Select-Object Message -First 1
 $users31137 = $Event31137 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
 
 write-progress -id 1 -Activity  -Status
@@ -143,7 +143,7 @@ foreach ($user in $users)
 		$status =
 	}
 
-	$Groups = $AllGroups | where {$_.agentsbyuri -contains }
+	$Groups = $AllGroups | Where-Object {$_.agentsbyuri -contains $Agent}
 	foreach ($Group in $groups)
 	{
 		$DG =  $group.DistributionGroupAddress

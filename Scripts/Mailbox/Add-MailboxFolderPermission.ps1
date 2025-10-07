@@ -75,7 +75,7 @@ $exclusions = @(,
 #...................................
 
 #Add Exchange 2010 snapin if not already loaded in the PowerShell session
-if (!(Get-PSSnapin | where {$_.Name -eq })) {
+if (!(Get-PSSnapin | Where-Object {$_.Name -eq "Microsoft.Exchange.Management.PowerShell.E2010"})) {
 	try {
 		Add-PSSnapin Microsoft.Exchange.Management.PowerShell.E2010 -ErrorAction STOP
 	}
@@ -98,7 +98,7 @@ if (!(Get-ADServerSettings).ViewEntireForest) {
 # Script
 #...................................
 
-$mailboxfolders = @(Get-MailboxFolderStatistics $Mailbox | Where {!($exclusions -icontains $_.FolderPath)} | Select FolderPath)
+$mailboxfolders = @(Get-MailboxFolderStatistics $Mailbox | Where-Object {!($exclusions -icontains $_.FolderPath)} | Select-Object FolderPath)
 
 foreach ($mailboxfolder in $mailboxfolders) {
     $folder = $mailboxfolder.FolderPath.Replace(,)
