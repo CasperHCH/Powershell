@@ -51,7 +51,7 @@ if (!(Test-Path ps:)) {
 #Set-Alias -Name d-exo -Value Disconnect-EXO -Description
 
 # directory of scripts to auto-load in PS
-$psdir =c:\ps
+# $psdir = "c:\ps"  # Variable assigned but never used
 
 # load all 'autoload' scripts
 Get-ChildItem "C:\PS\autoload\*.ps1" | ForEach-Object { .$_ } | out-null
@@ -74,9 +74,11 @@ $KeyPath = "$env:USERPROFILE\\.creds"
 #Test if creds exist, if not create
 $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
 if ($TestCredsPath.count -eq '0'){
-$creds = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
+# Create stored credential if none exists
+Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
 }else{
-$creds = (Get-StoredCredential -UserName chcadmin)
+# Retrieve existing stored credential
+Get-StoredCredential -UserName chcadmin
 }
 
 ###  RUN PROGRAMS AS ADMIN ###
@@ -97,7 +99,7 @@ if (Test-Path $HistFile) { Import-Clixml $HistFile | Add-History }
 $dt = Get-Date
 if ($dt.DayOfWeek -eq "Tuesday") {
     $error.Clear()
-    Update-Help -ErrorAction 0 -Force
+    Update-Help -ErrorAction SilentlyContinue -Force
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
          Write-Host $error[$i].exception
     }
@@ -105,7 +107,7 @@ if ($dt.DayOfWeek -eq "Tuesday") {
 }
 
 #Import Modules & Snap-ins
-function Load-Module ($m) {
+function Import-ModuleIfAvailable ($m) {
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $m}) {
       write-host "Module $m is already loaded" -ForegroundColor Green
@@ -133,7 +135,15 @@ function Load-Module ($m) {
     }
   }
 
-
+# REST API Helper Function
+function Invoke-RestApiCall {
+  param(
+    [string]$url,
+    [string]$uri,
+    [string]$method = "GET",
+    [hashtable]$headers,
+    [string]$Body
+  )
 
   $uri = $url + $uri
 
@@ -149,8 +159,8 @@ function Load-Module ($m) {
       $reader.BaseStream.Position = 0
       $reader.DiscardBufferedData()
       $response = $reader.ReadToEnd()
-      $StatusCode = [string]$_.Exception.Response.StatusCode.value__
-      $StatusDescription = [string]$_.Exception.Response.StatusDescription
+      # $StatusCode = [string]$_.Exception.Response.StatusCode.value__  # Variable assigned but never used
+      # $StatusDescription = [string]$_.Exception.Response.StatusDescription  # Variable assigned but never used
       $message = $response
       $message += " URI: " + $uri + " Exception: " + $_.Exception
       Write-Log -Message $message
@@ -159,9 +169,9 @@ function Load-Module ($m) {
 }
 
 
-function Reload-Profile {
+function Invoke-ProfileReload {
 & $profile
 }
 
 #Clear the screen
-Clear
+Clear-Host

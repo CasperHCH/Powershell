@@ -1,16 +1,25 @@
 # PowerShell Library
 
-A comprehensive collection of PowerShell scripts for various automation tasks, including user management, system monitoring, and API integrations.
+> **Last Updated:** October 2025  
+> **Status:** Active maintenance and error correction in progress
 
-## Folder Structure
+A comprehensive collection of PowerShell scripts for various automation tasks, including user management, system monitoring, and API integrations. This library has been recently restored and is undergoing systematic error correction and optimization.
+
+## 🚀 Recent Updates
+- **October 2025**: Major repository restoration completed - all 1,571 files recovered
+- **Error Correction**: Systematic fixing of PowerShell best practice violations
+- **Code Quality**: Removing deprecated aliases, fixing syntax errors, and improving maintainability
+- **Documentation**: Enhanced README and inline documentation
+
+## 📁 Folder Structure
 
 - **`autoload/`** - Contains reusable PowerShell functions and modules that can be auto-loaded
-- **`Powershell-Master/`** - A collection of finalized and tested scripts from various sources
+- **`Powershell-Master/`** - A collection of finalized and tested scripts from various sources (managed separately)
 - **`Scripts/`** - Custom scripts for specific use cases and automation tasks
 - **`Tools/`** - Additional tools and utilities
 - **`WindowsPowershell/`** - Windows-specific PowerShell scripts and profiles
 
-## Key Components
+## 🔧 Key Components
 
 ### Autoload Functions (`autoload/`)
 - **`Functions-PSStoredCredentials.ps1`** - Manage stored credentials for re-use
@@ -28,24 +37,27 @@ A comprehensive collection of PowerShell scripts for various automation tasks, i
 - **`SignScripts.ps1`** - PowerShell script signing utility
 
 ### Specialized Folders
-- **`AD/`** - Active Directory related scripts
-- **`Azure/`** - Azure cloud management scripts
-- **`Atlassian/`** - Jira and Confluence automation scripts
-- **`Mailbox/`** - Exchange mailbox management scripts
+- **`AD/`** - Active Directory related scripts (user management, group operations, security)
+- **`Atlassian/`** - Jira and Confluence automation scripts (API integration, user cleanup)
+- **`Mailbox/`** - Exchange mailbox management scripts (permissions, forwarding, reporting)
 - **`Network/`** - Network monitoring and management scripts
+- **`System/`** - System administration and monitoring tools
+- **`IIS/`** - Internet Information Services management scripts
 
-## Key Features
+## ✨ Key Features
 
 ### User Management
 - Bulk user operations in Active Directory
 - Jira user management (deletion, anonymization, username replacement)
 - Azure AD and on-premises AD integration
+- Exchange mailbox automapping and permissions
 
 ### System Monitoring
 - System uptime checks
 - Service status monitoring
 - Hardware specification gathering
 - Network connectivity testing
+- Event log analysis
 
 ### Automation Tasks
 - Jenkins agent installation
