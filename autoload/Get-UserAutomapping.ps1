@@ -1,4 +1,4 @@
-Function NSG-GetUserAutomapping {
+Function Get-UserDelegateAutomapping {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory=$True)]
@@ -17,6 +17,6 @@ Function NSG-GetUserAutomapping {
     }
 
     Process {
-        Get-ADUser -Identity $User -Properties msExchDelegateListLink | select -ExpandProperty msExchDelegateListLink
+        Get-ADUser -Identity $User -Properties msExchDelegateListLink | Select-Object -ExpandProperty msExchDelegateListLink
     }
 }
