@@ -88,6 +88,6 @@ $scriptPath = Get-ScriptToSign
 if ($scriptPath) {
     $certificate = Get-CodeSigningCertificate
     if ($certificate) {
-        Sign-Script -scriptPath $scriptPath -certificate $certificate
+        Set-ScriptSignature -scriptPath $scriptPath -certificate $certificate
     }
 }
