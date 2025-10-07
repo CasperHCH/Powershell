@@ -25,7 +25,7 @@ try {
 			Depth = ($Folder.FullName.Split("\")).Count
 		}
 	}
-	$Folders = $Folders | Sort Depth -Descending
+	$Folders = $Folders | Sort-Object Depth -Descending
 
 	$Deleted = @()
 	foreach ($Folder in $Folders)

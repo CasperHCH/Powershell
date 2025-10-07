@@ -1,5 +1,5 @@
 Get-ChildItem -path  | rename-item -newname { [io.path]::ChangeExtension($_.name, ) }
-$file = gci  | sort LastWriteTime | select -last 1
+$file = Get-ChildItem "C:\Reports" | Sort-Object LastWriteTime | Select-Object -Last 1
 $currentDate = get-date
 $Description = @Deactivate after 180 days of inactivity@
 

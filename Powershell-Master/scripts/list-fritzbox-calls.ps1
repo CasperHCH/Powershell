@@ -75,10 +75,10 @@ function New-Request {
     </s:Body>
 </s:Envelope>
 "@
-    $service = $serviceinfo.SelectNodes('//ns:service',$ns) | ?{$_.ServiceType -eq $URN}
+    $service = $serviceinfo.SelectNodes('//ns:service',$ns) | Where-Object{$_.ServiceType -eq $URN}
     if(!$service){throw "URN does not exist."}
     $actiontag = $request.CreateElement('u',$action,$service.serviceType)
-    $parameter.GetEnumerator() | %{
+    $parameter.GetEnumerator() | ForEach-Object{
           $el = $request.CreateElement($_.Key)
           $el.InnerText = $_.Value
           $actiontag.AppendChild($el)| out-null

@@ -36,7 +36,7 @@ try {
         if ($lastExitCode -ne 0) { throw "'git fetch --all' failed with exit code $lastExitCode" }
 
 	Write-Progress "(4/6) Listing all Git commit messages..."
-	$commits = (git -C "$RepoDir" log --boundary --pretty=oneline --pretty=format:%s | sort -u)
+	$commits = (git -C "$RepoDir" log --boundary --pretty=oneline --pretty=format:%s | Sort-Object -Unique)
 
 	Write-Progress "(5/6) Sorting the Git commit messages..."
 	$new = @()
@@ -59,7 +59,7 @@ try {
 		}
  	}
 	Write-Progress "(6/6) Listing all contributors..."
-	$contributors = (git -C "$RepoDir" log --format='%aN' | sort -u)
+	$contributors = (git -C "$RepoDir" log --format='%aN' | Sort-Object -Unique)
 	Write-Progress -completed " "
 
         $Today = (Get-Date).ToShortDateString()

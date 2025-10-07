@@ -16,7 +16,7 @@
 param([string]$Path = "")
 
 
-function Check-Header { param( $path )
+function Test-Header { param( $path )
     $path = Resolve-Path $path
 
     # Hexidecimal signatures for expected files
@@ -103,14 +103,14 @@ function Check-Header { param( $path )
 "yuvn","46 4F 52 4D nn nn nn nn"
 "zip","50 4B 03 04"
 "epub","50 4B 03 04 0A 00 02 00"
-'@ | ConvertFrom-Csv | sort {$_.header.length} -Descending
+'@ | ConvertFrom-Csv | Sort-Object {$_.header.length} -Descending
     
-    $known | % {$_.header = $_.header -replace '\s'}
+    $known | ForEach-Object {$_.header = $_.header -replace '\s'}
     
     try {
         # Get content of each file (up to 4 bytes) for analysis
         $HeaderAsHexString = New-Object System.Text.StringBuilder
-        [Byte[]](Get-Content -Path $path -TotalCount 4 -Encoding Byte -ea Stop) | % {
+        [Byte[]](Get-Content -Path $path -TotalCount 4 -Encoding Byte -ea Stop) | ForEach-Object {
             if (("{0:X}" -f $_).length -eq 1) {
                 $null = $HeaderAsHexString.Append('0{0:X}' -f $_)
             } else {
@@ -121,7 +121,7 @@ function Check-Header { param( $path )
         # Validate file header
         # might change .startswith() to -match.
         # might remove 'select -f 1' to get all possible matching extensions, or just somehow make it a better match.
-        $known | ? {$_.header.startswith($HeaderAsHexString.ToString())} | select -f 1 | % {$_.extension}
+        $known | Where-Object {$_.header.startswith($HeaderAsHexString.ToString())} | Select-Object -First 1 | ForEach-Object {$_.extension}
     } catch {}
 }
 

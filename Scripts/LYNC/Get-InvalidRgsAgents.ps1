@@ -102,11 +102,11 @@ if(-not(Get-Module -name ActiveDirectory)){Import-Module ActiveDirectory}
 
 write-progress -id 1 -Activity  -Status
 $Event31137 = Get-EventLog -LogName Application | Where-Object {$_.eventid -eq 31137} | Select-Object Message -First 1
-$users31137 = $Event31137 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
+$users31137 = $Event31137 | Select-String -Pattern "\w+" -AllMatches | ForEach-Object{ $_.Matches } | ForEach-Object{ $_.Value }
 
 write-progress -id 1 -Activity  -Status
-$Event31138 = Get-EventLog  | ? {$_.eventid -eq 31138} | Select Message -First 1
-$users31138 = $Event31138 | select-string -pattern   -AllMatches | %{ $_.Matches } | %{ $_.Value }
+$Event31138 = Get-EventLog -LogName Application | Where-Object {$_.eventid -eq 31138} | Select-Object Message -First 1
+$users31138 = $Event31138 | Select-String -Pattern "\w+" -AllMatches | ForEach-Object{ $_.Matches } | ForEach-Object{ $_.Value }
 write-progress -id 1 -Activity  -Status  -Completed
 
 $users = @()

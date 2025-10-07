@@ -27,7 +27,7 @@ Write-Host "--------------------------------------------"
 
 
 # Get path for Winget executible
-$Winget = ((gci "C:\Program Files\WindowsApps" -Recurse -File | Where-Object { ($_.fullname -match 'C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_' -and $_.name -match 'winget.exe') } | sort fullname -descending | %{$_.FullName}) -Split [Environment]::NewLine)[0]
+$Winget = ((gci "C:\Program Files\WindowsApps" -Recurse -File | Where-Object { ($_.fullname -match 'C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_' -and $_.name -match 'winget.exe') } | Sort-Object fullname -Descending | ForEach-Object{$_.FullName}) -Split [Environment]::NewLine)[0]
 
 # WinGet version
 echo $winget

@@ -321,7 +321,7 @@ function Show-Delete-Menu([string]$Title)
     Write-Host ($din + " " + $pathForADUserGroupsFinal) -ForegroundColor Yellow
 
     # Strip the permissions from the account
-    Get-ADUser $User -Properties MemberOf | Select -Expand MemberOf | %{Remove-ADGroupMember $_ -member $User} -Confirm:$false
+    Get-ADUser $User -Properties MemberOf | Select-Object -ExpandProperty MemberOf | ForEach-Object{Remove-ADGroupMember $_ -Member $User -Confirm:$false}
     Write-Host ($din) -ForegroundColor Yellow
     }
 <# --------------------------------- Exchange email account section --------------------------------- #>
