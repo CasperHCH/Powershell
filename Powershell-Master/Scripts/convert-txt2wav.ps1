@@ -15,10 +15,7 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-param(
-	[string]$Text,
-	[string]$WavFile
-)
+param([string]$Text = "", [string]$WavFile = "")
 
 try {
 	if ($Text -eq "") { $Text = read-host "Enter text to speak" }
