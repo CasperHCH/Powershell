@@ -40,7 +40,7 @@ I take no responsibility for any issues caused by this script.
 
   if ($API -eq "REPLACE_WITH_YOUR_OPENWEATHER_API_KEY") {
       Write-Error "Please set your OpenWeather API key in the script. Get a free key from http://openweathermap.org/api"
-      return
+      return $null
   }
 
   <# Check if you have entered an API key and if not, exit the script.
@@ -173,12 +173,8 @@ function Show-WeatherImage {
     Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
     Write-Host
   } elseif ($Rain.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
+    # Weather display section - needs restoration
+    Write-Host "Rain conditions detected" -ForegroundColor cyan
   } elseif ($LightSnow.Contains($XMLData.weather.number)) {
     Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
     Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;

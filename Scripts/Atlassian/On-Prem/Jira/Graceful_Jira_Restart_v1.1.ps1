@@ -26,19 +26,19 @@ $ErrorActionPreference = "SilentlyContinue"
 #---------------------------------------------------------[Functions]--------------------------------------------------------
 
     Catch {
-        Write-Warning
+        Write-Warning "An error occurred"
         $Error[0]
         Break
     }
   }
   Else {
-  Write-Output
+  Write-Output "Operation completed successfully"
   }
 }
 
 
   Catch {
-      Write-Warning
+      Write-Warning "An error occurred during operation"
       $Error[0]
       Break
   }
@@ -47,29 +47,29 @@ $ErrorActionPreference = "SilentlyContinue"
 
 
   Catch {
-      Write-Warning
+      Write-Warning "Failed to clean Felix cache"
       $Error[0]
-      Write-Warning
+      Write-Warning "Opening Felix directory for manual cleanup"
       Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\plugins\.osgi-plugins\felix'
       Break
   }
 }
 Else {
-  Write-Output
+  Write-Output "Felix cache cleaned successfully"
 }
 }
 
 
     Catch {
-        Write-Warning
+        Write-Warning "Failed to clean Insight cache"
         $Error[0]
-        Write-Warning
+        Write-Warning "Opening caches directory for manual cleanup"
         Invoke-Item -Path 'D:\Atlassian\jira-software-8.20.8-home\caches\'
         Break
     }
   }
   Else {
-    Write-Output
+    Write-Output "Insight cache cleaned successfully"
   }
 }
 
@@ -127,19 +127,19 @@ Write-Output
 
 
 #------------------Step 1 - Jira has been locked/Felix-cache:
-Write-Output
+Write-Output "Checking for Jira locked/Felix-cache issues"
   $LastLockedEvent = $logfile | Select-String $LockedError_Str -context 1 | Select-Object * -Last 1
   If ($null -ne $LastLockedEvent) {
     $LockedCause = $LastLockedEvent | Select-Object -ExpandProperty Context | Select-Object -ExpandProperty PostContext
 
-    If (($LockedCause -match ) -and ($LockedCause -like )) {
-      Write-Warning
+    If (($LockedCause -match "locked") -and ($LockedCause -like "*error*")) {
+      Write-Warning "Jira locked issue detected - clearing Felix cache"
       ClearFelixCache
       $ErrorsFound++
     }
   }
   Else {
-    Write-Output
+    Write-Output "No Jira locked issues found"
   }
 
 #------------------Step 2 - Insight_indexes:
