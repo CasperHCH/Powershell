@@ -25,7 +25,7 @@ try {
 	"⏳ Checking symlinks at $fullPath including subfolders..."
 
 	[int]$numTotal = [int]$numBroken = 0
-	Get-ChildItem $fullPath -recurse  | Where { $_.Attributes -match "ReparsePoint" } | ForEach-Object {
+	Get-ChildItem $fullPath -recurse  | Where-Object { $_.Attributes -match "ReparsePoint" } | ForEach-Object {
 		$Symlink = $_.FullName
 		$Target = ($_ | Select-Object -ExpandProperty Target -ErrorAction Ignore)
 		if ($Target) {

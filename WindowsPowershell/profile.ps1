@@ -1,11 +1,14 @@
 # Set alias for updating PowerShell using winget
 Set-Alias update-powershell "winget install --id Microsoft.Powershell --source winget"
 
+# Get the PS root path dynamically
+$PSRootPath = Split-Path -Parent $PSScriptRoot
+
 # Ensure PS drive exists and change location to PS drive
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name "PS" -Root "C:\PS" | Out-Null
+    New-PSDrive -PSProvider FileSystem -Name "PS" -Root $PSRootPath | Out-Null
 }
-Set-Location C:\PS
+Set-Location $PSRootPath
 
 # Define a function to list the content of a function/script file
 function def {
@@ -13,19 +16,21 @@ function def {
 }
 
 # Directory of scripts to auto-load in PS
-$psdir = "C:\PS\autoload"
+$psdir = "$PSRootPath\autoload"
 
-# Load all 'autoload' scripts
-Get-ChildItem "${psdir}\*.ps1" | ForEach-Object { . $_ } | Out-Null
+# Load all 'autoload' scripts with error handling
+Get-ChildItem "${psdir}\*.ps1" -ErrorAction SilentlyContinue | ForEach-Object { 
+    try { . $_ } catch { Write-Warning "Failed to load $_`: $($_.Exception.Message)" } 
+} | Out-Null
 
 # Load scripts from the following locations
-$CustomScripts = Get-ChildItem -Path "C:\PS" -Directory -Recurse | ForEach-Object { $_.FullName }
+$CustomScripts = Get-ChildItem -Path $PSRootPath -Directory -Recurse | ForEach-Object { $_.FullName }
 foreach ($s in $CustomScripts) {
     $env:Path += ";$s"
 }
 
 # Credential Manager
-$KeyPath = "C:\PS\Tools\PScreds\"
+$KeyPath = "$PSRootPath\Tools\PScreds\"
 
 # Test if creds exist, if not create
 $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object

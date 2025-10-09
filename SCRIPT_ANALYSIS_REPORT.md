@@ -1,14 +1,14 @@
 # PowerShell Script Analysis Report
 
-**Generated:** October 9, 2025  
-**Analysis Scope:** Active scripts in core/, autoload/, Tools/, PowerShell-Toolbox-master/, WindowsPowershell/, and docs/templates/  
+**Generated:** October 9, 2025
+**Analysis Scope:** Active scripts in core/, autoload/, Tools/, PowerShell-Toolbox-master/, WindowsPowershell/, and docs/templates/
 **Excluded:** Archive folder (legacy/deprecated scripts)
 
 ## 🚨 **Critical Issues Found**
 
 ### **1. Incomplete Function Parameters - `connect-functions.ps1`**
-**File:** `C:\PS\core\utilities\connect-functions.ps1`  
-**Lines:** 35, 40  
+**File:** `C:\PS\core\utilities\connect-functions.ps1`
+**Lines:** 35, 40
 **Severity:** ⚠️ **HIGH**
 
 ```powershell
@@ -49,7 +49,7 @@ Function Disconnect-LyncPowershell {
 ---
 
 ### **2. Hardcoded Server Names - Security & Portability Issues**
-**Files:** Multiple locations  
+**Files:** Multiple locations
 **Severity:** ⚠️ **HIGH**
 
 #### **`Get-AdSync.ps1` - Hardcoded Server**
@@ -66,7 +66,7 @@ Invoke-Command -ComputerName prod-adsync-01 -ScriptBlock { Get-ADSyncScheduler }
 $RPSession = New-PSSession -Name "ExchangeRemoting" -ConfigurationName Microsoft.Exchange -ConnectionURI http://BQ-MBX-02/Powershell
 ```
 
-**Impact:** 
+**Impact:**
 - Scripts won't work in different environments
 - Security risk exposing internal server names
 - Maintenance difficulty when servers change
@@ -80,7 +80,7 @@ function Get-AdSync {
     param(
         [Parameter(Mandatory = $false)]
         [string]$ComputerName = (Get-Content "$PSScriptRoot\..\config\adsync-server.txt" -ErrorAction SilentlyContinue),
-        
+
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]$Credential
     )
@@ -109,15 +109,15 @@ Function Connect-ExchPowershell {
     param(
         [Parameter(Mandatory = $false)]
         [string]$ExchangeServer = (Get-Content "$PSScriptRoot\..\config\exchange-server.txt" -ErrorAction SilentlyContinue),
-        
+
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]$Credential
     )
-    
+
     if (-not $ExchangeServer) {
         $ExchangeServer = Read-Host "Enter Exchange server FQDN"
     }
-    
+
     $ConnectionURI = "http://$ExchangeServer/Powershell"
     $RPSession = New-PSSession -Name "ExchangeRemoting" -ConfigurationName Microsoft.Exchange -ConnectionURI $ConnectionURI -Credential $Credential
     Import-PSSession $RPSession -Prefix local
@@ -128,7 +128,7 @@ Function Connect-ExchPowershell {
 ---
 
 ### **3. Outdated Folder References - Path Issues**
-**Files:** `WindowsPowershell\profile.ps1`, `WindowsPowershell\Microsoft.PowerShell_profile.ps1`  
+**Files:** `WindowsPowershell\profile.ps1`, `WindowsPowershell\Microsoft.PowerShell_profile.ps1`
 **Severity:** ⚠️ **MEDIUM**
 
 ```powershell
@@ -176,7 +176,7 @@ try {
 ```
 
 ### **5. Inconsistent Parameter Validation**
-**Multiple Files**  
+**Multiple Files**
 **Severity:** ⚠️ **LOW**
 
 Some scripts lack proper parameter validation according to the development standards.

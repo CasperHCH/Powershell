@@ -99,7 +99,7 @@ function Update-Board {
     #Check for spaces without a piece in them, then fill it with the empty placeholder.
     for ($i = 0; $i -le 7; $i++) {
         for ($j = 0; $j -le 7; $j++) {
-            if ($board[$i, $j] -eq $null) {
+            if ($null -eq $board[$i, $j]) {
                 $board[$i, $j] = $Empty
             }
         }

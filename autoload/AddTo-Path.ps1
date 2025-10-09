@@ -61,14 +61,14 @@ function AddTo-Path {
           if (-not (Test-Path $PathToAdd)) {
               Write-Warning "Path '$PathToAdd' does not exist. Adding anyway..."
           }
-          
+
           # Add the new path to the array
           $PathNew = $PathOld + ';' + $PathToAdd
-          
+
           # Update the environment variable in the registry
           Set-ItemProperty -Path $RegPropertyLocation -Name $PathType -Value $PathNew -ErrorAction Stop
           Write-Host "Successfully added '$PathToAdd' to $PathType ($UserType)" -ForegroundColor Green
-          
+
           # Output the updated environment variable
           Get-ItemProperty -Path $RegPropertyLocation -Name $PathType | Select-Object -ExpandProperty $PathType
 

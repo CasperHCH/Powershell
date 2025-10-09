@@ -3,7 +3,7 @@ function Get-AdSync {
     param(
         [Parameter(Mandatory = $false, HelpMessage = "Specify the AD Sync server name")]
         [string]$ComputerName,
-        
+
         [Parameter(Mandatory = $false, HelpMessage = "Specify credentials for authentication")]
         [System.Management.Automation.PSCredential]$Credential
     )
@@ -14,7 +14,7 @@ function Get-AdSync {
         if (Test-Path $ConfigPath) {
             $ComputerName = Get-Content $ConfigPath -ErrorAction SilentlyContinue
         }
-        
+
         if (-not $ComputerName) {
             $ComputerName = Read-Host "Enter AD Sync server name (e.g., adsync-server-01)"
         }
@@ -22,24 +22,24 @@ function Get-AdSync {
 
     try {
         Write-Verbose "Connecting to AD Sync server: $ComputerName"
-        
+
         if ($Credential) {
-            $Result = Invoke-Command -ComputerName $ComputerName -Credential $Credential -ScriptBlock { 
-                Get-ADSyncScheduler 
+            $Result = Invoke-Command -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
+                Get-ADSyncScheduler
             } -ErrorAction Stop
         } else {
-            $Result = Invoke-Command -ComputerName $ComputerName -ScriptBlock { 
-                Get-ADSyncScheduler 
+            $Result = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+                Get-ADSyncScheduler
             } -ErrorAction Stop
         }
-        
+
         # Save server config for future use
         $ConfigDir = "$PSScriptRoot\..\data\config"
         if (-not (Test-Path $ConfigDir)) {
             New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null
         }
         $ComputerName | Out-File "$ConfigDir\adsync-server.txt" -Force
-        
+
         return $Result
     }
     catch {

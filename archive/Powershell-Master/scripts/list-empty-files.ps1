@@ -23,7 +23,7 @@ try {
 	$path = Resolve-Path "$path"
 	Write-Progress "Scanning $path for empty files..."
 	[int]$count = 0
-	Get-ChildItem $path -attributes !Directory -recurse | where {$_.Length -eq 0} | Foreach-Object {
+	Get-ChildItem $path -attributes !Directory -recurse | Where-Object {$_.Length -eq 0} | Foreach-Object {
 		"📄$($_.FullName)"
 		$count++
 	}

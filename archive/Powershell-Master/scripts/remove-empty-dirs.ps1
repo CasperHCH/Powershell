@@ -19,7 +19,7 @@ try {
 	if ($DirTree -eq "" ) { $DirTree = read-host "Enter the path to the directory tree" }
 
 	$Folders = @()
-	foreach ($Folder in (Get-ChildItem -path  "$DirTree" -Recurse | Where { $_.PSisContainer })) {
+	foreach ($Folder in (Get-ChildItem -Path "$DirTree" -Recurse | Where-Object { $_.PSisContainer })) {
 		$Folders += New-Object PSObject -Property @{
 			Object = $Folder
 			Depth = ($Folder.FullName.Split("\")).Count

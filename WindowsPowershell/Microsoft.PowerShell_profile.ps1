@@ -1,6 +1,18 @@
 ##  Change Title on Window  ##
-$Host.UI.RawUI.WindowTitle = "PowerShell - $env:USERNAME"
-#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
+$Host.UI.RawUI.WindowTitle = "PowerShell - $env# Retrieve existing stored credential
+$creds = Get-StoredCredential -UserName chchadmin
+}
+
+###  ADMIN PROGRAM ALIASES ###
+# DISABLED: Referenced scripts do not exist in current structure
+# The following aliases have been commented out until the referenced scripts are available
+# Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
+# Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
+# Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
+# Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
+# Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
+# Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
+# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
 Remove-Module PSReadline
 Import-Module PSReadLine
@@ -16,13 +28,14 @@ Set-PSReadLineOption -colors @{
   String             = 'White'
 }
 ##  change dir to PS-Drive ps:  ##
+$PSRootPath = Split-Path -Parent $PSScriptRoot
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name PS -Root "C:\PS" | Out-Null
+    New-PSDrive -PSProvider FileSystem -Name PS -Root $PSRootPath | Out-Null
 }
 
 ##  Change location to PS  ##
 #Set-Location PS:
-    Set-Location C:\PS
+    Set-Location $PSRootPath
 
 ##  Load all O365 connections as functions  ##
 #.\Connect-Office365Services.ps1
@@ -54,11 +67,11 @@ if (!(Test-Path ps:)) {
 # $psdir = "c:\ps"  # Variable assigned but never used
 
 # load all 'autoload' scripts
-Get-ChildItem "C:\PS\autoload\*.ps1" | ForEach-Object { .$_ } | out-null
+Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | out-null
 
 # Load scripts from the following locations
 # Get environmental folders for PS scripts
-$CustomScripts = Get-ChildItem -path "C:\PS" -Directory -Recurse | ForEach-Object{$_.FullName}
+$CustomScripts = Get-ChildItem -path $PSRootPath -Directory -Recurse | ForEach-Object{$_.FullName}
 # Ensure $env:Path is initialized before appending
 if (-not $env:Path) { $env:Path = "" }
 foreach($s in $CustomScripts)
@@ -81,14 +94,16 @@ $creds = Get-Credential -Message "Please enter credentials" | New-StoredCredenti
 $creds = Get-StoredCredential -UserName chcadmin
 }
 
-###  RUN PROGRAMS AS ADMIN ###
-Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
-Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
-Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
-Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
-Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
-Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
-Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
+###  ADMIN PROGRAM ALIASES - DISABLED ###
+# The following aliases are disabled because the referenced script files do not exist
+# TODO: Create or locate these administrative utility scripts
+# Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
+# Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
+# Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
+# Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
+# Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
+# Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
+# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
 
 ###  PERSISTENT HISTORY  ###
 $HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) .ps_history
@@ -103,7 +118,7 @@ if ($dt.DayOfWeek -eq "Tuesday") {
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
          Write-Host $error[$i].exception
     }
-    C:\PS\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1
+    & "$PSRootPath\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1"
 }
 
 #Import Modules & Snap-ins

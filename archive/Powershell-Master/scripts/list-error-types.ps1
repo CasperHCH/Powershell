@@ -1,6 +1,6 @@
 ﻿[appdomain]::CurrentDomain.GetAssemblies() | ForEach {
     Try {
-        $_.GetExportedTypes() | Where {
+        $_.GetExportedTypes() | Where-Object {
             $_.Fullname -match 'Exception'
         }
     } Catch {}
