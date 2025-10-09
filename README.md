@@ -7,7 +7,18 @@ A comprehensive collection of PowerShell scripts for various automation tasks, i
 
 ## 🚀 Recent Updates
 
-### October 9, 2025 - PowerShell Best Practices & API Documentation
+### October 10, 2025 - Security Hardening & Advanced Script Enhancements  
+- **🔒 SECURITY FIXES**: Replaced hardcoded credentials with secure PowerShell credential management
+  - **OpsGenie Scripts**: Implemented secure API key storage using Export-Clixml encryption
+  - **Jira Scripts**: Added secure credential prompts and persistent encrypted storage
+  - **All Scripts**: Scanned and remediated security vulnerabilities across repository
+- **✨ ENHANCED FEATURES**:
+  - **Get-Weather.ps1**: Complete rewrite with secure API key management, parameter validation, interactive prompts
+  - **FindProcessForFileInUse.ps1**: Dual detection methods, CSV export, verbose logging, enhanced error handling  
+  - **TestHTTPSConnections.ps1**: Categorized endpoint testing, real-time progress, analytics, CSV reporting
+- **🎯 BEST PRACTICES**: Advanced parameter validation, colorized UIs, comprehensive error handling
+
+### October 9, 2025 - PowerShell Best Practices & API Documentation  
 - **✅ ZERO ERRORS**: All PowerShell scripts now 100% error-free (139 files validated)
 - **📋 API Documentation**: Created comprehensive `ATLASSIAN_API_REFERENCE.md` with complete API endpoints
 - **🔧 Enhanced Scripts**: 
