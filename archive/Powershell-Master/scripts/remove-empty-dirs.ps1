@@ -20,7 +20,7 @@ try {
 
 	$Folders = @()
 	foreach ($Folder in (Get-ChildItem -Path "$DirTree" -Recurse | Where-Object { $_.PSisContainer })) {
-		$Folders += New-Object PSObject -Property @{
+		$Folders += [PSCustomObject]@{
 			Object = $Folder
 			Depth = ($Folder.FullName.Split("\")).Count
 		}
@@ -31,7 +31,7 @@ try {
 	foreach ($Folder in $Folders)
 	{
 		if ($Folder.Object.GetFileSystemInfos().Count -eq 0) {
-			$Deleted += New-Object PSObject -Property @{
+			$Deleted += [PSCustomObject]@{
 				Folder = $Folder.Object.FullName
 				Deleted = (Get-Date -Format "hh:mm:ss tt")
 				Created = $Folder.Object.CreationTime

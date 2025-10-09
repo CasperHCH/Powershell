@@ -19,8 +19,8 @@ function def {
 $psdir = "$PSRootPath\autoload"
 
 # Load all 'autoload' scripts with error handling
-Get-ChildItem "${psdir}\*.ps1" -ErrorAction SilentlyContinue | ForEach-Object { 
-    try { . $_ } catch { Write-Warning "Failed to load $_`: $($_.Exception.Message)" } 
+Get-ChildItem "${psdir}\*.ps1" -ErrorAction SilentlyContinue | ForEach-Object {
+    try { . $_ } catch { Write-Warning "Failed to load $_`: $($_.Exception.Message)" }
 } | Out-Null
 
 # Load scripts from the following locations

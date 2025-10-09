@@ -29,7 +29,7 @@ try {
 	}
 	Write-Progress -completed " "
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
-	"✅ Found $count empty files within $path in $elapsed sec" 
+	"✅ Found $count empty files within $path in $elapsed sec"
 	exit 0 # success
 } catch {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"

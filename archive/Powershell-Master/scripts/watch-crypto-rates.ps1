@@ -16,9 +16,19 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function ListCryptoRate { param([string]$Symbol, [string]$Name)
+function ListCryptoRate { 
+    param(
+        [string]$Symbol, 
+        [string]$Name
+    )
 	$rates = (Invoke-WebRequest -URI "https://min-api.cryptocompare.com/data/price?fsym=$Symbol&tsyms=USD,EUR,CNY,JPY" -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
-	New-Object PSObject -property @{ 'CRYPTOCURRENCY' = "1 $Symbol ($Name) ="; 'USD' = "$($rates.USD)"; 'EUR' = "$($rates.EUR)"; 'CNY' = "$($rates.CNY)"; 'JPY' = "$($rates.JPY)" }
+	[PSCustomObject]@{ 
+        'CRYPTOCURRENCY' = "1 $Symbol ($Name) ="
+        'USD' = "$($rates.USD)"
+        'EUR' = "$($rates.EUR)"
+        'CNY' = "$($rates.CNY)"
+        'JPY' = "$($rates.JPY)" 
+    }
 }
 
 function ListCryptoRates { 

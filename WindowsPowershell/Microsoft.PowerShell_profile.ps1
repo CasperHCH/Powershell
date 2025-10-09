@@ -1,5 +1,6 @@
 ##  Change Title on Window  ##
-$Host.UI.RawUI.WindowTitle = "PowerShell - $env# Retrieve existing stored credential
+$Host.UI.RawUI.WindowTitle = "PowerShell - $env"
+# Retrieve existing stored credential
 $creds = Get-StoredCredential -UserName chchadmin
 }
 
@@ -12,7 +13,9 @@ $creds = Get-StoredCredential -UserName chchadmin
 # Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
 # Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
 # Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
-# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
+# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
+
+#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
 Remove-Module PSReadline
 Import-Module PSReadLine
@@ -122,30 +125,37 @@ if ($dt.DayOfWeek -eq "Tuesday") {
 }
 
 #Import Modules & Snap-ins
-function Import-ModuleIfAvailable ($m) {
+function Import-ModuleIfAvailable {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModuleName
+    )
+    
     # If module is imported say that and do nothing
-    if (Get-Module | Where-Object {$_.Name -eq $m}) {
-      write-host "Module $m is already loaded" -ForegroundColor Green
+    if (Get-Module | Where-Object {$_.Name -eq $ModuleName}) {
+        Write-Verbose "Module $ModuleName is already loaded" -Verbose
     }
     else {
-
-      # If module is not imported, but available on disk then import
-      if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $m}) {
-        Import-Module $m -Verbose
-      }
-      else {
-
-        # If module is not imported, not available on disk, but is in online gallery then install and import
-        if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
-          Install-Module -Name $m -Force -Verbose -Scope CurrentUser
-          Import-Module $m -Verbose
+        # If module is not imported, but available on disk then import
+        if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $ModuleName}) {
+            Import-Module $ModuleName -Verbose
         }
         else {
-
-          # If the module is not imported, not available and not in the online gallery then abort
-          write-host "Module $m not found and cannot be installed" -ForegroundColor Red
-          EXIT 1
-        }
+            # If module is not imported, not available on disk, but is in online gallery then install and import
+            try {
+                if (Find-Module -Name $ModuleName -ErrorAction SilentlyContinue) {
+                    Install-Module -Name $ModuleName -Force -Verbose -Scope CurrentUser
+                    Import-Module $ModuleName -Verbose
+                } else {
+                    Write-Warning "Module $ModuleName not found and cannot be installed"
+                    return $false
+                }
+            }
+            catch {
+                Write-Error "Failed to install module $ModuleName`: $($_.Exception.Message)"
+                return $false
+            }
       }
     }
   }

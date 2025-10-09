@@ -5,7 +5,7 @@
 .DESCRIPTION
     Started off of code from https://github.com/bhassen99/POSH-Chess, which was very
 much incomplete. I kept the board shape, but have changed everything else.
-The unicode chess pieces unfortunately do not render in the base PowerShell console, 
+The unicode chess pieces unfortunately do not render in the base PowerShell console,
 they only appear when run in PowerShell ISE.
 
 .NOTES
@@ -189,11 +189,11 @@ function New-Move {
                             if (($enpassant.GetType().Name -eq 'Pawn') -and `
                                 ($pc.Color -ne $enpassant.Color) -and `
                                 ($enpassant.inpassing -eq ($Script:turnCounter - 1))) {
-                                
+
                                 $moveSuccess = $true
                                 $attack = $true
                                 $ep = $true
-                                
+
                                 $enpassant.Alive = $false
                                 $enpassant.CurrentPosition = $null
                                 $enpassant.CurrentRow = $null
@@ -334,7 +334,7 @@ function New-Move {
                         ($pc.color -eq 'White')) {
                     if (($dst -eq 'G1') -and `
                         ($wHR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[7, 0]
                         $board[7, 0] = $Empty
                         $Crk.CurrentPosition = 'F1'
@@ -347,7 +347,7 @@ function New-Move {
                         $pc.firstmove = $false
                     } elseif (($dst -eq 'C1') -and `
                             ($wAR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[0, 0]
                         $board[0, 0] = $Empty
                         $Crk.CurrentPosition = 'D1'
@@ -363,7 +363,7 @@ function New-Move {
                         ($pc.color -eq 'Black')) {
                     if (($dst -eq 'G8') -and `
                         ($bHR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[7, 7]
                         $board[7, 7] = $Empty
                         $Crk.CurrentPosition = 'F8'
@@ -376,7 +376,7 @@ function New-Move {
                         $pc.firstmove = $false
                     } elseif (($dst -eq 'C8') -and `
                             ($bAR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[0, 7]
                         $board[0, 7] = $Empty
                         $Crk.CurrentPosition = 'D8'
@@ -492,10 +492,10 @@ function New-Move {
             #Pawn Promotion logic
             if (($pc.GetType().Name -eq 'Pawn') -and ($DesiredRow -eq 0)) {
                 [ValidateSet('Knight', 'Bishop', 'Rook', 'Queen')]$ptype = Read-Host 'Promote black pawn to'
-                
+
                 $promote = $true
                 $pc.Type = $ptype
-                
+
                 switch ($ptype) {
                     'Knight' {
                         $pc.Icon = '♞'
@@ -516,7 +516,7 @@ function New-Move {
                 }
             } elseif (($pc.GetType().Name -eq 'Pawn') -and ($DesiredRow -eq 7)) {
                 [ValidateSet('Knight', 'Bishop', 'Rook', 'Queen')]$ptype = Read-Host 'Promote white pawn to'
-                
+
                 $promote = $true
                 $pc.Type = $ptype
 
@@ -539,7 +539,7 @@ function New-Move {
                     }
                 }
             }
-            
+
             $board[$CurrentColumn, $CurrentRow] = $Empty
             $pc.CurrentPosition = $dst.ToUpper()
             $pc.CurrentRow = $DesiredRow
@@ -553,7 +553,7 @@ function New-Move {
             if ($Script:gameStatus -eq [gamestatus]::ongoing) {
                 [Array]$curWhite = $Script:WhitePieces | Where-Object {$_.Alive -eq $true}
                 [Array]$curBlack = $Script:BlackPieces | Where-Object {$_.Alive -eq $true}
-    
+
                 if ($Script:whiteTurn -eq $true) {
                     foreach ($whitePiece in $curWhite) {
                         if ($(Test-Move $whitePiece.CurrentPosition $Script:bK.CurrentPosition)[0] -eq $true) {
@@ -568,7 +568,7 @@ function New-Move {
                     }
                 }
             }
-            
+
             #Update the log, advance turn
             Update-Log $src $dst $pc.Symbol $attack $castle $promote $ep $check
             $Script:turnCounter += 1
@@ -581,7 +581,7 @@ function New-Move {
 
 #Log logic will go here
 function Update-Log {
-    param([string]$src, [string]$dst, [string]$piece, [bool]$attack, 
+    param([string]$src, [string]$dst, [string]$piece, [bool]$attack,
           [int]$castle, [bool]$promote, [bool]$ep, [bool]$check, [bool]$resign)
 
     [string]$logentry = ''
@@ -626,7 +626,7 @@ function Update-Log {
     }
 
     $Script:log += $logentry
-   
+
     #Equivalent of touch command to ensure a log exists
     Write-Output $null >> $Script:logpath
 
@@ -646,12 +646,12 @@ function Update-Log {
             $line += $Script:log[$i + 1]
             Add-Content -Encoding Unicode $Script:logpath $line
         }
-        
+
         #If game ended in white move, print out the "half-line"
         if ($log.Length % 2 -eq 1) {
             Add-Content -Encoding Unicode $Script:logpath $Script:log[$Script:log.Length - 1]
         }
-    } 
+    }
 }
 
 #Try a move, used for check and castling logic
@@ -688,7 +688,7 @@ function Test-Move {
     } else {
         [int]$MoveX = $DesiredColumn - $CurrentColumn
         [int]$MoveY = $DesiredRow - $CurrentRow
-        
+
         #Pieces playable
         switch ($pc.Type) {
             'Pawn' {
@@ -724,9 +724,9 @@ function Test-Move {
                             if (($enpassant.GetType().Name -eq 'Pawn') -and `
                                 ($pc.Color -ne $enpassant.Color) -and `
                                 ($enpassant.inpassing -eq ($Script:turnCounter - 1))) {
-                                
+
                                 $status[0] = $true
-                                
+
                                 $enpassant.Alive = $false
                                 $enpassant.CurrentPosition = $null
                                 $enpassant.CurrentRow = $null
@@ -921,7 +921,7 @@ function Test-Move {
                         ($pc.color -eq 'White')) {
                     if (($dst -eq 'G1') -and `
                         ($wHR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[7, 0]
                         $board[7, 0] = $Empty
                         $Crk.CurrentPosition = 'F1'
@@ -933,7 +933,7 @@ function Test-Move {
                         $pc.firstmove = $false
                     } elseif (($dst -eq 'C1') -and `
                             ($wAR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[0, 0]
                         $board[0, 0] = $Empty
                         $Crk.CurrentPosition = 'D1'
@@ -948,7 +948,7 @@ function Test-Move {
                         ($pc.color -eq 'Black')) {
                     if (($dst -eq 'G8') -and `
                         ($bHR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[7, 7]
                         $board[7, 7] = $Empty
                         $Crk.CurrentPosition = 'F8'
@@ -960,7 +960,7 @@ function Test-Move {
                         $pc.firstmove = $false
                     } elseif (($dst -eq 'C8') -and `
                             ($bAR.firstmove -eq $true)) {
-                        
+
                         $Crk = $board[0, 7]
                         $board[0, 7] = $Empty
                         $Crk.CurrentPosition = 'D8'
@@ -1039,7 +1039,7 @@ Class Pawn : ChessPiece {
     Pawn([string]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {
@@ -1057,7 +1057,7 @@ Class Rook : ChessPiece {
     Rook([string]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {
@@ -1074,7 +1074,7 @@ Class Knight : ChessPiece {
     Knight([string]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {
@@ -1091,7 +1091,7 @@ Class Bishop : ChessPiece {
     Bishop([String]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {
@@ -1108,7 +1108,7 @@ Class Queen : ChessPiece {
     Queen([String]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {
@@ -1126,7 +1126,7 @@ Class King : ChessPiece {
     King([String]$Position, [string]$color) {
         $this.Color = $color
         $this.CurrentPosition = $Position
-        $this.CurrentRow = Get-Row $Position[1] 
+        $this.CurrentRow = Get-Row $Position[1]
         $this.CurrentColumn = Get-Column $Position[0]
 
         if ($color -eq 'White') {

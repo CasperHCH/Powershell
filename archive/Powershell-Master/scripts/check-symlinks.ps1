@@ -41,9 +41,9 @@ try {
 
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
 	if ($numTotal -eq 0) {
-		"✅ No symlinks at $fullPath (took $($elapsed)s)." 
+		"✅ No symlinks at $fullPath (took $($elapsed)s)."
 	} elseif ($numBroken -eq 0) {
-		"✅ No broken symlinks at $fullPath ($numTotal symlinks in total, took $($elapsed)s)." 
+		"✅ No broken symlinks at $fullPath ($numTotal symlinks in total, took $($elapsed)s)."
 	} elseif ($numBroken -eq 1) {
 		"⚠️ 1 broken symlink within $fullPath ($numTotal symlinks in total, took $($elapsed)s)."
 	} else {

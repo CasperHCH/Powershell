@@ -1,4 +1,4 @@
-function Test-ADCrential {
+function Test-ADCredential {
     [CmdletBinding()]
     param(
         [pscredential]$Credential

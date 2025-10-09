@@ -1,6 +1,25 @@
 ### EXCHANGE ###
 
-# Functions to connect / disconnect Remote Exchange Management Shell
+<#
+.SYNOPSIS
+    Connects to Exchange PowerShell Management Shell
+.DESCRIPTION
+    This function establishes a PowerShell session to an Exchange server and imports the Exchange cmdlets for management operations.
+.PARAMETER ExchangeServer
+    The FQDN of the Exchange server to connect to. If not provided, will prompt or use config file.
+.PARAMETER Credential
+    PowerShell credential object for authentication. If not provided, will prompt for credentials.
+.EXAMPLE
+    Connect-ExchPowershell -ExchangeServer "exchange.contoso.com"
+    Connects to the specified Exchange server using prompted credentials.
+.EXAMPLE
+    $cred = Get-Credential
+    Connect-ExchPowershell -ExchangeServer "exchange.contoso.com" -Credential $cred
+    Connects using provided credentials.
+.NOTES
+    Requires appropriate Exchange management permissions.
+    Configuration is saved to data/config/exchange-server.txt for future use.
+#>
 Function Connect-ExchPowershell {
     [CmdletBinding()]
     param(

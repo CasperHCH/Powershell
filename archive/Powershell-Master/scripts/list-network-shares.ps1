@@ -16,7 +16,7 @@ try {
 	if ($IsLinux -or $IsMacOS) {
 		# TODO
 	} else {
-		$shares = Get-WmiObject win32_share | Where-Object {$_.name -NotLike "*$"} 
+		$shares = Get-WmiObject win32_share | Where-Object {$_.name -NotLike "*$"}
 		foreach ($share in $shares) {
 			if ($share.Description -eq "") {
 				Write-Host "✅ Shared folder \\$(hostname)\$($share.Name) -> $($share.Path)"

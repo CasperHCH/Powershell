@@ -10,8 +10,8 @@ Function Get-Uptime {
 
     process {
         foreach ($server in $servers) {
-            $os = Get-WmiObject Win32_OperatingSystem -ComputerName $server
-            $boottime = $OS.converttodatetime($OS.LastBootUpTime)
+            $os = Get-CimInstance Win32_OperatingSystem -ComputerName $server
+            $boottime = $OS.LastBootUpTime
             $uptime = New-TimeSpan (Get-Date $boottime)
             $uptime_days = [int]$uptime.days
             Write-Host "Server: $server" -ForegroundColor Cyan
