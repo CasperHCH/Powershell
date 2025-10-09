@@ -1,6 +1,0 @@
-Start-Process "$env:LOCALAPPDATA\Microsoft\Teams\current\Teams.exe"
-Start-Process "C:\Program Files\Slack\slack.exe"
-Start-Process "C:\Program Files\Mozilla Firefox\firefox.exe"
-Start-Process "C:\Program Files\VCam\VCam.exe"
-Start-Process "C:\Program Files\1Password\1Password.exe"
-Start-Process "C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE"
