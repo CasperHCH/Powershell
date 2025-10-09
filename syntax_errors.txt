@@ -1,0 +1,46 @@
+# Common Syntax Errors in PowerShell Scripts
+
+1. Missing or unmatched parentheses, brackets, or braces
+    Example: Write-Host ("Hello World"
+
+2. Misspelled cmdlet names
+    Example: Writ-Host "Hello"
+
+3. Incorrect use of quotation marks
+    Example: Write-Host 'Hello World"
+
+4. Missing or extra commas in arrays or parameter lists
+    Example: $arr = 1, 2 3
+
+5. Assignment operator (=) used instead of comparison operator (-eq)
+    Example: if ($a = 5) { ... }
+
+6. Incorrect variable names (missing $)
+    Example: name = "John"
+
+7. Unclosed string literals
+    Example: Write-Host "Hello World
+
+8. Using reserved keywords as variable names
+    Example: $if = 10
+
+9. Incorrect use of pipeline (|) with non-pipelineable commands
+    Example: $a = 5 | Write-Host
+
+10. Missing script block braces in loops or conditionals
+     Example: foreach ($i in 1..5) Write-Host $i
+
+11. Incorrect parameter syntax
+     Example: Get-Process -Name: "powershell"
+
+12. Using single equals (=) for comparison instead of -eq
+     Example: if ($x = 10) { ... }
+
+13. Unescaped special characters in strings
+     Example: Write-Host "Path: C:\newfolder\test"
+
+14. Using function without 'function' keyword
+     Example: myFunc { Write-Host "Hello" }
+
+15. Incorrect comment syntax
+     Example: #This is a comment without space

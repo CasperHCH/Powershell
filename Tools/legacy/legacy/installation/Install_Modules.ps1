@@ -1,35 +1,40 @@
-function Import-ModuleIfAvailable ($m) {
+function Import-ModuleIfAvailable {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ModuleName
+    )
 
     # If module is imported say that and do nothing
-    if (Get-Module | Where-Object {$_.Name -eq $m}) {
-        Write-Host "Module $m is already imported" -ForegroundColor Green
+    if (Get-Module | Where-Object {$_.Name -eq $ModuleName}) {
+        Write-Verbose "Module $ModuleName is already imported" -Verbose
     }
     else {
 
         # If module is not imported, but available on disk then import
-        if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $m}) {
-            Import-Module $m
+        if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $ModuleName}) {
+            Import-Module $ModuleName
         }
         else {
 
             # If module is not imported, not available on disk, but is in online gallery then install and import
-            if (Find-Module -Name $m | Where-Object {$_.Name -eq $m}) {
-                Install-Module -Name $m -Force -Scope AllUsers
-                Import-Module $m
+            if (Find-Module -Name $ModuleName | Where-Object {$_.Name -eq $ModuleName}) {
+                Install-Module -Name $ModuleName -Force -Scope AllUsers
+                Import-Module $ModuleName
             }
             else {
 
                 # If the module is not imported, not available and not in the online gallery then abort
-                Write-Host "Module $m not found in gallery. Cannot install." -ForegroundColor Red
+                Write-Warning "Module $ModuleName not found in gallery. Cannot install."
 
             }
         }
     }
 }
 
-Import-ModuleIfAvailable AADRM
-Import-ModuleIfAvailable AzureAD
-Import-ModuleIfAvailable AzureADPreview
-Import-ModuleIfAvailable MSOnline
-Import-ModuleIfAvailable JiraPS
-Import-ModuleIfAvailable MicrosoftTeams
+Import-ModuleIfAvailable -ModuleName AADRM
+Import-ModuleIfAvailable -ModuleName AzureAD
+Import-ModuleIfAvailable -ModuleName AzureADPreview
+Import-ModuleIfAvailable -ModuleName MSOnline
+Import-ModuleIfAvailable -ModuleName JiraPS
+Import-ModuleIfAvailable -ModuleName MicrosoftTeams

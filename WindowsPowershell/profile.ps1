@@ -51,7 +51,7 @@ function Import-ModuleIfAvailable {
         [string]$ModuleName
     )
     if (-not (Get-Module -Name $ModuleName -ListAvailable)) {
-        Write-Host "Module $ModuleName not found, installing..."
+        Write-Information "Module $ModuleName not found, installing..." -InformationAction Continue
         Install-Module -Name $ModuleName -Force -Scope CurrentUser
     }
     Import-Module $ModuleName

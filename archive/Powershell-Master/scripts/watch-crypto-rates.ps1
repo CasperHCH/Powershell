@@ -16,22 +16,22 @@
 	Author: Markus Fleschutz | License: CC0
 #>
 
-function ListCryptoRate { 
+function ListCryptoRate {
     param(
-        [string]$Symbol, 
+        [string]$Symbol,
         [string]$Name
     )
 	$rates = (Invoke-WebRequest -URI "https://min-api.cryptocompare.com/data/price?fsym=$Symbol&tsyms=USD,EUR,CNY,JPY" -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
-	[PSCustomObject]@{ 
+	[PSCustomObject]@{
         'CRYPTOCURRENCY' = "1 $Symbol ($Name) ="
         'USD' = "$($rates.USD)"
         'EUR' = "$($rates.EUR)"
         'CNY' = "$($rates.CNY)"
-        'JPY' = "$($rates.JPY)" 
+        'JPY' = "$($rates.JPY)"
     }
 }
 
-function ListCryptoRates { 
+function ListCryptoRates {
 	ListCryptoRate ADA   "Cardano"
 	ListCryptoRate AVAX  "Avalanche"
 	ListCryptoRate BCH   "Bitcoin Cash"

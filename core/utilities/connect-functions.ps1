@@ -50,7 +50,7 @@ Function Connect-ExchPowershell {
         $ConnectionURI = "http://$ExchangeServer/Powershell"
         $RPSession = New-PSSession -Name "ExchangeRemoting" -ConfigurationName Microsoft.Exchange -ConnectionURI $ConnectionURI -Credential $Credential -ErrorAction Stop
         Import-PSSession $RPSession -Prefix local -ErrorAction Stop
-        Write-Host "Connected to Exchange Server: $ExchangeServer" -ForegroundColor Green
+        Write-Information "Connected to Exchange Server: $ExchangeServer" -InformationAction Continue
 
         # Save server config for future use
         $ConfigDir = "$PSScriptRoot\..\..\data\config"
@@ -65,8 +65,11 @@ Function Connect-ExchPowershell {
 } #end function
 
 Function Disconnect-ExchPowershell {
+    [CmdletBinding()]
+    param()
+
     Get-PSSession -Name "ExchangeRemoting" | Remove-PSSession
-    Write-Host "Disconnected from Exchange Server" -ForegroundColor Yellow
+    Write-Information "Disconnected from Exchange Server" -InformationAction Continue
 } #end function
 
 ### END EXCHANGE ###
@@ -76,14 +79,20 @@ Function Disconnect-ExchPowershell {
 
 # Functions to connect / disconnect remote Exchange Management Shell on O365
 Function Connect-O365Powershell {
+    [CmdletBinding()]
+    param()
+
     $O365Session = New-PSSession -Name "O365Remoting" -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential (Get-Credential) -Authentication Basic -AllowRedirection
     Import-PSSession $O365Session -DisableNameChecking -Prefix cloud
-    Write-Host "Connected to Office 365" -ForegroundColor Green
+    Write-Information "Connected to Office 365" -InformationAction Continue
 }
 
 Function Remove-O365Powershell {
+    [CmdletBinding()]
+    param()
+
     Get-PSSession -Name "O365Remoting" | Remove-PSSession
-    Write-Host "Disconnected from Office 365" -ForegroundColor Yellow
+    Write-Information "Disconnected from Office 365" -InformationAction Continue
 }
 
 ###  END O365  ###
@@ -113,7 +122,7 @@ Function Connect-LyncPowershell {
 
         $CSSession = New-PSSession -Name $SessionName -ConnectionUri $ConnectionUri -Credential $Credential -ErrorAction Stop
         Import-PSSession $CSSession -ErrorAction Stop
-        Write-Host "Connected to Lync/Skype for Business: $ConnectionUri" -ForegroundColor Green
+        Write-Information "Connected to Lync/Skype for Business: $ConnectionUri" -InformationAction Continue
     }
     catch {
         Write-Error "Failed to connect to Lync/Skype for Business: $($_.Exception.Message)"
@@ -131,7 +140,7 @@ Function Disconnect-LyncPowershell {
         $Session = Get-PSSession -Name $SessionName -ErrorAction SilentlyContinue
         if ($Session) {
             Remove-PSSession -Session $Session -ErrorAction Stop
-            Write-Host "Disconnected from Lync/Skype for Business session: $SessionName" -ForegroundColor Yellow
+            Write-Information "Disconnected from Lync/Skype for Business session: $SessionName" -InformationAction Continue
         } else {
             Write-Warning "No Lync/Skype for Business session found with name: $SessionName"
         }

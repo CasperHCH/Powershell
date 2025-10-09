@@ -1,6 +1,30 @@
+<#
+.SYNOPSIS
+    Tests Active Directory credentials for validity.
+.DESCRIPTION
+    This function validates Active Directory credentials by attempting to authenticate
+    against the domain using the provided credentials or prompting for them.
+.PARAMETER Credential
+    The PSCredential object containing the username and password to test.
+    If not provided, will prompt for credentials.
+.EXAMPLE
+    Test-ADCredential
+    Prompts for credentials and tests them against Active Directory.
+.EXAMPLE
+    $cred = Get-Credential
+    Test-ADCredential -Credential $cred
+    Tests the provided credential object against Active Directory.
+.OUTPUTS
+    System.Boolean
+    Returns $true if credentials are valid, $false otherwise.
+.NOTES
+    Requires the System.DirectoryServices.AccountManagement assembly.
+    Works with domain\username or username@domain formats.
+#>
 function Test-ADCredential {
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory = $false)]
         [pscredential]$Credential
     )
 

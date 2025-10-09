@@ -20,9 +20,9 @@ if (Test-Path $sourceProfile) {
 
     if ($destContent -notmatch [regex]::Escape($contentToAppend.Trim())) {
         Add-Content -Path $destProfile -Value "`n# --- Appended from $sourceProfile ---`n$contentToAppend"
-        Write-Host "Appended contents of $sourceProfile to $destProfile"
+        Write-Information "Appended contents of $sourceProfile to $destProfile" -InformationAction Continue
     } else {
-        Write-Host "Content from $sourceProfile already exists in $destProfile. No changes made."
+        Write-Information "Content from $sourceProfile already exists in $destProfile. No changes made." -InformationAction Continue
     }
 } else {
     Write-Warning "Source profile file not found: $sourceProfile"

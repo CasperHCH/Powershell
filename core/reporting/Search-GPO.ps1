@@ -33,7 +33,7 @@ Function Search-GPO {
 
     Process {
         # Find all GPOs in the current domain
-        Write-Host "Searching for GPOs in domain: $DomainName" -ForegroundColor Cyan
+        Write-Verbose "Searching for GPOs in domain: $DomainName" -Verbose
         $allGposInDomain = Get-GPO -All -Domain $DomainName
 
         # Look through each GPO's XML for the string
@@ -41,22 +41,22 @@ Function Search-GPO {
             $report = Get-GPOReport -Guid $gpo.Id -ReportType Xml
 
             if ($report -match $String) {
-                Write-Host "Match found in GPO: $($gpo.DisplayName)" -ForegroundColor Green
+                Write-Verbose "Match found in GPO: $($gpo.DisplayName)" -Verbose
                 $MatchedGPOList += $gpo.DisplayName
             }
         }
 
         # Output the matched GPOs
         if ($MatchedGPOList.Count -gt 0) {
-            Write-Host "Matched GPOs:" -ForegroundColor Cyan
-            $MatchedGPOList | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+            Write-Information "Matched GPOs:" -InformationAction Continue
+            $MatchedGPOList | ForEach-Object { Write-Information $_ -InformationAction Continue }
         } else {
-            Write-Host "No GPOs matched the search string." -ForegroundColor Red
+            Write-Warning "No GPOs matched the search string."
         }
     }
 
     End {
-        Write-Host "Search completed." -ForegroundColor Cyan
+        Write-Verbose "Search completed." -Verbose
     }
 }
 

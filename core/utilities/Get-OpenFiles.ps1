@@ -27,6 +27,7 @@
 #>
 
 Function Get-OpenFiles {
+    [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, HelpMessage = "Specify the file name or part of the file name to query.")]
         [ValidateNotNullOrEmpty()]
@@ -51,7 +52,7 @@ Function Get-OpenFiles {
     }
 
     # Output the report
-    $Report | Select-Object Name, UserName, Directory | Sort-Object Name | Format-Table -AutoSize
+    $Report | Select-Object Name, UserName, Directory | Sort-Object Name
 }
 
 # Example usage:

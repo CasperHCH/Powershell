@@ -1,8 +1,5 @@
 ##  Change Title on Window  ##
-$Host.UI.RawUI.WindowTitle = "PowerShell - $env"
-# Retrieve existing stored credential
-$creds = Get-StoredCredential -UserName chchadmin
-}
+$Host.UI.RawUI.WindowTitle = "PowerShell - $env:USERNAME"
 
 ###  ADMIN PROGRAM ALIASES ###
 # DISABLED: Referenced scripts do not exist in current structure
@@ -70,7 +67,7 @@ if (!(Test-Path ps:)) {
 # $psdir = "c:\ps"  # Variable assigned but never used
 
 # load all 'autoload' scripts
-Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | out-null
+Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | Out-Null
 
 # Load scripts from the following locations
 # Get environmental folders for PS scripts
@@ -88,25 +85,16 @@ foreach($s in $CustomScripts)
 $KeyPath = "$env:USERPROFILE\\.creds"
 
 #Test if creds exist, if not create
-$TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
+$TestCredsPath = Get-ChildItem $KeyPath -ErrorAction SilentlyContinue | Measure-Object
 if ($TestCredsPath.count -eq '0'){
-# Create stored credential if none exists
-$creds = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
+    # Create stored credential if none exists
+    Write-Verbose "Creating new stored credential..." -Verbose
+    $null = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
 }else{
-# Retrieve existing stored credential
-$creds = Get-StoredCredential -UserName chcadmin
+    # Retrieve existing stored credential for validation
+    Write-Verbose "Loading existing stored credential..." -Verbose
+    $null = Get-StoredCredential -UserName chcadmin
 }
-
-###  ADMIN PROGRAM ALIASES - DISABLED ###
-# The following aliases are disabled because the referenced script files do not exist
-# TODO: Create or locate these administrative utility scripts
-# Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
-# Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
-# Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
-# Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
-# Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
-# Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
-# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
 
 ###  PERSISTENT HISTORY  ###
 $HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) .ps_history
@@ -119,7 +107,7 @@ if ($dt.DayOfWeek -eq "Tuesday") {
     $error.Clear()
     Update-Help -ErrorAction SilentlyContinue -Force
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
-         Write-Host $error[$i].exception
+         Write-Warning $error[$i].exception
     }
     & "$PSRootPath\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1"
 }
@@ -131,7 +119,7 @@ function Import-ModuleIfAvailable {
         [Parameter(Mandatory = $true)]
         [string]$ModuleName
     )
-    
+
     # If module is imported say that and do nothing
     if (Get-Module | Where-Object {$_.Name -eq $ModuleName}) {
         Write-Verbose "Module $ModuleName is already loaded" -Verbose
@@ -162,11 +150,21 @@ function Import-ModuleIfAvailable {
 
 # REST API Helper Function
 function Invoke-RestApiCall {
+  [CmdletBinding()]
   param(
+    [Parameter(Mandatory = $true)]
     [string]$url,
+
+    [Parameter(Mandatory = $true)]
     [string]$uri,
+
+    [Parameter(Mandatory = $false)]
     [string]$method = "GET",
+
+    [Parameter(Mandatory = $false)]
     [hashtable]$headers,
+
+    [Parameter(Mandatory = $false)]
     [string]$Body
   )
 
@@ -196,6 +194,8 @@ function Invoke-RestApiCall {
 
 
 function Invoke-ProfileReload {
+[CmdletBinding()]
+param()
 & $profile
 }
 

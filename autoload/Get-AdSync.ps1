@@ -1,3 +1,28 @@
+<#
+.SYNOPSIS
+    Retrieves AD Sync scheduler information from Azure AD Connect server
+.DESCRIPTION
+    This function connects to an AD Sync server and retrieves the current status of the
+    Azure AD Connect synchronization scheduler. It supports configuration-driven server
+    selection and credential management.
+.PARAMETER ComputerName
+    The name or FQDN of the AD Sync server. If not provided, will prompt or use config file.
+.PARAMETER Credential
+    PowerShell credential object for authentication. If not provided, will use current context.
+.EXAMPLE
+    Get-AdSync
+    Retrieves AD Sync status using configured server or prompts for server name.
+.EXAMPLE
+    Get-AdSync -ComputerName "adsync-srv-01"
+    Retrieves AD Sync status from the specified server.
+.EXAMPLE
+    $cred = Get-Credential
+    Get-AdSync -ComputerName "adsync-srv-01" -Credential $cred
+    Retrieves AD Sync status using provided credentials.
+.NOTES
+    Requires appropriate permissions on the AD Sync server.
+    Configuration is saved to data/config/adsync-server.txt for future use.
+#>
 function Get-AdSync {
     [CmdletBinding()]
     param(
@@ -44,7 +69,7 @@ function Get-AdSync {
     }
     catch {
         Write-Warning "Failed to connect to AD Sync server '$ComputerName': $($_.Exception.Message)"
-        Write-Host "Ensure the server name is correct and you have appropriate permissions." -ForegroundColor Yellow
+        Write-Information "Ensure the server name is correct and you have appropriate permissions." -InformationAction Continue
         Break
     }
 }

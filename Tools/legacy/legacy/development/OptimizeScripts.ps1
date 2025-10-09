@@ -37,16 +37,16 @@ function Optimize-Script {
     $optimizedContent = $optimizedContent -replace '^\s*$', ''
 
     # Ensure consistent indentation (4 spaces)
-    $optimizedContent = $optimizedContent -replace '^\s+', { param($matches) (' ' * 4 * ($matches[0].Length / 4)) }
+    $optimizedContent = $optimizedContent -replace '^\s+', { param($matchInfo) (' ' * 4 * ($matchInfo[0].Length / 4)) }
 
     # Remove trailing spaces
     $optimizedContent = $optimizedContent -replace '\s+$', ''
 
     # Remove unused variables (simple heuristic)
-    $optimizedContent = $optimizedContent -replace '^\s*\$[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*.*$', { param($matches) if ($optimizedContent -notmatch "\b$($matches[0].TrimStart().Split('=')[0].Trim())\b") { '' } else { $matches[0] } }
+    $optimizedContent = $optimizedContent -replace '^\s*\$[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*.*$', { param($matchInfo) if ($optimizedContent -notmatch "\b$($matchInfo[0].TrimStart().Split('=')[0].Trim())\b") { '' } else { $matchInfo[0] } }
 
     # Remove unused functions (simple heuristic)
-    $optimizedContent = $optimizedContent -replace 'function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*{[^}]*}', { param($matches) if ($optimizedContent -notmatch "\b$($matches[0].Split(' ')[1])\b") { '' } else { $matches[0] } }
+    $optimizedContent = $optimizedContent -replace 'function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*{[^}]*}', { param($matchInfo) if ($optimizedContent -notmatch "\b$($matchInfo[0].Split(' ')[1])\b") { '' } else { $matchInfo[0] } }
 
     # Simplify if statements
     $optimizedContent = $optimizedContent -replace 'if\s*\(\s*\$true\s*\)\s*{([^}]*)}', '$1'
@@ -56,7 +56,7 @@ function Optimize-Script {
     $optimizedContent = $optimizedContent -replace 'Write-Host\s+"([^"]*)"\s*Write-Host\s+"([^"]*)"', 'Write-Host "$1 $2"'
 
     # Ensure consistent quoting (use single quotes where possible)
-    $optimizedContent = $optimizedContent -replace '"([^"]*)"', { param($matches) if ($matches[1] -notmatch '[\$`]') { "'$($matches[1])'" } else { $matches[0] } }
+    $optimizedContent = $optimizedContent -replace '"([^"]*)"', { param($matchInfo) if ($matchInfo[1] -notmatch '[\$`]') { "'$($matchInfo[1])'" } else { $matchInfo[0] } }
 
     # Remove redundant code (simple heuristic)
     $optimizedContent = $optimizedContent -replace '^\s*return\s*$', ''
@@ -65,18 +65,20 @@ function Optimize-Script {
 }
 
 # Function to process all scripts in a folder recursively
-function Process-Folder {
+function Invoke-FolderProcessing {
+    [CmdletBinding()]
     param (
+        [Parameter(Mandatory = $true)]
         [string]$folderPath
     )
 
-    Write-Host "Processing folder: $folderPath" -ForegroundColor Cyan
+    Write-Information "Processing folder: $folderPath" -InformationAction Continue
 
     # Get all PowerShell scripts in the current folder
     $scripts = Get-ChildItem -Path $folderPath -Filter *.ps1 -File
 
     foreach ($script in $scripts) {
-        Write-Host "Processing script: $($script.FullName)" -ForegroundColor Yellow
+        Write-Information "Processing script: $($script.FullName)" -InformationAction Continue
         try {
             # Read the content of the script
             $scriptContent = Get-Content -Path $script.FullName -Raw
@@ -84,25 +86,25 @@ function Process-Folder {
             $optimizedContent = Optimize-Script -scriptContent $scriptContent
             # Save the optimized content back to the script file
             Set-Content -Path $script.FullName -Value $optimizedContent
-            Write-Host "Optimized script: $($script.FullName)" -ForegroundColor Green
+            Write-Information "Optimized script: $($script.FullName)" -InformationAction Continue
         } catch {
-            Write-Host "Error processing script: $($script.FullName)" -ForegroundColor Red
-            Write-Host $_.Exception.Message -ForegroundColor Red
+            Write-Error "Error processing script: $($script.FullName)"
+            Write-Error $_.Exception.Message
         }
     }
 
     # Recursively process subfolders
     $subfolders = Get-ChildItem -Path $folderPath -Directory
     foreach ($subfolder in $subfolders) {
-        Process-Folder -folderPath $subfolder.FullName
+        Invoke-FolderProcessing -folderPath $subfolder.FullName
     }
 }
 
 # Start processing the specified folder
 try {
-    Process-Folder -folderPath $FolderPath
-    Write-Host "All scripts in the folder and its subfolders have been optimized." -ForegroundColor Green
+    Invoke-FolderProcessing -folderPath $FolderPath
+    Write-Information "All scripts in the folder and its subfolders have been optimized." -InformationAction Continue
 } catch {
-    Write-Host "An error occurred while processing the folder: $FolderPath" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Error "An error occurred while processing the folder: $FolderPath"
+    Write-Error $_.Exception.Message
 }
