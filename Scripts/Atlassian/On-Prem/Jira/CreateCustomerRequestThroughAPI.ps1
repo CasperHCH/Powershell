@@ -54,13 +54,13 @@ Add the wanted ticket description - Format:
 
   Specify the necessary parameters
   $username = "your-jira-username"
-  $password = "your-api-token"
+  $securePassword = Read-Host "Enter Jira API token" -AsSecureString
   $baseUrl = "https://your-jira-server.com"
   $summary = "Customer Request Summary"
   $description = "Detailed description of the customer request"
 
   # Execute the script with the provided parameters
-  .\CreateCustomerRequestThroughAPI.ps1 -username $username -password $password -baseUrl $baseUrl -summary $summary -description $description
+  .\CreateCustomerRequestThroughAPI.ps1 -username $username -password $securePassword -baseUrl $baseUrl -summary $summary -description $description
 #>
 #---------------------------------------------------------[Script Parameters]------------------------------------------------------
 

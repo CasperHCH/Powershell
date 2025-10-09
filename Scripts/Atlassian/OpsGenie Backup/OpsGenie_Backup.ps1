@@ -128,39 +128,62 @@ function SelectAPI(){
 	Write-Host -ForegroundColor Green
 
     $Selection = Read-Host
-    switch ($Selection)
-        {
-            '1' {#Option 1 is selected
-                    'You chose option #1 - TrialSite'
+    
+    # Define environment configurations
+    $environments = @{
+        '1' = @{
+            Name = 'TrialSite'
+            CredentialFile = "$env:USERPROFILE\OpsGenie_TrialSite_Credential.xml"
+        }
+        '2' = @{
+            Name = 'PandoraDigital'
+            CredentialFile = "$env:USERPROFILE\OpsGenie_PandoraDigital_Credential.xml"
+        }
+        '3' = @{
+            Name = 'Custom Environment'
+            CredentialFile = "$env:USERPROFILE\OpsGenie_Custom_Credential.xml"
+        }
+    }
 
-                    $script:apiKey = '3df04bcd-b699-4fae-b19f-50f219666590'
-					Write-LogInfo -LogPath $sLogFile -Message 'TrialSite selected'
-					Write-LogInfo -LogPath $sLogFile -Message ' '
-                }#End Option 1
+    if ($environments.ContainsKey($Selection)) {
+        $selectedEnv = $environments[$Selection]
+        Write-Host "You chose option #$Selection - $($selectedEnv.Name)" -ForegroundColor Green
+        Write-LogInfo -LogPath $sLogFile -Message "$($selectedEnv.Name) selected"
 
+        # Load or prompt for API key
+        try {
+            if (Test-Path $selectedEnv.CredentialFile) {
+                Write-Host "Loading stored API key for $($selectedEnv.Name)..." -ForegroundColor Yellow
+                $secureApiKey = Import-Clixml -Path $selectedEnv.CredentialFile
+                $script:apiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey))
+                Write-LogInfo -LogPath $sLogFile -Message "API key loaded from secure storage"
+            } else {
+                Write-Host "No stored API key found for $($selectedEnv.Name)" -ForegroundColor Yellow
+                $apiKeyInput = Read-Host "Enter OpsGenie API key for $($selectedEnv.Name)" -AsSecureString
+                $script:apiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKeyInput))
+                
+                $saveChoice = Read-Host "Save API key securely for future use? (y/N)"
+                if ($saveChoice -eq 'y' -or $saveChoice -eq 'Y') {
+                    $apiKeyInput | Export-Clixml -Path $selectedEnv.CredentialFile
+                    Write-Host "API key saved securely to: $($selectedEnv.CredentialFile)" -ForegroundColor Green
+                    Write-LogInfo -LogPath $sLogFile -Message "API key saved to secure storage"
+                }
+            }
+        }
+        catch {
+            Write-Host "Error loading API key: $($_.Exception.Message)" -ForegroundColor Red
+            Write-LogInfo -LogPath $sLogFile -Message "Error loading API key: $($_.Exception.Message)"
+            return
+        }
 
-
-            '2' {#Option 2 is selected
-                'You chose option #2 - PandoraDigital'
-
-                    $script:apiKey = '39500cda-727f-424f-b53e-d9829b9c93aa'
-					Write-LogInfo -LogPath $sLogFile -Message 'PandoraDigital selected'
-					Write-LogInfo -LogPath $sLogFile -Message ' '
-                }#end option 2
-
-
-			'3' {#Option 3 is selected
-                'You chose option #3 - to be filled in'
-
-                    $script:apiKey = 'xxx'
-					Write-LogInfo -LogPath $sLogFile -Message 'to be filled in selected'
-					Write-LogInfo -LogPath $sLogFile -Message ' '
-
-                }#end option 3
-        Default {Write-Host "Invalid selection. Please choose 1, 2, or 3." -ForegroundColor Red
-				Write-LogInfo -LogPath $sLogFile -Message 'Switchcase = Invalid entry.'
-				Write-LogInfo -LogPath $sLogFile -Message ' '}#END Default
-        }#End Switch
+        Write-LogInfo -LogPath $sLogFile -Message "API key configured for $($selectedEnv.Name)"
+        Write-LogInfo -LogPath $sLogFile -Message ' '
+    } else {
+        Write-Host "Invalid selection. Please choose 1, 2, or 3." -ForegroundColor Red
+        Write-LogInfo -LogPath $sLogFile -Message 'Switchcase = Invalid entry.'
+        Write-LogInfo -LogPath $sLogFile -Message ' '
+        return
+    }
 }#End Function
 
 

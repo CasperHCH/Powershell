@@ -33,14 +33,43 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
 
 Import-ModuleIfAvailable JiraPS
 
-# CREATE CREDS!
-# Define Credentials
-[string]$userName = 'Atlassian-Service-Account'
-[string]$userPassword = 'Z*r0GAV6@V2pI3ckS'
+# SECURE CREDENTIAL HANDLING
+# Get credentials securely - never hardcode passwords!
+Write-Host "Jira Authentication Required" -ForegroundColor Cyan
 
-# Create credential Object
-[SecureString]$secureString = $userPassword | ConvertTo-SecureString -AsPlainText -Force
-[PSCredential]$creds = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $secureString
+# Try to get stored credentials first
+$credentialPath = "$env:USERPROFILE\.jira_credentials.xml"
+if (Test-Path $credentialPath) {
+    try {
+        Write-Host "Loading stored credentials..." -ForegroundColor Green
+        $creds = Import-Clixml -Path $credentialPath
+    } catch {
+        Write-Warning "Failed to load stored credentials: $($_.Exception.Message)"
+        $creds = $null
+    }
+}
+
+# If no stored credentials, prompt for new ones
+if (-not $creds) {
+    Write-Host "Please enter your Jira credentials:" -ForegroundColor Yellow
+    $creds = Get-Credential -Message "Enter Jira Service Account credentials" -UserName "service-account@domain.com"
+    
+    if ($creds) {
+        # Offer to save credentials securely
+        $save = Read-Host "Save credentials for future use? (y/N)"
+        if ($save -match '^[yY]') {
+            try {
+                $creds | Export-Clixml -Path $credentialPath -Force
+                Write-Host "Credentials saved securely to: $credentialPath" -ForegroundColor Green
+            } catch {
+                Write-Warning "Failed to save credentials: $($_.Exception.Message)"
+            }
+        }
+    } else {
+        Write-Error "Credentials are required to continue"
+        exit 1
+    }
+}
 
 Set-JiraConfigServer 'https://jira.miracle.dk'
 New-JiraSession -Credential $creds
