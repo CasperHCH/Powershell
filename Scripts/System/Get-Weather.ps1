@@ -29,34 +29,96 @@ I take no responsibility for any issues caused by this script.
   https://github.com/obs0lete/Get-Weather
 #>
   param (
+    [Parameter(Mandatory=$false, HelpMessage="Enter city name (e.g., Toronto, London, New York)")]
+    [ValidateNotNullOrEmpty()]
     [string]$City,
 
-    [string]$Country)
+    [Parameter(Mandatory=$false, HelpMessage="Enter two-letter country code (e.g., US, CA, UK, DE)")]
+    [ValidatePattern('^[A-Z]{2}$')]
+    [string]$Country,
 
-  <# BEGIN VARIABLES #>
+    [Parameter(Mandatory=$false, HelpMessage="OpenWeather API key - get free at openweathermap.org/api")]
+    [string]$ApiKey,
 
-  <# Get your API Key (it's free) from http://openweathermap.org/api and change the value below with your key #>
-  $API = "REPLACE_WITH_YOUR_OPENWEATHER_API_KEY"
+    [Parameter(Mandatory=$false, HelpMessage="Temperature units: metric (°C) or imperial (°F)")]
+    [ValidateSet("metric", "imperial")]
+    [string]$Units = "metric"
+  )
 
-  if ($API -eq "REPLACE_WITH_YOUR_OPENWEATHER_API_KEY") {
-      Write-Error "Please set your OpenWeather API key in the script. Get a free key from http://openweathermap.org/api"
-      return $null
+  <# BEGIN VARIABLES AND API KEY HANDLING #>
+  
+  # Define secure credential file path
+  $credentialPath = "$env:USERPROFILE\OpenWeather_ApiKey.xml"
+  
+  # Load API key from various sources
+  if ($ApiKey) {
+      $API = $ApiKey
+  } elseif (Test-Path $credentialPath) {
+      try {
+          Write-Host "Loading stored OpenWeather API key..." -ForegroundColor Green
+          $secureApiKey = Import-Clixml -Path $credentialPath
+          $API = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey))
+      } catch {
+          Write-Warning "Failed to load stored API key: $($_.Exception.Message)"
+          $API = $null
+      }
+  } else {
+      $API = $null
   }
 
-  <# Check if you have entered an API key and if not, exit the script.
-  Do NOT change this value, only the one above! #>
-  if ($API -eq "YOUR_API_KEY_HERE" -or [string]::IsNullOrEmpty($API)) {
-    Write-Host "ERROR: API Key not configured!" -ForegroundColor Red
-    Write-Warning "Please get your free API key from http://openweathermap.org/api"
-    Write-Host "Update the " -NoNewline; Write-Host "`$API" -ForegroundColor Yellow -NoNewline; Write-Host " variable in this script with your key."
-    exit
+  # Prompt for API key if not available
+  if ([string]::IsNullOrEmpty($API)) {
+      Write-Host "`n🌤️  OpenWeather API Configuration Required" -ForegroundColor Cyan
+      Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+      Write-Host "Get your free API key from: " -NoNewline -ForegroundColor Yellow
+      Write-Host "http://openweathermap.org/api" -ForegroundColor White
+      
+      $apiKeyInput = Read-Host "`nEnter your OpenWeather API key" -AsSecureString
+      $API = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKeyInput))
+      
+      if ([string]::IsNullOrEmpty($API)) {
+          Write-Host "API key is required to get weather data." -ForegroundColor Red
+          return
+      }
+
+      # Offer to save the API key securely
+      $saveChoice = Read-Host "`nSave API key securely for future use? (y/N)"
+      if ($saveChoice -eq 'y' -or $saveChoice -eq 'Y') {
+          try {
+              $apiKeyInput | Export-Clixml -Path $credentialPath
+              Write-Host "API key saved securely to: $credentialPath" -ForegroundColor Green
+          } catch {
+              Write-Warning "Failed to save API key: $($_.Exception.Message)"
+          }
+      }
   }
 
+  # Get location information with enhanced prompts
   if (-not $City) {
-      $City = Read-Host "Enter city name"
+      Write-Host "`n📍 Location Information" -ForegroundColor Cyan
+      $City = Read-Host "Enter city name (e.g., Toronto, London, New York)"
+      if ([string]::IsNullOrEmpty($City)) {
+          Write-Host "City name is required." -ForegroundColor Red
+          return
+      }
   }
+  
   if (-not $Country) {
-      $Country = Read-Host "Enter country code (e.g., US, CA, UK)"
+      Write-Host "`nFor accurate results, please specify the country:" -ForegroundColor Yellow
+      Write-Host "Examples: US (United States), CA (Canada), UK (United Kingdom), DE (Germany)" -ForegroundColor Gray
+      $Country = Read-Host "Enter two-letter country code"
+      if ([string]::IsNullOrEmpty($Country)) {
+          Write-Host "Country code is required." -ForegroundColor Red
+          return
+      }
+      # Validate country code format
+      if ($Country -notmatch '^[A-Z]{2}$') {
+          $Country = $Country.ToUpper()
+          if ($Country -notmatch '^[A-Z]{2}$') {
+              Write-Host "Invalid country code format. Please use two letters (e.g., US, CA, UK)." -ForegroundColor Red
+              return
+          }
+      }
   }
 
   $Location = "$City,$Country"
