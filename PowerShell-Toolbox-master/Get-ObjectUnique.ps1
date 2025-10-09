@@ -16,8 +16,18 @@ function Get-ObjectUnique {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [object[]]$InputArray
+        [object]$InputObject
     )
 
-    return [System.Collections.Generic.HashSet[string]]$InputArray
+    begin {
+        $uniqueSet = New-Object System.Collections.Generic.HashSet[string]
+    }
+
+    process {
+        [void]$uniqueSet.Add($InputObject.ToString())
+    }
+
+    end {
+        return $uniqueSet
+    }
 }

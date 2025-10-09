@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-    Gets the uptime information for one or more servers.
+    Gets the up    Process {
+        foreach ($server in $ComputerName) {me information for one or more servers.
 .DESCRIPTION
     This function retrieves the boot time and calculates uptime for specified servers
     using WMI/CIM queries. It displays both simple and detailed uptime information.
@@ -25,7 +26,7 @@ Function Get-Uptime {
 				   ValueFromPipeline = $True,
 				   ValueFromPipelineByPropertyName = $True,
 				   HelpMessage = 'What Server to query for Uptime')]
-		[string[]]$servers = $env:COMPUTERNAME
+		[string[]]$ComputerName = $env:COMPUTERNAME
     )
 
     process {
@@ -42,7 +43,7 @@ Function Get-Uptime {
                 UptimeDays = $uptime_days
                 FullUptime = "$($uptime.Days) days, $($uptime.Hours) hours, $($uptime.Minutes) minutes"
                 TimeSpan = $uptime
-            } | Format-Table -AutoSize
+            }
 
             # Also provide verbose output
             Write-Verbose "Server: $server" -Verbose

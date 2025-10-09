@@ -34,7 +34,7 @@ Function Get-CalPerm {
 
     $CalendarName = (Get-MailboxFolderStatistics -Identity $MBX.Alias -FolderScope Calendar | Select-Object -First 1).Name
     $folderID = "$($MBX.Alias):\$CalendarName"
-    Get-MailboxFolderPermission -Identity $folderID | Format-Table -AutoSize
+    Get-MailboxFolderPermission -Identity $folderID
 }
 
 # Example usage:

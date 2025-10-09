@@ -19,13 +19,18 @@ function Convert-ListToString {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [object[]]$InputArray
+        [object]$InputObject
     )
 
-    $string = New-Object -TypeName System.Text.StringBuilder
-    foreach ($object in $InputArray) {
-        [void]$string.Append($object)
+    begin {
+        $string = New-Object -TypeName System.Text.StringBuilder
     }
 
-    return $string.ToString()
+    process {
+        [void]$string.Append($InputObject.ToString())
+    }
+
+    end {
+        return $string.ToString()
+    }
 }

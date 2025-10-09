@@ -12,6 +12,7 @@ Function Search-GPO {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $True, HelpMessage = "Specify the string to search for within the GPOs.")]
+        [ValidateNotNullOrEmpty()]
         [string]$String
     )
 
