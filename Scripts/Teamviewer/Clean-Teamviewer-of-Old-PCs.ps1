@@ -55,11 +55,16 @@ ForEach($device in $devices) {
             if ($DateLastSeen -le $cutoffDate) {
                 $devicesToRemove += $device
                 Write-Host "Device marked for removal: $($device.alias) (ID: $ID, Last seen: $LastSeen)" -ForegroundColor Yellow
-
-                    Invoke-WebRequest -Uri  -Method Delete -Headers $header
-                    Write-Host $device.alias -ForegroundColor Yellow
-
-                    }$Lastseen = $null
+                
+                try {
+                    $deleteUri = "https://webapi.teamviewer.com/api/v1/devices/$ID"
+                    $response = Invoke-WebRequest -Uri $deleteUri -Method Delete -Headers $header -ErrorAction Stop
+                    Write-Host "✅ Successfully removed: $($device.alias)" -ForegroundColor Green
+                } catch {
+                    Write-Host "❌ Failed to remove $($device.alias): $($_.Exception.Message)" -ForegroundColor Red
+                }
+                
+                $LastSeen = $null
             }
     }
 }

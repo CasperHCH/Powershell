@@ -1,40 +1,108 @@
-# Please read and acknowledge before using the software.
+<#
+.SYNOPSIS
+    Updates all Windows apps using Winget package manager
+.DESCRIPTION 
+    This script automatically discovers and upgrades all available Windows applications
+    using the Windows Package Manager (winget). Please read and acknowledge the disclaimer.
+.NOTES
+    Requires Windows Package Manager (winget) to be installed
+    Author: PowerShell Scripts Collection
+    Last Modified: October 2025
+#>
 
-Write-Host "--------------------------------------------"
-Write-Host "SOFTWARE DISCLAIMER: NO IMPLIED WARRANTY"
-Write-Host "--------------------------------------------"
+[CmdletBinding()]
+param()
 
-Write-Host "By using this software, you acknowledge and agree to the following terms:"
+# Display disclaimer with proper formatting
+Write-Host "============================================" -ForegroundColor Yellow
+Write-Host "SOFTWARE DISCLAIMER: NO IMPLIED WARRANTY" -ForegroundColor Red
+Write-Host "============================================" -ForegroundColor Yellow
 Write-Host ""
-
-Write-Host "1. No Warranty: This software is provided 'as-is' and without any express or implied warranties, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose."
+Write-Host "By using this software, you acknowledge and agree to the following terms:" -ForegroundColor Cyan
 Write-Host ""
-
-Write-Host "2. Use at Your Own Risk: The use of this software is at your own risk. The author(s) and contributors shall not be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage."
+Write-Host "1. No Warranty: " -ForegroundColor Yellow -NoNewline
+Write-Host "This software is provided 'as-is' without warranties of any kind."
 Write-Host ""
-
-Write-Host "3. No Support: The author(s) of this software may not provide support, maintenance, updates, or enhancements for this software."
+Write-Host "2. Use at Your Own Risk: " -ForegroundColor Yellow -NoNewline  
+Write-Host "The authors shall not be liable for any damages arising from use."
 Write-Host ""
-
-Write-Host "4. Compliance: It is your responsibility to ensure that your use of this software complies with all applicable laws and regulations."
+Write-Host "3. No Support: " -ForegroundColor Yellow -NoNewline
+Write-Host "No support, maintenance, or updates may be provided."
 Write-Host ""
+Write-Host "4. Compliance: " -ForegroundColor Yellow -NoNewline
+Write-Host "Ensure your use complies with applicable laws and regulations."
+Write-Host ""
+Write-Host "If you do not agree with these terms, please exit now." -ForegroundColor Red
+Write-Host "============================================" -ForegroundColor Yellow
 
-Write-Host "If you do not agree with these terms, please do not use the software."
+$confirm = Read-Host "`nDo you accept these terms and wish to continue? (y/N)"
+if ($confirm -notmatch '^[yY]') {
+    Write-Host "Operation cancelled by user." -ForegroundColor Yellow
+    exit 0
+}
 
-Write-Host "--------------------------------------------"
+Write-Host "`n🚀 Starting Windows App Upgrade Process..." -ForegroundColor Green
 
+# Function to find Winget executable
+function Find-WingetPath {
+    try {
+        # First try the standard command
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            return "winget"
+        }
+        
+        # Fallback: search in WindowsApps folder
+        Write-Host "Searching for winget in WindowsApps folder..." -ForegroundColor Yellow
+        $wingetPaths = Get-ChildItem "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction SilentlyContinue | 
+            Where-Object { $_.Name -eq 'winget.exe' -and $_.FullName -match 'Microsoft.DesktopAppInstaller' } |
+            Sort-Object LastWriteTime -Descending
+            
+        if ($wingetPaths) {
+            return $wingetPaths[0].FullName
+        }
+        
+        throw "Winget executable not found"
+    } catch {
+        throw "Failed to locate winget: $($_.Exception.Message)"
+    }
+}
 
-
-
-# Get path for Winget executible
-$Winget = ((Get-ChildItem "C:\Program Files\WindowsApps" -Recurse -File | Where-Object { ($_.fullname -match 'C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_' -and $_.name -match 'winget.exe') } | Sort-Object fullname -Descending | ForEach-Object{$_.FullName}) -Split [Environment]::NewLine)[0]
-
-# WinGet version
-Write-Output $winget
-& "$Winget" --info
-
-# Update source
-& "$Winget" source update
-
-# Run the upgrade command
-& "$Winget" upgrade --all --silent --accept-source-agreements
+# Main execution
+try {
+    # Find winget executable
+    Write-Host "📍 Locating Windows Package Manager (winget)..." -ForegroundColor Cyan
+    $wingetPath = Find-WingetPath
+    Write-Host "✅ Found winget at: $wingetPath" -ForegroundColor Green
+    
+    # Display version information
+    Write-Host "`n📋 Winget Version Information:" -ForegroundColor Cyan
+    & $wingetPath --info
+    
+    # Update package sources
+    Write-Host "`n🔄 Updating package sources..." -ForegroundColor Cyan
+    & $wingetPath source update
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Package sources updated successfully" -ForegroundColor Green
+    } else {
+        Write-Warning "Package source update returned exit code: $LASTEXITCODE"
+    }
+    
+    # List available upgrades first
+    Write-Host "`n📦 Checking for available upgrades..." -ForegroundColor Cyan
+    & $wingetPath upgrade
+    
+    # Perform upgrades
+    Write-Host "`n⬆️  Starting upgrade process..." -ForegroundColor Cyan
+    & $wingetPath upgrade --all --silent --accept-source-agreements --accept-package-agreements
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "`n🎉 All upgrades completed successfully!" -ForegroundColor Green
+    } else {
+        Write-Warning "Upgrade process completed with exit code: $LASTEXITCODE"
+    }
+    
+} catch {
+    Write-Error "❌ Failed to complete upgrade process: $($_.Exception.Message)"
+    exit 1
+}

@@ -121,12 +121,19 @@ Write-Warning "Starting Jira restart process" -WarningAction Inquire
 Write-Warning "This will stop the Jira service temporarily"
 
 <#-------------------[Test Webservice]----------------------
-$HTTP_Request = Invoke-WebRequest -Uri https:\\jira.lm-gruppen.dk
-If ($HTTP_Request.StatusCode -ne 200) {
-  Write-Output "HTTP request failed with status: $($HTTP_Request.StatusCode)"
-}
-ElseIf ($HTTP_Request.StatusCode -eq 200) {
-  Write-Warning "HTTP request successful. Proceeding with Jira restart." -WarningAction Inquire
+try {
+    $HTTP_Request = Invoke-WebRequest -Uri "https://jira.lm-gruppen.dk" -ErrorAction Stop -TimeoutSec 30
+    if ($HTTP_Request.StatusCode -eq 200) {
+        Write-Output "Jira service is accessible (HTTP 200). Proceeding with restart."
+        Write-Warning "This will temporarily stop the Jira service." -WarningAction Inquire
+    }
+} catch {
+    Write-Warning "Cannot reach Jira service at https://jira.lm-gruppen.dk - Error: $($_.Exception.Message)"
+    $confirm = Read-Host "Continue with restart anyway? (y/n)"
+    if ($confirm -notmatch '^[yY]') {
+        Write-Output "Restart cancelled by user."
+        exit 1
+    }
 }
 #>
 Write-Output "Starting Jira graceful restart process..."
