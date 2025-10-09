@@ -56,21 +56,46 @@ function AddTo-Path {
 
   # Check if the path is already present
   if ($PathArray -notcontains $PathToAdd -and $PathToAdd -ne "") {
-      # Add the new path to the array
-      $PathNew = $PathOld + ';' + $PathToAdd
-      # Update the environment variable in the registry
-      Set-ItemProperty -Path $RegPropertyLocation -Name $PathType -Value $PathNew
-      # Output the updated environment variable
-      Get-ItemProperty -Path $RegPropertyLocation -Name $PathType | Select-Object -ExpandProperty $PathType
+      try {
+          # Validate that the path exists (optional warning)
+          if (-not (Test-Path $PathToAdd)) {
+              Write-Warning "Path '$PathToAdd' does not exist. Adding anyway..."
+          }
+          
+          # Add the new path to the array
+          $PathNew = $PathOld + ';' + $PathToAdd
+          
+          # Update the environment variable in the registry
+          Set-ItemProperty -Path $RegPropertyLocation -Name $PathType -Value $PathNew -ErrorAction Stop
+          Write-Host "Successfully added '$PathToAdd' to $PathType ($UserType)" -ForegroundColor Green
+          
+          # Output the updated environment variable
+          Get-ItemProperty -Path $RegPropertyLocation -Name $PathType | Select-Object -ExpandProperty $PathType
 
-      # Update the environment variable for the current session
-      if ($PathType -eq 'Path') {
-          $env:Path += ";$PathToAdd"
-      } elseif ($PathType -eq 'PSModulePath') {
-          $env:PSModulePath += ";$PathToAdd"
+          # Update the environment variable for the current session
+          try {
+              if ($PathType -eq 'Path') {
+                  $env:Path += ";$PathToAdd"
+              } elseif ($PathType -eq 'PSModulePath') {
+                  $env:PSModulePath += ";$PathToAdd"
+              }
+              Write-Host "Current session environment updated." -ForegroundColor Green
+          }
+          catch {
+              Write-Warning "Registry updated but failed to update current session: $($_.Exception.Message)"
+          }
+      }
+      catch {
+          Write-Error "Failed to update $PathType environment variable: $($_.Exception.Message)"
+          Write-Host "You may need to run PowerShell as Administrator to modify system environment variables." -ForegroundColor Red
+          return
       }
   } else {
-      Write-Host "The path is already present or no path was provided." -ForegroundColor Yellow
+      if ($PathToAdd -eq "") {
+          Write-Host "Current $PathType ($UserType): $PathOld" -ForegroundColor Cyan
+      } else {
+          Write-Host "Path '$PathToAdd' is already present in $PathType ($UserType)" -ForegroundColor Yellow
+      }
   }
 }
 

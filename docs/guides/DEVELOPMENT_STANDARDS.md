@@ -25,12 +25,12 @@ Every script must include comprehensive help documentation:
 
 .EXAMPLE
     ScriptName.ps1 -Parameter "Value"
-    
+
     Description of what this example does and expected output
 
 .EXAMPLE
     ScriptName.ps1 -Parameter "Value" -WhatIf
-    
+
     Show additional examples demonstrating different usage patterns
 
 .NOTES
@@ -58,15 +58,15 @@ param(
     )]
     [ValidateNotNullOrEmpty()]
     [string]$Username,
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("Active", "Inactive", "Disabled")]
     [string]$Status = "Active",
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 1000)]
     [int]$MaxResults = 100,
-    
+
     [switch]$WhatIf,
     [switch]$Verbose
 )
@@ -98,9 +98,9 @@ $apiToken = Read-Host "Enter API Token" -AsSecureString
 # Store credentials securely (one-time setup)
 function Save-SecureCredential {
     param([string]$Name, [string]$Path = "$env:USERPROFILE\.credentials")
-    
+
     if (-not (Test-Path $Path)) { New-Item -Path $Path -ItemType Directory -Force }
-    
+
     $credential = Get-Credential -Message "Enter credentials for $Name"
     $credential | Export-Clixml -Path "$Path\$Name.xml"
     Write-Host "Credentials saved securely to: $Path\$Name.xml" -ForegroundColor Green
@@ -109,7 +109,7 @@ function Save-SecureCredential {
 # Load credentials (in scripts)
 function Get-SecureCredential {
     param([string]$Name, [string]$Path = "$env:USERPROFILE\.credentials")
-    
+
     $credPath = "$Path\$Name.xml"
     if (Test-Path $credPath) {
         return Import-Clixml -Path $credPath
@@ -126,13 +126,13 @@ function Get-SecureCredential {
 function Get-UserInformation {
     [CmdletBinding()]
     param([string]$Username)
-    
+
     try {
         Write-Verbose "Attempting to retrieve user: $Username"
-        
+
         # Main logic here
         $user = Get-ADUser -Identity $Username -ErrorAction Stop
-        
+
         Write-Output $user
         Write-Host "Successfully retrieved user: $Username" -ForegroundColor Green
     }
@@ -177,7 +177,7 @@ if ($Environment -notin $validEnvironments) {
 ```powershell
 # Use consistent color coding
 Write-Host "✅ Success: Operation completed successfully" -ForegroundColor Green
-Write-Host "⚠️  Warning: Consider reviewing these settings" -ForegroundColor Yellow  
+Write-Host "⚠️  Warning: Consider reviewing these settings" -ForegroundColor Yellow
 Write-Host "❌ Error: Operation failed" -ForegroundColor Red
 Write-Host "ℹ️  Info: Processing 50 items..." -ForegroundColor Cyan
 
@@ -198,10 +198,10 @@ if ($confirmation -ne 'YES') {
 do {
     Write-Host "`nSelect an option:" -ForegroundColor Cyan
     Write-Host "1. Process all users"
-    Write-Host "2. Process specific group"  
+    Write-Host "2. Process specific group"
     Write-Host "3. Generate report only"
     Write-Host "Q. Quit"
-    
+
     $choice = Read-Host "`nEnter your choice"
 } while ($choice -notin @('1', '2', '3', 'Q'))
 ```
@@ -219,7 +219,7 @@ function Invoke-ApiRequest {
         [object]$Body,
         [int]$MaxRetries = 3
     )
-    
+
     $retryCount = 0
     do {
         try {
@@ -229,9 +229,9 @@ function Invoke-ApiRequest {
                 Headers = $Headers
                 ContentType = 'application/json'
             }
-            
+
             if ($Body) { $params.Body = ($Body | ConvertTo-Json -Depth 10) }
-            
+
             $response = Invoke-RestMethod @params -ErrorAction Stop
             return $response
         }
@@ -240,7 +240,7 @@ function Invoke-ApiRequest {
             if ($retryCount -ge $MaxRetries) {
                 throw "API request failed after $MaxRetries attempts: $($_.Exception.Message)"
             }
-            
+
             Write-Warning "API request failed (attempt $retryCount/$MaxRetries). Retrying in 5 seconds..."
             Start-Sleep -Seconds 5
         }
@@ -266,7 +266,7 @@ foreach ($item in $items) {
         $requestCount = 0
         $startTime = Get-Date
     }
-    
+
     # Make API call
     $result = Invoke-ApiRequest -Uri $uri
     $requestCount++
@@ -282,16 +282,16 @@ function Write-Log {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
-        
+
         [ValidateSet('INFO', 'WARNING', 'ERROR', 'DEBUG')]
         [string]$Level = 'INFO',
-        
+
         [string]$LogPath = "$env:TEMP\PowerShell_$(Get-Date -Format 'yyyy-MM-dd').log"
     )
-    
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
-    
+
     # Write to console with colors
     switch ($Level) {
         'INFO'    { Write-Host $logEntry -ForegroundColor White }
@@ -299,7 +299,7 @@ function Write-Log {
         'ERROR'   { Write-Host $logEntry -ForegroundColor Red }
         'DEBUG'   { Write-Debug $logEntry }
     }
-    
+
     # Append to log file
     $logEntry | Add-Content -Path $LogPath
 }
@@ -313,7 +313,7 @@ $results | Export-Csv -Path $outputPath -NoTypeInformation -Encoding UTF8
 # Add metadata header
 $metadata = @"
 # PowerShell Script Export
-# Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")  
+# Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 # Script: $($MyInvocation.MyCommand.Name)
 # User: $($env:USERNAME)
 # Computer: $($env:COMPUTERNAME)
@@ -350,22 +350,22 @@ Describe "Get-UserInformation Tests" {
         # Setup test data
         . "$PSScriptRoot\..\..\scripts\active-directory\Get-UserInformation.ps1"
     }
-    
+
     Context "Parameter Validation" {
         It "Should throw when Username is empty" {
             { Get-UserInformation -Username "" } | Should -Throw
         }
-        
+
         It "Should accept valid username" {
             { Get-UserInformation -Username "testuser" -WhatIf } | Should -Not -Throw
         }
     }
-    
+
     Context "Functionality" {
         It "Should return user object when user exists" {
             # Mock AD cmdlets for testing
             Mock Get-ADUser { return @{Name = "Test User"} }
-            
+
             $result = Get-UserInformation -Username "testuser"
             $result.Name | Should -Be "Test User"
         }
@@ -377,7 +377,7 @@ Describe "Get-UserInformation Tests" {
 
 ### **Script Placement**
 - **Domain-specific scripts**: `scripts\[domain]\[category]\ScriptName.ps1`
-- **Reusable functions**: `core\[category]\FunctionName.ps1`  
+- **Reusable functions**: `core\[category]\FunctionName.ps1`
 - **Templates**: `docs\templates\`
 - **Tests**: `tests\unit-tests\` or `tests\integration-tests\`
 
@@ -398,7 +398,7 @@ foreach ($module in $requiredModules) {
     if (-not (Get-Module -Name $module -ListAvailable)) {
         throw "Required module not found: $module. Please install using: Install-Module $module"
     }
-    
+
     if (-not (Get-Module -Name $module)) {
         Import-Module $module -Force
         Write-Verbose "Imported module: $module"

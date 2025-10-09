@@ -48,14 +48,14 @@ Connect-ExchangeOnline
 # Follow prompts for credentials
 ```
 
-### **Active Directory Operations**  
+### **Active Directory Operations**
 ```powershell
 # Find locked out users
 . "C:\PS\scripts\active-directory\Get-LockedOutLocation.ps1"
 Get-LockedOutLocation -Username "john.doe"
 
 # Test AD credentials
-. "C:\PS\core\authentication\Test-ADCredential.ps1" 
+. "C:\PS\core\authentication\Test-ADCredential.ps1"
 Test-ADCredential -Username "domain\user" -Password "password"
 ```
 
@@ -138,7 +138,7 @@ Copy-Item "C:\PS\docs\templates\Template.ps1" "C:\PS\scripts\[category]\MyNewScr
 <#
 .SYNOPSIS
     Brief description of what the script does
-.DESCRIPTION  
+.DESCRIPTION
     Detailed description of functionality
 .PARAMETER ParameterName
     Description of each parameter
@@ -152,7 +152,7 @@ Copy-Item "C:\PS\docs\templates\Template.ps1" "C:\PS\scripts\[category]\MyNewScr
 param(
     [Parameter(Mandatory=$true)]
     [string]$RequiredParameter,
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$OptionalSwitch
 )
@@ -185,7 +185,7 @@ Test-ScriptSyntax -Path "C:\PS\scripts\[category]\MyScript.ps1"
 ## 📚 Additional Resources
 
 - **API Documentation**: `docs/api-references/` for complete API guides
-- **Changelog**: `CHANGELOG.md` for version history and breaking changes  
+- **Changelog**: `CHANGELOG.md` for version history and breaking changes
 - **Copilot Instructions**: `copilot-instructions.md` for AI-assisted development
 - **Examples**: Browse existing scripts in `scripts/` directories for patterns
 
@@ -199,7 +199,7 @@ Test-ScriptSyntax -Path "C:\PS\scripts\[category]\MyScript.ps1"
 
 ### **Getting Help**
 - Review script help: `Get-Help .\ScriptName.ps1 -Full`
-- Check examples: `Get-Help .\ScriptName.ps1 -Examples`  
+- Check examples: `Get-Help .\ScriptName.ps1 -Examples`
 - Examine source: Scripts include comprehensive inline documentation
 
 ---

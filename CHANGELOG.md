@@ -14,7 +14,7 @@ All notable changes to this PowerShell library are documented in this file.
 ```
 core/
 ├── authentication/     # Credential management, AD auth, Office 365 connections
-├── utilities/         # General utility functions, system monitoring  
+├── utilities/         # General utility functions, system monitoring
 └── reporting/         # System reporting, hardware specifications
 
 scripts/
@@ -106,7 +106,7 @@ archive/               # Deprecated files and old structure remnants
 
 ### 🔧 **Enhanced Scripts**
 - **Windows-Upgrade-All-Apps.ps1**: Added proper error handling, colorized output, user confirmation
-- **Graceful_Jira_Restart_v1.1.ps1**: Fixed URI formatting, added timeout and error handling  
+- **Graceful_Jira_Restart_v1.1.ps1**: Fixed URI formatting, added timeout and error handling
 - **Clean-Teamviewer-of-Old-PCs.ps1**: Fixed incomplete API URIs, added proper error handling
 
 ### 🎨 **UI Improvements**
@@ -124,7 +124,7 @@ archive/               # Deprecated files and old structure remnants
 - **`Get-LockedOutLocation.ps1`**: Fixed missing PDCEmulator filter, empty Write-Verbose statements, malformed Write-Progress parameters
 - **`GetListOfADGroupMembers.ps1`**: Complete rebuild as proper `Get-ADGroupMembers` function with comprehensive help documentation
 
-#### **System Scripts**  
+#### **System Scripts**
 - **`Get-Weather.ps1`**: Fixed empty API key variables, missing error messages, incomplete URL construction
 - **`Nuke-Malware.ps1`**: Added parameter validation messages and proper error handling
 - **`FindProcessForFileInUse.ps1`**: Enhanced with dual detection methods and comprehensive logging
@@ -166,7 +166,7 @@ archive/               # Deprecated files and old structure remnants
 
 ### 🏗️ **Function Standardization**
 - **Renamed** functions to follow PowerShell conventions:
-  - `NSG-GetMailboxAutomapping` → `Get-MailboxAutomapping`  
+  - `NSG-GetMailboxAutomapping` → `Get-MailboxAutomapping`
   - `NSG-GetUserAutomapping` → `Get-UserAutomapping`
 - **Enhanced** `Install_Modules.ps1` with informative messages and color coding
 
@@ -224,7 +224,7 @@ The PowerShell profile has been automatically updated to work with the new struc
 - **Core functions** centralized in `core\` directory
 - **Documentation** organized in `docs\` with proper categorization
 
-### **Function Names** (v1.7.0)  
+### **Function Names** (v1.7.0)
 - **NSG-prefixed functions** renamed to standard PowerShell Verb-Noun format
 - **Load-Module** replaced with approved `Import-ModuleIfAvailable` verb
 

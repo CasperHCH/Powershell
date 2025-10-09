@@ -3,9 +3,9 @@ Set-Alias update-powershell "winget install --id Microsoft.Powershell --source w
 
 # Ensure PS drive exists and change location to PS drive
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name "PS" -Root "C:\PS\Scripts" | Out-Null
+    New-PSDrive -PSProvider FileSystem -Name "PS" -Root "C:\PS" | Out-Null
 }
-Set-Location C:\PS\Scripts
+Set-Location C:\PS
 
 # Define a function to list the content of a function/script file
 function def {

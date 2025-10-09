@@ -22,7 +22,7 @@ if (!(Test-Path ps:)) {
 
 ##  Change location to PS  ##
 #Set-Location PS:
-    Set-Location C:\PS\Scripts
+    Set-Location C:\PS
 
 ##  Load all O365 connections as functions  ##
 #.\Connect-Office365Services.ps1
