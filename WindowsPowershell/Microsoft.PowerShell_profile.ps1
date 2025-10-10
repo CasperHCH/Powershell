@@ -225,16 +225,17 @@ function Show-EnterpriseProgress {
 
     $completedScripts = @(
         "BulkChangeEmails.ps1 - ✅ Complete enterprise transformation with parallel processing",
-        "Template.ps1 - ✅ Security hardening and cross-platform patterns",
+        "Template.ps1 - ✅ Security hardening and cross-platform patterns", 
         "Microsoft.PowerShell_profile.ps1 - ✅ Cross-platform paths and resource management",
         "Nuke-Malware.ps1 - ✅ Cross-platform WMI alternatives",
         "Get-MailboxForwardingEnabled.ps1 - ✅ Complete enterprise transformation",
         "Get-MailboxReport.ps1 - ✅ Parallel processing and enterprise logging",
-        "Get-O365Rules.ps1 - ✅ Complete security analysis with transport rule risk detection",
+        "Get-O365Rules.ps1 - ✅ Complete security analysis with transport rule risk detection", 
         "Create-DynamicDistributionList.ps1 - ✅ Complete rewrite from 30-line to enterprise tool",
         "offboarding.ps1 - ⚠️  In Progress - Enterprise patterns for AD/Exchange operations",
         "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing",
-        "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing"
+        "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing",
+        "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns"
     )
 
     Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
