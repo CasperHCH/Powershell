@@ -38,6 +38,7 @@
     - Server names/IPs (array or file path)
     - Authentication credentials
     - Configuration parameters
+#>
 
 .OUTPUTS
     - Detailed CSV inventory export

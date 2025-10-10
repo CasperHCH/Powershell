@@ -20,16 +20,16 @@
 .SYNOPSIS
     Enterprise-grade Windows feature management with comprehensive validation and security
 
-.DESCRIPTION 
+.DESCRIPTION
     Military-grade system for discovering, validating, enabling, and managing Windows features
     with comprehensive security controls, dependency analysis, and enterprise compliance validation.
-    
+
     SECURITY FEATURES:
     - Security impact assessment for feature changes
     - Role-based access validation and privilege checking
     - Comprehensive audit logging and compliance tracking
     - Enterprise policy enforcement and validation
-    
+
     ENTERPRISE FEATURES:
     - Intelligent dependency resolution and conflict detection
     - Bulk feature operations with rollback capability
@@ -74,7 +74,7 @@
     .\Check-WindowsFeature.ps1 -FeatureName "Hyper-V" -Action Check -SecurityValidation
     Check Hyper-V feature status with security validation
 
-.EXAMPLE  
+.EXAMPLE
     .\Check-WindowsFeature.ps1 -Action List -IncludeDependencies -ExportFormat HTML
     List all Windows features with dependency analysis in HTML format
 
@@ -87,29 +87,29 @@
 param(
     [Parameter(Mandatory = $false)]
     [string]$FeatureName,
-    
+
     [Parameter(Mandatory = $false)]
     [string[]]$FeatureList = @(),
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("Check", "Enable", "Disable", "List", "Analyze", "Discover")]
     [string]$Action = "Check",
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$IncludeDependencies,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$SecurityValidation,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$BulkMode,
-    
+
     [Parameter(Mandatory = $false)]
     [string]$ReportPath = $PSScriptRoot,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$Force,
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("JSON", "XML", "CSV", "HTML")]
     [string]$ExportFormat = "JSON"
@@ -122,7 +122,7 @@ try {
         . $enterpriseLoggingPath
         Initialize-EnterpriseLogging -LogLevel "Info" -EnableTelemetry -EnableAlerting
     } else {
-        function Write-EnterpriseLog { 
+        function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FeatureManagement", [hashtable]$Properties = @{})
             Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
@@ -170,14 +170,14 @@ function Test-EnterpriseFeatureSecurity {
         [Parameter(Mandatory = $true)]
         [string]$ProposedAction
     )
-    
+
     try {
         Write-Host "🛡️  Analyzing security impact for feature: $FeatureName" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting security validation" -Category "Security" -Properties @{
             FeatureName = $FeatureName
             ProposedAction = $ProposedAction
         }
-        
+
         $securityResults = @{
             SecurityRisk = "Low"
             RequiresReboot = $false
@@ -186,57 +186,57 @@ function Test-EnterpriseFeatureSecurity {
             OverallSecure = $true
             Recommendations = @()
         }
-        
+
         # Analyze security-sensitive features
         $highRiskFeatures = @(
             "TelnetClient", "TFTP", "SimpleTCP", "RAS-Routing", "DirectPlay",
             "IIS-WebServer", "IIS-FTP", "IIS-ASPNET", "RemoteAssistance"
         )
-        
+
         $rebootRequiredFeatures = @(
-            "Microsoft-Windows-Subsystem-Linux", "VirtualMachinePlatform", 
+            "Microsoft-Windows-Subsystem-Linux", "VirtualMachinePlatform",
             "HyperV", "Containers", "Windows-Defender-ApplicationGuard"
         )
-        
+
         $networkExposureFeatures = @(
             "IIS-WebServer", "IIS-FTP", "TelnetClient", "TFTP", "SimpleTCP"
         )
-        
+
         # Security risk assessment
         if ($FeatureName -in $highRiskFeatures) {
             $securityResults.SecurityRisk = "High"
             $securityResults.Recommendations += "High-risk feature - requires security review"
-            
+
             if ($ProposedAction -eq "Enable") {
                 $securityResults.Recommendations += "Consider security hardening after enabling"
             }
         }
-        
+
         # Reboot requirement check
         if ($FeatureName -in $rebootRequiredFeatures) {
             $securityResults.RequiresReboot = $true
             $securityResults.Recommendations += "System reboot required after operation"
         }
-        
+
         # Network exposure analysis
         if ($FeatureName -in $networkExposureFeatures) {
             $securityResults.NetworkExposure = $true
             $securityResults.Recommendations += "Feature exposes network services - configure firewall"
         }
-        
+
         # Privilege escalation check
         $privilegedFeatures = @("HyperV", "VirtualMachinePlatform", "Containers")
         if ($FeatureName -in $privilegedFeatures) {
             $securityResults.PrivilegeEscalation = $true
             $securityResults.Recommendations += "Feature provides elevated system access"
         }
-        
+
         # Overall security assessment
         if ($securityResults.SecurityRisk -eq "High" -and $ProposedAction -eq "Enable") {
             $securityResults.OverallSecure = $false
             $Global:EnterpriseFeatureMetrics.SecurityViolations++
         }
-        
+
         # Display security analysis
         Write-Host "   🔍 Security Risk: " -NoNewline -ForegroundColor White
         $riskColor = switch ($securityResults.SecurityRisk) {
@@ -245,24 +245,24 @@ function Test-EnterpriseFeatureSecurity {
             "High" { "Red" }
         }
         Write-Host $securityResults.SecurityRisk -ForegroundColor $riskColor
-        
+
         Write-Host "   🔄 Requires Reboot: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.RequiresReboot -ForegroundColor $(if($securityResults.RequiresReboot){"Yellow"}else{"Green"})
-        
-        Write-Host "   🌐 Network Exposure: " -NoNewline -ForegroundColor White  
+
+        Write-Host "   🌐 Network Exposure: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.NetworkExposure -ForegroundColor $(if($securityResults.NetworkExposure){"Yellow"}else{"Green"})
-        
+
         if ($securityResults.Recommendations.Count -gt 0) {
             Write-Host "   📋 Recommendations:" -ForegroundColor Yellow
             $securityResults.Recommendations | ForEach-Object {
                 Write-Host "      • $_" -ForegroundColor White
             }
         }
-        
+
         Write-EnterpriseLog -Level "Info" -Message "Security validation completed" -Category "Security" -Properties $securityResults
-        
+
         return $securityResults
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Security validation failed" -Category "Security" -Exception $_ -Properties @{
             FeatureName = $FeatureName
@@ -278,11 +278,11 @@ function Test-EnterpriseSystemCompliance {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "🛡️  Validating enterprise system compliance..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting system compliance validation" -Category "Compliance"
-        
+
         $complianceResults = @{
             AdminRights = $false
             WindowsVersion = $false
@@ -290,18 +290,18 @@ function Test-EnterpriseSystemCompliance {
             SystemHealthy = $false
             PendingReboot = $false
         }
-        
+
         # Check administrator privileges
         $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
         $complianceResults.AdminRights = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        
+
         # Check Windows version
         $osVersion = [System.Environment]::OSVersion.Version
         $complianceResults.WindowsVersion = ($osVersion.Major -ge 10) -or ($osVersion.Major -eq 6 -and $osVersion.Minor -ge 1)
-        
+
         # Check DISM availability
         $complianceResults.DISMAvailable = (Get-Command "DISM" -ErrorAction SilentlyContinue) -ne $null
-        
+
         # Check system health
         try {
             $systemHealth = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
@@ -309,7 +309,7 @@ function Test-EnterpriseSystemCompliance {
         } catch {
             $complianceResults.SystemHealthy = $false
         }
-        
+
         # Check for pending reboot
         try {
             $pendingReboot = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -ErrorAction SilentlyContinue) -ne $null
@@ -317,29 +317,29 @@ function Test-EnterpriseSystemCompliance {
         } catch {
             $complianceResults.PendingReboot = $false
         }
-        
+
         # Report compliance status
         Write-Host "   ✅ Administrator Rights: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.AdminRights -ForegroundColor $(if($complianceResults.AdminRights){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ Windows Version: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.WindowsVersion -ForegroundColor $(if($complianceResults.WindowsVersion){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ DISM Available: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.DISMAvailable -ForegroundColor $(if($complianceResults.DISMAvailable){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ System Healthy: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.SystemHealthy -ForegroundColor $(if($complianceResults.SystemHealthy){"Green"}else{"Red"})
-        
+
         Write-Host "   ⚠️  Pending Reboot: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.PendingReboot -ForegroundColor $(if($complianceResults.PendingReboot){"Yellow"}else{"Green"})
-        
+
         $overallCompliance = $complianceResults.AdminRights -and $complianceResults.WindowsVersion -and $complianceResults.DISMAvailable -and $complianceResults.SystemHealthy
-        
+
         Write-EnterpriseLog -Level "Info" -Message "System compliance validation completed" -Category "Compliance" -Properties $complianceResults
-        
+
         return $overallCompliance
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "System compliance validation failed" -Category "Compliance" -Exception $_
         return $false
@@ -360,17 +360,17 @@ function Get-EnterpriseWindowsFeature {
         [Parameter(Mandatory = $true)]
         [string]$FeatureName
     )
-    
+
     try {
         Write-Host "🔍 Discovering feature: $FeatureName" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting feature discovery" -Category "Discovery" -Properties @{
             FeatureName = $FeatureName
         }
-        
+
         # Try multiple methods for feature discovery
         $feature = $null
         $discoveryMethod = ""
-        
+
         # Method 1: Get-WindowsOptionalFeature (Client OS)
         try {
             $feature = Get-WindowsOptionalFeature -FeatureName $FeatureName -Online -ErrorAction Stop
@@ -379,7 +379,7 @@ function Get-EnterpriseWindowsFeature {
         } catch {
             Write-Host "   ⚠️  Not found in Windows Optional Features" -ForegroundColor Yellow
         }
-        
+
         # Method 2: Get-WindowsFeature (Server OS)
         if (-not $feature) {
             try {
@@ -392,7 +392,7 @@ function Get-EnterpriseWindowsFeature {
                 Write-Host "   ⚠️  Not found in Windows Server Features" -ForegroundColor Yellow
             }
         }
-        
+
         # Method 3: DISM command line fallback
         if (-not $feature) {
             try {
@@ -410,11 +410,11 @@ function Get-EnterpriseWindowsFeature {
                 Write-Host "   ❌ Not found via DISM" -ForegroundColor Red
             }
         }
-        
+
         if (-not $feature) {
             throw "Feature '$FeatureName' not found on this system"
         }
-        
+
         # Enhance feature information
         $enhancedFeature = @{
             FeatureName = $FeatureName
@@ -425,7 +425,7 @@ function Get-EnterpriseWindowsFeature {
             Dependencies = @()
             SecurityRisk = "Unknown"
         }
-        
+
         # Get dependencies if available and requested
         if ($IncludeDependencies) {
             try {
@@ -439,11 +439,11 @@ function Get-EnterpriseWindowsFeature {
                 Write-EnterpriseLog -Level "Warning" -Message "Failed to get dependencies" -Category "Discovery"
             }
         }
-        
+
         Write-EnterpriseLog -Level "Success" -Message "Feature discovery completed" -Category "Discovery" -Properties $enhancedFeature
-        
+
         return $enhancedFeature
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Feature discovery failed" -Category "Discovery" -Exception $_ -Properties @{
             FeatureName = $FeatureName
@@ -459,13 +459,13 @@ function Get-FeatureCategory {
     #>
     [CmdletBinding()]
     param([string]$FeatureName)
-    
+
     foreach ($category in $Global:EnterpriseFeatureCategories.Keys) {
         if ($Global:EnterpriseFeatureCategories[$category] -contains $FeatureName) {
             return $category
         }
     }
-    
+
     # Pattern-based classification
     switch -Regex ($FeatureName) {
         "IIS-.*" { return "WebServer" }
@@ -489,14 +489,14 @@ function Invoke-EnterpriseFeatureOperation {
         [Parameter(Mandatory = $true)]
         [string]$Operation
     )
-    
+
     try {
         Write-Host "⚙️  Executing $Operation on feature: $FeatureName" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting feature operation" -Category "Operation" -Properties @{
             FeatureName = $FeatureName
             Operation = $Operation
         }
-        
+
         $operationResult = @{
             FeatureName = $FeatureName
             Operation = $Operation
@@ -506,7 +506,7 @@ function Invoke-EnterpriseFeatureOperation {
             RequiresReboot = $false
             Error = $null
         }
-        
+
         # Get current feature state
         try {
             $currentFeature = Get-EnterpriseWindowsFeature -FeatureName $FeatureName
@@ -516,7 +516,7 @@ function Invoke-EnterpriseFeatureOperation {
             $Global:EnterpriseFeatureMetrics.FailedOperations++
             return $operationResult
         }
-        
+
         # Security validation if enabled
         if ($SecurityValidation) {
             $securityResults = Test-EnterpriseFeatureSecurity -FeatureName $FeatureName -ProposedAction $Operation
@@ -527,20 +527,20 @@ function Invoke-EnterpriseFeatureOperation {
             }
             $operationResult.RequiresReboot = $securityResults.RequiresReboot
         }
-        
+
         # Execute operation based on type
         switch ($Operation) {
             "Check" {
                 $operationResult.Success = $true
                 $operationResult.NewState = $operationResult.PreviousState
-                
+
                 if ($operationResult.PreviousState -eq "Enabled") {
                     Write-Host "   ✅ Feature '$FeatureName' is ENABLED" -ForegroundColor Green
                 } else {
                     Write-Host "   ❌ Feature '$FeatureName' is DISABLED" -ForegroundColor Red
                 }
             }
-            
+
             "Enable" {
                 if ($operationResult.PreviousState -eq "Enabled") {
                     Write-Host "   ℹ️  Feature '$FeatureName' is already enabled" -ForegroundColor Yellow
@@ -550,7 +550,7 @@ function Invoke-EnterpriseFeatureOperation {
                     try {
                         # Try multiple enable methods
                         $enableSuccess = $false
-                        
+
                         # Method 1: Enable-WindowsOptionalFeature
                         try {
                             Enable-WindowsOptionalFeature -FeatureName $FeatureName -Online -All -NoRestart -ErrorAction Stop | Out-Null
@@ -558,7 +558,7 @@ function Invoke-EnterpriseFeatureOperation {
                         } catch {
                             Write-Host "   ⚠️  WindowsOptionalFeature method failed, trying alternatives..." -ForegroundColor Yellow
                         }
-                        
+
                         # Method 2: Install-WindowsFeature (Server)
                         if (-not $enableSuccess -and (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) {
                             try {
@@ -568,13 +568,13 @@ function Invoke-EnterpriseFeatureOperation {
                                 Write-Host "   ⚠️  WindowsFeature method failed, trying DISM..." -ForegroundColor Yellow
                             }
                         }
-                        
+
                         # Method 3: DISM fallback
                         if (-not $enableSuccess) {
                             $dismResult = & DISM /Online /Enable-Feature /FeatureName:$FeatureName /All /NoRestart 2>$null
                             $enableSuccess = ($LASTEXITCODE -eq 0)
                         }
-                        
+
                         if ($enableSuccess) {
                             $operationResult.Success = $true
                             $operationResult.NewState = "Enabled"
@@ -590,7 +590,7 @@ function Invoke-EnterpriseFeatureOperation {
                     }
                 }
             }
-            
+
             "Disable" {
                 if ($operationResult.PreviousState -eq "Disabled") {
                     Write-Host "   ℹ️  Feature '$FeatureName' is already disabled" -ForegroundColor Yellow
@@ -600,7 +600,7 @@ function Invoke-EnterpriseFeatureOperation {
                     try {
                         # Try multiple disable methods
                         $disableSuccess = $false
-                        
+
                         # Method 1: Disable-WindowsOptionalFeature
                         try {
                             Disable-WindowsOptionalFeature -FeatureName $FeatureName -Online -NoRestart -ErrorAction Stop | Out-Null
@@ -608,7 +608,7 @@ function Invoke-EnterpriseFeatureOperation {
                         } catch {
                             Write-Host "   ⚠️  WindowsOptionalFeature method failed, trying alternatives..." -ForegroundColor Yellow
                         }
-                        
+
                         # Method 2: Uninstall-WindowsFeature (Server)
                         if (-not $disableSuccess -and (Get-Command Uninstall-WindowsFeature -ErrorAction SilentlyContinue)) {
                             try {
@@ -618,13 +618,13 @@ function Invoke-EnterpriseFeatureOperation {
                                 Write-Host "   ⚠️  WindowsFeature method failed, trying DISM..." -ForegroundColor Yellow
                             }
                         }
-                        
+
                         # Method 3: DISM fallback
                         if (-not $disableSuccess) {
                             $dismResult = & DISM /Online /Disable-Feature /FeatureName:$FeatureName /NoRestart 2>$null
                             $disableSuccess = ($LASTEXITCODE -eq 0)
                         }
-                        
+
                         if ($disableSuccess) {
                             $operationResult.Success = $true
                             $operationResult.NewState = "Disabled"
@@ -641,23 +641,23 @@ function Invoke-EnterpriseFeatureOperation {
                 }
             }
         }
-        
+
         # Add to processed features
         $Global:EnterpriseFeatureMetrics.ProcessedFeatures += $operationResult
-        
+
         Write-EnterpriseLog -Level "Info" -Message "Feature operation completed" -Category "Operation" -Properties $operationResult
-        
+
         return $operationResult
-        
+
     } catch {
         $operationResult.Error = "Unexpected error: $($_.Exception.Message)"
         $Global:EnterpriseFeatureMetrics.FailedOperations++
-        
+
         Write-EnterpriseLog -Level "Error" -Message "Feature operation failed" -Category "Operation" -Exception $_ -Properties @{
             FeatureName = $FeatureName
             Operation = $Operation
         }
-        
+
         return $operationResult
     }
 }
@@ -669,13 +669,13 @@ function Get-AllEnterpriseWindowsFeatures {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "🔍 Discovering all Windows features..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting comprehensive feature discovery" -Category "Discovery"
-        
+
         $allFeatures = @()
-        
+
         # Method 1: Get-WindowsOptionalFeature (Client OS)
         try {
             $optionalFeatures = Get-WindowsOptionalFeature -Online -ErrorAction SilentlyContinue
@@ -694,7 +694,7 @@ function Get-AllEnterpriseWindowsFeatures {
         } catch {
             Write-Host "   ⚠️  Optional features not available on this system" -ForegroundColor Yellow
         }
-        
+
         # Method 2: Get-WindowsFeature (Server OS)
         try {
             if (Get-Command Get-WindowsFeature -ErrorAction SilentlyContinue) {
@@ -718,16 +718,16 @@ function Get-AllEnterpriseWindowsFeatures {
         } catch {
             Write-Host "   ⚠️  Server features not available on this system" -ForegroundColor Yellow
         }
-        
+
         $Global:EnterpriseFeatureMetrics.TotalFeatures = $allFeatures.Count
-        
+
         Write-EnterpriseLog -Level "Success" -Message "Feature discovery completed" -Category "Discovery" -Properties @{
             TotalFeatures = $allFeatures.Count
             FeatureSources = ($allFeatures | Group-Object Source | ForEach-Object { "$($_.Name): $($_.Count)" })
         }
-        
+
         return $allFeatures
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Comprehensive feature discovery failed" -Category "Discovery" -Exception $_
         throw
@@ -744,11 +744,11 @@ function Export-EnterpriseFeatureReport {
         [Parameter(Mandatory = $false)]
         [array]$Features = @()
     )
-    
+
     try {
         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $reportPath = Join-Path $ReportPath "Enterprise-WindowsFeature-Report-$timestamp.$($ExportFormat.ToLower())"
-        
+
         $report = @{
             Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
             ComputerName = $env:COMPUTERNAME
@@ -759,7 +759,7 @@ function Export-EnterpriseFeatureReport {
             Metrics = $Global:EnterpriseFeatureMetrics
             Duration = [math]::Round(((Get-Date) - $Global:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
         }
-        
+
         switch ($ExportFormat) {
             "JSON" {
                 $report | ConvertTo-Json -Depth 10 | Out-File $reportPath -Encoding UTF8
@@ -788,7 +788,7 @@ function Export-EnterpriseFeatureReport {
                 $htmlContent | Out-File $reportPath -Encoding UTF8
             }
         }
-        
+
         Write-Host "📄 Enterprise feature report exported: $reportPath" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "Enterprise feature report generated" -Category "Reporting" -Properties @{
             ReportPath = $reportPath
@@ -796,9 +796,9 @@ function Export-EnterpriseFeatureReport {
             FeatureCount = $Features.Count
             Duration = $report.Duration
         }
-        
+
         return $reportPath
-        
+
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Failed to generate enterprise feature report" -Category "Reporting" -Exception $_
         Write-Host "⚠️  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -816,13 +816,13 @@ try {
     Write-Host ("═" * 70) -ForegroundColor Cyan
     Write-Host "🔒 Military-grade feature lifecycle management with comprehensive validation" -ForegroundColor White
     Write-Host ""
-    
+
     Write-EnterpriseLog -Level "Info" -Message "Enterprise feature management system started" -Category "System" -Properties @{
         ComputerName = $env:COMPUTERNAME
         UserName = $env:USERNAME
         Parameters = $PSBoundParameters
     }
-    
+
     # Validate input parameters
     if (-not $FeatureName -and $FeatureList.Count -eq 0 -and $Action -notin @("List", "Discover")) {
         if ($args.Count -gt 0) {
@@ -832,12 +832,12 @@ try {
             $FeatureName = Read-Host "Enter Windows Feature name to $Action"
         }
     }
-    
+
     # Combine single feature with list
     $featuresToProcess = @()
     if ($FeatureName) { $featuresToProcess += $FeatureName }
     if ($FeatureList.Count -gt 0) { $featuresToProcess += $FeatureList }
-    
+
     # Interactive confirmation for non-check operations
     if ($Action -notin @("Check", "List", "Discover") -and -not $Force) {
         Write-Host "⚠️  ENTERPRISE FEATURE MANAGEMENT NOTICE" -ForegroundColor Yellow
@@ -845,7 +845,7 @@ try {
         Write-Host "Action: $Action" -ForegroundColor Cyan
         Write-Host "Features: $($featuresToProcess -join ', ')" -ForegroundColor Cyan
         Write-Host ""
-        
+
         $confirmation = Read-Host "Do you wish to proceed with enterprise feature management? (y/N)"
         if ($confirmation -notmatch '^[yY]') {
             Write-Host "Operation cancelled by user." -ForegroundColor Yellow
@@ -853,7 +853,7 @@ try {
             exit 0
         }
     }
-    
+
     # Enterprise compliance validation
     if ($Action -notin @("Check", "List", "Discover")) {
         Write-Host "`n🛡️  ENTERPRISE COMPLIANCE VALIDATION" -ForegroundColor Cyan
@@ -862,71 +862,71 @@ try {
         }
         Write-Host "✅ Enterprise compliance validated successfully" -ForegroundColor Green
     }
-    
+
     # Execute requested action
     Write-Host "`n⚙️  ENTERPRISE FEATURE PROCESSING" -ForegroundColor Cyan
-    
+
     switch ($Action) {
         "List" {
             Write-Host "Discovering all Windows features..." -ForegroundColor White
             $allFeatures = Get-AllEnterpriseWindowsFeatures
-            
+
             Write-Host "`n📋 Windows Feature Summary:" -ForegroundColor Cyan
             $groupedFeatures = $allFeatures | Group-Object State
             foreach ($group in $groupedFeatures) {
                 $color = if ($group.Name -eq "Enabled") { "Green" } else { "Red" }
                 Write-Host "   $($group.Name): $($group.Count) features" -ForegroundColor $color
             }
-            
+
             Write-Host "`n📊 Feature Categories:" -ForegroundColor Cyan
             $categoryGroups = $allFeatures | Group-Object Category | Sort-Object Count -Descending
             foreach ($group in $categoryGroups) {
                 Write-Host "   $($group.Name): $($group.Count) features" -ForegroundColor White
             }
-            
+
             Export-EnterpriseFeatureReport -Features $allFeatures
         }
-        
+
         "Discover" {
             Write-Host "Analyzing Windows feature ecosystem..." -ForegroundColor White
             $allFeatures = Get-AllEnterpriseWindowsFeatures
-            
+
             # Advanced analytics
             $enabledFeatures = $allFeatures | Where-Object { $_.State -eq "Enabled" }
             $disabledFeatures = $allFeatures | Where-Object { $_.State -eq "Disabled" }
-            
+
             Write-Host "`n🔬 Enterprise Feature Analytics:" -ForegroundColor Cyan
             Write-Host "   Total Features: $($allFeatures.Count)" -ForegroundColor White
             Write-Host "   Enabled: $($enabledFeatures.Count) ($([math]::Round($enabledFeatures.Count / $allFeatures.Count * 100, 1))%)" -ForegroundColor Green
             Write-Host "   Disabled: $($disabledFeatures.Count) ($([math]::Round($disabledFeatures.Count / $allFeatures.Count * 100, 1))%)" -ForegroundColor Red
-            
+
             # Security analysis
             $securityFeatures = $allFeatures | Where-Object { $_.Category -eq "Security" }
             $legacyFeatures = $allFeatures | Where-Object { $_.Category -eq "Legacy" }
-            
+
             Write-Host "`n🛡️  Security Analysis:" -ForegroundColor Yellow
             Write-Host "   Security Features: $($securityFeatures.Count)" -ForegroundColor White
             Write-Host "   Legacy Features: $($legacyFeatures.Count)" -ForegroundColor White
-            
+
             Export-EnterpriseFeatureReport -Features $allFeatures
         }
-        
+
         default {
             # Process individual features
             foreach ($feature in $featuresToProcess) {
                 $result = Invoke-EnterpriseFeatureOperation -FeatureName $feature -Operation $Action
-                
+
                 if ($result.RequiresReboot) {
                     Write-Host "   ⚠️  System reboot recommended after this operation" -ForegroundColor Yellow
                 }
             }
-            
+
             if ($featuresToProcess.Count -gt 1) {
                 Export-EnterpriseFeatureReport -Features $Global:EnterpriseFeatureMetrics.ProcessedFeatures
             }
         }
     }
-    
+
     # Final summary
     $duration = [math]::Round(((Get-Date) - $Global:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
@@ -938,21 +938,21 @@ try {
     Write-Host "   Disabled Features: $($Global:EnterpriseFeatureMetrics.DisabledFeatures)" -ForegroundColor Red
     Write-Host "   Failed Operations: $($Global:EnterpriseFeatureMetrics.FailedOperations)" -ForegroundColor Yellow
     Write-Host "   Security Violations: $($Global:EnterpriseFeatureMetrics.SecurityViolations)" -ForegroundColor Yellow
-    
+
     Write-EnterpriseLog -Level "Success" -Message "Enterprise feature management completed successfully" -Category "System" -Properties $Global:EnterpriseFeatureMetrics
-    
+
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise feature management failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE FEATURE MANAGEMENT FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    
+
     if ($Global:EnterpriseFeatureMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
         $Global:EnterpriseFeatureMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
-    
+
     exit 1
 } finally {
     # Cleanup and final telemetry

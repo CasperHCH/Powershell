@@ -7,7 +7,7 @@
 # SECURITY: Privilege validation, process security analysis, audit logging
 #
 # ENTERPRISE FEATURES:
-#   🔒 Security validation and process privilege analysis  
+#   🔒 Security validation and process privilege analysis
 #   📊 Comprehensive file handle detection with dependency mapping
 #   ⚡ Automated resolution with intelligent process termination
 #   🛡️ Enterprise compliance and security impact assessment
@@ -22,16 +22,16 @@
 .SYNOPSIS
     Enterprise-grade file lock detection and resolution with comprehensive analysis
 
-.DESCRIPTION 
+.DESCRIPTION
     Military-grade system for detecting, analyzing, and resolving file locking issues
     with comprehensive security controls, process analysis, and enterprise compliance validation.
-    
+
     SECURITY FEATURES:
     - Process privilege validation and security impact assessment
     - Comprehensive audit logging for compliance requirements
     - Role-based access validation for process termination
     - Enterprise policy enforcement and validation
-    
+
     ENTERPRISE FEATURES:
     - Multi-method file handle detection with intelligent fallback
     - Automated resolution with configurable safety controls
@@ -76,7 +76,7 @@
     .\FindProcessForFileInUse.ps1 -FilePath "C:\temp\locked.xlsx" -Action Analyze
     Analyze file locks for a specific file with comprehensive reporting
 
-.EXAMPLE  
+.EXAMPLE
     .\FindProcessForFileInUse.ps1 -FileList @("C:\temp\file1.txt", "C:\temp\file2.doc") -AutoResolve -Force
     Batch analyze and automatically resolve locks for multiple files
 
@@ -89,29 +89,29 @@
 param(
     [Parameter(Mandatory = $false)]
     [string]$FilePath,
-    
+
     [Parameter(Mandatory = $false)]
     [string[]]$FileList = @(),
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("Analyze", "Resolve", "Monitor", "Report")]
     [string]$Action = "Analyze",
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$AutoResolve,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$IncludeSystemProcesses,
-    
+
     [Parameter(Mandatory = $false)]
     [int]$MonitorDuration = 60,
-    
+
     [Parameter(Mandatory = $false)]
     [string]$ReportPath = $PSScriptRoot,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$Force,
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateSet("JSON", "XML", "CSV", "HTML")]
     [string]$ExportFormat = "JSON"
@@ -124,7 +124,7 @@ try {
         . $enterpriseLoggingPath
         Initialize-EnterpriseLogging -LogLevel "Info" -EnableTelemetry -EnableAlerting
     } else {
-        function Write-EnterpriseLog { 
+        function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FileLockDetection", [hashtable]$Properties = @{})
             Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
@@ -155,16 +155,16 @@ using System.ComponentModel;
 public class NativeMethods {
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(IntPtr hHandle);
-    
+
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
-    
+
     [DllImport("psapi.dll", SetLastError = true)]
     public static extern bool EnumProcesses(int[] lpidProcess, int cb, out int lpcbNeeded);
-    
+
     [DllImport("ntdll.dll")]
     public static extern int NtQuerySystemInformation(int SystemInformationClass, IntPtr SystemInformation, int SystemInformationLength, out int ReturnLength);
-    
+
     public const int PROCESS_QUERY_INFORMATION = 0x0400;
     public const int PROCESS_VM_READ = 0x0010;
     public const int SystemHandleInformation = 16;
@@ -187,14 +187,14 @@ function Test-EnterpriseFileLockSecurity {
         [Parameter(Mandatory = $true)]
         [string]$ProposedAction
     )
-    
+
     try {
         Write-Host "🛡️  Analyzing security impact for file: $(Split-Path $TargetFilePath -Leaf)" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting security validation" -Category "Security" -Properties @{
             TargetFile = $TargetFilePath
             ProposedAction = $ProposedAction
         }
-        
+
         $securityResults = @{
             SecurityRisk = "Low"
             RequiresElevation = $false
@@ -203,15 +203,15 @@ function Test-EnterpriseFileLockSecurity {
             OverallSecure = $true
             Recommendations = @()
         }
-        
+
         # Analyze file location security sensitivity
         $systemPaths = @(
             "$env:SystemRoot", "$env:ProgramFiles", "$env:ProgramData",
             "$env:ALLUSERSPROFILE", "${env:ProgramFiles(x86)}"
         )
-        
+
         $networkPaths = @("\\", "http://", "https://", "ftp://")
-        
+
         # Check for system file access
         foreach ($systemPath in $systemPaths) {
             if ($TargetFilePath -like "$systemPath*") {
@@ -222,7 +222,7 @@ function Test-EnterpriseFileLockSecurity {
                 break
             }
         }
-        
+
         # Check for network file access
         foreach ($networkPath in $networkPaths) {
             if ($TargetFilePath -like "$networkPath*") {
@@ -232,18 +232,18 @@ function Test-EnterpriseFileLockSecurity {
                 break
             }
         }
-        
+
         # Process termination security check
         if ($ProposedAction -eq "Resolve" -and $securityResults.SystemFileAccess) {
             $securityResults.Recommendations += "Process termination may affect system stability"
         }
-        
+
         # Overall security assessment
         if ($securityResults.SecurityRisk -eq "High" -and $ProposedAction -eq "Resolve" -and -not $Force) {
             $securityResults.OverallSecure = $false
             $Global:EnterpriseFileLockMetrics.SecurityViolations++
         }
-        
+
         # Display security analysis
         Write-Host "   🔍 Security Risk: " -NoNewline -ForegroundColor White
         $riskColor = switch ($securityResults.SecurityRisk) {
@@ -252,27 +252,27 @@ function Test-EnterpriseFileLockSecurity {
             "High" { "Red" }
         }
         Write-Host $securityResults.SecurityRisk -ForegroundColor $riskColor
-        
+
         Write-Host "   🔑 Requires Elevation: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.RequiresElevation -ForegroundColor $(if($securityResults.RequiresElevation){"Yellow"}else{"Green"})
-        
+
         Write-Host "   🗂️  System File: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.SystemFileAccess -ForegroundColor $(if($securityResults.SystemFileAccess){"Yellow"}else{"Green"})
-        
+
         Write-Host "   🌐 Network File: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.NetworkFileAccess -ForegroundColor $(if($securityResults.NetworkFileAccess){"Yellow"}else{"Green"})
-        
+
         if ($securityResults.Recommendations.Count -gt 0) {
             Write-Host "   📋 Recommendations:" -ForegroundColor Yellow
             $securityResults.Recommendations | ForEach-Object {
                 Write-Host "      • $_" -ForegroundColor White
             }
         }
-        
+
         Write-EnterpriseLog -Level "Info" -Message "Security validation completed" -Category "Security" -Properties $securityResults
-        
+
         return $securityResults
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Security validation failed" -Category "Security" -Exception $_ -Properties @{
             TargetFile = $TargetFilePath
@@ -288,26 +288,26 @@ function Test-EnterpriseSystemCompliance {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "🛡️  Validating enterprise system compliance..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting system compliance validation" -Category "Compliance"
-        
+
         $complianceResults = @{
             AdminRights = $false
             PowerShellVersion = $false
             APIAccess = $false
             ProcessAccess = $false
         }
-        
-        # Check administrator privileges  
+
+        # Check administrator privileges
         $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
         $complianceResults.AdminRights = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        
+
         # Check PowerShell version
         $psVersion = $PSVersionTable.PSVersion
         $complianceResults.PowerShellVersion = ($psVersion.Major -ge 5) -or ($psVersion.Major -ge 7 -and $psVersion.Minor -ge 0)
-        
+
         # Test Windows API access
         try {
             $processes = Get-Process -ErrorAction Stop | Select-Object -First 1
@@ -315,7 +315,7 @@ function Test-EnterpriseSystemCompliance {
         } catch {
             $complianceResults.APIAccess = $false
         }
-        
+
         # Test process enumeration access
         try {
             $processTest = Get-Process | Select-Object -First 5
@@ -323,26 +323,26 @@ function Test-EnterpriseSystemCompliance {
         } catch {
             $complianceResults.ProcessAccess = $false
         }
-        
+
         # Report compliance status
         Write-Host "   ✅ Administrator Rights: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.AdminRights -ForegroundColor $(if($complianceResults.AdminRights){"Green"}else{"Yellow"})
-        
+
         Write-Host "   ✅ PowerShell Version: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.PowerShellVersion -ForegroundColor $(if($complianceResults.PowerShellVersion){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ API Access: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.APIAccess -ForegroundColor $(if($complianceResults.APIAccess){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ Process Access: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.ProcessAccess -ForegroundColor $(if($complianceResults.ProcessAccess){"Green"}else{"Red"})
-        
+
         $overallCompliance = $complianceResults.PowerShellVersion -and $complianceResults.APIAccess -and $complianceResults.ProcessAccess
-        
+
         Write-EnterpriseLog -Level "Info" -Message "System compliance validation completed" -Category "Compliance" -Properties $complianceResults
-        
+
         return $overallCompliance
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "System compliance validation failed" -Category "Compliance" -Exception $_
         return $false
@@ -363,27 +363,27 @@ function Get-EnterpriseFileLockingProcesses {
         [Parameter(Mandatory = $true)]
         [string]$TargetFilePath
     )
-    
+
     try {
         Write-Host "🔍 Analyzing file locks: $(Split-Path $TargetFilePath -Leaf)" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting file lock analysis" -Category "Analysis" -Properties @{
             TargetFile = $TargetFilePath
         }
-        
+
         $lockingProcesses = @()
         $detectionMethods = @()
-        
+
         # Method 1: PowerShell Get-Process with file handles (Modern)
         try {
             Write-Host "   🔧 Method 1: PowerShell process enumeration..." -ForegroundColor Yellow
-            
+
             $allProcesses = Get-Process | Where-Object { $_.ProcessName -ne "Idle" -and $_.Id -ne 0 }
-            
+
             foreach ($process in $allProcesses) {
                 try {
                     # Get process handles and check for file access
                     $processHandles = Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($process.Id)" -ErrorAction SilentlyContinue
-                    
+
                     if ($processHandles) {
                         # Check if process is likely accessing the file
                         $processPath = $processHandles.ExecutablePath
@@ -404,25 +404,25 @@ function Get-EnterpriseFileLockingProcesses {
                     continue
                 }
             }
-            
+
             $detectionMethods += "PowerShell-WMI"
             Write-Host "      ✅ PowerShell method completed" -ForegroundColor Green
         } catch {
             Write-Host "      ⚠️  PowerShell method failed: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-EnterpriseLog -Level "Warning" -Message "PowerShell detection method failed" -Category "Analysis"
         }
-        
+
         # Method 2: Handle.exe integration (if available)
         try {
             Write-Host "   🔧 Method 2: Handle.exe integration..." -ForegroundColor Yellow
-            
+
             $handleExePaths = @(
                 "$env:SystemRoot\System32\handle.exe",
                 "$env:ProgramFiles\Sysinternals\handle.exe",
                 "$env:ProgramFiles(x86)\Sysinternals\handle.exe",
                 "$(Split-Path $PSScriptRoot -Parent)\Tools\handle.exe"
             )
-            
+
             $handleExe = $null
             foreach ($path in $handleExePaths) {
                 if (Test-Path $path) {
@@ -430,16 +430,16 @@ function Get-EnterpriseFileLockingProcesses {
                     break
                 }
             }
-            
+
             if ($handleExe) {
                 $handleOutput = & $handleExe -accepteula $TargetFilePath 2>$null
-                
+
                 if ($LASTEXITCODE -eq 0 -and $handleOutput) {
                     foreach ($line in $handleOutput) {
                         if ($line -match "^(\w+\.exe)\s+pid:\s+(\d+)") {
                             $processName = $Matches[1]
                             $processId = [int]$Matches[2]
-                            
+
                             # Get additional process information
                             try {
                                 $processInfo = Get-Process -Id $processId -ErrorAction Stop
@@ -463,7 +463,7 @@ function Get-EnterpriseFileLockingProcesses {
                         }
                     }
                 }
-                
+
                 $detectionMethods += "Handle.exe"
                 Write-Host "      ✅ Handle.exe method completed" -ForegroundColor Green
             } else {
@@ -473,18 +473,18 @@ function Get-EnterpriseFileLockingProcesses {
             Write-Host "      ⚠️  Handle.exe method failed: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-EnterpriseLog -Level "Warning" -Message "Handle.exe detection method failed" -Category "Analysis"
         }
-        
+
         # Method 3: OpenFiles command (Windows built-in)
         try {
             Write-Host "   🔧 Method 3: OpenFiles command..." -ForegroundColor Yellow
-            
+
             $openFilesOutput = & openfiles /query /fo csv 2>$null | ConvertFrom-Csv -ErrorAction SilentlyContinue
-            
+
             if ($openFilesOutput) {
-                $matchingFiles = $openFilesOutput | Where-Object { 
-                    $_."Open File (Path\executable)" -like "*$(Split-Path $TargetFilePath -Leaf)*" 
+                $matchingFiles = $openFilesOutput | Where-Object {
+                    $_."Open File (Path\executable)" -like "*$(Split-Path $TargetFilePath -Leaf)*"
                 }
-                
+
                 foreach ($file in $matchingFiles) {
                     $lockingProcesses += @{
                         ProcessId = $file.ID
@@ -495,7 +495,7 @@ function Get-EnterpriseFileLockingProcesses {
                         SecurityRisk = "Low"
                     }
                 }
-                
+
                 $detectionMethods += "OpenFiles"
                 Write-Host "      ✅ OpenFiles method completed" -ForegroundColor Green
             }
@@ -503,25 +503,25 @@ function Get-EnterpriseFileLockingProcesses {
             Write-Host "      ⚠️  OpenFiles method failed: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-EnterpriseLog -Level "Warning" -Message "OpenFiles detection method failed" -Category "Analysis"
         }
-        
+
         # Remove duplicates based on ProcessId
         $uniqueProcesses = $lockingProcesses | Group-Object ProcessId | ForEach-Object {
             $_.Group | Select-Object -First 1
         }
-        
+
         $Global:EnterpriseFileLockMetrics.ProcessesFound += $uniqueProcesses.Count
         if ($uniqueProcesses.Count -gt 0) {
             $Global:EnterpriseFileLockMetrics.LockedFiles++
         }
-        
+
         Write-EnterpriseLog -Level "Success" -Message "File lock analysis completed" -Category "Analysis" -Properties @{
             TargetFile = $TargetFilePath
             ProcessesFound = $uniqueProcesses.Count
             DetectionMethods = ($detectionMethods -join ", ")
         }
-        
+
         return $uniqueProcesses
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "File lock analysis failed" -Category "Analysis" -Exception $_ -Properties @{
             TargetFile = $TargetFilePath
@@ -542,14 +542,14 @@ function Invoke-EnterpriseFileLockResolution {
         [Parameter(Mandatory = $true)]
         [array]$LockingProcesses
     )
-    
+
     try {
         Write-Host "⚙️  Initiating enterprise file lock resolution..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting file lock resolution" -Category "Resolution" -Properties @{
             TargetFile = $TargetFilePath
             ProcessCount = $LockingProcesses.Count
         }
-        
+
         $resolutionResults = @{
             TargetFile = $TargetFilePath
             ProcessesResolved = 0
@@ -558,12 +558,12 @@ function Invoke-EnterpriseFileLockResolution {
             SecurityIssues = @()
             Errors = @()
         }
-        
+
         if ($LockingProcesses.Count -eq 0) {
             Write-Host "   ℹ️  No locking processes found - file may already be unlocked" -ForegroundColor Yellow
             return $resolutionResults
         }
-        
+
         # Security confirmation for process termination
         if (-not $Force) {
             Write-Host "   ⚠️  PROCESS TERMINATION WARNING" -ForegroundColor Yellow
@@ -571,19 +571,19 @@ function Invoke-EnterpriseFileLockResolution {
             $LockingProcesses | ForEach-Object {
                 Write-Host "      • PID $($_.ProcessId): $($_.ProcessName)" -ForegroundColor Cyan
             }
-            
+
             $confirmation = Read-Host "`n   Do you want to proceed with process termination? (y/N)"
             if ($confirmation -notmatch '^[yY]') {
                 Write-Host "   ℹ️  Process termination cancelled by user" -ForegroundColor Yellow
                 return $resolutionResults
             }
         }
-        
+
         # Process termination with safety controls
         foreach ($lockingProcess in $LockingProcesses) {
             try {
                 Write-Host "   🎯 Resolving lock from PID $($lockingProcess.ProcessId): $($lockingProcess.ProcessName)" -ForegroundColor White
-                
+
                 # Security validation for system processes
                 $systemProcesses = @("csrss", "winlogon", "services", "lsass", "svchost")
                 if ($lockingProcess.ProcessName -in $systemProcesses -and -not $Force) {
@@ -591,16 +591,16 @@ function Invoke-EnterpriseFileLockResolution {
                     Write-Host "      ⚠️  Skipped critical system process: $($lockingProcess.ProcessName)" -ForegroundColor Yellow
                     continue
                 }
-                
+
                 # Get process object for termination
                 $process = Get-Process -Id $lockingProcess.ProcessId -ErrorAction Stop
-                
+
                 # Graceful termination attempt first
                 if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
                     Write-Host "      📤 Attempting graceful closure..." -ForegroundColor Yellow
                     $process.CloseMainWindow() | Out-Null
                     Start-Sleep -Seconds 3
-                    
+
                     # Check if process closed gracefully
                     if (Get-Process -Id $lockingProcess.ProcessId -ErrorAction SilentlyContinue) {
                         Write-Host "      ⚠️  Graceful closure failed, forcing termination..." -ForegroundColor Yellow
@@ -616,7 +616,7 @@ function Invoke-EnterpriseFileLockResolution {
                     $process.Kill()
                     $resolutionResults.ResolutionMethod += "Forced"
                 }
-                
+
                 # Verify termination
                 Start-Sleep -Seconds 1
                 if (-not (Get-Process -Id $lockingProcess.ProcessId -ErrorAction SilentlyContinue)) {
@@ -628,7 +628,7 @@ function Invoke-EnterpriseFileLockResolution {
                     $resolutionResults.Errors += "Failed to terminate process $($lockingProcess.ProcessId)"
                     Write-Host "      ❌ Process termination failed" -ForegroundColor Red
                 }
-                
+
             } catch {
                 $resolutionResults.ProcessesFailed++
                 $resolutionResults.Errors += "Exception terminating process $($lockingProcess.ProcessId): $($_.Exception.Message)"
@@ -636,7 +636,7 @@ function Invoke-EnterpriseFileLockResolution {
                 Write-Host "      ❌ Exception: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
-        
+
         # Verify file accessibility after resolution
         try {
             Write-Host "   🔬 Verifying file accessibility..." -ForegroundColor Yellow
@@ -646,11 +646,11 @@ function Invoke-EnterpriseFileLockResolution {
         } catch {
             Write-Host "   ⚠️  File may still be locked: $($_.Exception.Message)" -ForegroundColor Yellow
         }
-        
+
         Write-EnterpriseLog -Level "Info" -Message "File lock resolution completed" -Category "Resolution" -Properties $resolutionResults
-        
+
         return $resolutionResults
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "File lock resolution failed" -Category "Resolution" -Exception $_ -Properties @{
             TargetFile = $TargetFilePath
@@ -671,14 +671,14 @@ function Invoke-EnterpriseFileMonitoring {
         [Parameter(Mandatory = $true)]
         [int]$DurationSeconds
     )
-    
+
     try {
         Write-Host "📊 Starting continuous file monitoring for $DurationSeconds seconds..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting file monitoring" -Category "Monitoring" -Properties @{
             TargetFile = $TargetFilePath
             Duration = $DurationSeconds
         }
-        
+
         $monitoringResults = @{
             TargetFile = $TargetFilePath
             Duration = $DurationSeconds
@@ -687,18 +687,18 @@ function Invoke-EnterpriseFileMonitoring {
             LockedInstances = 0
             LockingProcessHistory = @()
         }
-        
+
         $startTime = Get-Date
         $endTime = $startTime.AddSeconds($DurationSeconds)
-        
+
         while ((Get-Date) -lt $endTime) {
             $monitoringResults.TotalChecks++
-            
+
             Write-Host "   🔍 Check #$($monitoringResults.TotalChecks) - $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor White
-            
+
             try {
                 $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $TargetFilePath
-                
+
                 if ($lockingProcesses.Count -gt 0) {
                     $monitoringResults.LockedInstances++
                     $monitoringResults.LockingProcessHistory += @{
@@ -706,7 +706,7 @@ function Invoke-EnterpriseFileMonitoring {
                         ProcessCount = $lockingProcesses.Count
                         Processes = $lockingProcesses
                     }
-                    
+
                     Write-Host "      ⚠️  File locked by $($lockingProcesses.Count) process(es)" -ForegroundColor Yellow
                     $lockingProcesses | ForEach-Object {
                         Write-Host "         • PID $($_.ProcessId): $($_.ProcessName)" -ForegroundColor Cyan
@@ -717,21 +717,21 @@ function Invoke-EnterpriseFileMonitoring {
             } catch {
                 Write-Host "      ❌ Monitoring check failed: $($_.Exception.Message)" -ForegroundColor Red
             }
-            
+
             # Sleep until next check
             Start-Sleep -Seconds $monitoringResults.CheckInterval
         }
-        
+
         # Monitoring summary
         Write-Host "`n📊 Monitoring Summary:" -ForegroundColor Cyan
         Write-Host "   Total Checks: $($monitoringResults.TotalChecks)" -ForegroundColor White
         Write-Host "   Locked Instances: $($monitoringResults.LockedInstances)" -ForegroundColor Yellow
         Write-Host "   Lock Percentage: $([math]::Round($monitoringResults.LockedInstances / $monitoringResults.TotalChecks * 100, 1))%" -ForegroundColor White
-        
+
         Write-EnterpriseLog -Level "Success" -Message "File monitoring completed" -Category "Monitoring" -Properties $monitoringResults
-        
+
         return $monitoringResults
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "File monitoring failed" -Category "Monitoring" -Exception $_ -Properties @{
             TargetFile = $TargetFilePath
@@ -750,11 +750,11 @@ function Export-EnterpriseFileLockReport {
         [Parameter(Mandatory = $false)]
         [array]$FileLockResults = @()
     )
-    
+
     try {
         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $reportPath = Join-Path $ReportPath "Enterprise-FileLock-Report-$timestamp.$($ExportFormat.ToLower())"
-        
+
         $report = @{
             Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
             ComputerName = $env:COMPUTERNAME
@@ -764,7 +764,7 @@ function Export-EnterpriseFileLockReport {
             Metrics = $Global:EnterpriseFileLockMetrics
             Duration = [math]::Round(((Get-Date) - $Global:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
         }
-        
+
         switch ($ExportFormat) {
             "JSON" {
                 $report | ConvertTo-Json -Depth 10 | Out-File $reportPath -Encoding UTF8
@@ -795,7 +795,7 @@ function Export-EnterpriseFileLockReport {
                 $htmlContent | Out-File $reportPath -Encoding UTF8
             }
         }
-        
+
         Write-Host "📄 Enterprise file lock report exported: $reportPath" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "Enterprise file lock report generated" -Category "Reporting" -Properties @{
             ReportPath = $reportPath
@@ -803,9 +803,9 @@ function Export-EnterpriseFileLockReport {
             FileCount = $FileLockResults.Count
             Duration = $report.Duration
         }
-        
+
         return $reportPath
-        
+
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Failed to generate enterprise file lock report" -Category "Reporting" -Exception $_
         Write-Host "⚠️  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -823,35 +823,35 @@ try {
     Write-Host ("═" * 70) -ForegroundColor Cyan
     Write-Host "🔒 Military-grade file locking analysis and process management" -ForegroundColor White
     Write-Host ""
-    
+
     Write-EnterpriseLog -Level "Info" -Message "Enterprise file lock system started" -Category "System" -Properties @{
         ComputerName = $env:COMPUTERNAME
         UserName = $env:USERNAME
         Parameters = $PSBoundParameters
     }
-    
+
     # Validate input parameters
     if (-not $FilePath -and $FileList.Count -eq 0) {
         $FilePath = Read-Host "Enter the full path of the file to analyze"
     }
-    
+
     # Combine single file with list
     $filesToProcess = @()
     if ($FilePath) { $filesToProcess += $FilePath }
     if ($FileList.Count -gt 0) { $filesToProcess += $FileList }
-    
+
     # Validate all file paths
     foreach ($file in $filesToProcess) {
         if (-not (Test-Path $file)) {
             Write-Host "⚠️  Warning: File not found: $file" -ForegroundColor Yellow
         }
     }
-    
+
     $validFiles = $filesToProcess | Where-Object { Test-Path $_ }
     if ($validFiles.Count -eq 0) {
         throw "No valid files found for analysis"
     }
-    
+
     # Interactive confirmation for resolution operations
     if ($Action -eq "Resolve" -and -not $Force) {
         Write-Host "⚠️  ENTERPRISE FILE LOCK RESOLUTION NOTICE" -ForegroundColor Yellow
@@ -859,7 +859,7 @@ try {
         Write-Host "Action: $Action" -ForegroundColor Cyan
         Write-Host "Files: $($validFiles -join '; ')" -ForegroundColor Cyan
         Write-Host ""
-        
+
         $confirmation = Read-Host "Do you wish to proceed with enterprise file lock resolution? (y/N)"
         if ($confirmation -notmatch '^[yY]') {
             Write-Host "Operation cancelled by user." -ForegroundColor Yellow
@@ -867,7 +867,7 @@ try {
             exit 0
         }
     }
-    
+
     # Enterprise compliance validation
     Write-Host "`n🛡️  ENTERPRISE COMPLIANCE VALIDATION" -ForegroundColor Cyan
     if (-not (Test-EnterpriseSystemCompliance)) {
@@ -875,16 +875,16 @@ try {
     } else {
         Write-Host "✅ Enterprise compliance validated successfully" -ForegroundColor Green
     }
-    
+
     # Execute requested action
     Write-Host "`n⚙️  ENTERPRISE FILE LOCK PROCESSING" -ForegroundColor Cyan
     $allResults = @()
-    
+
     foreach ($file in $validFiles) {
         try {
             Write-Host "`n📁 Processing file: $(Split-Path $file -Leaf)" -ForegroundColor White
             $Global:EnterpriseFileLockMetrics.FilesAnalyzed++
-            
+
             # Security validation
             if ($Action -eq "Resolve") {
                 $securityResults = Test-EnterpriseFileLockSecurity -TargetFilePath $file -ProposedAction $Action
@@ -893,12 +893,12 @@ try {
                     continue
                 }
             }
-            
+
             # Execute action based on type
             switch ($Action) {
                 "Analyze" {
                     $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $file
-                    
+
                     $result = @{
                         FilePath = $file
                         Action = $Action
@@ -906,7 +906,7 @@ try {
                         Timestamp = Get-Date
                         Resolution = "Analysis Only"
                     }
-                    
+
                     if ($lockingProcesses.Count -eq 0) {
                         Write-Host "   ✅ No locking processes found - file is accessible" -ForegroundColor Green
                     } else {
@@ -915,14 +915,14 @@ try {
                             Write-Host "      • PID $($_.ProcessId): $($_.ProcessName)" -ForegroundColor Cyan
                         }
                     }
-                    
+
                     $allResults += $result
                 }
-                
+
                 "Resolve" {
                     $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $file
                     $resolutionResult = Invoke-EnterpriseFileLockResolution -TargetFilePath $file -LockingProcesses $lockingProcesses
-                    
+
                     $result = @{
                         FilePath = $file
                         Action = $Action
@@ -930,13 +930,13 @@ try {
                         Resolution = $resolutionResult
                         Timestamp = Get-Date
                     }
-                    
+
                     $allResults += $result
                 }
-                
+
                 "Monitor" {
                     $monitoringResult = Invoke-EnterpriseFileMonitoring -TargetFilePath $file -DurationSeconds $MonitorDuration
-                    
+
                     $result = @{
                         FilePath = $file
                         Action = $Action
@@ -944,23 +944,23 @@ try {
                         Timestamp = Get-Date
                         Resolution = "Monitoring Complete"
                     }
-                    
+
                     $allResults += $result
                 }
             }
-            
+
         } catch {
             Write-Host "   ❌ Processing failed: $($_.Exception.Message)" -ForegroundColor Red
             $Global:EnterpriseFileLockMetrics.Errors += "Failed to process $file: $($_.Exception.Message)"
         }
     }
-    
+
     # Generate enterprise report
     if ($allResults.Count -gt 0) {
         Write-Host "`n📄 ENTERPRISE REPORTING" -ForegroundColor Cyan
         Export-EnterpriseFileLockReport -FileLockResults $allResults
     }
-    
+
     # Final summary
     $duration = [math]::Round(((Get-Date) - $Global:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
@@ -973,21 +973,21 @@ try {
     Write-Host "   Locks Resolved: $($Global:EnterpriseFileLockMetrics.ResolvedLocks)" -ForegroundColor Green
     Write-Host "   Failed Resolutions: $($Global:EnterpriseFileLockMetrics.FailedResolutions)" -ForegroundColor Red
     Write-Host "   Security Violations: $($Global:EnterpriseFileLockMetrics.SecurityViolations)" -ForegroundColor Yellow
-    
+
     Write-EnterpriseLog -Level "Success" -Message "Enterprise file lock analysis completed successfully" -Category "System" -Properties $Global:EnterpriseFileLockMetrics
-    
+
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise file lock analysis failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE FILE LOCK ANALYSIS FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    
+
     if ($Global:EnterpriseFileLockMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
         $Global:EnterpriseFileLockMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
-    
+
     exit 1
 } finally {
     # Cleanup and final telemetry
