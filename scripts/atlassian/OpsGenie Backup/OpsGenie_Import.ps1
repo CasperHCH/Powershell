@@ -61,7 +61,6 @@ Write-LogInfo -LogPath $sLogFile -Message ' '
         Write-Host "Module $m is already loaded"
 		Write-LogInfo -LogPath $sLogFile -Message "Module $m is already loaded"
 		Write-LogInfo -LogPath $sLogFile -Message ' '
-    }
     else {
 
         # If module is not imported, but available on disk then import
@@ -154,7 +153,7 @@ function SelectAPI(){
                 Write-Host "No stored API key found for $($selectedEnv.Name)" -ForegroundColor Yellow
                 $apiKeyInput = Read-Host "Enter OpsGenie API key for $($selectedEnv.Name)" -AsSecureString
                 $script:apiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKeyInput))
-                
+
                 $saveChoice = Read-Host "Save API key securely for future use? (y/N)"
                 if ($saveChoice -eq 'y' -or $saveChoice -eq 'Y') {
                     $apiKeyInput | Export-Clixml -Path $selectedEnv.CredentialFile
