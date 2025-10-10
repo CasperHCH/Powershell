@@ -2,6 +2,44 @@
 
 All notable changes to this PowerShell library are documented in this file.
 
+## [3.0.0] - 2025-10-10 - JIRA Enterprise User Management & GDPR Compliance
+
+### 🎯 **JIRA ENTERPRISE USER LIFECYCLE MANAGEMENT**
+- **Enhanced** `Bulk_Disable_Jira_Users.ps1` from 1533 to 1757+ lines with comprehensive user management
+- **Implemented** multi-method user discovery supporting both active and inactive users
+- **Added** project lead conflict resolution with automatic transfer capabilities
+- **Integrated** GDPR-compliant anonymization with proper content ownership transfer
+- **Enhanced** batch processing with manual intervention tracking and outcome categorization
+
+#### **🔍 Advanced User Discovery Features:**
+- **Multi-API Search**: 10+ different JIRA API endpoints for comprehensive user discovery
+- **Inactive User Detection**: Specialized search for already disabled users with `includeInactive=true`
+- **Comprehensive Fallback**: Retrieves up to 2000 users and filters by domain when standard searches fail
+- **Domain Analysis**: Real-time email domain breakdown and user status reporting
+
+#### **⚖️ Project Lead Conflict Resolution:**
+- **Automatic Detection**: Identifies project leadership conflicts before user disable operations
+- **Configurable Transfer**: `-NewProjectLead` parameter for specifying content ownership successor
+- **Multi-Format Compatibility**: Enhanced payload formats for different JIRA versions
+- **Audit Trail**: Complete logging of project leadership transfers for compliance
+
+#### **🛡️ GDPR-Compliant Anonymization:**
+- **Content Ownership Transfer**: Proper `newOwnerKey` parameter implementation for anonymization API
+- **Eligibility Validation**: Pre-anonymization checks to ensure users can be safely anonymized
+- **Progress Monitoring**: Real-time tracking of anonymization process with timeout handling
+- **Compliance Reporting**: Detailed audit trails for regulatory compliance requirements
+
+#### **📊 Enhanced Enterprise Reporting:**
+- **Outcome Categorization**: Separate tracking of successful, failed, and manual intervention users
+- **Optional Debug Logging**: `-EnableDebugLogging` parameter for troubleshooting without log flooding
+- **Status Transparency**: Clear indication of ACTIVE vs INACTIVE user processing modes
+- **CSV Export Capability**: Structured reporting for enterprise audit requirements
+
+### 🔧 **DEVELOPER EXPERIENCE IMPROVEMENTS**
+- **Clean Output**: Debug logging now optional to prevent log flooding in production
+- **Enhanced Documentation**: Comprehensive API reference and user management guides
+- **Version Control**: Updated version to 3.0 with proper date and authorship attribution
+
 ## [2.0.0] - 2025-10-09 - Major Reorganization & Structure Implementation
 
 ### 🗂️ **BREAKING CHANGES - Complete Folder Restructure**

@@ -318,7 +318,7 @@ function Get-EnterpriseLAPSComputers {
 
         # Build advanced computer filter
         $computerFilters = @()
-        
+
         foreach ($computer in $ComputerName) {
             if ($computer -eq "*") {
                 $computerFilters += "*"
@@ -582,11 +582,11 @@ function Show-EnterpriseLAPSResults {
                     Write-Host "   Age: $($result.PasswordAge)" -ForegroundColor White
                     Write-Host "   Compliant: " -NoNewline -ForegroundColor White
                     Write-Host $result.IsCompliant -ForegroundColor $(if($result.IsCompliant){"Green"}else{"Red"})
-                    
+
                     if ($result.ComplianceIssues) {
                         Write-Host "   Issues: $($result.ComplianceIssues)" -ForegroundColor Yellow
                     }
-                    
+
                     if ($ShowPasswords -and $result.Password) {
                         Write-Host "   Password: $($result.Password)" -ForegroundColor Red -BackgroundColor Black
                     }
@@ -776,7 +776,7 @@ try {
         Write-Host "`n⚠️  PASSWORD SECURITY WARNING" -ForegroundColor Red
         Write-Host "   Passwords will be displayed in plain text and logged for audit purposes." -ForegroundColor Yellow
         Write-Host "   This action will be recorded in security audit logs." -ForegroundColor Yellow
-        
+
         $confirmation = Read-Host "   Confirm password display (type 'CONFIRM' to proceed)"
         if ($confirmation -ne "CONFIRM") {
             Write-Host "   🛡️  Password display cancelled for security" -ForegroundColor Green

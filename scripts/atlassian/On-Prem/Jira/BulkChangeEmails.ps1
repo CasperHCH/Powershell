@@ -1,14 +1,16 @@
+# cSpell:words creds jira notfound atlassian
 <#
 .SYNOPSIS
-    Bulk update JIRA user email addresses from CSV file
+    Bulk update JIRA user accounts (usernames and email addresses) from CSV file
 
 .DESCRIPTION
-    This script updates JIRA user email addresses in bulk by reading from a CSV file
-    and using the JIRA REST API. It includes comprehensive logging, error handling,
-    and validation to ensure safe and reliable email updates.
+    This script updates JIRA user accounts in bulk by reading from a CSV file
+    and using the JIRA REST API. It can update both usernames and email addresses
+    simultaneously. The script includes comprehensive logging, error handling,
+    and validation to ensure safe and reliable user account updates.
 
 .PARAMETER CsvPath
-    Path to the CSV file containing OldEmail and NewEmail columns
+    Path to the CSV file containing OldUsername, NewUsername, OldEmail, and NewEmail columns
 
 .PARAMETER JiraBaseUrl
     The base URL of your JIRA instance (e.g., https://jira.company.com)
@@ -66,12 +68,12 @@
     3. Basic authentication (simple but less secure)
 
     CSV Format Supported:
-    Comma-separated (CSV): OldEmail,NewEmail
-    Semicolon-separated: OldEmail;NewEmail
+    Comma-separated (CSV): OldUsername,NewUsername,OldEmail,NewEmail
+    Semicolon-separated: OldUsername;NewUsername;OldEmail;NewEmail
 
     Example formats:
-    old1@company.com,new1@company.com
-    old2@company.com;new2@company.com
+    john.doe,j.doe,john.doe@company.com,j.doe@company.com
+    jane.smith;jane.s;jane.smith@company.com;jane.s@company.com
 
     The script automatically detects the delimiter used.
 
@@ -83,7 +85,7 @@
 
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory = $true, HelpMessage = "Path to CSV file with OldEmail,NewEmail columns")]
+    [Parameter(Mandatory = $true, HelpMessage = "Path to CSV file with OldUsername,NewUsername,OldEmail,NewEmail columns")]
     [ValidateScript({
         if (Test-Path $_) { $true }
         else { throw "CSV file not found: $_" }
@@ -105,7 +107,7 @@ param (
         if ([string]::IsNullOrEmpty($_) -or (Test-Path $_)) { $true }
         else { throw "Credential file not found: $_" }
     })]
-    [string]$CredentialFile,
+    $CredentialFile,
 
     [Parameter(Mandatory = $false)]
     [string]$PersonalAccessToken,
@@ -154,16 +156,43 @@ function Test-JiraAuthentication {
     )
     try {
         Write-Log "Testing JIRA authentication..." "INFO"
-        $testUri = "$BaseUrl/rest/api/2/myself"
-        $testResult = Invoke-RestMethod -Method Get -Uri $testUri -Headers $Headers -ErrorAction Stop
-        Write-Log "Authentication test successful - logged in as: $($testResult.displayName) ($($testResult.emailAddress))" "SUCCESS"
-        return $true
+        Write-Log "Debug: Cookie header = $($Headers.Cookie)" "INFO"
+
+        # Try multiple endpoints to find one that works
+        $testEndpoints = @(
+            "/rest/api/2/myself",
+            "/rest/api/2/serverInfo",
+            "/rest/api/2/user/picker?query=admin"
+        )
+
+        foreach ($endpoint in $testEndpoints) {
+            try {
+                $testUri = "$BaseUrl$endpoint"
+                Write-Log "Trying authentication test with endpoint: $testUri" "INFO"
+                $testResult = Invoke-RestMethod -Method Get -Uri $testUri -Headers $Headers -ErrorAction Stop
+
+                if ($endpoint -eq "/rest/api/2/myself") {
+                    Write-Log "Authentication test successful - logged in as: $($testResult.displayName) ($($testResult.emailAddress))" "SUCCESS"
+                } elseif ($endpoint -eq "/rest/api/2/serverInfo") {
+                    Write-Log "Authentication test successful - JIRA Server: $($testResult.serverTitle) (Version: $($testResult.version))" "SUCCESS"
+                } else {
+                    Write-Log "Authentication test successful using $endpoint" "SUCCESS"
+                }
+                return $true
+            } catch {
+                Write-Log "Endpoint $endpoint failed: $($_.Exception.Message)" "WARNING"
+                continue
+            }
+        }
+
+        throw "All authentication test endpoints failed"
+
     } catch {
         Write-Log "Authentication test failed: $($_.Exception.Message)" "ERROR"
 
         # Provide specific guidance based on error
         if ($_.Exception.Response.StatusCode -eq 401) {
-            Write-Log "401 Unauthorized - Check your credentials or token" "ERROR"
+            Write-Log "401 Unauthorized - Session may have expired or insufficient permissions" "ERROR"
         } elseif ($_.Exception.Response.StatusCode -eq 403) {
             Write-Log "403 Forbidden - Account may be locked or insufficient permissions" "ERROR"
         }
@@ -172,81 +201,149 @@ function Test-JiraAuthentication {
     }
 }
 
-# Enhanced function to search for users with multiple methods
+# Enhanced function to search for users with multiple methods (by email or username)
 function Search-JiraUser {
     param(
         [string]$Email,
+        [string]$Username,
         [hashtable]$Headers,
         [string]$BaseUrl
     )
 
-    $searchMethods = @(
-        @{ Name = "User Picker"; Uri = "/rest/api/2/user/picker?query=" },
-        @{ Name = "Users Search"; Uri = "/rest/api/2/users/search?query=" },
-        @{ Name = "User Search Query"; Uri = "/rest/api/2/user/search?query=" },
-        @{ Name = "User Search Username"; Uri = "/rest/api/2/user/search?username=" },
-        @{ Name = "User Assignable"; Uri = "/rest/api/2/user/assignable/search?query=" },
-        @{ Name = "Direct Email Search"; Uri = "/rest/api/2/user?username=" }
-    )
-
-    foreach ($method in $searchMethods) {
-        try {
-            $encodedEmail = [System.Web.HttpUtility]::UrlEncode($Email)
-            $searchUri = "$BaseUrl$($method.Uri)$encodedEmail"
-            Write-Log "Trying $($method.Name) method: $searchUri" "INFO"
-
-            $result = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $Headers -ErrorAction Stop
-
-            # Handle different response formats
-            $user = $null
-            if ($method.Name -eq "User Picker" -and $result.users -and $result.users.Count -gt 0) {
-                $user = $result.users[0]
-            } elseif ($result -is [Array] -and $result.Count -gt 0) {
-                $user = $result[0]
-            } elseif ($result -and $result.accountId) {
-                $user = $result
-            }
-
-            if ($user -and -not [string]::IsNullOrEmpty($user.accountId)) {
-                Write-Log "✓ User found using $($method.Name) method: $($user.displayName)" "SUCCESS"
-                return $user
-            } else {
-                Write-Log "○ $($method.Name) method returned no results" "INFO"
-            }
-        } catch {
-            $statusCode = if ($_.Exception.Response) { $_.Exception.Response.StatusCode.value__ } else { "Unknown" }
-            Write-Log "✗ $($method.Name) method failed ($statusCode): $($_.Exception.Message)" "WARNING"
-
-            # Log additional error details for 400 errors
-            if ($statusCode -eq 400) {
-                try {
-                    $errorStream = $_.Exception.Response.GetResponseStream()
-                    if ($errorStream) {
-                        # 🔧 ENTERPRISE PATTERN: Proper resource disposal using try/finally
-                        $reader = $null
-                        try {
-                            $reader = New-Object System.IO.StreamReader($errorStream)
-                            $errorDetails = $reader.ReadToEnd()
-                            if ($errorDetails) {
-                                Write-Log "   400 Error Details: $errorDetails" "WARNING"
-                            }
-                        } finally {
-                            # Guarantee resource cleanup even if ReadToEnd() throws
-                            if ($reader) {
-                                $reader.Dispose()
-                                $reader = $null
-                            }
-                        }
-                    }
-                } catch {
-                    # Ignore errors reading error details
-                }
-            }
-            continue
-        }
+    # Determine search queries - prioritize username if provided, fallback to email
+    $searchQueries = @()
+    if (-not [string]::IsNullOrWhiteSpace($Username)) {
+        $searchQueries += @{ Type = "Username"; Value = $Username }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Email)) {
+        $searchQueries += @{ Type = "Email"; Value = $Email }
     }
 
-    Write-Log "✗ No user found for email: $Email using any search method" "WARNING"
+    if ($searchQueries.Count -eq 0) {
+        Write-Log "No valid search criteria provided (Username: '$Username', Email: '$Email')" "ERROR"
+        return $null
+    }
+
+    # Define comprehensive search methods for different JIRA configurations
+    $searchMethods = @(
+        @{ Name = "User Search Query"; Uri = "/rest/api/2/user/search?query=" },
+        @{ Name = "User Search Username"; Uri = "/rest/api/2/user/search?username=" },
+        @{ Name = "Users Search (plural)"; Uri = "/rest/api/2/users/search?query=" },
+        @{ Name = "User Picker"; Uri = "/rest/api/2/user/picker?query=" },
+        @{ Name = "User Assignable Search"; Uri = "/rest/api/2/user/assignable/search?query=" },
+        @{ Name = "Direct User Lookup"; Uri = "/rest/api/2/user?username=" },
+        @{ Name = "User Search by Email"; Uri = "/rest/api/2/user/search?property=email&query=" },
+        @{ Name = "User Search Max Results"; Uri = "/rest/api/2/user/search?maxResults=50&query=" }
+    )
+
+    # Try each search query with each method
+    foreach ($query in $searchQueries) {
+        Write-Log "Searching for user by $($query.Type): $($query.Value)" "INFO"
+
+        # For email searches, also try variations (username part only, domain variations)
+        $searchVariations = @($query.Value)
+        if ($query.Type -eq "Email" -and $query.Value -match "@") {
+            $emailParts = $query.Value -split "@"
+            $usernameBase = $emailParts[0]
+            $searchVariations += @(
+                $usernameBase,  # Just the username part
+                "$usernameBase*",  # Wildcard username
+                "*$usernameBase*"  # Wildcard both sides
+            )
+            # Only log variations for known test user to reduce noise
+            if ($query.Value -match "ajn4901|kenneth.hargett") {
+                Write-Log "Debug: Added email search variations: $($searchVariations -join ', ')" "INFO"
+            }
+        }
+
+        foreach ($searchValue in $searchVariations) {
+            foreach ($method in $searchMethods) {
+            try {
+                $encodedValue = [System.Web.HttpUtility]::UrlEncode($searchValue)
+                $searchUri = "$BaseUrl$($method.Uri)$encodedValue"
+                # Only log detailed search attempts for known test user to reduce noise
+                if ($query.Value -match "ajn4901|kenneth.hargett") {
+                    Write-Log "Trying $($method.Name) method for $($query.Type) with value '$searchValue': $searchUri" "INFO"
+                }
+
+                $result = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $Headers -ErrorAction Stop
+
+                # Debug: Log the actual result structure (only for test user to reduce noise)
+                if ($query.Value -match "ajn4901|kenneth.hargett") {
+                    Write-Log "Debug: API response type: $($result.GetType().Name), Content: $($result | ConvertTo-Json -Compress)" "INFO"
+                }
+
+                # Handle different response formats with comprehensive checking
+                $user = $null
+
+                # User Picker format: { "users": [...] }
+                if ($method.Name -eq "User Picker" -and $result.users -and $result.users.Count -gt 0) {
+                    $user = $result.users[0]
+                }
+                # Array format: [user1, user2, ...]
+                elseif ($result -is [Array] -and $result.Count -gt 0) {
+                    $user = $result[0]
+                }
+                # Direct user object: { "accountId": "...", ... }
+                elseif ($result -and $result.accountId) {
+                    $user = $result
+                }
+                # Sometimes the result is wrapped in other properties
+                elseif ($result -and $result.user) {
+                    $user = $result.user
+                }
+                # Check if there's a results array
+                elseif ($result -and $result.results -and $result.results.Count -gt 0) {
+                    $user = $result.results[0]
+                }
+
+                if ($user -and (-not [string]::IsNullOrEmpty($user.accountId) -or -not [string]::IsNullOrEmpty($user.name))) {
+                    Write-Log "SUCCESS: User found using $($method.Name) method for $($query.Type): $($user.displayName) ($($user.name))" "SUCCESS"
+                    return $user
+                } else {
+                    if ($result) {
+                        Write-Log "○ $($method.Name) method returned data but no valid user found for $($query.Type)" "INFO"
+                    } else {
+                        Write-Log "○ $($method.Name) method returned no results for $($query.Type)" "INFO"
+                    }
+                }
+            } catch {
+                $statusCode = if ($_.Exception.Response) { $_.Exception.Response.StatusCode.value__ } else { "Unknown" }
+                Write-Log "FAILED: $($method.Name) method failed for $($query.Type) ($statusCode): $($_.Exception.Message)" "WARNING"
+
+                # Log additional error details for 400 errors
+                if ($statusCode -eq 400) {
+                    try {
+                        $errorStream = $_.Exception.Response.GetResponseStream()
+                        if ($errorStream) {
+                            # 🔧 ENTERPRISE PATTERN: Proper resource disposal using try/finally
+                            $reader = $null
+                            try {
+                                $reader = New-Object System.IO.StreamReader($errorStream)
+                                $errorDetails = $reader.ReadToEnd()
+                                if ($errorDetails) {
+                                    Write-Log "   400 Error Details for $($query.Type): $errorDetails" "WARNING"
+                                }
+                            } finally {
+                                # Guarantee resource cleanup even if ReadToEnd() throws
+                                if ($reader) {
+                                    $reader.Dispose()
+                                    $reader = $null
+                                }
+                            }
+                        }
+                    } catch {
+                        # Ignore errors reading error details
+                    }
+                }
+                continue
+            }
+        }
+    }
+}
+
+    $searchCriteria = $searchQueries | ForEach-Object { "$($_.Type): $($_.Value)" }
+    Write-Log "FAILED: No user found using any search method for: $($searchCriteria -join ', ')" "WARNING"
     return $null
 }
 
@@ -340,48 +437,93 @@ try {
         throw "CSV file is empty or contains only headers. No user records found to process."
     }
 
-    # Validate CSV structure
-    $requiredColumns = @('OldEmail', 'NewEmail')
-    $csvColumns = $users[0].PSObject.Properties.Name
-    $missingColumns = $requiredColumns | Where-Object { $_ -notin $csvColumns }
+        # Validate CSV structure - different requirements for CheckUsersOnly vs actual updates
+        $csvColumns = $users[0].PSObject.Properties.Name
 
-    if ($missingColumns.Count -gt 0) {
-        throw "CSV file missing required columns: $($missingColumns -join ', '). Required: $($requiredColumns -join ', ')"
-    }
+        if ($CheckUsersOnly) {
+            # For CheckUsersOnly mode, accept either 4-column format or 2-column format
+            $updateFormat = @('OldUsername', 'NewUsername', 'OldEmail', 'NewEmail')
+            $checkFormat = @('mail', 'samaccountname')
 
-    Write-Log "CSV file loaded successfully. Found $($users.Count) user records to process." "SUCCESS"
+            $hasUpdateFormat = ($updateFormat | ForEach-Object { $_ -in $csvColumns }).Count -eq 4
+            $hasCheckFormat = ($checkFormat | ForEach-Object { $_ -in $csvColumns }).Count -eq 2
 
-    # Filter out Excel errors and validate email formats
+            if (-not $hasUpdateFormat -and -not $hasCheckFormat) {
+                throw "CSV file format not recognized. Expected either update format: $($updateFormat -join ', ') OR check format: $($checkFormat -join ', ')"
+            }
+
+            if ($hasCheckFormat) {
+                Write-Log "Detected 2-column check format: mail, samaccountname" "INFO"
+                # Convert to standard format for processing
+                $users = $users | ForEach-Object {
+                    [PSCustomObject]@{
+                        OldUsername = $_.samaccountname
+                        NewUsername = $_.samaccountname
+                        OldEmail = $_.mail
+                        NewEmail = $_.mail
+                    }
+                }
+                Write-Log "Converted $($users.Count) users to standard format for checking" "INFO"
+            } else {
+                Write-Log "Detected 4-column update format: OldUsername, NewUsername, OldEmail, NewEmail" "INFO"
+            }
+        } else {
+            # For actual updates, require the full 4-column format
+            $requiredColumns = @('OldUsername', 'NewUsername', 'OldEmail', 'NewEmail')
+            $missingColumns = $requiredColumns | Where-Object { $_ -notin $csvColumns }
+
+            if ($missingColumns.Count -gt 0) {
+                throw "CSV file missing required columns: $($missingColumns -join ', '). Required: $($requiredColumns -join ', ')"
+            }
+        }    Write-Log "CSV file loaded successfully. Found $($users.Count) user records to process." "SUCCESS"
+
+    # Filter out Excel errors and validate email and username formats
     $emailRegex = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    $usernameRegex = '^[a-zA-Z0-9._%+-@-]{2,100}$'  # Username: allows email format or standard username (2-100 chars)
     $excelErrors = @('#REFERENCE!', '#notfound', '#I/T', '#N/A', '#VALUE!', '#DIV/0!', '#NAME?', '#NULL!')
-    $invalidEmails = @()
+    $invalidEntries = @()
     $validUsers = @()
 
     foreach ($user in $users) {
+        $oldUsername = if ($user.OldUsername) { $user.OldUsername.Trim() } else { '' }
+        $newUsername = if ($user.NewUsername) { $user.NewUsername.Trim() } else { '' }
         $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { '' }
         $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { '' }
 
-        # Skip rows with Excel errors or empty emails
-        if ($excelErrors -contains $oldEmail -or $excelErrors -contains $newEmail -or
+        # Skip rows with Excel errors or empty critical fields
+        if ($excelErrors -contains $oldUsername -or $excelErrors -contains $newUsername -or
+            $excelErrors -contains $oldEmail -or $excelErrors -contains $newEmail -or
+            $oldUsername -like '<*>' -or $newUsername -like '<*>' -or
             $oldEmail -like '<*>' -or $newEmail -like '<*>' -or
-            [string]::IsNullOrWhiteSpace($oldEmail) -or [string]::IsNullOrWhiteSpace($newEmail)) {
+            [string]::IsNullOrWhiteSpace($oldUsername) -or [string]::IsNullOrWhiteSpace($oldEmail)) {
             continue  # Skip these rows silently
         }
 
-        # Validate email format for remaining rows
-        $isValidOld = $oldEmail -match $emailRegex
-        $isValidNew = $newEmail -match $emailRegex
+        # Validate formats for remaining rows
+        $isValidOldUsername = $oldUsername -match $usernameRegex
+        $isValidNewUsername = $newUsername -match $usernameRegex
+        $isValidOldEmail = $oldEmail -match $emailRegex
+        $isValidNewEmail = $newEmail -match $emailRegex
 
-        if (-not $isValidOld) {
-            $invalidEmails += "Invalid OldEmail: '$oldEmail'"
+        # Collect validation errors
+        if (-not $isValidOldUsername) {
+            $invalidEntries += "Invalid OldUsername: '$oldUsername'"
         }
-        if (-not $isValidNew) {
-            $invalidEmails += "Invalid NewEmail: '$newEmail'"
+        if (-not $isValidNewUsername) {
+            $invalidEntries += "Invalid NewUsername: '$newUsername'"
+        }
+        if (-not $isValidOldEmail) {
+            $invalidEntries += "Invalid OldEmail: '$oldEmail'"
+        }
+        if (-not $isValidNewEmail) {
+            $invalidEntries += "Invalid NewEmail: '$newEmail'"
         }
 
-        # Only add users with valid email formats to processing list
-        if ($isValidOld -and $isValidNew) {
+        # Only add users with valid formats to processing list
+        if ($isValidOldUsername -and $isValidNewUsername -and $isValidOldEmail -and $isValidNewEmail) {
             $validUsers += [PSCustomObject]@{
+                OldUsername = $oldUsername
+                NewUsername = $newUsername
                 OldEmail = $oldEmail
                 NewEmail = $newEmail
             }
@@ -392,20 +534,25 @@ try {
     $users = $validUsers
     $skippedRows = $($users.Count) - $($validUsers.Count)
 
+    # Update users array and calculate skipped rows
+    $totalRows = $users.Count
+    $users = $validUsers
+    $skippedRows = $totalRows - $validUsers.Count
+
     Write-Log "Filtered out Excel errors and invalid entries. Processing $($validUsers.Count) valid users." "INFO"
     if ($skippedRows -gt 0) {
         Write-Log "Skipped $skippedRows rows with Excel errors or invalid data." "WARNING"
     }
 
-    if ($invalidEmails.Count -gt 0) {
-        Write-Log "Found $($invalidEmails.Count) invalid email formats:" "WARNING"
+    if ($invalidEntries.Count -gt 0) {
+        Write-Log "Found $($invalidEntries.Count) validation errors:" "WARNING"
         # Only show first 10 to avoid log spam
-        $displayCount = [Math]::Min($invalidEmails.Count, 10)
+        $displayCount = [Math]::Min($invalidEntries.Count, 10)
         for ($i = 0; $i -lt $displayCount; $i++) {
-            Write-Log "  - $($invalidEmails[$i])" "WARNING"
+            Write-Log "  - $($invalidEntries[$i])" "WARNING"
         }
-        if ($invalidEmails.Count -gt 10) {
-            Write-Log "  ... and $($invalidEmails.Count - 10) more invalid emails" "WARNING"
+        if ($invalidEntries.Count -gt 10) {
+            Write-Log "  ... and $($invalidEntries.Count - 10) more validation errors" "WARNING"
         }
     }
 
@@ -489,7 +636,7 @@ try {
 
         # Enhanced session creation with better error handling
         try {
-            $sessionResponse = Invoke-WebRequest -Method Post -Uri $SessionUri -Body $sessionBody -Headers $sessionHeaders -ErrorAction Stop
+            $sessionResponse = Invoke-WebRequest -Method Post -Uri $SessionUri -Body $sessionBody -Headers $sessionHeaders -UseBasicParsing -ErrorAction Stop
             $session = $sessionResponse.Content | ConvertFrom-Json
 
             # Check for CAPTCHA or authentication issues
@@ -501,6 +648,7 @@ try {
             }
 
             Write-Log "JIRA session created successfully for user: $($session.loginInfo.loginCount) previous logins" "SUCCESS"
+            Write-Log "Debug: Session name=$($session.session.name), Session value length=$($session.session.value.Length)" "INFO"
 
             # Create session headers for subsequent requests
             $apiHeaders = @{
@@ -522,12 +670,47 @@ try {
     }
 
     # Test authentication before proceeding
-    if (-not (Test-JiraAuthentication -Headers $apiHeaders -BaseUrl $JiraBaseUrl)) {
-        Write-Log "Authentication test failed. Cannot continue." "ERROR"
-        exit 1
+    $authTestPassed = Test-JiraAuthentication -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+
+    # For session-based auth, if session was created successfully but test fails,
+    # it might be due to restrictive permissions on test endpoints - proceed with warning
+    if (-not $authTestPassed) {
+        if ($session -and -not $PersonalAccessToken -and -not $UseBasicAuth) {
+            Write-Log "Authentication test failed but session was created successfully. Proceeding with caution..." "WARNING"
+            Write-Log "Note: Some JIRA instances restrict access to test endpoints. The script may still work for user operations." "WARNING"
+        } else {
+            Write-Log "Authentication test failed. Cannot continue." "ERROR"
+            exit 1
+        }
     }
 
-} catch {
+    # Quick diagnostic: Test if we can find any users at all
+    Write-Log "Running diagnostic test to check user search capabilities..." "INFO"
+    try {
+        $diagnosticUri = "$JiraBaseUrl/rest/api/2/user/search?query=admin&maxResults=5"
+        $diagnosticResult = Invoke-RestMethod -Method Get -Uri $diagnosticUri -Headers $apiHeaders -ErrorAction Stop
+        if ($diagnosticResult -and $diagnosticResult.Count -gt 0) {
+            Write-Log "SUCCESS: Diagnostic - Found $($diagnosticResult.Count) user(s) with 'admin' search. User search is working." "SUCCESS"
+            Write-Log "Sample user: $($diagnosticResult[0].displayName) [$($diagnosticResult[0].name)] ($($diagnosticResult[0].emailAddress))" "INFO"
+        } else {
+            Write-Log "WARNING: Diagnostic - 'admin' search returned no results. Users might not be searchable or different search patterns needed." "WARNING"
+        }
+    } catch {
+        Write-Log "WARNING: Diagnostic - User search test failed: $($_.Exception.Message)" "WARNING"
+    }
+
+        # Test specific known user from CSV
+        Write-Log "Testing search for known user: ajn4901 / kenneth.hargett@teliacompany.com" "INFO"
+        try {
+            $knownUser = Search-JiraUser -Email "kenneth.hargett@teliacompany.com" -Username "ajn4901" -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+            if ($knownUser) {
+                Write-Log "SUCCESS: Found known user - $($knownUser.displayName) [$($knownUser.name)] ($($knownUser.emailAddress))" "SUCCESS"
+            } else {
+                Write-Log "FAILED: Could not find known user ajn4901 / kenneth.hargett@teliacompany.com" "ERROR"
+            }
+        } catch {
+            Write-Log "ERROR: Search for known user failed: $($_.Exception.Message)" "ERROR"
+        }} catch {
     Write-Log "Failed to set up JIRA authentication: $($_.Exception.Message)" "ERROR"
     Write-Log "Please verify your credentials and JIRA URL" "ERROR"
 
@@ -550,7 +733,7 @@ if ($BackupUsers) {
     $userBackups = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
     # Filter valid users for backup
-    $validUsersForBackup = $users | Where-Object { -not [string]::IsNullOrWhiteSpace($_.OldEmail) }
+    $validUsersForBackup = $users | Where-Object { -not [string]::IsNullOrWhiteSpace($_.OldUsername) -and -not [string]::IsNullOrWhiteSpace($_.OldEmail) }
     Write-Log "Initiating parallel backup for $($validUsersForBackup.Count) users with throttling (max $maxConcurrentBackups concurrent)" "INFO"
 
     # Create background jobs for parallel processing
@@ -564,10 +747,11 @@ if ($BackupUsers) {
 
         # Start background job for each user backup
         $backupJob = Start-Job -ScriptBlock {
-            param($JiraBaseUrl, $UserEmail, $ApiHeaders)
+            param($JiraBaseUrl, $UserEmail, $UserUsername, $ApiHeaders)
 
             try {
-                $searchUri = "$JiraBaseUrl/rest/api/2/user/search?query=$UserEmail"
+                # Try searching by username first, then email
+                $searchUri = "$JiraBaseUrl/rest/api/2/user/search?username=$UserUsername"
                 # Convert hashtable to proper headers format for job context
                 $headers = @{}
                 foreach ($key in $ApiHeaders.Keys) {
@@ -580,23 +764,39 @@ if ($BackupUsers) {
                     return @{
                         Success = $true
                         User = $searchResult[0]
+                        Username = $UserUsername
                         Email = $UserEmail
                     }
                 } else {
-                    return @{
-                        Success = $false
-                        Message = "User not found"
-                        Email = $UserEmail
+                    # Fallback to email search
+                    $searchUri = "$JiraBaseUrl/rest/api/2/user/search?query=$UserEmail"
+                    $searchResult = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $headers -ErrorAction Stop
+
+                    if ($searchResult.Count -gt 0) {
+                        return @{
+                            Success = $true
+                            User = $searchResult[0]
+                            Username = $UserUsername
+                            Email = $UserEmail
+                        }
+                    } else {
+                        return @{
+                            Success = $false
+                            Message = "User not found by username or email"
+                            Username = $UserUsername
+                            Email = $UserEmail
+                        }
                     }
                 }
             } catch {
                 return @{
                     Success = $false
                     Message = $_.Exception.Message
+                    Username = $UserUsername
                     Email = $UserEmail
                 }
             }
-        } -ArgumentList $JiraBaseUrl, $user.OldEmail, $apiHeaders
+        } -ArgumentList $JiraBaseUrl, $user.OldEmail, $user.OldUsername, $apiHeaders
 
         $backupJobs += $backupJob
     }
@@ -611,7 +811,7 @@ if ($BackupUsers) {
             if ($result.Success -and $result.User) {
                 $userBackups.Add($result.User)
             } elseif (-not $result.Success) {
-                Write-Log "Warning: Could not backup user data for $($result.Email): $($result.Message)" "WARNING"
+                Write-Log "Warning: Could not backup user data for $($result.Username)/$($result.Email): $($result.Message)" "WARNING"
             }
         } catch {
             Write-Log "Error processing backup job result: $($_.Exception.Message)" "WARNING"
@@ -626,7 +826,7 @@ if ($BackupUsers) {
     if ($backupArray.Count -gt 0) {
         try {
             $backupArray | ConvertTo-Json -Depth 5 | Out-File -FilePath $backupPath -Encoding UTF8
-            Write-Log "✅ Parallel user data backup completed: $backupPath ($($backupArray.Count) users backed up in parallel)" "SUCCESS"
+            Write-Log "SUCCESS: Parallel user data backup completed: $backupPath ($($backupArray.Count) users backed up in parallel)" "SUCCESS"
         } catch {
             Write-Log "Failed to create user backup: $($_.Exception.Message)" "WARNING"
         }
@@ -651,39 +851,51 @@ if ($CheckUsersOnly) {
     $invalidUsers = @()
 
     foreach ($user in $users) {
+        $oldUsername = if ($user.OldUsername) { $user.OldUsername.Trim() } else { $null }
+        $newUsername = if ($user.NewUsername) { $user.NewUsername.Trim() } else { $null }
         $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { $null }
         $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { $null }
 
         # Skip invalid entries
-        if ([string]::IsNullOrWhiteSpace($oldEmail)) {
+        if ([string]::IsNullOrWhiteSpace($oldUsername) -or [string]::IsNullOrWhiteSpace($oldEmail)) {
             $invalidUsers += [PSCustomObject]@{
+                OldUsername = $oldUsername
+                NewUsername = $newUsername
                 OldEmail = $oldEmail
                 NewEmail = $newEmail
-                Reason = "Missing OldEmail"
+                Reason = "Missing required fields (OldUsername or OldEmail)"
             }
             continue
         }
 
         try {
-            Write-Log "Searching for user: $oldEmail" "INFO"
-            $jiraUser = Search-JiraUser -Email $oldEmail -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+            Write-Log "Searching for user: $oldUsername / $oldEmail" "INFO"
+            $jiraUser = Search-JiraUser -Email $oldEmail -Username $oldUsername -Headers $apiHeaders -BaseUrl $JiraBaseUrl
 
             if ($null -ne $jiraUser) {
+                # Support both modern JIRA (accountId) and older versions (name as identifier)
+                $userId = if (-not [string]::IsNullOrEmpty($jiraUser.accountId)) { $jiraUser.accountId } else { $jiraUser.name }
+
                 $existingUsers += [PSCustomObject]@{
+                    OldUsername = $oldUsername
+                    NewUsername = $newUsername
                     OldEmail = $oldEmail
                     NewEmail = $newEmail
                     DisplayName = $jiraUser.displayName
-                    AccountId = $jiraUser.accountId
+                    CurrentUsername = $jiraUser.name
+                    AccountId = $userId
                     Active = $jiraUser.active
                 }
-                Write-Log "✓ Found: $oldEmail -> $($jiraUser.displayName) (Active: $($jiraUser.active))" "SUCCESS"
+                Write-Log "SUCCESS: Found $oldUsername/$oldEmail maps to $($jiraUser.displayName) [$($jiraUser.name)] (Active: $($jiraUser.active))" "SUCCESS"
             } else {
                 $missingUsers += [PSCustomObject]@{
+                    OldUsername = $oldUsername
+                    NewUsername = $newUsername
                     OldEmail = $oldEmail
                     NewEmail = $newEmail
                     Reason = "User not found in JIRA using any search method"
                 }
-                Write-Log "✗ Missing: $oldEmail - No user found using any search method" "WARNING"
+                Write-Log "MISSING: $oldUsername/$oldEmail - No user found using any search method" "WARNING"
             }
         } catch {
             $errorMessage = $_.Exception.Message
@@ -695,11 +907,13 @@ if ($CheckUsersOnly) {
             }
 
             $missingUsers += [PSCustomObject]@{
+                OldUsername = $oldUsername
+                NewUsername = $newUsername
                 OldEmail = $oldEmail
                 NewEmail = $newEmail
                 Reason = "Search failed ($statusCode): $errorMessage"
             }
-            Write-Log "✗ Error searching for $oldEmail (Status: $statusCode): $errorMessage" "ERROR"
+            Write-Log "ERROR: Error searching for $oldUsername/$oldEmail (Status: $statusCode): $errorMessage" "ERROR"
         }
     }
 
@@ -724,10 +938,13 @@ if ($CheckUsersOnly) {
 
     foreach ($existing in $existingUsers) {
         $allCheckResults += [PSCustomObject]@{
+            OldUsername = $existing.OldUsername
+            NewUsername = $existing.NewUsername
             OldEmail = $existing.OldEmail
             NewEmail = $existing.NewEmail
             Status = "EXISTS"
             DisplayName = $existing.DisplayName
+            CurrentUsername = $existing.CurrentUsername
             AccountId = $existing.AccountId
             Active = $existing.Active
             Reason = ""
@@ -736,10 +953,13 @@ if ($CheckUsersOnly) {
 
     foreach ($missing in $missingUsers) {
         $allCheckResults += [PSCustomObject]@{
+            OldUsername = $missing.OldUsername
+            NewUsername = $missing.NewUsername
             OldEmail = $missing.OldEmail
             NewEmail = $missing.NewEmail
             Status = "MISSING"
             DisplayName = ""
+            CurrentUsername = ""
             AccountId = ""
             Active = ""
             Reason = $missing.Reason
@@ -748,10 +968,13 @@ if ($CheckUsersOnly) {
 
     foreach ($invalid in $invalidUsers) {
         $allCheckResults += [PSCustomObject]@{
+            OldUsername = $invalid.OldUsername
+            NewUsername = $invalid.NewUsername
             OldEmail = $invalid.OldEmail
             NewEmail = $invalid.NewEmail
             Status = "INVALID"
             DisplayName = ""
+            CurrentUsername = ""
             AccountId = ""
             Active = ""
             Reason = $invalid.Reason
@@ -769,7 +992,7 @@ if ($CheckUsersOnly) {
     if ($missingUsers.Count -gt 0) {
         Write-Log "Missing Users Details:" "WARNING"
         foreach ($missing in $missingUsers) {
-            Write-Log "  - $($missing.OldEmail): $($missing.Reason)" "WARNING"
+            Write-Log "  - $($missing.OldUsername)/$($missing.OldEmail): $($missing.Reason)" "WARNING"
         }
     }
 
@@ -789,9 +1012,19 @@ if ($CheckUsersOnly) {
 }
 
 foreach ($user in $users) {
+    $oldUsername = if ($user.OldUsername) { $user.OldUsername.Trim() } else { $null }
+    $newUsername = if ($user.NewUsername) { $user.NewUsername.Trim() } else { $null }
     $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { $null }
     $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { $null }
+
+    # Debug: Show extracted values for the first few users
+    if ($updateCount + $errorCount + $skippedCount -lt 3) {
+        Write-Log "Debug CSV extraction - OldUsername: '$oldUsername', NewUsername: '$newUsername', OldEmail: '$oldEmail', NewEmail: '$newEmail'" "INFO"
+    }
+
     $currentUser = [PSCustomObject]@{
+        OldUsername = $oldUsername
+        NewUsername = $newUsername
         OldEmail = $oldEmail
         NewEmail = $newEmail
         Status = "Pending"
@@ -800,71 +1033,127 @@ foreach ($user in $users) {
     }
 
     # Validate required fields
-    if ([string]::IsNullOrWhiteSpace($oldEmail) -or [string]::IsNullOrWhiteSpace($newEmail)) {
+    if ([string]::IsNullOrWhiteSpace($oldUsername) -or [string]::IsNullOrWhiteSpace($oldEmail) -or
+        [string]::IsNullOrWhiteSpace($newUsername) -or [string]::IsNullOrWhiteSpace($newEmail)) {
         $currentUser.Status = "Skipped"
-        $currentUser.ErrorMessage = "Missing required email address"
-        Write-Log "Skipping row with missing email data: Old='$oldEmail', New='$newEmail'" "WARNING"
+        $currentUser.ErrorMessage = "Missing required fields (username or email)"
+        Write-Log "Skipping row with missing data: OldUsername='$oldUsername', NewUsername='$newUsername', OldEmail='$oldEmail', NewEmail='$newEmail'" "WARNING"
         $skippedCount++
         $processedUsers += $currentUser
         continue
     }
 
-    # Skip if emails are the same
-    if ($oldEmail -eq $newEmail) {
+    # Skip if both username and email are unchanged
+    if ($oldUsername -eq $newUsername -and $oldEmail -eq $newEmail) {
         $currentUser.Status = "Skipped"
-        $currentUser.ErrorMessage = "Old and new email addresses are identical"
-        Write-Log "Skipping $oldEmail - emails are identical" "INFO"
+        $currentUser.ErrorMessage = "Both username and email are identical to current values"
+        Write-Log "Skipping $oldUsername/$oldEmail - no changes needed" "INFO"
         $skippedCount++
         $processedUsers += $currentUser
         continue
     }
 
     try {
-        # Search for user by old email
-        Write-Log "Processing user: $oldEmail -> $newEmail" "INFO"
+        # Search for user by username and email
+        Write-Log "Processing user: $oldUsername/$oldEmail -> $newUsername/$newEmail" "INFO"
 
-        $jiraUser = Search-JiraUser -Email $oldEmail -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+        $jiraUser = Search-JiraUser -Email $oldEmail -Username $oldUsername -Headers $apiHeaders -BaseUrl $JiraBaseUrl
 
         if ($null -eq $jiraUser) {
             $currentUser.Status = "Failed"
             $currentUser.ErrorMessage = "User not found in JIRA instance using any search method"
-            Write-Log "No user found for email: $oldEmail using any search method" "WARNING"
+            Write-Log "No user found for username/email: $oldUsername/$oldEmail using any search method" "WARNING"
             $errorCount++
             $processedUsers += $currentUser
             continue
         }
 
         # Validate that we have a valid user object with required properties
-        if ([string]::IsNullOrEmpty($jiraUser.accountId)) {
+        # Support both modern JIRA (accountId) and older versions (name as identifier)
+        $userIdentifier = $null
+        if (-not [string]::IsNullOrEmpty($jiraUser.accountId)) {
+            $userIdentifier = $jiraUser.accountId
+        } elseif (-not [string]::IsNullOrEmpty($jiraUser.name)) {
+            $userIdentifier = $jiraUser.name
+        }
+
+        if ([string]::IsNullOrEmpty($userIdentifier)) {
             $currentUser.Status = "Failed"
-            $currentUser.ErrorMessage = "Invalid user data returned from search"
-            Write-Log "Search returned invalid user data for email: $oldEmail" "ERROR"
+            $currentUser.ErrorMessage = "Invalid user data returned from search - missing accountId and name"
+            Write-Log "Search returned invalid user data for username/email: $oldUsername/$oldEmail" "ERROR"
             $errorCount++
             $processedUsers += $currentUser
             continue
         }
 
-        $accountId = $jiraUser.accountId
-        $currentUser.AccountId = $accountId
+        $currentUser.AccountId = $userIdentifier
 
-        Write-Log "Found user: $($jiraUser.displayName) (Account ID: $accountId)" "INFO"
+        Write-Log "Found user: $($jiraUser.displayName) [$($jiraUser.name)] (ID: $userIdentifier)" "INFO"
 
         if ($DryRun) {
             $currentUser.Status = "DryRun"
-            Write-Log "DRY RUN: Would update $oldEmail to $newEmail for user $($jiraUser.displayName)" "INFO"
+            $changesNeeded = @()
+            if ($oldUsername -ne $newUsername) {
+                $changesNeeded += "username: $oldUsername -> $newUsername"
+            }
+            if ($oldEmail -ne $newEmail) {
+                $changesNeeded += "email: $oldEmail -> $newEmail"
+            }
+            Write-Log "DRY RUN: Would update $($changesNeeded -join ', ') for user $($jiraUser.displayName)" "INFO"
         } else {
-            # Prepare update payload
-            $updatePayload = @{
-                emailAddress = $newEmail
-            } | ConvertTo-Json
+            # Prepare update payload with both username and email if they differ
+            $updatePayload = @{}
+            $changesApplied = @()
 
-            # Update user email
-            $updateUri = "$JiraBaseUrl/rest/api/2/user?accountId=$accountId"
-            $updateResult = Invoke-RestMethod -Method Put -Uri $updateUri -Headers $apiHeaders -Body $updatePayload -ErrorAction Stop
+            if ($oldEmail -ne $newEmail) {
+                $updatePayload.emailAddress = $newEmail
+                $changesApplied += "email: $oldEmail -> $newEmail"
+            }
 
-            $currentUser.Status = "Success"
-            Write-Log "Successfully updated email: $oldEmail -> $newEmail (User: $($jiraUser.displayName))" "SUCCESS"
-            $updateCount++
+            # Note: Username changes in JIRA Server are supported via API
+            # This functionality is enabled for JIRA Server instances
+            if ($oldUsername -ne $newUsername) {
+                Write-Log "Attempting username change from $oldUsername to $newUsername" "INFO"
+                try {
+                    # For JIRA Server, username changes are supported via the name field
+                    $updatePayload.name = $newUsername
+                    $changesApplied += "username: $oldUsername -> $newUsername"
+                    Write-Log "Username change added to update payload: $oldUsername -> $newUsername" "INFO"
+                } catch {
+                    Write-Log "Warning: Failed to prepare username change: $($_.Exception.Message)" "WARNING"
+                }
+            }
+
+            if ($updatePayload.Count -eq 0) {
+                $currentUser.Status = "Skipped"
+                $currentUser.ErrorMessage = "No supported changes to apply"
+                Write-Log "No supported changes for user $($jiraUser.displayName)" "INFO"
+                $skippedCount++
+            } else {
+                $updatePayloadJson = $updatePayload | ConvertTo-Json
+
+                # Update user - use accountId for modern JIRA, username for older versions
+                if (-not [string]::IsNullOrEmpty($jiraUser.accountId)) {
+                    $updateUri = "$JiraBaseUrl/rest/api/2/user?accountId=$userIdentifier"
+                } else {
+                    $updateUri = "$JiraBaseUrl/rest/api/2/user?username=$userIdentifier"
+                }
+                try {
+                    $updateResult = Invoke-RestMethod -Method Put -Uri $updateUri -Headers $apiHeaders -Body $updatePayloadJson -ErrorAction Stop
+
+                    $currentUser.Status = "Success"
+                    Write-Log "Successfully updated $($changesApplied -join ', ') for user $($jiraUser.displayName)" "SUCCESS"
+
+                    # Log detailed update result for troubleshooting
+                    if ($updateResult) {
+                        Write-Log "Update API Response: $($updateResult | ConvertTo-Json -Compress)" "DEBUG"
+                    }
+
+                    $updateCount++
+                } catch {
+                    throw
+                }
+            }
         }
 
     } catch {
@@ -878,16 +1167,16 @@ foreach ($user in $users) {
         }
 
         if ($_.Exception.Message -match "401" -or $statusCode -eq 401) {
-            Write-Log "Authentication failed for $oldEmail - Check JIRA permissions or session validity" "ERROR"
+            Write-Log "Authentication failed for $oldUsername/$oldEmail - Check JIRA permissions or session validity" "ERROR"
             $currentUser.ErrorMessage = "401 Unauthorized - Authentication or permission issue"
         } elseif ($_.Exception.Message -match "404" -or $statusCode -eq 404) {
-            Write-Log "User or endpoint not found for $oldEmail - User may not exist" "ERROR"
+            Write-Log "User or endpoint not found for $oldUsername/$oldEmail - User may not exist" "ERROR"
             $currentUser.ErrorMessage = "404 Not Found - User does not exist"
         } elseif ($_.Exception.Message -match "403" -or $statusCode -eq 403) {
-            Write-Log "Access forbidden for $oldEmail - Insufficient permissions" "ERROR"
+            Write-Log "Access forbidden for $oldUsername/$oldEmail - Insufficient permissions" "ERROR"
             $currentUser.ErrorMessage = "403 Forbidden - Insufficient permissions"
         } elseif ($_.Exception.Message -match "400" -or $statusCode -eq 400) {
-            Write-Log "Bad Request for $oldEmail - Check email format or API parameters" "ERROR"
+            Write-Log "Bad Request for $oldUsername/$oldEmail - Check format or API parameters" "ERROR"
             $currentUser.ErrorMessage = "400 Bad Request - Invalid request format or parameters"
 
             # Try to get detailed error information
@@ -912,7 +1201,7 @@ foreach ($user in $users) {
                 Write-Log "Could not read detailed error information" "WARNING"
             }
         } else {
-            Write-Log "Failed to process user $oldEmail (Status: $statusCode): $($_.Exception.Message)" "ERROR"
+            Write-Log "Failed to process user $oldUsername/$oldEmail (Status: $statusCode): $($_.Exception.Message)" "ERROR"
         }
 
         $errorCount++

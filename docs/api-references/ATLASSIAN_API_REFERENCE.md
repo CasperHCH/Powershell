@@ -1,7 +1,10 @@
 # Atlassian API Reference Documentation
 
+> **Last Updated:** October 2025  
+> **Status:** Enhanced with JIRA On-Premise user management and anonymization APIs
+
 ## Overview
-This document provides API references for Atlassian scripts in the PowerShell collection, including Jira Cloud, Jira On-Prem, Confluence, and OpsGenie integrations.
+This document provides comprehensive API references for Atlassian scripts in the PowerShell collection, including Jira Cloud, Jira On-Prem with enterprise user management, Confluence, and OpsGenie integrations.
 
 ## Authentication
 
@@ -53,10 +56,21 @@ This document provides API references for Atlassian scripts in the PowerShell co
 
 ### Jira On-Prem REST API v2
 
-#### User Management
+#### User Management & Enterprise Operations
 - **Get User**: `GET /rest/api/2/user?username={username}`
 - **Update User**: `PUT /rest/api/2/user?username={username}`
 - **Search Users**: `GET /rest/api/2/user/search?username={username}`
+- **Search with Query**: `GET /rest/api/2/user/search?username=.&query={query}`
+- **Include Inactive**: `GET /rest/api/2/user/search?username=.&query={query}&includeInactive=true`
+- **User Picker**: `GET /rest/api/2/user/picker?query={query}`
+- **Disable User**: `PUT /rest/api/2/user?username={username}` with `{"active": false}`
+- **Anonymize User**: `POST /rest/api/2/user/anonymization` with `{"userKey": "{userKey}", "newOwnerKey": "{ownerKey}"}`
+
+#### Project Management
+- **Get Projects**: `GET /rest/api/2/project`
+- **Get Project Lead**: `GET /rest/api/2/project/{projectKey}`
+- **Update Project Lead**: `PUT /rest/api/2/project/{projectKey}` with `{"lead": "{username}"}`
+- **Check Project Permissions**: `GET /rest/api/2/mypermissions?projectKey={projectKey}`
 
 #### Issue Management
 - **Search Issues**: `GET /rest/api/2/search?jql={jql}`

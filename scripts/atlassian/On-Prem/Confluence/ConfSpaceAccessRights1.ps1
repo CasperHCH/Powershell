@@ -2,7 +2,7 @@
 .SYNOPSIS
     Assigns Confluence space access rights by reading a CSV and posting permissions via the Confluence API.
 .DESCRIPTION
-    Reads a CSV file with the format: SpaceKey;Permission;User/Group;Norlys mail;Name
+    Reads a CSV file with the format: SpaceKey;Permission;User/Group;E-mail;Name
     For each entry, generates a JSON payload and sends it to the Confluence API to assign permissions.
     Logs all actions and responses to a log file.
 #>
@@ -12,11 +12,15 @@ $logFile   = Join-Path $PSScriptRoot "access_rights_log.txt"
 
 param(
     [string]$fileName,
-    [string]$baseURL = "your_confluence_base_url",  # Replace with your Confluence base URL
+    [string]$baseURL,
     [switch]$DryRun,                                # If set, do not perform API calls
     [int]$MaxRetries = 3,                           # Number of retries for transient errors
     [switch]$Parallel                              # If set, process entries in parallel (experimental)
 )
+
+if (-not $baseURL) {
+    $baseURL = "your_confluence_base_url" # Replace with your Confluence base URL
+}
 
 if (-not $fileName) {
     $fileName = Read-Host "Enter the path to the CSV file"
@@ -29,7 +33,7 @@ $user      = ""
 $pass      = ""
 
 # --- AUTH HEADER ---
-$pair = "${user}:${pass}"
+$pair = "$($user):$($pass)"
 $encodedCredentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
 $headers = @{
     Authorization = "Basic $encodedCredentials"
@@ -93,11 +97,11 @@ $processEntry = {
     try {
         Invoke-WithRetry -Retries $using:MaxRetries -Script {
             $response = Invoke-WebRequest -Uri $using:uri -Headers $using:headers -Method Post -Body ([System.Text.Encoding]::UTF8.GetBytes($json)) -ContentType "application/json" -UseBasicParsing
-            Write-Log "Response for $userMail in $spacekey: $($response.StatusCode)"
+            Write-Log "Response for $userMail in $($spacekey): $($response.StatusCode)"
             return @{Result="Success"}
         }
     } catch {
-        Write-Log "ERROR for $userMail in $spacekey: $_"
+        Write-Log "ERROR for $userMail in $($spacekey): $_"
         return @{Result="Fail"}
     }
 }
@@ -142,11 +146,11 @@ if ($Parallel) {
         try {
             Invoke-WithRetry -Retries $MaxRetries -Script {
                 $response = Invoke-WebRequest -Uri $uri -Headers $headers -Method Post -Body ([System.Text.Encoding]::UTF8.GetBytes($json)) -ContentType "application/json" -UseBasicParsing
-                Write-Log "Response for $userMail in $spacekey: $($response.StatusCode)"
+                Write-Log "Response for $userMail in $($spacekey): $($response.StatusCode)"
                 return @{Result="Success"}
             }
         } catch {
-            Write-Log "ERROR for $userMail in $spacekey: $_"
+            Write-Log "ERROR for $userMail in $($spacekey): $_"
             return @{Result="Fail"}
         }
     } -ArgumentList $_, ++$ix, $uri, $headers, $DryRun, $MaxRetries, $logFile

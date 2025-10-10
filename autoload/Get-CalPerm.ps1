@@ -64,6 +64,11 @@
 
 .PARAMETER Identity
     [LEGACY] The mailbox identity for calendar permission analysis
+
+.EXAMPLE
+    Get-CalPerm -Identity "user@domain.com"
+
+#>
 Function Get-CalPerm {
     [CmdletBinding(DefaultParameterSetName = 'Enterprise')]
     param(

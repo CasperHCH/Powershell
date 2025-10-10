@@ -358,8 +358,8 @@ function Test-EnterpriseConnectivity {
         }
 
         # Overall connectivity assessment
-        $connectivityResults.OverallConnectivity = $connectivityResults.PingSuccess -and 
-                                                  $connectivityResults.WSManEnabled -and 
+        $connectivityResults.OverallConnectivity = $connectivityResults.PingSuccess -and
+                                                  $connectivityResults.WSManEnabled -and
                                                   $connectivityResults.PowerShellRemoting
 
         Write-EnterpriseLog -Level "Info" -Message "Connectivity validation completed" -Category "Connectivity" -Properties $connectivityResults
@@ -454,13 +454,13 @@ function Invoke-EnterpriseFileRetrieval {
         Write-Host "   🔍 Analyzing remote source path..." -ForegroundColor Yellow
         $remoteAnalysisScript = {
             param($SourcePath, $IncludeSubdirs)
-            
+
             if (-not (Test-Path $SourcePath)) {
                 throw "Source path does not exist: $SourcePath"
             }
-            
+
             $sourceItems = Get-ChildItem -Path $SourcePath -Recurse:$IncludeSubdirs -File -ErrorAction Stop
-            
+
             return @{
                 Exists = $true
                 FileCount = $sourceItems.Count
@@ -490,7 +490,7 @@ function Invoke-EnterpriseFileRetrieval {
         $remoteHashes = @{}
         if ($ValidateIntegrity) {
             Write-Host "   🔍 Collecting remote file hashes..." -ForegroundColor Yellow
-            
+
             $hashCollectionScript = {
                 param($Files)
                 $hashes = @{}
@@ -515,7 +515,7 @@ function Invoke-EnterpriseFileRetrieval {
 
         # Execute retrieval with progress tracking
         Write-Host "   📥 Retrieving files from $ComputerName..." -ForegroundColor Yellow
-        
+
         $retrievalParams = @{
             Path = $SourcePath
             Destination = $DestinationPath
@@ -529,15 +529,15 @@ function Invoke-EnterpriseFileRetrieval {
         # Post-retrieval validation
         if ($ValidateIntegrity -and $remoteHashes.Count -gt 0) {
             Write-Host "   🔬 Validating file integrity..." -ForegroundColor Yellow
-            
+
             $validationResults = @()
             foreach ($relativePath in $remoteHashes.Keys) {
                 $localFile = Join-Path $DestinationPath $relativePath
-                
+
                 if (Test-Path $localFile) {
                     $localHash = (Get-FileHash -Path $localFile -Algorithm SHA256).Hash
                     $remoteHash = $remoteHashes[$relativePath].SHA256
-                    
+
                     $validationResults += @{
                         File = $relativePath
                         IntegrityValid = ($localHash -eq $remoteHash)
@@ -560,7 +560,7 @@ function Invoke-EnterpriseFileRetrieval {
             } else {
                 Write-Host "   ⚠️  $($integrityFailures.Count) files failed integrity validation" -ForegroundColor Yellow
                 $retrievalResult.Errors += "Integrity validation failures: $($integrityFailures.Count)"
-                
+
                 # Log integrity failures
                 $integrityFailures | ForEach-Object {
                     Write-Host "      ❌ $($_.File): $($_.Error -or 'Hash mismatch')" -ForegroundColor Red

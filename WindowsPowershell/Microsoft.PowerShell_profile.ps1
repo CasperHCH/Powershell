@@ -94,9 +94,11 @@ $KeyPath = if ($IsWindows -or $env:OS -eq "Windows_NT") {
     Join-Path $env:HOME ".creds"
 }
 
+# Credential management temporarily disabled (functions not available)
+<#
 #Test if creds exist, if not create
 $TestCredsPath = Get-ChildItem $KeyPath -ErrorAction SilentlyContinue | Measure-Object
-if ($TestCredsPath.count -eq '0'){
+if ($TestCredsPath.count -eq 0){
     # Create stored credential if none exists
     Write-Verbose "Creating new stored credential..." -Verbose
     $null = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
@@ -105,6 +107,7 @@ if ($TestCredsPath.count -eq '0'){
     Write-Verbose "Loading existing stored credential..." -Verbose
     $null = Get-StoredCredential -UserName chcadmin
 }
+#>
 
 ###  PERSISTENT HISTORY  ###
 $HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) .ps_history
@@ -265,12 +268,12 @@ function Show-EnterpriseProgress {
     Write-Host "   📋 Remaining: ~$(1700 - $completed - $inProgress) scripts to process" -ForegroundColor White
     Write-Host "   🎯 Target: Platinum-grade enterprise patterns across all PowerShell scripts" -ForegroundColor Cyan
 
-    Write-Host "`n🏆 Recent Achievements:" -ForegroundColor Green
-    Write-Host "   🔒 Military-grade certificate management in SignScripts.ps1" -ForegroundColor White
-    Write-Host "   🌐 Advanced O365 security analysis with risk detection" -ForegroundColor White
-    Write-Host "   📊 Comprehensive enterprise logging framework (21KB)" -ForegroundColor White
-    Write-Host "   ⚡ Parallel processing patterns for scalability" -ForegroundColor White
-    Write-Host "   🛡️  Cross-platform compatibility and modern cmdlets" -ForegroundColor White
+    Write-Host "`n[ACHIEVEMENTS] Recent Achievements:" -ForegroundColor Green
+    Write-Host "   [*] Military-grade certificate management in SignScripts.ps1" -ForegroundColor White
+    Write-Host "   [*] Advanced O365 security analysis with risk detection" -ForegroundColor White
+    Write-Host "   [*] Comprehensive enterprise logging framework (21KB)" -ForegroundColor White
+    Write-Host "   [*] Parallel processing patterns for scalability" -ForegroundColor White
+    Write-Host "   [*] Cross-platform compatibility and modern cmdlets" -ForegroundColor White
 }
 
 # Add alias for easy access

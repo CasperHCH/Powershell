@@ -18,14 +18,14 @@
 
 # Add Email body @@ = End of Body
 # There can be no  infront of
-<p>Så er det igen blevet tid til at rydde op i inaktive brugere.</p>
+$EmailBody = "<p>Så er det igen blevet tid til at rydde op i inaktive brugere.</p>
 <p>Al dokumenteret info omkring denne opgave findes her:</p>
 <p>Se her, for at generer en liste over alle brugere, husk det kun er eksterne vi er interesseret i:</p>
-<p><a href=>https://confluence.miracle.dk/display/ATLASSIAN/Aktive+Users</a></p>
-<p>For at se hvordan brugerne disables, så kig her, husk at nogle er service konti, som ikke skal deaktiveres.<strong>NOT</strong> to disable:&nbsp;</p>
-<p><a href=>https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere</a></p>
+<p><a href="https://confluence.miracle.dk/display/ATLASSIAN/Aktive+Users">https://confluence.miracle.dk/display/ATLASSIAN/Aktive+Users</a></p>
+<p>For at se hvordan brugerne disables, så kig her, husk at nogle er service konti, som ikke skal deaktiveres.<strong>NOT</strong> to disable:"&"nbsp;</p>
+<p><a href="https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere">https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere</a></p>
 <p>Den første manuelle opgave på denne opgave er denne:</p>
-<p><a href=>https://jira.miracle.dk/browse/MIRATL-11</a></p>
+<p><a href="https://jira.miracle.dk/browse/MIRATL-11">https://jira.miracle.dk/browse/MIRATL-11</a></p>
 <p>Husk at dokumentere hvad der er gjort, hvis ikke dokumentationem stemmer, og opdater så denne</p>
 <table style= border= width= cellspacing= cellpadding=>
 <tbody>
@@ -49,7 +49,7 @@ Automated Request: Atlassian User Clean Up"
 
     # Add Text to the email Body, will be defined later to allow for individual variables
     # E.g. Project Names, Project Lead Name, etc.
-       $msg.Body = $EmailBody
+    $msg.Body = $EmailBody
 
     # Send email
        $Smtp.Send($msg)

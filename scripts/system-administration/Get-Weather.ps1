@@ -205,7 +205,7 @@ function Get-EnterpriseWeatherConfig {
         if (Test-Path $ConfigPath) {
             try {
                 $configContent = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-                
+
                 # Decrypt API key if stored encrypted
                 if ($configContent.APIKey) {
                     $config.APIKey = $configContent.APIKey
@@ -302,9 +302,9 @@ function Get-SecureAPIKey {
         # Priority 4: Interactive prompt
         Write-Host "   🔐 API key configuration required" -ForegroundColor Yellow
         Write-Host "      Get a free API key from: https://openweathermap.org/api" -ForegroundColor Cyan
-        
+
         $inputAPIKey = Read-Host "      Please enter your OpenWeather API key"
-        
+
         if ([string]::IsNullOrEmpty($inputAPIKey)) {
             throw "OpenWeather API key is required for environmental monitoring operations"
         }
@@ -360,7 +360,7 @@ function Get-EnterpriseWeatherData {
 
         # Determine if location is coordinates or city name
         $isCoordinates = $Location -match "^-?\d+\.?\d*,-?\d+\.?\d*$"
-        
+
         if ($isCoordinates) {
             $coords = $Location -split ","
             $lat = $coords[0].Trim()
@@ -474,7 +474,7 @@ function Get-EnterpriseWeatherForecast {
 
         # Determine if location is coordinates or city name
         $isCoordinates = $Location -match "^-?\d+\.?\d*,-?\d+\.?\d*$"
-        
+
         if ($isCoordinates) {
             $coords = $Location -split ","
             $lat = $coords[0].Trim()
@@ -659,40 +659,40 @@ function Show-EnterpriseWeatherDisplay {
         Write-Host "`n" + ("═" * 60) -ForegroundColor Cyan
         Write-Host "🌤️  ENTERPRISE WEATHER MONITORING" -ForegroundColor Green
         Write-Host ("═" * 60) -ForegroundColor Cyan
-        
+
         Write-Host "📍 Location: " -NoNewline -ForegroundColor White
         Write-Host "$($location.Name), $($location.Country)" -ForegroundColor Cyan
-        
+
         Write-Host "🌡️  Temperature: " -NoNewline -ForegroundColor White
-        $tempColor = if ($WeatherData.Current.Temperature -lt 0) { "Cyan" } 
+        $tempColor = if ($WeatherData.Current.Temperature -lt 0) { "Cyan" }
                     elseif ($WeatherData.Current.Temperature -lt 10) { "Blue" }
                     elseif ($WeatherData.Current.Temperature -lt 20) { "Green" }
                     elseif ($WeatherData.Current.Temperature -lt 30) { "Yellow" }
                     else { "Red" }
-        
+
         $unitSymbol = switch ($WeatherData.Units) {
             "Metric" { "°C" }
             "Imperial" { "°F" }
             "Kelvin" { "K" }
         }
-        
+
         Write-Host "$($WeatherData.Current.Temperature)$unitSymbol" -ForegroundColor $tempColor
         Write-Host "🤒 Feels Like: " -NoNewline -ForegroundColor White
         Write-Host "$($WeatherData.Current.FeelsLike)$unitSymbol" -ForegroundColor $tempColor
-        
+
         Write-Host "💧 Humidity: " -NoNewline -ForegroundColor White
         Write-Host "$($WeatherData.Current.Humidity)%" -ForegroundColor White
-        
+
         Write-Host "🔽 Pressure: " -NoNewline -ForegroundColor White
         Write-Host "$($WeatherData.Current.Pressure) hPa" -ForegroundColor White
-        
+
         Write-Host "☁️  Condition: " -NoNewline -ForegroundColor White
         Write-Host $WeatherData.Current.Description -ForegroundColor Yellow
-        
+
         Write-Host "💨 Wind: " -NoNewline -ForegroundColor White
         $windSpeedUnit = if ($WeatherData.Units -eq "Imperial") { "mph" } else { "km/h" }
         Write-Host "$($WeatherData.Wind.Speed) $windSpeedUnit" -ForegroundColor White
-        
+
         if ($WeatherData.Current.Visibility) {
             Write-Host "👁️  Visibility: " -NoNewline -ForegroundColor White
             Write-Host "$($WeatherData.Current.Visibility) km" -ForegroundColor White

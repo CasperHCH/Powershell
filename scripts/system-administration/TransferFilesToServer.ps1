@@ -352,8 +352,8 @@ function Test-EnterpriseConnectivity {
         }
 
         # Overall connectivity assessment
-        $connectivityResults.OverallConnectivity = $connectivityResults.PingSuccess -and 
-                                                  $connectivityResults.WSManEnabled -and 
+        $connectivityResults.OverallConnectivity = $connectivityResults.PingSuccess -and
+                                                  $connectivityResults.WSManEnabled -and
                                                   $connectivityResults.PowerShellRemoting
 
         Write-EnterpriseLog -Level "Info" -Message "Connectivity validation completed" -Category "Connectivity" -Properties $connectivityResults
@@ -465,7 +465,7 @@ function Invoke-EnterpriseFileTransfer {
 
         # Execute transfer with progress tracking
         Write-Host "   📤 Transferring files to $ComputerName..." -ForegroundColor Yellow
-        
+
         $transferParams = @{
             Path = $SourcePath
             Destination = $DestinationPath
@@ -479,19 +479,19 @@ function Invoke-EnterpriseFileTransfer {
         # Post-transfer validation
         if ($ValidateIntegrity -and $sourceHashes.Count -gt 0) {
             Write-Host "   🔬 Validating file integrity..." -ForegroundColor Yellow
-            
+
             $validationScript = {
                 param($DestPath, $SourceHashes)
-                
+
                 $validationResults = @()
                 foreach ($sourceFile in $SourceHashes.Keys) {
                     $relativePath = $sourceFile.Substring($sourceFile.LastIndexOf('\') + 1)
                     $destinationFile = Join-Path $DestPath $relativePath
-                    
+
                     if (Test-Path $destinationFile) {
                         $destHash = (Get-FileHash -Path $destinationFile -Algorithm SHA256).Hash
                         $sourceHash = $SourceHashes[$sourceFile].SHA256
-                        
+
                         $validationResults += @{
                             File = $relativePath
                             IntegrityValid = ($destHash -eq $sourceHash)
