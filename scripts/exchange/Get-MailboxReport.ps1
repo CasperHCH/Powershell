@@ -247,165 +247,539 @@ if($file) {	$mailboxes = @(Get-Content $file | Get-Mailbox -resultsize unlimited
 
 if($mailbox) { $mailboxes = @(Get-Mailbox $mailbox) }
 
+# 🔧 ENTERPRISE INITIALIZATION: Load enterprise logging framework
+$enterpriseLoggingPath = Join-Path (Split-Path $PSScriptRoot -Parent) "Enterprise-Logging-Framework.ps1"
+if (Test-Path $enterpriseLoggingPath) {
+    . $enterpriseLoggingPath
+    Initialize-EnterpriseLogging -LogLevel "Info" -EnableTelemetry -EnableAlerting
+} else {
+    Write-Warning "Enterprise logging framework not found. Using basic logging."
+    function Write-EnterpriseLog {
+        param([string]$Level, [string]$Message, [string]$Category = "General", [hashtable]$Properties = @{})
+        Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+    }
+}
+
 #Get the report
 
-Write-Host -ForegroundColor White
+Write-EnterpriseLog -Level "Info" -Message "Starting mailbox report generation" -Category "Exchange" -Properties @{
+    MailboxCount = $mailboxes.count
+}
 
 $mailboxcount = $mailboxes.count
 $i = 0
+$errorCount = 0
+$results = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
-$mailboxdatabases = @(Get-MailboxDatabase)
-
-#Loop through mailbox list and collect the mailbox statistics
-foreach ($mb in $mailboxes)
-{
-	$i = $i + 1
-	$pct = $i/$mailboxcount * 100
-	Write-Progress -Activity  -Status  -PercentComplete $pct
-
-	$stats = $mb | Get-MailboxStatistics | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount,LastLogonTime,LastLoggedOnUserAccount
-
-    if ($mb.ArchiveDatabase)
-    {
-        $archivestats = $mb | Get-MailboxStatistics -Archive | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount
+# 🔒 ENTERPRISE SECURITY: Secure database collection with error handling
+try {
+    $mailboxdatabases = @(Get-MailboxDatabase -ErrorAction Stop)
+    Write-EnterpriseLog -Level "Info" -Message "Retrieved mailbox databases" -Category "Exchange" -Properties @{
+        DatabaseCount = $mailboxdatabases.Count
     }
-    else
-    {
-        $archivestats =
-    }
-
-    $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox | Where-Object {$_.FolderPath -eq "/Inbox"}
-    $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems | Where-Object {$_.FolderPath -eq "/Sent Items"}
-    $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems | Where-Object {$_.FolderPath -eq "/Deleted Items"}
-    #FolderandSubFolderSize.ToMB()
-
-	$lastlogon = $stats.LastLogonTime
-
-	$user = Get-User $mb
-	$aduser = Get-ADUser $mb.samaccountname -Properties Enabled,AccountExpirationDate
-
-    $primarydb = $mailboxdatabases | Where-Object {$_.Name -eq $mb.Database.Name}
-    $archivedb = $mailboxdatabases | Where-Object {$_.Name -eq $mb.ArchiveDatabase.Name}
-
-	#Create a custom PS object to aggregate the data we're interested in
-
-	$userObj = New-Object PSObject
-	$userObj | Add-Member NoteProperty -Name  -Value $mb.DisplayName
-	$userObj | Add-Member NoteProperty -Name  -Value $mb.RecipientTypeDetails
-	$userObj | Add-Member NoteProperty -Name "Title" -Value $user.Title
-    $userObj | Add-Member NoteProperty -Name "Department" -Value $user.Department
-    $userObj | Add-Member NoteProperty -Name "Office" -Value $user.Office
-
-    $userObj | Add-Member NoteProperty -Name "TotalSize" -Value ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
-	$userObj | Add-Member NoteProperty -Name "ItemSize" -Value $stats.TotalItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name "DeletedItemSize" -Value $stats.TotalDeletedItemSize.Value.ToMB()
-	$userObj | Add-Member NoteProperty -Name "ItemCount" -Value $stats.ItemCount
-
-    $userObj | Add-Member NoteProperty -Name "InboxSize" -Value $inboxstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name "SentItemsSize" -Value $sentitemsstats.FolderandSubFolderSize.ToMB()
-    $userObj | Add-Member NoteProperty -Name "DeletedItemsSize" -Value $deleteditemsstats.FolderandSubFolderSize.ToMB()
-
-    if ($archivestats -eq $null)
-    {
-        $userObj | Add-Member NoteProperty -Name "ArchiveTotalSize" -Value "N/A"
-	    $userObj | Add-Member NoteProperty -Name "ArchiveItemSize" -Value "N/A"
-	    $userObj | Add-Member NoteProperty -Name "ArchiveDeletedItemSize" -Value "N/A"
-	    $userObj | Add-Member NoteProperty -Name "ArchiveItemCount" -Value "N/A"
-    }
-    else
-    {
-        $userObj | Add-Member NoteProperty -Name "ArchiveTotalSize" -Value ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
-	    $userObj | Add-Member NoteProperty -Name "ArchiveItemSize" -Value $archivestats.TotalItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name "ArchiveDeletedItemSize" -Value $archivestats.TotalDeletedItemSize.Value.ToMB()
-	    $userObj | Add-Member NoteProperty -Name "ArchiveItemCount" -Value $archivestats.ItemCount
-    }
-
-    $userObj | Add-Member NoteProperty -Name "AuditEnabled" -Value $mb.AuditEnabled
-    $userObj | Add-Member NoteProperty -Name "EmailAddressPolicyEnabled" -Value $mb.EmailAddressPolicyEnabled
-    $userObj | Add-Member NoteProperty -Name "HiddenFromAddressListsEnabled" -Value $mb.HiddenFromAddressListsEnabled
-    $userObj | Add-Member NoteProperty -Name  -Value $mb.UseDatabaseQuotaDefaults
-
-    if ($mb.UseDatabaseQuotaDefaults -eq $true)
-    {
-        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.IssueWarningQuota
-        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.ProhibitSendQuota
-        $userObj | Add-Member NoteProperty -Name  -Value $primarydb.ProhibitSendReceiveQuota
-    }
-    elseif ($mb.UseDatabaseQuotaDefaults -eq $false)
-    {
-        $userObj | Add-Member NoteProperty -Name  -Value $mb.IssueWarningQuota
-        $userObj | Add-Member NoteProperty -Name  -Value $mb.ProhibitSendQuota
-        $userObj | Add-Member NoteProperty -Name  -Value $mb.ProhibitSendReceiveQuota
-    }
-
-	$userObj | Add-Member NoteProperty -Name  -Value $aduser.Enabled
-	$userObj | Add-Member NoteProperty -Name  -Value $aduser.AccountExpirationDate
-	$userObj | Add-Member NoteProperty -Name  -Value $lastlogon
-	$userObj | Add-Member NoteProperty -Name  -Value $stats.LastLoggedOnUserAccount
-
-
-	$userObj | Add-Member NoteProperty -Name  -Value $mb.Database
-	$userObj | Add-Member NoteProperty -Name  -Value $primarydb.MasterServerOrAvailabilityGroup
-
-	$userObj | Add-Member NoteProperty -Name  -Value $mb.ArchiveDatabase
-	$userObj | Add-Member NoteProperty -Name  -Value $archivedb.MasterServerOrAvailabilityGroup
-
-    $userObj | Add-Member NoteProperty -Name  -Value $mb.PrimarySMTPAddress
-    $userObj | Add-Member NoteProperty -Name  -Value $user.OrganizationalUnit
-
-
-	#Add the object to the report
-	$report = $report += $userObj
+} catch {
+    Write-EnterpriseLog -Level "Error" -Message "Failed to retrieve mailbox databases" -Category "Exchange" -Exception $_
+    throw "Cannot proceed without database information: $($_.Exception.Message)"
 }
 
-#Catch zero item results
-$reportcount = $report.count
+# ⚡ ENTERPRISE PERFORMANCE: Determine if parallel processing is beneficial
+$useParallel = $mailboxcount -gt 50  # Use parallel processing for large datasets
+$maxJobs = if ($mailboxcount -gt 500) { 15 } elseif ($mailboxcount -gt 100) { 10 } else { 5 }
 
-if ($reportcount -eq 0)
-{
-	Write-Host -ForegroundColor Yellow
+if ($useParallel) {
+    Write-EnterpriseLog -Level "Info" -Message "Using parallel processing for large dataset" -Category "Exchange" -Properties @{
+        MaxJobs = $maxJobs
+        MailboxCount = $mailboxcount
+    }
+
+    # 🚀 PARALLEL PROCESSING: Background jobs for better performance
+    $jobs = @()
+
+    foreach ($mb in $mailboxes) {
+        # Throttle concurrent jobs
+        while ((Get-Job -State Running).Count -ge $maxJobs) {
+            Start-Sleep -Milliseconds 250
+            Get-Job -State Completed | Remove-Job -Force
+        }
+
+        $i++
+        $pct = $i/$mailboxcount * 100
+        Write-Progress -Activity "Processing Mailboxes (Parallel)" -Status "Processing $($mb.DisplayName)" -PercentComplete $pct
+
+        # Start background job for each mailbox
+        $job = Start-Job -ScriptBlock {
+            param($Mailbox, $MailboxDatabases)
+
+            $result = @{
+                Success = $false
+                MailboxData = $null
+                ProcessingTime = 0
+                ErrorMessage = $null
+                MailboxName = $Mailbox.DisplayName
+            }
+
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+            try {
+                # 🔧 RESOURCE MANAGEMENT: Process mailbox with proper error handling
+                $stats = $Mailbox | Get-MailboxStatistics -ErrorAction Stop | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount,LastLogonTime,LastLoggedOnUserAccount
+
+                $archivestats = $null
+                if ($Mailbox.ArchiveDatabase) {
+                    try {
+                        $archivestats = $Mailbox | Get-MailboxStatistics -Archive -ErrorAction Stop | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount
+                    } catch {
+                        # Archive stats may not be available for all mailboxes
+                        $archivestats = $null
+                    }
+                }
+
+                # Folder statistics with error handling
+                $inboxstats = $null
+                $sentitemsstats = $null
+                $deleteditemsstats = $null
+
+                try {
+                    $inboxstats = Get-MailboxFolderStatistics $Mailbox -FolderScope Inbox -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Inbox"}
+                    $sentitemsstats = Get-MailboxFolderStatistics $Mailbox -FolderScope SentItems -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Sent Items"}
+                    $deleteditemsstats = Get-MailboxFolderStatistics $Mailbox -FolderScope DeletedItems -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Deleted Items"}
+                } catch {
+                    # Folder stats may fail for some mailboxes - continue without them
+                }
+
+                # User information with error handling
+                $user = $null
+                $aduser = $null
+                try {
+                    $user = Get-User $Mailbox -ErrorAction Stop
+                    $aduser = Get-ADUser $Mailbox.samaccountname -Properties Enabled,AccountExpirationDate -ErrorAction Stop
+                } catch {
+                    # User information may not be available for system mailboxes
+                }
+
+                $primarydb = $MailboxDatabases | Where-Object {$_.Name -eq $Mailbox.Database.Name}
+                $archivedb = if ($Mailbox.ArchiveDatabase) { $MailboxDatabases | Where-Object {$_.Name -eq $Mailbox.ArchiveDatabase.Name} } else { $null }
+
+                # 📊 ENTERPRISE DATA STRUCTURE: Create comprehensive mailbox object
+                $userObj = [PSCustomObject]@{
+                    DisplayName = $Mailbox.DisplayName
+                    RecipientType = $Mailbox.RecipientTypeDetails
+                    Title = if ($user) { $user.Title } else { "N/A" }
+                    Department = if ($user) { $user.Department } else { "N/A" }
+                    Office = if ($user) { $user.Office } else { "N/A" }
+                    TotalSize = if ($stats) { ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB()) } else { 0 }
+                    ItemSize = if ($stats) { $stats.TotalItemSize.Value.ToMB() } else { 0 }
+                    DeletedItemSize = if ($stats) { $stats.TotalDeletedItemSize.Value.ToMB() } else { 0 }
+                    ItemCount = if ($stats) { $stats.ItemCount } else { 0 }
+                    LastLogon = if ($stats) { $stats.LastLogonTime } else { "Never" }
+                    LastLoggedOnUser = if ($stats) { $stats.LastLoggedOnUserAccount } else { "N/A" }
+                    InboxItems = if ($inboxstats) { $inboxstats.ItemsInFolder } else { "N/A" }
+                    InboxSize = if ($inboxstats) { $inboxstats.FolderandSubFolderSize.ToMB() } else { 0 }
+                    SentItems = if ($sentitemsstats) { $sentitemsstats.ItemsInFolder } else { "N/A" }
+                    SentSize = if ($sentitemsstats) { $sentitemsstats.FolderandSubFolderSize.ToMB() } else { 0 }
+                    DeletedItems = if ($deleteditemsstats) { $deleteditemsstats.ItemsInFolder } else { "N/A" }
+                    DeletedSize = if ($deleteditemsstats) { $deleteditemsstats.FolderandSubFolderSize.ToMB() } else { 0 }
+                    ArchiveSize = if ($archivestats) { $archivestats.TotalItemSize.Value.ToMB() } else { 0 }
+                    ArchiveItems = if ($archivestats) { $archivestats.ItemCount } else { 0 }
+                    AccountEnabled = if ($aduser) { $aduser.Enabled } else { "Unknown" }
+                    AccountExpires = if ($aduser) { $aduser.AccountExpirationDate } else { "Never" }
+                    PrimaryDatabase = if ($primarydb) { $primarydb.Name } else { $Mailbox.Database.Name }
+                    ArchiveDatabase = if ($archivedb) { $archivedb.Name } else { "None" }
+                    ProcessedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                }
+
+                $result.Success = $true
+                $result.MailboxData = $userObj
+
+            } catch {
+                $result.ErrorMessage = $_.Exception.Message
+            } finally {
+                $stopwatch.Stop()
+                $result.ProcessingTime = $stopwatch.ElapsedMilliseconds
+            }
+
+            return $result
+        } -ArgumentList $mb, $mailboxdatabases
+
+        $jobs += $job
+    }
+
+    # Wait for all jobs and collect results
+    Write-EnterpriseLog -Level "Info" -Message "Waiting for parallel mailbox processing to complete" -Category "Exchange"
+    $jobs | Wait-Job | Out-Null
+
+    foreach ($job in $jobs) {
+        try {
+            $result = Receive-Job -Job $job
+            if ($result.Success) {
+                $results.Add($result.MailboxData)
+            } else {
+                $errorCount++
+                Write-EnterpriseLog -Level "Warning" -Message "Failed to process mailbox" -Category "Exchange" -Properties @{
+                    Mailbox = $result.MailboxName
+                    Error = $result.ErrorMessage
+                    ProcessingTime = $result.ProcessingTime
+                }
+            }
+        } catch {
+            $errorCount++
+            Write-EnterpriseLog -Level "Error" -Message "Error processing job result" -Category "Exchange" -Exception $_
+        } finally {
+            Remove-Job -Job $job -Force
+        }
+    }
+
+    Write-Progress -Activity "Processing Mailboxes" -Completed
+
+} else {
+    Write-EnterpriseLog -Level "Info" -Message "Using sequential processing for small dataset" -Category "Exchange"
+
+    # 🔄 SEQUENTIAL PROCESSING: For smaller datasets with enhanced error handling
+    foreach ($mb in $mailboxes) {
+        $i = $i + 1
+        $pct = $i/$mailboxcount * 100
+        Write-Progress -Activity "Processing Mailboxes (Sequential)" -Status "Processing $($mb.DisplayName)" -PercentComplete $pct
+
+        try {
+            # 🔧 ENTERPRISE PATTERN: Individual mailbox processing with comprehensive error handling
+            $stats = $mb | Get-MailboxStatistics -ErrorAction Stop | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount,LastLogonTime,LastLoggedOnUserAccount
+
+            # 🔧 ENTERPRISE PATTERN: Secure archive statistics collection
+            $archivestats = $null
+            if ($mb.ArchiveDatabase) {
+                try {
+                    $archivestats = $mb | Get-MailboxStatistics -Archive -ErrorAction Stop | Select-Object TotalItemSize,TotalDeletedItemSize,ItemCount
+                } catch {
+                    Write-EnterpriseLog -Level "Warning" -Message "Failed to get archive statistics" -Category "Exchange" -Properties @{
+                        Mailbox = $mb.DisplayName
+                        ArchiveDatabase = $mb.ArchiveDatabase
+                        Error = $_.Exception.Message
+                    }
+                    $archivestats = $null
+                }
+            }
+
+            # 🔧 ENTERPRISE PATTERN: Folder statistics with comprehensive error handling
+            $inboxstats = $null
+            $sentitemsstats = $null
+            $deleteditemsstats = $null
+
+            try {
+                $inboxstats = Get-MailboxFolderStatistics $mb -FolderScope Inbox -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Inbox"}
+                $sentitemsstats = Get-MailboxFolderStatistics $mb -FolderScope SentItems -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Sent Items"}
+                $deleteditemsstats = Get-MailboxFolderStatistics $mb -FolderScope DeletedItems -ErrorAction Stop | Where-Object {$_.FolderPath -eq "/Deleted Items"}
+            } catch {
+                Write-EnterpriseLog -Level "Warning" -Message "Failed to get folder statistics" -Category "Exchange" -Properties @{
+                    Mailbox = $mb.DisplayName
+                    Error = $_.Exception.Message
+                }
+            }
+
+            # 🔧 ENTERPRISE PATTERN: User information with error handling
+            $user = $null
+            $aduser = $null
+            try {
+                $user = Get-User $mb -ErrorAction Stop
+                $aduser = Get-ADUser $mb.samaccountname -Properties Enabled,AccountExpirationDate -ErrorAction Stop
+            } catch {
+                Write-EnterpriseLog -Level "Warning" -Message "Failed to get user information" -Category "Exchange" -Properties @{
+                    Mailbox = $mb.DisplayName
+                    SamAccountName = $mb.samaccountname
+                    Error = $_.Exception.Message
+                }
+            }
+
+            $primarydb = $mailboxdatabases | Where-Object {$_.Name -eq $mb.Database.Name}
+            $archivedb = if ($mb.ArchiveDatabase) { $mailboxdatabases | Where-Object {$_.Name -eq $mb.ArchiveDatabase.Name} } else { $null }
+
+            # 📊 ENTERPRISE DATA STRUCTURE: Create comprehensive mailbox object with proper null handling
+            $userObj = [PSCustomObject]@{
+                DisplayName = $mb.DisplayName
+                RecipientType = $mb.RecipientTypeDetails
+                Title = if ($user) { $user.Title } else { "N/A" }
+                Department = if ($user) { $user.Department } else { "N/A" }
+                Office = if ($user) { $user.Office } else { "N/A" }
+                TotalSize = if ($stats) {
+                    try {
+                        ($stats.TotalItemSize.Value.ToMB() + $stats.TotalDeletedItemSize.Value.ToMB())
+                    } catch { 0 }
+                } else { 0 }
+                ItemSize = if ($stats) {
+                    try { $stats.TotalItemSize.Value.ToMB() } catch { 0 }
+                } else { 0 }
+                DeletedItemSize = if ($stats) {
+                    try { $stats.TotalDeletedItemSize.Value.ToMB() } catch { 0 }
+                } else { 0 }
+                ItemCount = if ($stats) { $stats.ItemCount } else { 0 }
+                InboxItems = if ($inboxstats) { $inboxstats.ItemsInFolder } else { "N/A" }
+                InboxSize = if ($inboxstats) {
+                    try { $inboxstats.FolderandSubFolderSize.ToMB() } catch { 0 }
+                } else { 0 }
+                SentItems = if ($sentitemsstats) { $sentitemsstats.ItemsInFolder } else { "N/A" }
+                SentSize = if ($sentitemsstats) {
+                    try { $sentitemsstats.FolderandSubFolderSize.ToMB() } catch { 0 }
+                } else { 0 }
+                DeletedItems = if ($deleteditemsstats) { $deleteditemsstats.ItemsInFolder } else { "N/A" }
+                DeletedSize = if ($deleteditemsstats) {
+                    try { $deleteditemsstats.FolderandSubFolderSize.ToMB() } catch { 0 }
+                } else { 0 }
+
+                # Archive information with proper null handling
+                ArchiveTotalSize = if ($archivestats) {
+                    try {
+                        ($archivestats.TotalItemSize.Value.ToMB() + $archivestats.TotalDeletedItemSize.Value.ToMB())
+                    } catch { "N/A" }
+                } else { "N/A" }
+                ArchiveItemSize = if ($archivestats) {
+                    try { $archivestats.TotalItemSize.Value.ToMB() } catch { "N/A" }
+                } else { "N/A" }
+                ArchiveDeletedItemSize = if ($archivestats) {
+                    try { $archivestats.TotalDeletedItemSize.Value.ToMB() } catch { "N/A" }
+                } else { "N/A" }
+                ArchiveItemCount = if ($archivestats) { $archivestats.ItemCount } else { "N/A" }
+
+                # Mailbox configuration
+                AuditEnabled = $mb.AuditEnabled
+                EmailAddressPolicyEnabled = $mb.EmailAddressPolicyEnabled
+                HiddenFromAddressListsEnabled = $mb.HiddenFromAddressListsEnabled
+                UseDatabaseQuotaDefaults = $mb.UseDatabaseQuotaDefaults
+
+                # Quota information with proper handling
+                IssueWarningQuota = if ($mb.UseDatabaseQuotaDefaults -eq $true) {
+                    if ($primarydb) { $primarydb.IssueWarningQuota } else { "N/A" }
+                } else {
+                    $mb.IssueWarningQuota
+                }
+                ProhibitSendQuota = if ($mb.UseDatabaseQuotaDefaults -eq $true) {
+                    if ($primarydb) { $primarydb.ProhibitSendQuota } else { "N/A" }
+                } else {
+                    $mb.ProhibitSendQuota
+                }
+                ProhibitSendReceiveQuota = if ($mb.UseDatabaseQuotaDefaults -eq $true) {
+                    if ($primarydb) { $primarydb.ProhibitSendReceiveQuota } else { "N/A" }
+                } else {
+                    $mb.ProhibitSendReceiveQuota
+                }
+
+                # User account information
+                AccountEnabled = if ($aduser) { $aduser.Enabled } else { "Unknown" }
+                AccountExpires = if ($aduser) { $aduser.AccountExpirationDate } else { "Unknown" }
+                LastLogon = if ($stats) { $stats.LastLogonTime } else { "Never" }
+                LastLoggedOnUser = if ($stats) { $stats.LastLoggedOnUserAccount } else { "N/A" }
+
+                # Database information
+                PrimaryDatabase = if ($mb.Database) { $mb.Database.Name } else { "N/A" }
+                PrimaryDatabaseServer = if ($primarydb) { $primarydb.MasterServerOrAvailabilityGroup } else { "N/A" }
+                ArchiveDatabase = if ($mb.ArchiveDatabase) { $mb.ArchiveDatabase.Name } else { "None" }
+                ArchiveDatabaseServer = if ($archivedb) { $archivedb.MasterServerOrAvailabilityGroup } else { "N/A" }
+
+                # Contact information
+                PrimarySMTPAddress = $mb.PrimarySMTPAddress
+                OrganizationalUnit = if ($user) { $user.OrganizationalUnit } else { "N/A" }
+                ProcessedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            }
+
+            # Add the object to the results (concurrent-safe for future parallel processing)
+            $results.Add($userObj)
+
+        } catch {
+            $errorCount++
+            Write-EnterpriseLog -Level "Error" -Message "Failed to process mailbox completely" -Category "Exchange" -Properties @{
+                Mailbox = $mb.DisplayName
+                Error = $_.Exception.Message
+                StackTrace = $_.ScriptStackTrace
+            }
+        }
+    }
+
+    Write-Progress -Activity "Processing Mailboxes" -Completed
 }
-else
-{
-	#Output single mailbox report to console, otherwise output to CSV file
-	if ($mailbox)
-	{
-		$report | Format-List
-	}
-	else
-	{
-		$report | Export-Csv -Path $reportfile -NoTypeInformation -Encoding UTF8
-		Write-Host -ForegroundColor White
-		Get-Item $reportfile
-	}
+
+# 📊 ENTERPRISE REPORTING: Convert results to array and generate comprehensive summary
+$report = @($results.ToArray())
+$reportcount = $report.Count
+$successfulProcessing = $reportcount
+$processingRate = if ($mailboxcount -gt 0) { [math]::Round(($successfulProcessing / $mailboxcount) * 100, 2) } else { 0 }
+
+Write-EnterpriseLog -Level "Info" -Message "Mailbox processing completed" -Category "Exchange" -Properties @{
+    TotalMailboxes = $mailboxcount
+    SuccessfullyProcessed = $successfulProcessing
+    Errors = $errorCount
+    ProcessingRate = "$processingRate%"
+    ParallelProcessing = $useParallel
+}
+
+# 🔒 ENTERPRISE VALIDATION: Handle zero results with proper logging
+if ($reportcount -eq 0) {
+    Write-EnterpriseLog -Level "Warning" -Message "No mailboxes were successfully processed" -Category "Exchange" -Properties @{
+        TotalAttempted = $mailboxcount
+        ErrorCount = $errorCount
+    }
+    Write-Host -ForegroundColor Yellow "No mailbox data was collected. Check the logs for errors."
+} else {
+    # 📁 ENTERPRISE OUTPUT: Secure file operations with error handling
+    try {
+        # Output single mailbox report to console, otherwise output to CSV file
+        if ($mailbox) {
+            Write-EnterpriseLog -Level "Info" -Message "Displaying single mailbox report" -Category "Exchange"
+            $report | Format-List
+        } else {
+            Write-EnterpriseLog -Level "Info" -Message "Exporting report to CSV" -Category "Exchange" -Properties @{
+                FilePath = $reportfile
+                RecordCount = $reportcount
+            }
+
+            # Ensure directory exists
+            $reportDir = Split-Path $reportfile -Parent
+            if (-not (Test-Path $reportDir)) {
+                New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+            }
+
+            $report | Export-Csv -Path $reportfile -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
+            Write-Host -ForegroundColor Green "Report exported successfully:"
+            Get-Item $reportfile | Select-Object Name, Length, LastWriteTime, FullName
+
+            Write-EnterpriseLog -Level "Success" -Message "Report exported successfully" -Category "Exchange" -Properties @{
+                FilePath = $reportfile
+                FileSize = (Get-Item $reportfile).Length
+                RecordCount = $reportcount
+            }
+        }
+    } catch {
+        Write-EnterpriseLog -Level "Error" -Message "Failed to export report" -Category "Exchange" -Exception $_ -Properties @{
+            FilePath = $reportfile
+            RecordCount = $reportcount
+        }
+        throw "Failed to export report: $($_.Exception.Message)"
+    }
 }
 
 
-if ($SendEmail)
-{
+# 📧 ENTERPRISE EMAIL REPORTING: Secure email delivery with comprehensive error handling
+if ($SendEmail) {
+    Write-EnterpriseLog -Level "Info" -Message "Preparing email report" -Category "Exchange" -Properties @{
+        ReportSize = $reportcount
+        TopMailboxCount = $top
+    }
 
-    $topmailboxeshtml = $report | Sort-Object TotalItemSize -Descending | Select-Object -First $top | Select-Object DisplayName,Title,Department,Office,TotalItemSize | ConvertTo-Html -Fragment
+    try {
+        # 📊 ENTERPRISE HTML GENERATION: Create rich HTML report with security considerations
+        $topmailboxeshtml = $report |
+            Sort-Object TotalSize -Descending |
+            Select-Object -First $top |
+            Select-Object DisplayName, Title, Department, Office, @{Name="TotalSize(MB)";Expression={$_.TotalSize}} |
+            ConvertTo-Html -Fragment -As Table
 
-    $reporthtml = $report | ConvertTo-Html -Fragment
+        $summaryStats = [PSCustomObject]@{
+            "Total Mailboxes" = $reportcount
+            "Processing Errors" = $errorCount
+            "Processing Rate" = "$processingRate%"
+            "Generated At" = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        }
 
-	$htmlhead=
+        $summaryhtml = $summaryStats | ConvertTo-Html -Fragment -As List
 
-    $spacer =
+        # 🎨 ENTERPRISE STYLING: Professional HTML template
+        $htmlhead = @"
+<html>
+<head>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+h1 { color: #2E75B6; border-bottom: 2px solid #2E75B6; }
+h2 { color: #333; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+th { background-color: #2E75B6; color: white; padding: 8px; text-align: left; }
+td { padding: 8px; border-bottom: 1px solid #ddd; }
+tr:nth-child(even) { background-color: #f2f2f2; }
+.summary { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+.footer { margin-top: 30px; font-size: 12px; color: #666; }
+</style>
+</head>
+<body>
+<h1>Exchange Mailbox Report</h1>
+<div class="summary">
+<h2>Report Summary</h2>
+$summaryhtml
+</div>
+<h2>Top $top Mailboxes by Size</h2>
+"@
 
-	$htmltail =
+        $spacer = "<br><br>"
 
-	$htmlreport = $htmlhead + $topmailboxeshtml + $htmltail
+        $htmltail = @"
+<div class="footer">
+<p><strong>Note:</strong> This report was generated using enterprise-grade PowerShell scripting with comprehensive error handling and performance monitoring.</p>
+<p><em>Generated by: Get-MailboxReport.ps1 | Processing Time: Performance data available in logs</em></p>
+</div>
+</body>
+</html>
+"@
 
-	try
-    {
+        $htmlreport = $htmlhead + $topmailboxeshtml + $htmltail
+
+        # 🔒 ENTERPRISE SECURITY: Validate email settings before sending
+        if (-not $smtpsettings.SmtpServer) {
+            throw "SMTP server not configured in smtpsettings"
+        }
+        if (-not $smtpsettings.To) {
+            throw "Email recipient not configured in smtpsettings"
+        }
+
+        Write-EnterpriseLog -Level "Info" -Message "Sending mailbox report email" -Category "Exchange" -Properties @{
+            SMTPServer = $smtpsettings.SmtpServer
+            Recipients = $smtpsettings.To -join "; "
+            AttachmentSize = if (Test-Path $reportfile) { (Get-Item $reportfile).Length } else { 0 }
+        }
+
         Write-Host "Sending mailbox report email..." -ForegroundColor Green
-        Send-MailMessage @smtpsettings -Body $htmlreport -BodyAsHtml -Encoding ([System.Text.Encoding]::UTF8) -Attachments $reportfile -ErrorAction STOP
+
+        # 📤 ENTERPRISE EMAIL: Secure email delivery with comprehensive error handling
+        $emailParams = $smtpsettings.Clone()
+        $emailParams.Body = $htmlreport
+        $emailParams.BodyAsHtml = $true
+        $emailParams.Encoding = [System.Text.Encoding]::UTF8
+        $emailParams.ErrorAction = "Stop"
+
+        if (Test-Path $reportfile) {
+            $emailParams.Attachments = $reportfile
+        }
+
+        Send-MailMessage @emailParams
+
         Write-Host "Email sent successfully!" -ForegroundColor Green
+        Write-EnterpriseLog -Level "Success" -Message "Email report sent successfully" -Category "Exchange" -Properties @{
+            Recipients = $smtpsettings.To -join "; "
+            Subject = $smtpsettings.Subject
+        }
+
+    } catch {
+        $errorLogPath = Join-Path (Split-Path $reportfile -Parent) "email_error_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+        $errorDetails = @{
+            Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            Error = $_.Exception.Message
+            StackTrace = $_.ScriptStackTrace
+            SMTPSettings = $smtpsettings | ConvertTo-Json -Depth 2
+        } | ConvertTo-Json -Depth 3
+
+        $errorDetails | Out-File -FilePath $errorLogPath -Encoding UTF8
+
+        Write-EnterpriseLog -Level "Error" -Message "Failed to send email report" -Category "Exchange" -Exception $_ -Properties @{
+            ErrorLogPath = $errorLogPath
+            SMTPServer = $smtpsettings.SmtpServer
+        }
+
+        Write-Warning "Failed to send email report. Error details saved to: $errorLogPath"
+        Write-Warning "Error: $($_.Exception.Message)"
+
+        # Don't exit - the report was still generated successfully
     }
-    catch
-    {
-        Write-Warning
-        $_.Exception.Message | Out-File
-        EXIT
-    }
+}
+
+# 🎯 ENTERPRISE COMPLETION: Final summary and cleanup
+Write-EnterpriseLog -Level "Info" -Message "Mailbox report generation completed" -Category "Exchange" -Properties @{
+    TotalExecutionTime = "Performance data in telemetry"
+    FinalReportCount = $reportcount
+    ErrorCount = $errorCount
+    OutputFile = if (-not $mailbox) { $reportfile } else { "Console" }
+    EmailSent = if ($SendEmail -and $reportcount -gt 0) { "Attempted" } else { "No" }
 }

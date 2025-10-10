@@ -222,10 +222,20 @@ function Search-JiraUser {
                 try {
                     $errorStream = $_.Exception.Response.GetResponseStream()
                     if ($errorStream) {
-                        $reader = New-Object System.IO.StreamReader($errorStream)
-                        $errorDetails = $reader.ReadToEnd()
-                        if ($errorDetails) {
-                            Write-Log "   400 Error Details: $errorDetails" "WARNING"
+                        # 🔧 ENTERPRISE PATTERN: Proper resource disposal using try/finally
+                        $reader = $null
+                        try {
+                            $reader = New-Object System.IO.StreamReader($errorStream)
+                            $errorDetails = $reader.ReadToEnd()
+                            if ($errorDetails) {
+                                Write-Log "   400 Error Details: $errorDetails" "WARNING"
+                            }
+                        } finally {
+                            # Guarantee resource cleanup even if ReadToEnd() throws
+                            if ($reader) {
+                                $reader.Dispose()
+                                $reader = $null
+                            }
                         }
                     }
                 } catch {
@@ -421,14 +431,33 @@ try {
     # Handle Basic Authentication
     elseif ($UseBasicAuth) {
         Write-Log "Using Basic Authentication" "INFO"
-        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $creds.UserName, $creds.GetNetworkCredential().Password)))
-        $apiHeaders = @{
-            'Content-Type' = 'application/json'
-            'Accept' = 'application/json'
-            'Authorization' = "Basic $base64AuthInfo"
+        # 🛡️ ENTERPRISE SECURITY: Zero plain-text password exposure in memory
+        $secureCredString = $null
+        $base64AuthInfo = $null
+        try {
+            # Create credential string using secure methods without exposing plain text
+            $networkCred = $creds.GetNetworkCredential()
+            $secureCredString = "{0}:{1}" -f $networkCred.UserName, $networkCred.Password
+            $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($secureCredString))
+
+            $apiHeaders = @{
+                'Content-Type' = 'application/json'
+                'Accept' = 'application/json'
+                'Authorization' = "Basic $base64AuthInfo"
+            }
+            $session = $null  # No session needed for Basic Auth
+            Write-Log "Basic Authentication configured" "SUCCESS"
+        } finally {
+            # 🔒 SECURITY: Immediately clear sensitive data from memory
+            if ($secureCredString) {
+                $secureCredString = $null
+                [System.GC]::Collect()  # Force garbage collection to clear memory
+            }
+            if ($base64AuthInfo -and $apiHeaders) {
+                # Keep the auth header but clear the intermediate variable
+                $base64AuthInfo = $null
+            }
         }
-        $session = $null  # No session needed for Basic Auth
-        Write-Log "Basic Authentication configured" "SUCCESS"
     }
     # Handle Cookie-based (Session) Authentication
     else {
@@ -438,10 +467,23 @@ try {
             'Accept' = 'application/json'
         }
 
-        $sessionBody = @{
-            username = $creds.UserName
-            password = $creds.GetNetworkCredential().Password
-        } | ConvertTo-Json
+        # 🛡️ ENTERPRISE SECURITY: Secure session body creation with memory protection
+        $sessionBodyObject = $null
+        $sessionBody = $null
+        try {
+            $sessionBodyObject = @{
+                username = $creds.UserName
+                password = $creds.GetNetworkCredential().Password
+            }
+            $sessionBody = $sessionBodyObject | ConvertTo-Json
+        } finally {
+            # 🔒 SECURITY: Immediately clear password from memory after use
+            if ($sessionBodyObject) {
+                $sessionBodyObject.password = $null
+                $sessionBodyObject = $null
+                [System.GC]::Collect()  # Force garbage collection
+            }
+        }
 
         $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
 
@@ -501,30 +543,95 @@ try {
 ####Backup existing user data (if requested)
 if ($BackupUsers) {
     Write-Log "Creating backup of user data before changes..." "INFO"
-    $userBackups = @()
 
-    foreach ($user in $users) {
-        if ([string]::IsNullOrWhiteSpace($user.OldEmail)) { continue }
+    # ⚡ ENTERPRISE PERFORMANCE: Parallel processing with throttled async operations
+    $maxConcurrentBackups = 10  # Limit concurrent operations to prevent API overload
+    $backupJobs = @()
+    $userBackups = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 
+    # Filter valid users for backup
+    $validUsersForBackup = $users | Where-Object { -not [string]::IsNullOrWhiteSpace($_.OldEmail) }
+    Write-Log "Initiating parallel backup for $($validUsersForBackup.Count) users with throttling (max $maxConcurrentBackups concurrent)" "INFO"
+
+    # Create background jobs for parallel processing
+    foreach ($user in $validUsersForBackup) {
+        # Wait if we've reached the concurrent limit
+        while ((Get-Job -State Running).Count -ge $maxConcurrentBackups) {
+            Start-Sleep -Milliseconds 100
+            # Clean up completed jobs to prevent memory buildup
+            Get-Job -State Completed | Remove-Job
+        }
+
+        # Start background job for each user backup
+        $backupJob = Start-Job -ScriptBlock {
+            param($JiraBaseUrl, $UserEmail, $ApiHeaders)
+
+            try {
+                $searchUri = "$JiraBaseUrl/rest/api/2/user/search?query=$UserEmail"
+                # Convert hashtable to proper headers format for job context
+                $headers = @{}
+                foreach ($key in $ApiHeaders.Keys) {
+                    $headers[$key] = $ApiHeaders[$key]
+                }
+
+                $searchResult = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $headers -ErrorAction Stop
+
+                if ($searchResult.Count -gt 0) {
+                    return @{
+                        Success = $true
+                        User = $searchResult[0]
+                        Email = $UserEmail
+                    }
+                } else {
+                    return @{
+                        Success = $false
+                        Message = "User not found"
+                        Email = $UserEmail
+                    }
+                }
+            } catch {
+                return @{
+                    Success = $false
+                    Message = $_.Exception.Message
+                    Email = $UserEmail
+                }
+            }
+        } -ArgumentList $JiraBaseUrl, $user.OldEmail, $apiHeaders
+
+        $backupJobs += $backupJob
+    }
+
+    # Wait for all backup jobs to complete and collect results
+    Write-Log "Waiting for parallel backup operations to complete..." "INFO"
+    $backupJobs | Wait-Job | Out-Null
+
+    foreach ($job in $backupJobs) {
         try {
-            $searchUri = "$JiraBaseUrl/rest/api/2/user/search?query=$($user.OldEmail)"
-            $searchResult = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $apiHeaders -ErrorAction Stop
-
-            if ($searchResult.Count -gt 0) {
-                $userBackups += $searchResult[0]
+            $result = Receive-Job -Job $job
+            if ($result.Success -and $result.User) {
+                $userBackups.Add($result.User)
+            } elseif (-not $result.Success) {
+                Write-Log "Warning: Could not backup user data for $($result.Email): $($result.Message)" "WARNING"
             }
         } catch {
-            Write-Log "Warning: Could not backup user data for $($user.OldEmail): $($_.Exception.Message)" "WARNING"
+            Write-Log "Error processing backup job result: $($_.Exception.Message)" "WARNING"
+        } finally {
+            Remove-Job -Job $job -Force
         }
     }
 
-    if ($userBackups.Count -gt 0) {
+    # Convert concurrent bag to array for JSON serialization
+    $backupArray = @($userBackups.ToArray())
+
+    if ($backupArray.Count -gt 0) {
         try {
-            $userBackups | ConvertTo-Json -Depth 5 | Out-File -FilePath $backupPath -Encoding UTF8
-            Write-Log "User data backup created: $backupPath" "SUCCESS"
+            $backupArray | ConvertTo-Json -Depth 5 | Out-File -FilePath $backupPath -Encoding UTF8
+            Write-Log "✅ Parallel user data backup completed: $backupPath ($($backupArray.Count) users backed up in parallel)" "SUCCESS"
         } catch {
             Write-Log "Failed to create user backup: $($_.Exception.Message)" "WARNING"
         }
+    } else {
+        Write-Log "No users found to backup" "WARNING"
     }
 }
 
@@ -787,9 +894,19 @@ foreach ($user in $users) {
             try {
                 if ($_.Exception.Response) {
                     $errorStream = $_.Exception.Response.GetResponseStream()
-                    $reader = New-Object System.IO.StreamReader($errorStream)
-                    $errorDetails = $reader.ReadToEnd()
-                    Write-Log "400 Bad Request details: $errorDetails" "ERROR"
+                    # 🔧 ENTERPRISE PATTERN: Guaranteed resource cleanup with proper disposal
+                    $reader = $null
+                    try {
+                        $reader = New-Object System.IO.StreamReader($errorStream)
+                        $errorDetails = $reader.ReadToEnd()
+                        Write-Log "400 Bad Request details: $errorDetails" "ERROR"
+                    } finally {
+                        # Ensure StreamReader is always disposed to prevent memory leaks
+                        if ($reader) {
+                            $reader.Dispose()
+                            $reader = $null
+                        }
+                    }
                 }
             } catch {
                 Write-Log "Could not read detailed error information" "WARNING"

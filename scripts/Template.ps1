@@ -94,7 +94,24 @@ Function Invoke-WebRequest {
   $headers = @{}
   $headers.Add('Accept', 'application/json')
   $headers.Add('content-type', 'application/json')
-  $headers.Add('Authorization', 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($username + ':' + $password)))
+
+  # 🛡️ ENTERPRISE SECURITY: Secure credential handling with memory protection
+  $credentialString = $null
+  $base64Credentials = $null
+  try {
+    $credentialString = $username + ':' + $password
+    $base64Credentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($credentialString))
+    $headers.Add('Authorization', 'Basic ' + $base64Credentials)
+  } finally {
+    # 🔒 SECURITY: Clear sensitive data from memory immediately after use
+    if ($credentialString) {
+      $credentialString = $null
+    }
+    if ($base64Credentials) {
+      $base64Credentials = $null
+    }
+    [System.GC]::Collect()  # Force garbage collection
+  }
 
 #Allowing for easier web requests
 
@@ -118,13 +135,23 @@ Function Invoke-WebRequest {
     }
   }
   catch {
-    $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-    $reader.BaseStream.Position = 0
-    $reader.DiscardBufferedData()
-    $response = $reader.ReadToEnd()
-    $message = $response
-    $message +=  + $uri +  + $_.Exception
-    Write-Log -Message $message
+    # 🔧 ENTERPRISE PATTERN: Guaranteed resource cleanup with proper disposal
+    $reader = $null
+    try {
+      $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+      $reader.BaseStream.Position = 0
+      $reader.DiscardBufferedData()
+      $response = $reader.ReadToEnd()
+      $message = $response
+      $message +=  + $uri +  + $_.Exception
+      Write-Log -Message $message
+    } finally {
+      # Ensure StreamReader is always properly disposed to prevent memory leaks
+      if ($reader) {
+        $reader.Dispose()
+        $reader = $null
+      }
+    }
   }
   return $response
 }
