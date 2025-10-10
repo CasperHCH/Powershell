@@ -236,7 +236,8 @@ function Show-EnterpriseProgress {
         "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing",
         "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing",
         "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns",
-        "Windows-Upgrade-All-Apps.ps1 - ✅ Enterprise package management with security validation"
+        "Windows-Upgrade-All-Apps.ps1 - ✅ Enterprise package management with security validation",
+        "Install_Modules.ps1 - ✅ Military-grade module lifecycle management with security"
     )
 
     Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
