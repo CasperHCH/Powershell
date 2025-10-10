@@ -235,7 +235,8 @@ function Show-EnterpriseProgress {
         "offboarding.ps1 - ⚠️  In Progress - Enterprise patterns for AD/Exchange operations",
         "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing",
         "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing",
-        "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns"
+        "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns",
+        "Windows-Upgrade-All-Apps.ps1 - ✅ Enterprise package management with security validation"
     )
 
     Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
