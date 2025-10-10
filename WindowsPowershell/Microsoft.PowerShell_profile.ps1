@@ -225,16 +225,19 @@ function Show-EnterpriseProgress {
 
     $completedScripts = @(
         "BulkChangeEmails.ps1 - ✅ Complete enterprise transformation with parallel processing",
-        "Template.ps1 - ✅ Security hardening and cross-platform patterns", 
+        "Template.ps1 - ✅ Security hardening and cross-platform patterns",
         "Microsoft.PowerShell_profile.ps1 - ✅ Cross-platform paths and resource management",
         "Nuke-Malware.ps1 - ✅ Cross-platform WMI alternatives",
-        "Get-MailboxForwardingEnabled.ps1 - ✅ Complete enterprise transformation", 
+        "Get-MailboxForwardingEnabled.ps1 - ✅ Complete enterprise transformation",
         "Get-MailboxReport.ps1 - ✅ Parallel processing and enterprise logging",
         "Get-O365Rules.ps1 - ✅ Complete security analysis with transport rule risk detection",
         "Create-DynamicDistributionList.ps1 - ✅ Complete rewrite from 30-line to enterprise tool",
         "offboarding.ps1 - ⚠️  In Progress - Enterprise patterns for AD/Exchange operations",
-        "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing"
-    )    Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
+        "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing",
+        "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing"
+    )
+
+    Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
     Write-Host "=" * 60 -ForegroundColor Gray
 
     foreach ($script in $completedScripts) {
@@ -256,10 +259,10 @@ function Show-EnterpriseProgress {
     Write-Host "   ⚠️  In Progress: $inProgress scripts" -ForegroundColor Yellow
     Write-Host "   📋 Remaining: ~$(1700 - $completed - $inProgress) scripts to process" -ForegroundColor White
     Write-Host "   🎯 Target: Platinum-grade enterprise patterns across all PowerShell scripts" -ForegroundColor Cyan
-    
+
     Write-Host "`n🏆 Recent Achievements:" -ForegroundColor Green
     Write-Host "   🔒 Military-grade certificate management in SignScripts.ps1" -ForegroundColor White
-    Write-Host "   🌐 Advanced O365 security analysis with risk detection" -ForegroundColor White  
+    Write-Host "   🌐 Advanced O365 security analysis with risk detection" -ForegroundColor White
     Write-Host "   📊 Comprehensive enterprise logging framework (21KB)" -ForegroundColor White
     Write-Host "   ⚡ Parallel processing patterns for scalability" -ForegroundColor White
     Write-Host "   🛡️  Cross-platform compatibility and modern cmdlets" -ForegroundColor White

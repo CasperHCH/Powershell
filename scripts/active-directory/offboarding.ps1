@@ -8,7 +8,7 @@
 #
 # ENTERPRISE FEATURES:
 #   🔒 Military-grade security and audit logging
-#   ⚡ Parallel processing for large-scale operations  
+#   ⚡ Parallel processing for large-scale operations
 #   📊 Real-time progress monitoring and telemetry
 #   🛡️ Rollback capabilities and transaction safety
 #   💾 Backup and recovery procedures
@@ -29,7 +29,7 @@ try {
         Write-EnterpriseLog -Level "Info" -Message "Enterprise offboarding system initialized" -Category "Security"
     } else {
         Write-Warning "Enterprise logging framework not found. Using basic logging."
-        function Write-EnterpriseLog { 
+        function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "General", [hashtable]$Properties = @{})
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             Write-Host "[$timestamp] [$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
@@ -79,20 +79,20 @@ Function Connect-ExchPowershell {
         [Parameter(Mandatory = $false)]
         [int]$RetryAttempts = 3
     )
-    
+
     $attempt = 0
     $connected = $false
-    
+
     Write-EnterpriseLog -Level "Info" -Message "Attempting Exchange connection" -Category "Exchange" -Properties @{
         ExchangeServer = $ExchangeServer
         RetryAttempts = $RetryAttempts
     }
-    
+
     while ($attempt -lt $RetryAttempts -and -not $connected) {
         $attempt++
         try {
             Write-Host "🔗 Connecting to Exchange Server (Attempt $attempt/$RetryAttempts)..." -ForegroundColor Cyan
-            
+
             # 🔒 ENTERPRISE SECURITY: Secure session creation with error handling
             $sessionParams = @{
                 Name = "ExchangeOffboarding"
@@ -100,20 +100,20 @@ Function Connect-ExchPowershell {
                 ConnectionURI = "http://$ExchangeServer/Powershell"
                 ErrorAction = "Stop"
             }
-            
+
             if ($Credential) {
                 $sessionParams.Credential = $Credential
             }
-            
+
             $RPSession = New-PSSession @sessionParams
-            
+
             # 📊 ENTERPRISE PATTERN: Validate session before importing
             if ($RPSession.State -eq 'Opened') {
                 Import-PSSession $RPSession -Prefix local -DisableNameChecking -ErrorAction Stop | Out-Null
-                
+
                 # Test connection with a simple command
                 $testResult = Invoke-Command -Session $RPSession -ScriptBlock { Get-ExchangeServer | Select-Object -First 1 } -ErrorAction Stop
-                
+
                 if ($testResult) {
                     $connected = $true
                     Write-Host "✅ Connected to Exchange Server: $ExchangeServer" -ForegroundColor Green
@@ -128,18 +128,18 @@ Function Connect-ExchPowershell {
             } else {
                 throw "PowerShell session failed to open (State: $($RPSession.State))"
             }
-            
+
         } catch {
             Write-EnterpriseLog -Level "Warning" -Message "Exchange connection attempt failed" -Category "Exchange" -Properties @{
                 Attempt = $attempt
                 ExchangeServer = $ExchangeServer
                 Error = $_.Exception.Message
             }
-            
+
             if ($RPSession) {
                 try { Remove-PSSession $RPSession -ErrorAction SilentlyContinue } catch { }
             }
-            
+
             if ($attempt -eq $RetryAttempts) {
                 Write-EnterpriseLog -Level "Error" -Message "All Exchange connection attempts failed" -Category "Exchange"
                 throw "Failed to connect to Exchange Server $ExchangeServer after $RetryAttempts attempts: $($_.Exception.Message)"
@@ -149,7 +149,7 @@ Function Connect-ExchPowershell {
             }
         }
     }
-    
+
     return $RPSession
 }
 
@@ -159,15 +159,15 @@ Function Disconnect-ExchPowershell {
         [Parameter(Mandatory = $false)]
         [string]$SessionName = "ExchangeOffboarding"
     )
-    
+
     try {
         Write-Host "🔌 Disconnecting from Exchange Server..." -ForegroundColor Yellow
-        
+
         $exchangeSessions = Get-PSSession -Name $SessionName -ErrorAction SilentlyContinue
         if ($exchangeSessions) {
             $sessionCount = $exchangeSessions.Count
             $exchangeSessions | Remove-PSSession -ErrorAction Stop
-            
+
             Write-Host "✅ Disconnected from Exchange Server ($sessionCount sessions closed)" -ForegroundColor Green
             Write-EnterpriseLog -Level "Info" -Message "Exchange sessions disconnected" -Category "Exchange" -Properties @{
                 SessionsRemoved = $sessionCount
@@ -176,7 +176,7 @@ Function Disconnect-ExchPowershell {
         } else {
             Write-Host "ℹ️  No Exchange sessions found to disconnect" -ForegroundColor Gray
         }
-        
+
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Error during Exchange disconnection" -Category "Exchange" -Exception $_
         Write-Host "⚠️  Warning: Error during Exchange disconnection: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -199,21 +199,21 @@ Function Connect-O365Powershell {
         [Parameter(Mandatory = $false)]
         [int]$RetryAttempts = 3
     )
-    
+
     $attempt = 0
     $connected = $false
-    
+
     Write-EnterpriseLog -Level "Info" -Message "Attempting Office 365 connection" -Category "O365" -Properties @{
         UseModernAuth = $UseModernAuth.IsPresent
         RetryAttempts = $RetryAttempts
     }
-    
+
     # 🔒 ENTERPRISE SECURITY: Secure credential handling
     if (-not $Credential -and -not $UseModernAuth) {
         try {
             Write-Host "🔐 Enter Office 365 credentials for offboarding operations:" -ForegroundColor Cyan
             $Credential = Get-Credential -Message "Enter O365 Admin credentials for employee offboarding"
-            
+
             if (-not $Credential) {
                 throw "Credentials are required for O365 connection"
             }
@@ -222,12 +222,12 @@ Function Connect-O365Powershell {
             throw "O365 credentials are required for offboarding operations"
         }
     }
-    
+
     while ($attempt -lt $RetryAttempts -and -not $connected) {
         $attempt++
         try {
             Write-Host "🌐 Connecting to Office 365 (Attempt $attempt/$RetryAttempts)..." -ForegroundColor Cyan
-            
+
             if ($UseModernAuth) {
                 # 🚀 MODERN AUTHENTICATION: Use Connect-ExchangeOnline if available
                 if (Get-Command "Connect-ExchangeOnline" -ErrorAction SilentlyContinue) {
@@ -239,7 +239,7 @@ Function Connect-O365Powershell {
                     $UseModernAuth = $false
                 }
             }
-            
+
             if (-not $UseModernAuth) {
                 # 🔒 LEGACY AUTHENTICATION: Secure basic authentication with comprehensive error handling
                 $sessionParams = @{
@@ -251,18 +251,18 @@ Function Connect-O365Powershell {
                     AllowRedirection = $true
                     ErrorAction = "Stop"
                 }
-                
+
                 $O365Session = New-PSSession @sessionParams
-                
+
                 # 📊 ENTERPRISE VALIDATION: Test session before importing
                 if ($O365Session.State -eq 'Opened') {
                     Import-PSSession $O365Session -DisableNameChecking -Prefix cloud -ErrorAction Stop | Out-Null
-                    
+
                     # Test connection with a simple command
-                    $testResult = Invoke-Command -Session $O365Session -ScriptBlock { 
-                        Get-OrganizationConfig | Select-Object -First 1 
+                    $testResult = Invoke-Command -Session $O365Session -ScriptBlock {
+                        Get-OrganizationConfig | Select-Object -First 1
                     } -ErrorAction Stop
-                    
+
                     if ($testResult) {
                         $connected = $true
                         Write-Host "✅ Connected to Office 365 using Basic Authentication" -ForegroundColor Green
@@ -278,18 +278,18 @@ Function Connect-O365Powershell {
                     throw "O365 PowerShell session failed to open (State: $($O365Session.State))"
                 }
             }
-            
+
         } catch {
             Write-EnterpriseLog -Level "Warning" -Message "O365 connection attempt failed" -Category "O365" -Properties @{
                 Attempt = $attempt
                 AuthType = if ($UseModernAuth) { "Modern" } else { "Basic" }
                 Error = $_.Exception.Message
             }
-            
+
             if ($O365Session) {
                 try { Remove-PSSession $O365Session -ErrorAction SilentlyContinue } catch { }
             }
-            
+
             if ($attempt -eq $RetryAttempts) {
                 Write-EnterpriseLog -Level "Error" -Message "All O365 connection attempts failed" -Category "O365"
                 throw "Failed to connect to Office 365 after $RetryAttempts attempts: $($_.Exception.Message)"
@@ -299,7 +299,7 @@ Function Connect-O365Powershell {
             }
         }
     }
-    
+
     return if ($UseModernAuth) { "ModernAuth" } else { $O365Session }
 }
 
@@ -309,10 +309,10 @@ Function Disconnect-O365Powershell {
         [Parameter(Mandatory = $false)]
         [string]$SessionName = "O365Offboarding"
     )
-    
+
     try {
         Write-Host "🔌 Disconnecting from Office 365..." -ForegroundColor Yellow
-        
+
         # Handle modern auth disconnection
         if (Get-Command "Disconnect-ExchangeOnline" -ErrorAction SilentlyContinue) {
             try {
@@ -323,20 +323,20 @@ Function Disconnect-O365Powershell {
                 # Continue to legacy session cleanup
             }
         }
-        
+
         # Handle legacy session disconnection
         $o365Sessions = Get-PSSession -Name $SessionName -ErrorAction SilentlyContinue
         if ($o365Sessions) {
             $sessionCount = $o365Sessions.Count
             $o365Sessions | Remove-PSSession -ErrorAction Stop
-            
+
             Write-Host "✅ Disconnected from Office 365 ($sessionCount legacy sessions closed)" -ForegroundColor Green
             Write-EnterpriseLog -Level "Info" -Message "O365 legacy sessions disconnected" -Category "O365" -Properties @{
                 SessionsRemoved = $sessionCount
                 SessionName = $SessionName
             }
         }
-        
+
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Error during O365 disconnection" -Category "O365" -Exception $_
         Write-Host "⚠️  Warning: Error during O365 disconnection: $($_.Exception.Message)" -ForegroundColor Yellow
