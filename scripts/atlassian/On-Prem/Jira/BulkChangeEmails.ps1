@@ -19,11 +19,20 @@
 .PARAMETER CredentialFile
     Path to encrypted credential file (alternative to interactive login)
 
+.PARAMETER PersonalAccessToken
+    Personal Access Token for authentication (recommended for automation)
+
+.PARAMETER UseBasicAuth
+    Use Basic Authentication instead of session-based authentication
+
 .PARAMETER DryRun
     If specified, shows what would be changed without actually making changes
 
 .PARAMETER BackupUsers
     If specified, creates a backup of current user data before changes
+
+.PARAMETER CheckUsersOnly
+    If specified, only checks how many users exist without making any changes
 
 .PARAMETER LogPath
     Path for the log file (defaults to timestamped file in current directory)
@@ -37,10 +46,24 @@
 .EXAMPLE
     .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -CredentialFile "creds.xml" -BackupUsers
 
+.EXAMPLE
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -CheckUsersOnly
+
+.EXAMPLE
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -PersonalAccessToken "your_token_here"
+
+.EXAMPLE
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -Username "admin@company.com" -UseBasicAuth
+
 .NOTES
     Author: Enhanced Script
-    Version: 2.0
+    Version: 2.1
     Requires: PowerShell 5.1+, JIRA Admin permissions
+
+    Authentication Methods:
+    1. Personal Access Token (recommended for automation)
+    2. Cookie-based session authentication (default)
+    3. Basic authentication (simple but less secure)
 
     CSV Format Supported:
     Comma-separated (CSV): OldEmail,NewEmail
@@ -51,6 +74,11 @@
     old2@company.com;new2@company.com
 
     The script automatically detects the delimiter used.
+
+    Authentication Notes:
+    - Personal Access Tokens are recommended for automation scripts
+    - Basic Auth sends credentials with every request
+    - Session auth requires login but is more efficient for multiple calls
 #>
 
 [CmdletBinding()]
@@ -80,10 +108,19 @@ param (
     [string]$CredentialFile,
 
     [Parameter(Mandatory = $false)]
+    [string]$PersonalAccessToken,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$UseBasicAuth,
+
+    [Parameter(Mandatory = $false)]
     [switch]$DryRun,
 
     [Parameter(Mandatory = $false)]
     [switch]$BackupUsers,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$CheckUsersOnly,
 
     [Parameter(Mandatory = $false)]
     [string]$LogPath = ".\JiraBulkEmailUpdate_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
@@ -109,9 +146,106 @@ function Write-Log {
     Add-Content -Path $LogFile -Value $logMessage
 }
 
+# Test authentication by making a simple API call
+function Test-JiraAuthentication {
+    param(
+        [hashtable]$Headers,
+        [string]$BaseUrl
+    )
+    try {
+        Write-Log "Testing JIRA authentication..." "INFO"
+        $testUri = "$BaseUrl/rest/api/2/myself"
+        $testResult = Invoke-RestMethod -Method Get -Uri $testUri -Headers $Headers -ErrorAction Stop
+        Write-Log "Authentication test successful - logged in as: $($testResult.displayName) ($($testResult.emailAddress))" "SUCCESS"
+        return $true
+    } catch {
+        Write-Log "Authentication test failed: $($_.Exception.Message)" "ERROR"
+
+        # Provide specific guidance based on error
+        if ($_.Exception.Response.StatusCode -eq 401) {
+            Write-Log "401 Unauthorized - Check your credentials or token" "ERROR"
+        } elseif ($_.Exception.Response.StatusCode -eq 403) {
+            Write-Log "403 Forbidden - Account may be locked or insufficient permissions" "ERROR"
+        }
+
+        return $false
+    }
+}
+
+# Enhanced function to search for users with multiple methods
+function Search-JiraUser {
+    param(
+        [string]$Email,
+        [hashtable]$Headers,
+        [string]$BaseUrl
+    )
+
+    $searchMethods = @(
+        @{ Name = "User Picker"; Uri = "/rest/api/2/user/picker?query=" },
+        @{ Name = "Users Search"; Uri = "/rest/api/2/users/search?query=" },
+        @{ Name = "User Search Query"; Uri = "/rest/api/2/user/search?query=" },
+        @{ Name = "User Search Username"; Uri = "/rest/api/2/user/search?username=" },
+        @{ Name = "User Assignable"; Uri = "/rest/api/2/user/assignable/search?query=" },
+        @{ Name = "Direct Email Search"; Uri = "/rest/api/2/user?username=" }
+    )
+
+    foreach ($method in $searchMethods) {
+        try {
+            $encodedEmail = [System.Web.HttpUtility]::UrlEncode($Email)
+            $searchUri = "$BaseUrl$($method.Uri)$encodedEmail"
+            Write-Log "Trying $($method.Name) method: $searchUri" "INFO"
+
+            $result = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $Headers -ErrorAction Stop
+
+            # Handle different response formats
+            $user = $null
+            if ($method.Name -eq "User Picker" -and $result.users -and $result.users.Count -gt 0) {
+                $user = $result.users[0]
+            } elseif ($result -is [Array] -and $result.Count -gt 0) {
+                $user = $result[0]
+            } elseif ($result -and $result.accountId) {
+                $user = $result
+            }
+
+            if ($user -and -not [string]::IsNullOrEmpty($user.accountId)) {
+                Write-Log "✓ User found using $($method.Name) method: $($user.displayName)" "SUCCESS"
+                return $user
+            } else {
+                Write-Log "○ $($method.Name) method returned no results" "INFO"
+            }
+        } catch {
+            $statusCode = if ($_.Exception.Response) { $_.Exception.Response.StatusCode.value__ } else { "Unknown" }
+            Write-Log "✗ $($method.Name) method failed ($statusCode): $($_.Exception.Message)" "WARNING"
+
+            # Log additional error details for 400 errors
+            if ($statusCode -eq 400) {
+                try {
+                    $errorStream = $_.Exception.Response.GetResponseStream()
+                    if ($errorStream) {
+                        $reader = New-Object System.IO.StreamReader($errorStream)
+                        $errorDetails = $reader.ReadToEnd()
+                        if ($errorDetails) {
+                            Write-Log "   400 Error Details: $errorDetails" "WARNING"
+                        }
+                    }
+                } catch {
+                    # Ignore errors reading error details
+                }
+            }
+            continue
+        }
+    }
+
+    Write-Log "✗ No user found for email: $Email using any search method" "WARNING"
+    return $null
+}
+
+# Load required assemblies
+Add-Type -AssemblyName System.Web
+
 # Initialize script
 Write-Log "=== JIRA Bulk Email Update Script Started ===" "INFO"
-Write-Log "Parameters: CsvPath=$CsvPath, JiraBaseUrl=$JiraBaseUrl, DryRun=$DryRun, BackupUsers=$BackupUsers" "INFO"
+Write-Log "Parameters: CsvPath=$CsvPath, JiraBaseUrl=$JiraBaseUrl, DryRun=$DryRun, BackupUsers=$BackupUsers, CheckUsersOnly=$CheckUsersOnly" "INFO"
 
 # Global variables
 $creds = $null
@@ -125,8 +259,15 @@ $backupPath = ".\JiraUserBackup_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
 Write-Log "Setting up authentication credentials..." "INFO"
 
 try {
+    # Use Personal Access Token if provided
+    if ($PersonalAccessToken) {
+        Write-Log "Using Personal Access Token authentication" "INFO"
+        # For PAT, we create a pseudo-credential object for consistency
+        $creds = $null  # Will be handled differently in session creation
+        Write-Log "Personal Access Token authentication configured" "SUCCESS"
+    }
     # Use credential file if provided
-    if ($CredentialFile -and (Test-Path $CredentialFile)) {
+    elseif ($CredentialFile -and (Test-Path $CredentialFile)) {
         Write-Log "Loading credentials from file: $CredentialFile" "INFO"
         $creds = Import-Clixml -Path $CredentialFile
         Write-Log "Successfully loaded credentials for user: $($creds.UserName)" "SUCCESS"
@@ -148,8 +289,8 @@ try {
         Write-Log "Interactive credentials provided for user: $($creds.UserName)" "SUCCESS"
     }
 
-    # Validate credentials
-    if ($null -eq $creds -or $null -eq $creds.UserName) {
+    # Validate credentials (except for PAT which is validated during API calls)
+    if (-not $PersonalAccessToken -and ($null -eq $creds -or $null -eq $creds.UserName)) {
         throw "Invalid credentials provided."
     }
 } catch {
@@ -200,23 +341,61 @@ try {
 
     Write-Log "CSV file loaded successfully. Found $($users.Count) user records to process." "SUCCESS"
 
-    # Validate email formats
+    # Filter out Excel errors and validate email formats
     $emailRegex = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    $excelErrors = @('#REFERENCE!', '#notfound', '#I/T', '#N/A', '#VALUE!', '#DIV/0!', '#NAME?', '#NULL!')
     $invalidEmails = @()
+    $validUsers = @()
 
     foreach ($user in $users) {
-        if ([string]::IsNullOrWhiteSpace($user.OldEmail) -or ($user.OldEmail -notmatch $emailRegex)) {
-            $invalidEmails += "Invalid OldEmail: '$($user.OldEmail)'"
+        $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { '' }
+        $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { '' }
+
+        # Skip rows with Excel errors or empty emails
+        if ($excelErrors -contains $oldEmail -or $excelErrors -contains $newEmail -or
+            $oldEmail -like '<*>' -or $newEmail -like '<*>' -or
+            [string]::IsNullOrWhiteSpace($oldEmail) -or [string]::IsNullOrWhiteSpace($newEmail)) {
+            continue  # Skip these rows silently
         }
-        if ([string]::IsNullOrWhiteSpace($user.NewEmail) -or ($user.NewEmail -notmatch $emailRegex)) {
-            $invalidEmails += "Invalid NewEmail: '$($user.NewEmail)'"
+
+        # Validate email format for remaining rows
+        $isValidOld = $oldEmail -match $emailRegex
+        $isValidNew = $newEmail -match $emailRegex
+
+        if (-not $isValidOld) {
+            $invalidEmails += "Invalid OldEmail: '$oldEmail'"
+        }
+        if (-not $isValidNew) {
+            $invalidEmails += "Invalid NewEmail: '$newEmail'"
+        }
+
+        # Only add users with valid email formats to processing list
+        if ($isValidOld -and $isValidNew) {
+            $validUsers += [PSCustomObject]@{
+                OldEmail = $oldEmail
+                NewEmail = $newEmail
+            }
         }
     }
 
+    # Update users array to only include valid entries
+    $users = $validUsers
+    $skippedRows = $($users.Count) - $($validUsers.Count)
+
+    Write-Log "Filtered out Excel errors and invalid entries. Processing $($validUsers.Count) valid users." "INFO"
+    if ($skippedRows -gt 0) {
+        Write-Log "Skipped $skippedRows rows with Excel errors or invalid data." "WARNING"
+    }
+
     if ($invalidEmails.Count -gt 0) {
-        Write-Log "Found $($invalidEmails.Count) invalid email addresses:" "WARNING"
-        foreach ($invalid in $invalidEmails) {
-            Write-Log "  - $invalid" "WARNING"
+        Write-Log "Found $($invalidEmails.Count) invalid email formats:" "WARNING"
+        # Only show first 10 to avoid log spam
+        $displayCount = [Math]::Min($invalidEmails.Count, 10)
+        for ($i = 0; $i -lt $displayCount; $i++) {
+            Write-Log "  - $($invalidEmails[$i])" "WARNING"
+        }
+        if ($invalidEmails.Count -gt 10) {
+            Write-Log "  ... and $($invalidEmails.Count - 10) more invalid emails" "WARNING"
         }
     }
 
@@ -226,31 +405,96 @@ try {
 }
 
 ####Create JIRA session for API calls
-Write-Log "Creating JIRA session..." "INFO"
+Write-Log "Setting up JIRA API authentication..." "INFO"
 try {
-    $sessionHeaders = @{
-        'Content-Type' = 'application/json'
-        'Accept' = 'application/json'
+    # Handle Personal Access Token authentication
+    if ($PersonalAccessToken) {
+        Write-Log "Using Personal Access Token authentication" "INFO"
+        $apiHeaders = @{
+            'Content-Type' = 'application/json'
+            'Accept' = 'application/json'
+            'Authorization' = "Bearer $PersonalAccessToken"
+        }
+        $session = $null  # No session needed for PAT
+        Write-Log "Personal Access Token authentication configured" "SUCCESS"
+    }
+    # Handle Basic Authentication
+    elseif ($UseBasicAuth) {
+        Write-Log "Using Basic Authentication" "INFO"
+        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $creds.UserName, $creds.GetNetworkCredential().Password)))
+        $apiHeaders = @{
+            'Content-Type' = 'application/json'
+            'Accept' = 'application/json'
+            'Authorization' = "Basic $base64AuthInfo"
+        }
+        $session = $null  # No session needed for Basic Auth
+        Write-Log "Basic Authentication configured" "SUCCESS"
+    }
+    # Handle Cookie-based (Session) Authentication
+    else {
+        Write-Log "Creating JIRA session for cookie-based authentication..." "INFO"
+        $sessionHeaders = @{
+            'Content-Type' = 'application/json'
+            'Accept' = 'application/json'
+        }
+
+        $sessionBody = @{
+            username = $creds.UserName
+            password = $creds.GetNetworkCredential().Password
+        } | ConvertTo-Json
+
+        $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
+
+        # Enhanced session creation with better error handling
+        try {
+            $sessionResponse = Invoke-WebRequest -Method Post -Uri $SessionUri -Body $sessionBody -Headers $sessionHeaders -ErrorAction Stop
+            $session = $sessionResponse.Content | ConvertFrom-Json
+
+            # Check for CAPTCHA or authentication issues
+            if ($sessionResponse.Headers['X-Seraph-LoginReason']) {
+                $loginReason = $sessionResponse.Headers['X-Seraph-LoginReason']
+                if ($loginReason -eq 'AUTHENTICATION_DENIED') {
+                    throw "Authentication denied - CAPTCHA may be triggered. Please log in via web browser to resolve."
+                }
+            }
+
+            Write-Log "JIRA session created successfully for user: $($session.loginInfo.loginCount) previous logins" "SUCCESS"
+
+            # Create session headers for subsequent requests
+            $apiHeaders = @{
+                'Content-Type' = 'application/json'
+                'Accept' = 'application/json'
+                'Cookie' = "$($session.session.name)=$($session.session.value)"
+            }
+        } catch {
+            # Handle specific session creation errors
+            if ($_.Exception.Response.StatusCode -eq 401) {
+                Write-Log "Authentication failed: Invalid username or password" "ERROR"
+            } elseif ($_.Exception.Response.StatusCode -eq 403) {
+                Write-Log "Access denied: Account may be locked or CAPTCHA triggered" "ERROR"
+            } else {
+                Write-Log "Session creation failed: $($_.Exception.Message)" "ERROR"
+            }
+            throw
+        }
     }
 
-    $sessionBody = @{
-        username = $creds.UserName
-        password = $creds.GetNetworkCredential().Password
-    } | ConvertTo-Json
-
-    $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
-    $session = Invoke-RestMethod -Method Post -Uri $SessionUri -Body $sessionBody -Headers $sessionHeaders -ErrorAction Stop
-    Write-Log "JIRA session created successfully" "SUCCESS"
-
-    # Create session headers for subsequent requests
-    $apiHeaders = @{
-        'Content-Type' = 'application/json'
-        'Accept' = 'application/json'
-        'Cookie' = "$($session.session.name)=$($session.session.value)"
+    # Test authentication before proceeding
+    if (-not (Test-JiraAuthentication -Headers $apiHeaders -BaseUrl $JiraBaseUrl)) {
+        Write-Log "Authentication test failed. Cannot continue." "ERROR"
+        exit 1
     }
+
 } catch {
-    Write-Log "Failed to create JIRA session: $($_.Exception.Message)" "ERROR"
+    Write-Log "Failed to set up JIRA authentication: $($_.Exception.Message)" "ERROR"
     Write-Log "Please verify your credentials and JIRA URL" "ERROR"
+
+    # Check if it's a CAPTCHA issue
+    if ($_.Exception.Message -match "CAPTCHA|AUTHENTICATION_DENIED") {
+        Write-Log "CAPTCHA may be triggered. Please:" "ERROR"
+        Write-Log "1. Log in via web browser to resolve CAPTCHA" "ERROR"
+        Write-Log "2. Consider using Personal Access Token instead" "ERROR"
+    }
     exit 1
 }
 
@@ -288,6 +532,155 @@ if ($BackupUsers) {
 Write-Log "Starting email update process..." "INFO"
 $processedUsers = @()
 
+# Session was created successfully, proceeding with user processing
+
+# Check users only mode - validate existence without making changes
+if ($CheckUsersOnly) {
+    Write-Log "=== USER EXISTENCE CHECK MODE ===" "INFO"
+    Write-Log "Checking which users exist in JIRA instance..." "INFO"
+
+    $existingUsers = @()
+    $missingUsers = @()
+    $invalidUsers = @()
+
+    foreach ($user in $users) {
+        $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { $null }
+        $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { $null }
+
+        # Skip invalid entries
+        if ([string]::IsNullOrWhiteSpace($oldEmail)) {
+            $invalidUsers += [PSCustomObject]@{
+                OldEmail = $oldEmail
+                NewEmail = $newEmail
+                Reason = "Missing OldEmail"
+            }
+            continue
+        }
+
+        try {
+            Write-Log "Searching for user: $oldEmail" "INFO"
+            $jiraUser = Search-JiraUser -Email $oldEmail -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+
+            if ($null -ne $jiraUser) {
+                $existingUsers += [PSCustomObject]@{
+                    OldEmail = $oldEmail
+                    NewEmail = $newEmail
+                    DisplayName = $jiraUser.displayName
+                    AccountId = $jiraUser.accountId
+                    Active = $jiraUser.active
+                }
+                Write-Log "✓ Found: $oldEmail -> $($jiraUser.displayName) (Active: $($jiraUser.active))" "SUCCESS"
+            } else {
+                $missingUsers += [PSCustomObject]@{
+                    OldEmail = $oldEmail
+                    NewEmail = $newEmail
+                    Reason = "User not found in JIRA using any search method"
+                }
+                Write-Log "✗ Missing: $oldEmail - No user found using any search method" "WARNING"
+            }
+        } catch {
+            $errorMessage = $_.Exception.Message
+            $statusCode = "Unknown"
+
+            # Extract status code if available
+            if ($_.Exception.Response) {
+                $statusCode = $_.Exception.Response.StatusCode.value__
+            }
+
+            $missingUsers += [PSCustomObject]@{
+                OldEmail = $oldEmail
+                NewEmail = $newEmail
+                Reason = "Search failed ($statusCode): $errorMessage"
+            }
+            Write-Log "✗ Error searching for $oldEmail (Status: $statusCode): $errorMessage" "ERROR"
+        }
+    }
+
+    # Generate summary report
+    Write-Log "=== USER EXISTENCE CHECK SUMMARY ===" "INFO"
+    Write-Log "Total users in CSV: $($users.Count)" "INFO"
+    Write-Log "Users found in JIRA: $($existingUsers.Count)" "SUCCESS"
+    Write-Log "Users missing from JIRA: $($missingUsers.Count)" "WARNING"
+    Write-Log "Invalid entries: $($invalidUsers.Count)" "ERROR"
+
+    # Show active vs inactive users
+    if ($existingUsers.Count -gt 0) {
+        $activeUsers = $existingUsers | Where-Object { $_.Active -eq $true }
+        $inactiveUsers = $existingUsers | Where-Object { $_.Active -eq $false }
+        Write-Log "  - Active users: $($activeUsers.Count)" "SUCCESS"
+        Write-Log "  - Inactive users: $($inactiveUsers.Count)" "WARNING"
+    }
+
+    # Create detailed reports
+    $checkReportPath = ".\JiraUserExistenceCheck_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+    $allCheckResults = @()
+
+    foreach ($existing in $existingUsers) {
+        $allCheckResults += [PSCustomObject]@{
+            OldEmail = $existing.OldEmail
+            NewEmail = $existing.NewEmail
+            Status = "EXISTS"
+            DisplayName = $existing.DisplayName
+            AccountId = $existing.AccountId
+            Active = $existing.Active
+            Reason = ""
+        }
+    }
+
+    foreach ($missing in $missingUsers) {
+        $allCheckResults += [PSCustomObject]@{
+            OldEmail = $missing.OldEmail
+            NewEmail = $missing.NewEmail
+            Status = "MISSING"
+            DisplayName = ""
+            AccountId = ""
+            Active = ""
+            Reason = $missing.Reason
+        }
+    }
+
+    foreach ($invalid in $invalidUsers) {
+        $allCheckResults += [PSCustomObject]@{
+            OldEmail = $invalid.OldEmail
+            NewEmail = $invalid.NewEmail
+            Status = "INVALID"
+            DisplayName = ""
+            AccountId = ""
+            Active = ""
+            Reason = $invalid.Reason
+        }
+    }
+
+    try {
+        $allCheckResults | Export-Csv -Path $checkReportPath -NoTypeInformation -Encoding UTF8
+        Write-Log "Detailed check report saved to: $checkReportPath" "SUCCESS"
+    } catch {
+        Write-Log "Failed to create check report: $($_.Exception.Message)" "WARNING"
+    }
+
+    # Show missing users details
+    if ($missingUsers.Count -gt 0) {
+        Write-Log "Missing Users Details:" "WARNING"
+        foreach ($missing in $missingUsers) {
+            Write-Log "  - $($missing.OldEmail): $($missing.Reason)" "WARNING"
+        }
+    }
+
+    # Close session and exit (only needed for cookie-based auth)
+    if ($session -and -not $PersonalAccessToken -and -not $UseBasicAuth) {
+        try {
+            $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
+            Invoke-RestMethod -Method Delete -Uri $SessionUri -Headers $apiHeaders -ErrorAction SilentlyContinue
+            Write-Log "JIRA session closed successfully" "SUCCESS"
+        } catch {
+            Write-Log "Warning: Failed to properly close JIRA session" "WARNING"
+        }
+    }
+
+    Write-Log "=== USER EXISTENCE CHECK COMPLETED ===" "SUCCESS"
+    exit 0
+}
+
 foreach ($user in $users) {
     $oldEmail = if ($user.OldEmail) { $user.OldEmail.Trim() } else { $null }
     $newEmail = if ($user.NewEmail) { $user.NewEmail.Trim() } else { $null }
@@ -322,24 +715,28 @@ foreach ($user in $users) {
     try {
         # Search for user by old email
         Write-Log "Processing user: $oldEmail -> $newEmail" "INFO"
-        $searchUri = "$JiraBaseUrl/rest/api/2/user/search?query=$oldEmail"
-        $userSearchResult = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $apiHeaders -ErrorAction Stop
 
-        if ($userSearchResult.Count -eq 0) {
+        $jiraUser = Search-JiraUser -Email $oldEmail -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+
+        if ($null -eq $jiraUser) {
             $currentUser.Status = "Failed"
-            $currentUser.ErrorMessage = "User not found"
-            Write-Log "User not found for email: $oldEmail" "WARNING"
+            $currentUser.ErrorMessage = "User not found in JIRA instance using any search method"
+            Write-Log "No user found for email: $oldEmail using any search method" "WARNING"
             $errorCount++
             $processedUsers += $currentUser
             continue
         }
 
-        # Handle multiple users found
-        if ($userSearchResult.Count -gt 1) {
-            Write-Log "Warning: Multiple users found for $oldEmail. Using first match." "WARNING"
+        # Validate that we have a valid user object with required properties
+        if ([string]::IsNullOrEmpty($jiraUser.accountId)) {
+            $currentUser.Status = "Failed"
+            $currentUser.ErrorMessage = "Invalid user data returned from search"
+            Write-Log "Search returned invalid user data for email: $oldEmail" "ERROR"
+            $errorCount++
+            $processedUsers += $currentUser
+            continue
         }
 
-        $jiraUser = $userSearchResult[0]
         $accountId = $jiraUser.accountId
         $currentUser.AccountId = $accountId
 
@@ -366,7 +763,41 @@ foreach ($user in $users) {
     } catch {
         $currentUser.Status = "Failed"
         $currentUser.ErrorMessage = $_.Exception.Message
-        Write-Log "Failed to update email for $oldEmail : $($_.Exception.Message)" "ERROR"
+
+        # Provide more specific error context
+        $statusCode = "Unknown"
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+
+        if ($_.Exception.Message -match "401" -or $statusCode -eq 401) {
+            Write-Log "Authentication failed for $oldEmail - Check JIRA permissions or session validity" "ERROR"
+            $currentUser.ErrorMessage = "401 Unauthorized - Authentication or permission issue"
+        } elseif ($_.Exception.Message -match "404" -or $statusCode -eq 404) {
+            Write-Log "User or endpoint not found for $oldEmail - User may not exist" "ERROR"
+            $currentUser.ErrorMessage = "404 Not Found - User does not exist"
+        } elseif ($_.Exception.Message -match "403" -or $statusCode -eq 403) {
+            Write-Log "Access forbidden for $oldEmail - Insufficient permissions" "ERROR"
+            $currentUser.ErrorMessage = "403 Forbidden - Insufficient permissions"
+        } elseif ($_.Exception.Message -match "400" -or $statusCode -eq 400) {
+            Write-Log "Bad Request for $oldEmail - Check email format or API parameters" "ERROR"
+            $currentUser.ErrorMessage = "400 Bad Request - Invalid request format or parameters"
+
+            # Try to get detailed error information
+            try {
+                if ($_.Exception.Response) {
+                    $errorStream = $_.Exception.Response.GetResponseStream()
+                    $reader = New-Object System.IO.StreamReader($errorStream)
+                    $errorDetails = $reader.ReadToEnd()
+                    Write-Log "400 Bad Request details: $errorDetails" "ERROR"
+                }
+            } catch {
+                Write-Log "Could not read detailed error information" "WARNING"
+            }
+        } else {
+            Write-Log "Failed to process user $oldEmail (Status: $statusCode): $($_.Exception.Message)" "ERROR"
+        }
+
         $errorCount++
     }
 
@@ -402,8 +833,8 @@ if ($failedUpdates.Count -gt 0) {
     }
 }
 
-####Close session
-if ($session) {
+####Close session (only needed for cookie-based auth)
+if ($session -and -not $PersonalAccessToken -and -not $UseBasicAuth) {
     try {
         $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
         Invoke-RestMethod -Method Delete -Uri $SessionUri -Headers $apiHeaders -ErrorAction SilentlyContinue
