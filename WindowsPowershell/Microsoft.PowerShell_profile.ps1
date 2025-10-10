@@ -238,7 +238,8 @@ function Show-EnterpriseProgress {
         "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns",
         "Windows-Upgrade-All-Apps.ps1 - ✅ Enterprise package management with security validation",
         "Install_Modules.ps1 - ✅ Military-grade module lifecycle management with security",
-        "Check-WindowsFeature.ps1 - ✅ Enterprise Windows feature management with security analysis"
+        "Check-WindowsFeature.ps1 - ✅ Enterprise Windows feature management with security analysis",
+        "FindProcessForFileInUse.ps1 - ✅ Enterprise file lock detection with automated resolution"
     )
 
     Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
