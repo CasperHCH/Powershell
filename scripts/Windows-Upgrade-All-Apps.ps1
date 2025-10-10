@@ -8,7 +8,7 @@
 #
 # ENTERPRISE FEATURES:
 #   🔒 Security validation before upgrades
-#   📊 Comprehensive reporting and audit trails  
+#   📊 Comprehensive reporting and audit trails
 #   ⚡ Intelligent batch processing with throttling
 #   🛡️ Rollback capability and system protection
 #   🌍 Enterprise policy compliance checking
@@ -20,16 +20,16 @@
 .SYNOPSIS
     Enterprise-grade Windows application upgrade management system
 
-.DESCRIPTION 
+.DESCRIPTION
     Military-grade system for discovering, validating, and upgrading Windows applications
     using Windows Package Manager with comprehensive enterprise controls and security validation.
-    
+
     SECURITY FEATURES:
     - Pre-upgrade system state capture and rollback capability
     - Digital signature validation for all packages
     - Enterprise policy compliance checking
     - Comprehensive audit logging and reporting
-    
+
     ENTERPRISE FEATURES:
     - Intelligent batch processing with configurable throttling
     - Advanced filtering and exclusion management
@@ -67,7 +67,7 @@
     .\Windows-Upgrade-All-Apps.ps1 -DryRun
     Preview available upgrades without installation
 
-.EXAMPLE  
+.EXAMPLE
     .\Windows-Upgrade-All-Apps.ps1 -ExcludePackages @("Microsoft.VisualStudioCode", "Git.Git") -CreateRestorePoint
     Upgrade all apps except specified packages with restore point
 #>
@@ -76,23 +76,23 @@
 param(
     [Parameter(Mandatory = $false)]
     [switch]$Interactive = $true,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$DryRun,
-    
+
     [Parameter(Mandatory = $false)]
     [string[]]$ExcludePackages = @(),
-    
+
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 10)]
     [int]$MaxConcurrent = 3,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$CreateRestorePoint,
-    
+
     [Parameter(Mandatory = $false)]
     [string]$ReportPath = $PSScriptRoot,
-    
+
     [Parameter(Mandatory = $false)]
     [switch]$Force
 )
@@ -104,7 +104,7 @@ try {
         . $enterpriseLoggingPath
         Initialize-EnterpriseLogging -LogLevel "Info" -EnableTelemetry -EnableAlerting
     } else {
-        function Write-EnterpriseLog { 
+        function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "PackageManagement", [hashtable]$Properties = @{})
             Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
@@ -135,11 +135,11 @@ function Test-EnterpriseCompliance {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "🛡️  Validating enterprise compliance..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting compliance validation" -Category "Security"
-        
+
         $complianceResults = @{
             AdminRights = $false
             WingetAvailable = $false
@@ -147,14 +147,14 @@ function Test-EnterpriseCompliance {
             NetworkAccess = $false
             DiskSpace = $false
         }
-        
+
         # Check administrator privileges
         $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
         $complianceResults.AdminRights = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        
+
         # Check winget availability
         $complianceResults.WingetAvailable = (Get-Command winget -ErrorAction SilentlyContinue) -ne $null
-        
+
         # Check system protection
         try {
             $systemProtection = Get-CimInstance -ClassName Win32_SystemRestore -ErrorAction SilentlyContinue
@@ -162,7 +162,7 @@ function Test-EnterpriseCompliance {
         } catch {
             $complianceResults.SystemProtection = $false
         }
-        
+
         # Check network connectivity
         try {
             $networkTest = Test-NetConnection -ComputerName "winget.azureedge.net" -Port 443 -InformationLevel Quiet -ErrorAction SilentlyContinue
@@ -170,7 +170,7 @@ function Test-EnterpriseCompliance {
         } catch {
             $complianceResults.NetworkAccess = $false
         }
-        
+
         # Check disk space (minimum 5GB free)
         try {
             $systemDrive = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DeviceID -eq $env:SystemDrive }
@@ -179,29 +179,29 @@ function Test-EnterpriseCompliance {
         } catch {
             $complianceResults.DiskSpace = $false
         }
-        
+
         # Report compliance status
         Write-Host "   ✅ Administrator Rights: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.AdminRights -ForegroundColor $(if($complianceResults.AdminRights){"Green"}else{"Red"})
-        
-        Write-Host "   ✅ Winget Available: " -NoNewline -ForegroundColor White  
+
+        Write-Host "   ✅ Winget Available: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.WingetAvailable -ForegroundColor $(if($complianceResults.WingetAvailable){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ System Protection: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.SystemProtection -ForegroundColor $(if($complianceResults.SystemProtection){"Green"}else{"Yellow"})
-        
+
         Write-Host "   ✅ Network Access: " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.NetworkAccess -ForegroundColor $(if($complianceResults.NetworkAccess){"Green"}else{"Red"})
-        
+
         Write-Host "   ✅ Disk Space (>5GB): " -NoNewline -ForegroundColor White
         Write-Host $complianceResults.DiskSpace -ForegroundColor $(if($complianceResults.DiskSpace){"Green"}else{"Red"})
-        
+
         $overallCompliance = $complianceResults.AdminRights -and $complianceResults.WingetAvailable -and $complianceResults.NetworkAccess -and $complianceResults.DiskSpace
-        
+
         Write-EnterpriseLog -Level "Info" -Message "Compliance validation completed" -Category "Security" -Properties $complianceResults
-        
+
         return $overallCompliance
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Compliance validation failed" -Category "Security" -Exception $_
         return $false
@@ -215,11 +215,11 @@ function Find-EnterpriseWinget {
     #>
     [CmdletBinding()]
     param()
-    
+
     try {
         Write-Host "🔍 Discovering Windows Package Manager..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting winget discovery" -Category "Discovery"
-        
+
         # Method 1: Standard PATH lookup
         $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
         if ($wingetCmd) {
@@ -229,19 +229,19 @@ function Find-EnterpriseWinget {
             }
             return $wingetCmd.Source
         }
-        
+
         # Method 2: WindowsApps directory search
         Write-Host "   📂 Searching WindowsApps directory..." -ForegroundColor Yellow
         $windowsAppsPath = Join-Path $env:ProgramFiles "WindowsApps"
-        
+
         if (Test-Path $windowsAppsPath) {
-            $wingetPaths = Get-ChildItem $windowsAppsPath -Recurse -File -ErrorAction SilentlyContinue | 
-                Where-Object { 
-                    $_.Name -eq 'winget.exe' -and 
-                    $_.FullName -match 'Microsoft.DesktopAppInstaller' 
+            $wingetPaths = Get-ChildItem $windowsAppsPath -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.Name -eq 'winget.exe' -and
+                    $_.FullName -match 'Microsoft.DesktopAppInstaller'
                 } |
                 Sort-Object LastWriteTime -Descending
-                
+
             if ($wingetPaths) {
                 $wingetPath = $wingetPaths[0].FullName
                 Write-EnterpriseLog -Level "Success" -Message "Winget found in WindowsApps" -Category "Discovery" -Properties @{
@@ -251,15 +251,15 @@ function Find-EnterpriseWinget {
                 return $wingetPath
             }
         }
-        
-        # Method 3: Registry-based discovery  
+
+        # Method 3: Registry-based discovery
         Write-Host "   🔍 Checking registry entries..." -ForegroundColor Yellow
         try {
             $registryPaths = @(
                 "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\winget.exe",
                 "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\winget.exe"
             )
-            
+
             foreach ($regPath in $registryPaths) {
                 if (Test-Path $regPath) {
                     $wingetPath = (Get-ItemProperty $regPath -ErrorAction SilentlyContinue).Path
@@ -275,9 +275,9 @@ function Find-EnterpriseWinget {
         } catch {
             Write-EnterpriseLog -Level "Warning" -Message "Registry search failed" -Category "Discovery" -Exception $_
         }
-        
+
         throw "Windows Package Manager (winget) not found. Please install from Microsoft Store."
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Winget discovery failed" -Category "Discovery" -Exception $_
         throw
@@ -294,22 +294,22 @@ function Get-EnterprisePackageList {
         [Parameter(Mandatory = $true)]
         [string]$WingetPath
     )
-    
+
     try {
         Write-Host "📦 Discovering available package upgrades..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting package discovery" -Category "Discovery"
-        
+
         # Get upgrade list in JSON format for better parsing
         $upgradeOutput = & $WingetPath upgrade --include-unknown --accept-source-agreements 2>&1
-        
+
         if ($LASTEXITCODE -ne 0) {
             throw "Winget upgrade list command failed with exit code: $LASTEXITCODE"
         }
-        
+
         # Parse winget output (table format)
         $packages = @()
         $lines = $upgradeOutput -split "`n" | Where-Object { $_ -and $_ -notmatch "^-+$" -and $_ -notmatch "^Name|^The following packages" }
-        
+
         foreach ($line in $lines) {
             if ($line -match "^\s*(.+?)\s+(.+?)\s+(.+?)\s+(.+?)\s*$") {
                 $packages += [PSCustomObject]@{
@@ -321,13 +321,13 @@ function Get-EnterprisePackageList {
                 }
             }
         }
-        
+
         # Filter excluded packages
         if ($ExcludePackages.Count -gt 0) {
             $originalCount = $packages.Count
             $packages = $packages | Where-Object { $_.Id -notin $ExcludePackages }
             $excludedCount = $originalCount - $packages.Count
-            
+
             if ($excludedCount -gt 0) {
                 Write-Host "   ⚠️  Excluded $excludedCount packages per policy" -ForegroundColor Yellow
                 Write-EnterpriseLog -Level "Info" -Message "Packages excluded per policy" -Category "Filtering" -Properties @{
@@ -336,16 +336,16 @@ function Get-EnterprisePackageList {
                 }
             }
         }
-        
+
         $Global:EnterprisePackageMetrics.TotalPackages = $packages.Count
-        
+
         Write-EnterpriseLog -Level "Success" -Message "Package discovery completed" -Category "Discovery" -Properties @{
             TotalPackages = $packages.Count
             ExcludedPackages = $ExcludePackages.Count
         }
-        
+
         return $packages
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Package discovery failed" -Category "Discovery" -Exception $_
         throw
@@ -364,14 +364,14 @@ function Invoke-EnterprisePackageUpgrade {
         [Parameter(Mandatory = $true)]
         [array]$Packages
     )
-    
+
     try {
         Write-Host "⬆️  Starting enterprise package upgrade process..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting package upgrades" -Category "Upgrade" -Properties @{
             PackageCount = $Packages.Count
             MaxConcurrent = $MaxConcurrent
         }
-        
+
         if ($DryRun) {
             Write-Host "🔍 DRY RUN MODE: No packages will be upgraded" -ForegroundColor Yellow
             foreach ($package in $Packages) {
@@ -379,7 +379,7 @@ function Invoke-EnterprisePackageUpgrade {
             }
             return
         }
-        
+
         # Create system restore point if requested
         if ($CreateRestorePoint) {
             Write-Host "💾 Creating system restore point..." -ForegroundColor Cyan
@@ -392,27 +392,27 @@ function Invoke-EnterprisePackageUpgrade {
                 Write-EnterpriseLog -Level "Warning" -Message "Restore point creation failed" -Category "Backup" -Exception $_
             }
         }
-        
+
         # Process packages with throttling
         $completed = 0
         $failed = 0
-        
+
         foreach ($package in $Packages) {
             try {
                 Write-Host "   📦 Upgrading: $($package.Name)" -ForegroundColor White
-                
+
                 # Execute upgrade with comprehensive parameters
                 $upgradeArgs = @(
                     "upgrade",
                     "--id", $package.Id,
                     "--silent",
-                    "--accept-source-agreements", 
+                    "--accept-source-agreements",
                     "--accept-package-agreements",
                     "--disable-interactivity"
                 )
-                
+
                 $upgradeResult = & $WingetPath @upgradeArgs 2>&1
-                
+
                 if ($LASTEXITCODE -eq 0) {
                     $completed++
                     Write-Host "      ✅ Success" -ForegroundColor Green
@@ -433,12 +433,12 @@ function Invoke-EnterprisePackageUpgrade {
                         Output = ($upgradeResult | Out-String)
                     }
                 }
-                
+
                 # Throttling for system stability
                 if (($completed + $failed) % $MaxConcurrent -eq 0) {
                     Start-Sleep -Seconds 2
                 }
-                
+
             } catch {
                 $failed++
                 $Global:EnterprisePackageMetrics.Errors += "Exception upgrading $($package.Name): $($_.Exception.Message)"
@@ -449,22 +449,22 @@ function Invoke-EnterprisePackageUpgrade {
                 }
             }
         }
-        
+
         # Update metrics
         $Global:EnterprisePackageMetrics.UpgradedPackages = $completed
         $Global:EnterprisePackageMetrics.FailedPackages = $failed
-        
+
         Write-Host "`n📊 Upgrade Summary:" -ForegroundColor Cyan
         Write-Host "   ✅ Successful: $completed" -ForegroundColor Green
         Write-Host "   ❌ Failed: $failed" -ForegroundColor Red
         Write-Host "   📦 Total Processed: $($completed + $failed)" -ForegroundColor White
-        
+
         Write-EnterpriseLog -Level "Info" -Message "Package upgrade process completed" -Category "Summary" -Properties @{
             SuccessfulUpgrades = $completed
             FailedUpgrades = $failed
             TotalProcessed = ($completed + $failed)
         }
-        
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Enterprise package upgrade failed" -Category "Upgrade" -Exception $_
         throw
@@ -481,10 +481,10 @@ function Export-EnterpriseUpgradeReport {
         [Parameter(Mandatory = $true)]
         [array]$Packages
     )
-    
+
     try {
         $reportPath = Join-Path $ReportPath "Enterprise-Package-Upgrade-Report-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
-        
+
         $report = @{
             Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
             ComputerName = $env:COMPUTERNAME
@@ -500,18 +500,18 @@ function Export-EnterpriseUpgradeReport {
             Metrics = $Global:EnterprisePackageMetrics
             Duration = [math]::Round(((Get-Date) - $Global:EnterprisePackageMetrics.StartTime).TotalMinutes, 2)
         }
-        
+
         $report | ConvertTo-Json -Depth 10 | Out-File $reportPath -Encoding UTF8
-        
+
         Write-Host "📄 Enterprise report exported: $reportPath" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "Enterprise report generated" -Category "Reporting" -Properties @{
             ReportPath = $reportPath
             PackageCount = $Packages.Count
             Duration = $report.Duration
         }
-        
+
         return $reportPath
-        
+
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Failed to generate enterprise report" -Category "Reporting" -Exception $_
         Write-Host "⚠️  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -529,20 +529,20 @@ try {
     Write-Host ("═" * 70) -ForegroundColor Cyan
     Write-Host "🔒 Military-grade package upgrade management with enterprise controls" -ForegroundColor White
     Write-Host ""
-    
+
     Write-EnterpriseLog -Level "Info" -Message "Enterprise package management system started" -Category "System" -Properties @{
         ComputerName = $env:COMPUTERNAME
         UserName = $env:USERNAME
         Parameters = $PSBoundParameters
     }
-    
+
     # Interactive confirmation (unless forced)
     if ($Interactive -and -not $Force) {
         Write-Host "⚠️  ENTERPRISE SECURITY NOTICE" -ForegroundColor Yellow
         Write-Host "This system will perform comprehensive package upgrades with enterprise security validation." -ForegroundColor White
         Write-Host "All operations will be logged and audited for compliance purposes." -ForegroundColor White
         Write-Host ""
-        
+
         $confirmation = Read-Host "Do you wish to proceed with enterprise package management? (y/N)"
         if ($confirmation -notmatch '^[yY]') {
             Write-Host "Operation cancelled by user." -ForegroundColor Yellow
@@ -550,23 +550,23 @@ try {
             exit 0
         }
     }
-    
+
     # Enterprise compliance validation
     Write-Host "`n🛡️  ENTERPRISE COMPLIANCE VALIDATION" -ForegroundColor Cyan
     if (-not (Test-EnterpriseCompliance)) {
         throw "Enterprise compliance validation failed. Cannot proceed with package operations."
     }
     Write-Host "✅ Enterprise compliance validated successfully" -ForegroundColor Green
-    
+
     # Discover winget
     Write-Host "`n🔍 ENTERPRISE DISCOVERY PHASE" -ForegroundColor Cyan
     $wingetPath = Find-EnterpriseWinget
     Write-Host "✅ Windows Package Manager located: $wingetPath" -ForegroundColor Green
-    
+
     # Display winget version and information
     Write-Host "`n📋 Package Manager Information:" -ForegroundColor Cyan
     & $wingetPath --info
-    
+
     # Update package sources
     Write-Host "`n🔄 Updating package sources..." -ForegroundColor Cyan
     & $wingetPath source update
@@ -575,32 +575,32 @@ try {
     } else {
         Write-Warning "Package source update returned exit code: $LASTEXITCODE"
     }
-    
+
     # Discover available packages
     Write-Host "`n📦 ENTERPRISE PACKAGE DISCOVERY" -ForegroundColor Cyan
     $availablePackages = Get-EnterprisePackageList -WingetPath $wingetPath
-    
+
     if ($availablePackages.Count -eq 0) {
         Write-Host "✅ No packages require upgrades. System is up to date." -ForegroundColor Green
         Write-EnterpriseLog -Level "Info" -Message "No packages require upgrades" -Category "Discovery"
     } else {
         Write-Host "🎯 Found $($availablePackages.Count) packages available for upgrade" -ForegroundColor Green
-        
+
         # Display package summary
         Write-Host "`nPackage Summary:" -ForegroundColor Cyan
         $availablePackages | ForEach-Object {
             Write-Host "   📦 $($_.Name) ($($_.Version) → $($_.Available))" -ForegroundColor White
         }
-        
+
         # Execute upgrades
         Write-Host "`n⬆️  ENTERPRISE UPGRADE EXECUTION" -ForegroundColor Cyan
         Invoke-EnterprisePackageUpgrade -WingetPath $wingetPath -Packages $availablePackages
-        
+
         # Generate enterprise report
         Write-Host "`n📄 ENTERPRISE REPORTING" -ForegroundColor Cyan
         Export-EnterpriseUpgradeReport -Packages $availablePackages
     }
-    
+
     # Final summary
     $duration = [math]::Round(((Get-Date) - $Global:EnterprisePackageMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
@@ -610,21 +610,21 @@ try {
     Write-Host "   Processed: $($Global:EnterprisePackageMetrics.TotalPackages) packages" -ForegroundColor White
     Write-Host "   Successful: $($Global:EnterprisePackageMetrics.UpgradedPackages)" -ForegroundColor Green
     Write-Host "   Failed: $($Global:EnterprisePackageMetrics.FailedPackages)" -ForegroundColor Red
-    
+
     Write-EnterpriseLog -Level "Success" -Message "Enterprise package management completed successfully" -Category "System" -Properties $Global:EnterprisePackageMetrics
-    
+
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise package management failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE PACKAGE MANAGEMENT FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    
+
     if ($Global:EnterprisePackageMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
         $Global:EnterprisePackageMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
-    
+
     exit 1
 } finally {
     # Cleanup and final telemetry
