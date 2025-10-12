@@ -1,6 +1,6 @@
 # Atlassian API Reference Documentation
 
-> **Last Updated:** October 2025  
+> **Last Updated:** October 2025
 > **Status:** Enhanced with JIRA On-Premise user management and anonymization APIs
 
 ## Overview

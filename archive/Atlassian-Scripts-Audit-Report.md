@@ -46,7 +46,7 @@ Your Atlassian script collection is **extensive and sophisticated**, containing 
    - **Fixed:** Added proper Jira base URL and credential handling
 
 #### **✅ WELL-FORMED SCRIPTS:**
-- **`Bulk_Disable_Jira_Users.ps1`** - Professional quality with good documentation
+- **`Manage-JiraUserLifecycle.ps1`** (renamed from Bulk_Disable_Jira_Users.ps1) - Professional quality with good documentation
 - **`Add_Group_To_Role_of_all_projects.ps1`** - Functional bulk operation
 - **`Jira-Create-supportzip.ps1`** - Support utility
 

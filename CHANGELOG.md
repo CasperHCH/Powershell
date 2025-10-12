@@ -5,7 +5,7 @@ All notable changes to this PowerShell library are documented in this file.
 ## [3.0.0] - 2025-10-10 - JIRA Enterprise User Management & GDPR Compliance
 
 ### 🎯 **JIRA ENTERPRISE USER LIFECYCLE MANAGEMENT**
-- **Enhanced** `Bulk_Disable_Jira_Users.ps1` from 1533 to 1757+ lines with comprehensive user management
+- **Enhanced** `Manage-JiraUserLifecycle.ps1` (renamed from Bulk_Disable_Jira_Users.ps1) from 1533 to 1757+ lines with comprehensive user lifecycle management
 - **Implemented** multi-method user discovery supporting both active and inactive users
 - **Added** project lead conflict resolution with automatic transfer capabilities
 - **Integrated** GDPR-compliant anonymization with proper content ownership transfer

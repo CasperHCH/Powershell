@@ -12,7 +12,7 @@ that specifies who should inherit the content ownership when a user is anonymize
 ## Solutions Implemented:
 
 ### 1. Enhanced Function Signature
-**File:** Bulk_Disable_Jira_Users.ps1 (line ~958)
+**File:** Manage-JiraUserLifecycle.ps1 (line ~958)
 **Change:** Added mandatory [string]$NewOwnerKey parameter
 
 **Before:**
@@ -41,7 +41,7 @@ function Set-JiraUserAnonymized {
 ```
 
 ### 2. Enhanced API Payload Construction
-**File:** Bulk_Disable_Jira_Users.ps1 (line ~1005)
+**File:** Manage-JiraUserLifecycle.ps1 (line ~1005)
 **Change:** Added newOwnerKey to the anonymization API payload
 
 **Before:**
@@ -63,7 +63,7 @@ if ($identifierType -eq "accountId") {
 ```
 
 ### 3. Updated Function Calls
-**File:** Bulk_Disable_Jira_Users.ps1 (line ~1485)
+**File:** Manage-JiraUserLifecycle.ps1 (line ~1485)
 **Change:** Added NewOwnerKey parameter to function calls
 
 **Before:**

@@ -1,17 +1,20 @@
 # cSpell:words creds jira notfound atlassian anonymization userkey
 <#
 .SYNOPSIS
-    Enterprise JIRA User Management - Bulk disable and anonymize users with comprehensive search capabilities
+    Manage-JiraUserLifecycle - Comprehensive JIRA user lifecycle management with enterprise-grade capabilities
 
 .DESCRIPTION
-    This enterprise-grade script provides comprehensive user lifecycle management for JIRA on-premise instances.
-    It can discover, disable, and anonymize users based on CSV input, email domains, or username patterns.
-    Features include project lead conflict resolution, inactive user discovery, GDPR-compliant anonymization
-    with content ownership transfer, parallel processing, comprehensive logging, and extensive error handling.
-    
+    This enterprise-grade PowerShell script provides complete user lifecycle management for JIRA on-premise instances.
+    It handles the full spectrum of user operations: discovery, project conflict resolution, disabling, and
+    GDPR-compliant anonymization with proper content ownership transfer.
+
+    The script excels at finding both active and inactive users through multiple API search methods, automatically
+    resolves project leadership conflicts, and ensures complete regulatory compliance through proper anonymization
+    with audit trails and progress monitoring.
+
     Key Features:
     - Multi-method user discovery (active and inactive users)
-    - Automatic project lead transfer for conflict resolution  
+    - Automatic project lead transfer for conflict resolution
     - GDPR-compliant anonymization with proper content ownership
     - Enhanced batch processing with manual intervention tracking
     - Comprehensive logging with optional debug output
@@ -24,7 +27,8 @@
     The base URL of your JIRA instance (e.g., https colon slash slash jira.company.com)
 
 .PARAMETER EmailDomains
-    Comma-separated list of email domains to target for disabling (e.g., "oldcompany.com,contractor.net")
+    Comma-separated list of email domains to target. Supports wildcards using * and ?
+    Examples: "oldcompany.com,contractor.net", "*.teliacompany.com", "temp-*.contractor.net"
 
 .PARAMETER UsernamePatterns
     Comma-separated list of username patterns using wildcards (e.g., "temp_*,contractor_*,old.*")
@@ -59,8 +63,17 @@
 .PARAMETER ForceProjectLeadTransfer
     If specified, automatically transfers project leadership when conflicts are detected
 
+.PARAMETER ProcessAllDisabledUsers
+    If specified, processes all disabled users in JIRA without requiring domain/pattern filters
+    Useful for cleanup operations and compliance requirements
+
 .PARAMETER NewProjectLead
     Username to transfer project leadership to when ForceProjectLeadTransfer is used (defaults to "admin")
+
+.PARAMETER ContentOwnershipTransferTo
+    Username or email of JIRA user who will receive ownership of all content from anonymized users
+    This is separate from project leadership and controls who gets issues, comments, attachments, etc.
+    If not specified, uses the NewProjectLead parameter value
 
 .PARAMETER LogPath
     Path for the log file (defaults to timestamped file in current directory)
@@ -75,50 +88,70 @@
     If specified, enables detailed debug logging for troubleshooting (may generate verbose output)
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -DisableOnly
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -DisableOnly
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "oldcompany.com,contractor.net" -JiraBaseUrl "https://jira.company.com" -DryRun
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "oldcompany.com,contractor.net" -JiraBaseUrl "https://jira.company.com" -DryRun
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira.company.com" -DisableOnly -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira.company.com" -DisableOnly -PersonalAccessToken "your_token"
 
     Disable only users with @teliacompany.com email domain using Personal Access Token authentication
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -BackupUsers
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "*.teliacompany.com,temp-*.contractor.net" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -PersonalAccessToken "your_token"
+
+    Anonymize users with wildcard domain patterns (e.g., any subdomain of teliacompany.com, temp-prefixed contractor accounts)
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -NewProjectLead "admin" -ContentOwnershipTransferTo "archive-user@company.com" -PersonalAccessToken "your_token"
+
+    Anonymize users with separate targets: project leadership goes to 'admin', but user content ownership goes to 'archive-user@company.com'
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -ContentOwnershipTransferTo "archive@company.com" -PersonalAccessToken "your_token"
+
+    Anonymize ALL disabled users in JIRA without domain filtering - useful for cleanup and compliance operations
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -ContentOwnershipTransferTo "archive@company.com" -PersonalAccessToken "your_token" -DryRun
+
+    Check how many disabled users would be anonymized without actually performing the operation
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -BackupUsers
 
     Anonymize users from CSV (disables and permanently removes personal information)
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -UsernamePatterns "temp_*,old.*" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -BackupUsers
+    .\Manage-JiraUserLifecycle.ps1 -UsernamePatterns "temp_*,old.*" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -BackupUsers
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "contractor.net" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contractor.net" -JiraBaseUrl "https://jira.company.com" -AnonymizeUsers -PersonalAccessToken "your_token"
 
     Anonymize users with @contractor.net domain (works on both active and already disabled users)
     Note: Anonymization permanently removes personal data and cannot be undone
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -PersonalAccessToken "your_token" -CheckUsersOnly
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -PersonalAccessToken "your_token" -CheckUsersOnly
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -DisableOnly -ForceProjectLeadTransfer -NewProjectLead "johndoe" -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -DisableOnly -ForceProjectLeadTransfer -NewProjectLead "johndoe" -PersonalAccessToken "your_token"
 
     Disable users from teliacompany.com domain and automatically transfer any project leadership to 'johndoe' user
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -PersonalAccessToken "your_token" -DryRun
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -PersonalAccessToken "your_token" -DryRun
 
     Test anonymization of users with @teliacompany.com domain without making changes
 
 .EXAMPLE
-    .\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
 
     Anonymize inactive teliacompany.com users with debug logging enabled for troubleshooting
 
 .NOTES
-    Author: Enterprise PowerShell Team  
+    Author: Enterprise PowerShell Team
     Version: 3.0
     Date: October 2025
     Requires: PowerShell 5.1+, JIRA Admin permissions
@@ -223,11 +256,17 @@ param (
     [switch]$ForceProjectLeadTransfer,
 
     [Parameter(Mandatory = $false)]
+    [switch]$ProcessAllDisabledUsers,
+
+    [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string]$NewProjectLead = "admin",
 
     [Parameter(Mandatory = $false)]
-    [string]$LogPath = ".\JiraBulkUserDisable_$(Get-Date -Format 'yyyyMMdd_HHmmss').log",
+    [string]$ContentOwnershipTransferTo,
+
+    [Parameter(Mandatory = $false)]
+    [string]$LogPath = ".\JiraUserLifecycle_$(Get-Date -Format 'yyyyMMdd_HHmmss').log",
 
     [Parameter(Mandatory = $false)]
     [ValidateRange(1, 20)]
@@ -349,6 +388,114 @@ function Test-JiraAuthentication {
 
         return $false
     }
+}
+
+# Function to get all disabled users in JIRA
+function Get-AllDisabledJiraUsers {
+    param(
+        [hashtable]$Headers,
+        [string]$BaseUrl,
+        [int]$MaxResults = 2000
+    )
+
+    try {
+        Write-Log "Retrieving all disabled users from JIRA..." "INFO"
+
+        $allUsers = @()
+        $startAt = 0
+        $pageSize = 100
+        $totalRetrieved = 0
+
+        do {
+            # Use the user search API with includeInactive=true to get all users
+            $searchUri = "$BaseUrl/rest/api/2/user/search?username=.&includeInactive=true&startAt=$startAt&maxResults=$pageSize"
+            Write-Log "Fetching users batch: $searchUri" "DEBUG"
+
+            try {
+                $result = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
+
+                if ($result -and $result.Count -gt 0) {
+                    # Filter for only disabled users
+                    $disabledUsers = $result | Where-Object { $_.active -eq $false }
+                    $allUsers += $disabledUsers
+                    $totalRetrieved += $result.Count
+
+                    Write-Log "Retrieved $($result.Count) users in batch (startAt: $startAt), $($disabledUsers.Count) disabled" "DEBUG"
+
+                    # If we got less than the page size, we've reached the end
+                    if ($result.Count -lt $pageSize) {
+                        break
+                    }
+
+                    $startAt += $pageSize
+                } else {
+                    break
+                }
+            } catch {
+                Write-Log "Error retrieving user batch at $startAt : $($_.Exception.Message)" "WARNING"
+                break
+            }
+
+            # Safety check to prevent infinite loops
+            if ($totalRetrieved -ge $MaxResults) {
+                Write-Log "Reached maximum user limit of $MaxResults, stopping retrieval" "WARNING"
+                break
+            }
+
+        } while ($true)
+
+        Write-Log "Found $($allUsers.Count) disabled users out of $totalRetrieved total users retrieved" "SUCCESS"
+
+        # Log some sample disabled users
+        if ($allUsers.Count -gt 0) {
+            Write-Log "Sample disabled users:" "INFO"
+            foreach ($user in ($allUsers | Select-Object -First 5)) {
+                Write-Log "  - $($user.displayName) [$($user.name)] - Email: $($user.emailAddress)" "INFO"
+            }
+
+            if ($allUsers.Count -gt 5) {
+                Write-Log "  ... and $($allUsers.Count - 5) more disabled users" "INFO"
+            }
+        }
+
+        return $allUsers
+
+    } catch {
+        Write-Log "Failed to retrieve disabled users: $($_.Exception.Message)" "ERROR"
+        return @()
+    }
+}
+
+# Helper function to test if email matches domain pattern with wildcard support
+function Test-EmailDomainMatch {
+    param(
+        [string]$Email,
+        [string]$DomainPattern
+    )
+
+    if (-not $Email -or -not $DomainPattern) {
+        return $false
+    }
+
+    $Email = $Email.ToLower()
+    $DomainPattern = $DomainPattern.ToLower()
+
+    # Extract domain from email (everything after @)
+    if ($Email -match "@(.+)$") {
+        $emailDomain = $matches[1]
+
+        # If pattern contains wildcards, convert to regex and test
+        if ($DomainPattern -match "[*?]") {
+            # Convert wildcard pattern to regex
+            $regexPattern = "^" + [regex]::Escape($DomainPattern).Replace("\*", ".*").Replace("\?", ".") + "$"
+            return $emailDomain -match $regexPattern
+        } else {
+            # Exact domain match
+            return $emailDomain -eq $DomainPattern
+        }
+    }
+
+    return $false
 }
 
 # Enhanced function to search for users with multiple methods
@@ -512,13 +659,19 @@ function Search-JiraUsers {
                             $domainList = ($topDomains | ForEach-Object { "$($_.Name) ($($_.Value))" }) -join ", "
                             Write-Log "Top email domains found: $domainList" "INFO"
 
-                            # Specifically check for the target domain
-                            $targetDomainLower = $domain.ToLower()
-                            if ($foundDomains.ContainsKey($targetDomainLower)) {
-                                Write-Log "Target domain '$targetDomainLower' found with $($foundDomains[$targetDomainLower]) users, but filtered out - investigating..." "WARNING"
-                                $targetUsers = $usersWithEmail | Where-Object { $_.emailAddress.ToLower().EndsWith("@$targetDomainLower") }
-                                foreach ($targetUser in $targetUsers | Select-Object -First 3) {
-                                    Write-Log "Sample target user: $($targetUser.name) - $($targetUser.emailAddress) - Active: $($targetUser.active)" "INFO"
+                            # Check for target domain (with wildcard support)
+                            $matchingUsers = $usersWithEmail | Where-Object { Test-EmailDomainMatch -Email $_.emailAddress -DomainPattern $domain }
+                            if ($matchingUsers.Count -gt 0) {
+                                Write-Log "Found $($matchingUsers.Count) users matching domain pattern '$domain'" "SUCCESS"
+                                foreach ($matchingUser in $matchingUsers | Select-Object -First 3) {
+                                    Write-Log "Sample matching user: $($matchingUser.name) - $($matchingUser.emailAddress) - Active: $($matchingUser.active)" "INFO"
+                                }
+                            } else {
+                                # Check if it's a wildcard pattern that might not have matches
+                                if ($domain -match "[*?]") {
+                                    Write-Log "No users found matching wildcard domain pattern '$domain'" "WARNING"
+                                } else {
+                                    Write-Log "Target domain '$domain' not found in search results" "WARNING"
                                 }
                             }
                         }                            if ($usersWithEmail.Count -eq 0) {
@@ -638,13 +791,13 @@ function Search-JiraUsers {
                     if ($allUsersResult -and $allUsersResult.Count -gt 0) {
                         Write-Log "Retrieved $($allUsersResult.Count) total users (active and inactive)" "INFO"
 
-                        # Filter by domain
+                        # Filter by domain (with wildcard support)
                         $domainUsers = @()
                         foreach ($user in $allUsersResult) {
-                            if ($user.emailAddress -and $user.emailAddress.ToLower().EndsWith("@$($domain.ToLower())")) {
+                            if ($user.emailAddress -and (Test-EmailDomainMatch -Email $user.emailAddress -DomainPattern $domain)) {
                                 $domainUsers += $user
                                 $status = if ($user.active) { "ACTIVE" } else { "INACTIVE" }
-                                Write-Log "Found $status user with target domain: $($user.name) - $($user.emailAddress)" "SUCCESS"
+                                Write-Log "Found $status user matching domain pattern '$domain': $($user.name) - $($user.emailAddress)" "SUCCESS"
                             }
                         }
 
@@ -937,11 +1090,16 @@ function Wait-AnonymizationProgress {
         [hashtable]$Headers,
         [string]$BaseUrl,
         [int]$TimeoutSeconds = 600,
-        [string]$UserId = $null
+        [string]$TaskId = $null
     )
 
-    # Updated progress endpoint as per Atlassian API documentation
-    $progressUri = "$BaseUrl/rest/api/2/user/anonymization/progress"
+    # Use specific task progress endpoint if TaskId is provided
+    if ($TaskId) {
+        $progressUri = "$BaseUrl/rest/api/2/user/anonymization/progress?taskId=$TaskId"
+        Write-Log "Monitoring anonymization task: $TaskId" "DEBUG"
+    } else {
+        $progressUri = "$BaseUrl/rest/api/2/user/anonymization/progress"
+    }
     $elapsed = 0
     $checkInterval = 10
 
@@ -952,7 +1110,26 @@ function Wait-AnonymizationProgress {
             $progress = Invoke-RestMethod -Uri $progressUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
 
             # Handle different response formats
-            if ($progress -is [array] -and $progress.Count -eq 0) {
+            if ($TaskId -and $progress.status) {
+                # Task-specific response format
+                $status = $progress.status
+                $progressPercent = if ($progress.currentProgress) { "$($progress.currentProgress)%" } else { "0%" }
+                $userName = if ($progress.userName) { $progress.userName } else { "Unknown user" }
+
+                Write-Log "Task $TaskId status: $status - Progress: $progressPercent for user: $userName" "INFO"
+
+                if ($status -eq "FINISHED" -or $status -eq "COMPLETED") {
+                    Write-Log "Anonymization task completed successfully: $status" "SUCCESS"
+                    return $true
+                } elseif ($status -eq "FAILED" -or $status -eq "ERROR") {
+                    Write-Log "Anonymization task failed with status: $status" "ERROR"
+                    return $false
+                } elseif ($status -eq "IN_PROGRESS" -or $status -eq "RUNNING") {
+                    Write-Log "Anonymization still in progress..." "INFO"
+                } else {
+                    Write-Log "Unknown anonymization status: $status - continuing to monitor..." "WARNING"
+                }
+            } elseif ($progress -is [array] -and $progress.Count -eq 0) {
                 Write-Log "No anonymization process currently running (empty array response)" "SUCCESS"
                 return $true
             } elseif (-not $progress.inProgress -and $null -ne $progress.inProgress) {
@@ -1008,16 +1185,20 @@ function Test-UserAnonymizationEligibility {
     try {
         Write-Log "Checking anonymization eligibility for user: $($User.name)" "DEBUG"
 
-        # Check if user is from external directory (cannot be anonymized)
+        # Check if user is from external directory (only reliable indicator is directoryId)
         if ($User.directoryId -and $User.directoryId -ne "1") {
-            Write-Log "User $($User.name) is from external directory (ID: $($User.directoryId)) - cannot be anonymized" "WARNING"
-            Write-Log "Remove user from external directory first, sync, then anonymize" "INFO"
+            Write-Log "🚫 User $($User.name) is from EXTERNAL DIRECTORY (ID: $($User.directoryId))" "WARNING"
+            Write-Log "❌ External directory users CANNOT be anonymized through API" "ERROR"
+            Write-Log "✅ SOLUTION: Remove user from external directory, sync JIRA, then re-run anonymization" "INFO"
             return @{
                 Eligible = $false;
-                Reason = "External directory user";
+                Reason = "External directory user (Directory ID: $($User.directoryId)) - API anonymization not supported";
                 Action = "Remove from external directory and sync before anonymizing"
             }
         }
+
+        # Note: Display name suffixes like "/External" are NOT reliable indicators of directory source
+        # Only directoryId should be used to determine if a user is from an external directory
 
         # Check if user is already anonymized (username starts with jirauser)
         if ($User.name -match "^jirauser\d+$") {
@@ -1050,6 +1231,99 @@ function Test-UserAnonymizationEligibility {
     }
 }
 
+# Function to resolve user identifier (email or username) to proper JIRA user key/username
+function Resolve-JiraUserIdentifier {
+    param(
+        [string]$UserIdentifier,
+        [hashtable]$Headers,
+        [string]$BaseUrl
+    )
+
+    try {
+        Write-Log "Resolving user identifier: $UserIdentifier" "DEBUG"
+
+        # If it looks like an email address, search by email
+        if ($UserIdentifier -match "^[^@]+@[^@]+\.[^@]+$") {
+            Write-Log "Identifier appears to be email address, searching JIRA users..." "DEBUG"
+
+            # Try searching by email using user picker API
+            $searchUri = "$BaseUrl/rest/api/2/user/picker?query=$([System.Web.HttpUtility]::UrlEncode($UserIdentifier))"
+            $searchResult = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
+
+            if ($searchResult.users -and $searchResult.users.Count -gt 0) {
+                $matchedUser = $searchResult.users | Where-Object { $_.email -eq $UserIdentifier } | Select-Object -First 1
+
+                if ($matchedUser) {
+                    Write-Log "Found JIRA user for email $UserIdentifier - Username: $($matchedUser.name)" "SUCCESS"
+                    return @{
+                        Success = $true
+                        Username = $matchedUser.name
+                        UserKey = if ($matchedUser.key) { $matchedUser.key } else { $matchedUser.name }
+                        AccountId = $matchedUser.accountId
+                        DisplayName = $matchedUser.displayName
+                        Email = $matchedUser.email
+                    }
+                } else {
+                    Write-Log "No exact email match found for: $UserIdentifier" "WARNING"
+                }
+            }
+
+            # Fallback: try direct user lookup by email as username
+            try {
+                $directUri = "$BaseUrl/rest/api/2/user?username=$([System.Web.HttpUtility]::UrlEncode($UserIdentifier))"
+                $directResult = Invoke-RestMethod -Uri $directUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
+
+                Write-Log "Found user by direct lookup: $($directResult.name)" "SUCCESS"
+                return @{
+                    Success = $true
+                    Username = $directResult.name
+                    UserKey = if ($directResult.key) { $directResult.key } else { $directResult.name }
+                    AccountId = $directResult.accountId
+                    DisplayName = $directResult.displayName
+                    Email = $directResult.emailAddress
+                }
+            } catch {
+                Write-Log "Direct user lookup failed for: $UserIdentifier" "DEBUG"
+            }
+
+        } else {
+            # Assume it's already a username, try direct lookup
+            Write-Log "Identifier appears to be username, verifying..." "DEBUG"
+
+            try {
+                $directUri = "$BaseUrl/rest/api/2/user?username=$([System.Web.HttpUtility]::UrlEncode($UserIdentifier))"
+                $directResult = Invoke-RestMethod -Uri $directUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
+
+                Write-Log "Verified username exists: $($directResult.name)" "SUCCESS"
+                return @{
+                    Success = $true
+                    Username = $directResult.name
+                    UserKey = if ($directResult.key) { $directResult.key } else { $directResult.name }
+                    AccountId = $directResult.accountId
+                    DisplayName = $directResult.displayName
+                    Email = $directResult.emailAddress
+                }
+            } catch {
+                Write-Log "Username verification failed for: $UserIdentifier" "WARNING"
+            }
+        }
+
+        # If all lookups fail
+        Write-Log "Failed to resolve user identifier: $UserIdentifier" "ERROR"
+        return @{
+            Success = $false
+            Error = "User not found in JIRA"
+        }
+
+    } catch {
+        Write-Log "Error resolving user identifier $UserIdentifier : $($_.Exception.Message)" "ERROR"
+        return @{
+            Success = $false
+            Error = $_.Exception.Message
+        }
+    }
+}
+
 # Function to anonymize a JIRA user according to Atlassian API documentation
 function Set-JiraUserAnonymized {
     param(
@@ -1068,6 +1342,24 @@ function Set-JiraUserAnonymized {
 
     try {
         Write-Log "Starting anonymization process for user: $($User.displayName) [$($User.name)]" "INFO"
+
+        # Resolve NewOwnerKey to proper JIRA user identifier
+        Write-Log "Resolving content ownership transfer target: $NewOwnerKey" "INFO"
+        $ownerResolution = Resolve-JiraUserIdentifier -UserIdentifier $NewOwnerKey -Headers $Headers -BaseUrl $BaseUrl
+
+        if (-not $ownerResolution.Success) {
+            Write-Log "❌ CRITICAL: Cannot resolve content ownership target: $NewOwnerKey" "ERROR"
+            Write-Log "Error: $($ownerResolution.Error)" "ERROR"
+            Write-Log "Anonymization requires a valid JIRA user to transfer content ownership" "ERROR"
+            return @{
+                Success = $false
+                Action = "OwnerResolutionFailed"
+                Error = "Cannot resolve content ownership target: $NewOwnerKey - $($ownerResolution.Error)"
+            }
+        }
+
+        $resolvedOwnerKey = $ownerResolution.UserKey
+        Write-Log "✅ Content ownership will transfer to: $($ownerResolution.DisplayName) [$($resolvedOwnerKey)]" "SUCCESS"
 
         # Wait for any previous anonymization to complete
         Write-Log "Checking for existing anonymization processes..." "DEBUG"
@@ -1098,9 +1390,9 @@ function Set-JiraUserAnonymized {
 
         # Prepare anonymization payload according to official API documentation
         # The API expects either 'userIdentify' or 'userKey' as the parameter name
-        # and requires 'newOwnerKey' to specify who inherits the content
+        # and requires 'newOwnerKey' to specify who inherits the content (must be valid JIRA user key/username)
         $anonymizePayload = @{
-            newOwnerKey = $NewOwnerKey
+            newOwnerKey = $resolvedOwnerKey
         }
 
         if ($identifierType -eq "accountId") {
@@ -1116,7 +1408,7 @@ function Set-JiraUserAnonymized {
         $anonymizeUri = "$BaseUrl/rest/api/2/user/anonymization"
 
         Write-Log "Anonymization payload: $anonymizeBody" "DEBUG"
-        Write-Log "Content ownership will transfer to: $NewOwnerKey" "INFO"
+        Write-Log "Content ownership will transfer to: $($ownerResolution.DisplayName) [$resolvedOwnerKey]" "INFO"
         Write-Log "Anonymization URI: $anonymizeUri" "DEBUG"
 
         # Make the anonymization request
@@ -1128,21 +1420,139 @@ function Set-JiraUserAnonymized {
         # Log the response for debugging
         if ($result) {
             Write-Log "Anonymization response: $($result | ConvertTo-Json -Compress)" "DEBUG"
+            if ($result.progressUrl) {
+                Write-Log "Progress monitoring URL: $($result.progressUrl)" "INFO"
+            }
+            if ($result.status) {
+                Write-Log "Initial anonymization status: $($result.status)" "INFO"
+            }
         }
 
         # Wait for this anonymization to complete with enhanced progress tracking
         Write-Log "Waiting for anonymization process to complete..." "INFO"
-        $completed = Wait-AnonymizationProgress -Headers $Headers -BaseUrl $BaseUrl -TimeoutSeconds $TimeoutSeconds -UserId $userIdentifier
+        $taskId = if ($result.progressUrl -match "taskId=(\d+)") { $matches[1] } else { $null }
+        $completed = Wait-AnonymizationProgress -Headers $Headers -BaseUrl $BaseUrl -TimeoutSeconds $TimeoutSeconds -TaskId $taskId
 
         if ($completed) {
-            Write-Log "Successfully anonymized user: $($User.displayName) [$($User.name)]" "SUCCESS"
-            Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
-            return @{
-                Success = $true;
-                Action = "Anonymized";
-                Result = $result;
-                UserIdentifier = $userIdentifier;
-                IdentifierType = $identifierType
+            # Verify anonymization actually occurred by re-querying the user
+            Write-Log "Verifying anonymization completion by re-querying user..." "INFO"
+
+            try {
+                Start-Sleep -Seconds 2  # Brief delay for JIRA to process changes
+
+                # Try to get the user again to verify anonymization
+                $verifyUri = "$BaseUrl/rest/api/2/user?$identifierType=$([System.Web.HttpUtility]::UrlEncode($userIdentifier))"
+                $verifyUser = Invoke-RestMethod -Uri $verifyUri -Method Get -Headers $Headers -UseBasicParsing -ErrorAction Stop
+
+                # Check if user data has been anonymized
+                $isAnonymized = $false
+                if ($verifyUser.name -match "^jirauser\d+$") {
+                    $isAnonymized = $true
+                    Write-Log "✅ VERIFICATION SUCCESS: User anonymized successfully - new username: $($verifyUser.name)" "SUCCESS"
+                } elseif ($verifyUser.displayName -match "^user-[a-f0-9-]+$") {
+                    $isAnonymized = $true
+                    Write-Log "✅ VERIFICATION SUCCESS: User anonymized successfully - new display name: $($verifyUser.displayName)" "SUCCESS"
+                } else {
+                    Write-Log "❌ VERIFICATION FAILED: User data not anonymized despite API success" "ERROR"
+                    Write-Log "Current username: $($verifyUser.name)" "ERROR"
+                    Write-Log "Current display name: $($verifyUser.displayName)" "ERROR"
+                    Write-Log "Current email: $($verifyUser.emailAddress)" "ERROR"
+
+                    # Check if user is from external directory (only directoryId is reliable)
+                    if ($verifyUser.directoryId -and $verifyUser.directoryId -ne "1") {
+                        Write-Log "🔍 ROOT CAUSE: External directory user detected (Directory ID: $($verifyUser.directoryId))" "ERROR"
+                        Write-Log "External users cannot be anonymized through API - must be removed from external directory first" "ERROR"
+                        Write-Log "SOLUTION: Remove user from external directory, sync, then re-run anonymization" "INFO"
+
+                        return @{
+                            Success = $false;
+                            Action = "AnonymizationVerificationFailed";
+                            Error = "External directory user (Directory ID: $($verifyUser.directoryId)) - API reports success but anonymization not applied";
+                            UserIdentifier = $userIdentifier;
+                            IdentifierType = $identifierType;
+                            Solution = "Remove from external directory and sync before anonymizing"
+                        }
+                    } else {
+                        Write-Log "� JIRA ANONYMIZATION SERVICE ISSUE DETECTED" "ERROR"
+                        Write-Log "Task completed successfully but user data unchanged - this indicates a JIRA service problem" "ERROR"
+                        Write-Log "" "INFO"
+                        Write-Log "📋 IMMEDIATE ACTIONS REQUIRED:" "INFO"
+                        Write-Log "1. Check JIRA System Logs:" "INFO"
+                        Write-Log "   - Go to JIRA Admin → System → Logging and profiling" "INFO"
+                        Write-Log "   - Look for anonymization errors around task ID: $taskId" "INFO"
+                        Write-Log "2. Manual Anonymization Attempt:" "INFO"
+                        Write-Log "   - Go to JIRA Admin → User Management → Browse Users" "INFO"
+                        Write-Log "   - Search for user: $($verifyUser.name)" "INFO"
+                        Write-Log "   - Click Actions → Anonymize User" "INFO"
+                        Write-Log "3. Clear User Sessions:" "INFO"
+                        Write-Log "   - Force logout all sessions for this user" "INFO"
+                        Write-Log "   - Wait 5-10 minutes, then retry anonymization" "INFO"
+                        Write-Log "4. Contact Atlassian Support:" "INFO"
+                        Write-Log "   - If manual anonymization also fails" "INFO"
+                        Write-Log "   - Provide task ID: $taskId for investigation" "INFO"
+                        Write-Log "" "INFO"
+                        Write-Log "⚠️  CONTINUING WITH NEXT USER - MANUAL INTERVENTION REQUIRED FOR: $($User.name)" "WARNING"
+
+                        return @{
+                            Success = $false;
+                            Action = "AnonymizationServiceFailure";
+                            Error = "JIRA anonymization service malfunction - API reports success but user not anonymized";
+                            UserIdentifier = $userIdentifier;
+                            IdentifierType = $identifierType;
+                            TaskId = $taskId;
+                            ManualSteps = @(
+                                "Check JIRA system logs for task ID: $taskId",
+                                "Try manual anonymization in JIRA Admin interface",
+                                "Clear user sessions and retry",
+                                "Contact Atlassian Support if issue persists"
+                            );
+                            JiraAdminUrl = "$BaseUrl/secure/admin/user/UserBrowser.jspa";
+                            SystemLogsUrl = "$BaseUrl/secure/admin/ViewLogging.jspa"
+                        }
+                    }
+                }
+
+                if ($isAnonymized) {
+                    Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
+                    return @{
+                        Success = $true;
+                        Action = "Anonymized";
+                        Result = $result;
+                        UserIdentifier = $userIdentifier;
+                        IdentifierType = $identifierType;
+                        VerifiedAnonymized = $true;
+                        NewUsername = $verifyUser.name;
+                        NewDisplayName = $verifyUser.displayName
+                    }
+                }
+
+            } catch {
+                # User not found could mean anonymization worked (user no longer exists with original identifier)
+                if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 404) {
+                    Write-Log "✅ VERIFICATION SUCCESS: User no longer found with original identifier (likely anonymized)" "SUCCESS"
+                    Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
+                    return @{
+                        Success = $true;
+                        Action = "Anonymized";
+                        Result = $result;
+                        UserIdentifier = $userIdentifier;
+                        IdentifierType = $identifierType;
+                        VerifiedAnonymized = $true;
+                        Note = "User not found with original identifier - assumed anonymized"
+                    }
+                } else {
+                    Write-Log "Could not verify anonymization status: $($_.Exception.Message)" "WARNING"
+                    Write-Log "Assuming anonymization succeeded based on API response" "INFO"
+                    Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
+                    return @{
+                        Success = $true;
+                        Action = "Anonymized";
+                        Result = $result;
+                        UserIdentifier = $userIdentifier;
+                        IdentifierType = $identifierType;
+                        VerificationFailed = $true
+                    }
+                }
             }
         } else {
             Write-Log "Anonymization timeout for user: $($User.name) after $TimeoutSeconds seconds" "WARNING"
@@ -1207,7 +1617,7 @@ Add-Type -AssemblyName System.Web
 
 # Initialize script
 Write-Log "=== JIRA Enterprise User Management Script Started ===" "INFO"
-Write-Log "Parameters: CsvPath=$CsvPath, EmailDomains=$EmailDomains, UsernamePatterns=$UsernamePatterns, JiraBaseUrl=$JiraBaseUrl" "INFO"
+Write-Log "Parameters: CsvPath=$CsvPath, EmailDomains=$EmailDomains, UsernamePatterns=$UsernamePatterns, ProcessAllDisabledUsers=$ProcessAllDisabledUsers, JiraBaseUrl=$JiraBaseUrl" "INFO"
 Write-Log "Modes: DryRun=$DryRun, DisableOnly=$DisableOnly, AnonymizeUsers=$AnonymizeUsers, CheckUsersOnly=$CheckUsersOnly" "INFO"
 
 # Global variables
@@ -1221,8 +1631,8 @@ $skippedCount = 0
 $backupPath = ".\JiraUserBackup_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
 
 # Validate parameter combinations
-if (-not $CsvPath -and -not $EmailDomains -and -not $UsernamePatterns) {
-    Write-Log "Error: Must specify either -CsvPath, -EmailDomains, or -UsernamePatterns" "ERROR"
+if (-not $CsvPath -and -not $EmailDomains -and -not $UsernamePatterns -and -not $ProcessAllDisabledUsers) {
+    Write-Log "Error: Must specify either -CsvPath, -EmailDomains, -UsernamePatterns, or -ProcessAllDisabledUsers" "ERROR"
     exit 1
 }
 
@@ -1467,6 +1877,16 @@ try {
 
         $targetUsers = Search-JiraUsers -EmailDomains $domains -UsernamePatterns $patterns -Headers $apiHeaders -BaseUrl $JiraBaseUrl
     }
+    elseif ($ProcessAllDisabledUsers) {
+        Write-Log "Retrieving all disabled users for processing..." "INFO"
+        $targetUsers = Get-AllDisabledJiraUsers -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+
+        if ($targetUsers.Count -eq 0) {
+            Write-Log "No disabled users found in JIRA" "WARNING"
+        } else {
+            Write-Log "Found $($targetUsers.Count) disabled users ready for processing" "SUCCESS"
+        }
+    }
 
     # Remove duplicates and filter based on operation mode
     $uniqueUsers = $targetUsers | Sort-Object name -Unique
@@ -1478,7 +1898,11 @@ try {
     Write-Log "Inactive users found: $($inactiveUsers.Count)" "INFO"
 
     # Determine which users to process based on operation mode
-    if ($AnonymizeUsers -and -not $DisableOnly) {
+    if ($ProcessAllDisabledUsers) {
+        # When processing all disabled users, they're already filtered to disabled only
+        Write-Log "Processing all disabled users mode: $($uniqueUsers.Count) disabled users" "SUCCESS"
+        # No need to filter further, all users are already disabled
+    } elseif ($AnonymizeUsers -and -not $DisableOnly) {
         # For anonymization, process both active and inactive users
         $targetUsers = $uniqueUsers
         Write-Log "Anonymization mode: Processing both active and inactive users ($($uniqueUsers.Count) total)" "SUCCESS"
@@ -1549,6 +1973,7 @@ if ($CheckUsersOnly) {
 $manualInterventionRequired = @()
 $successfulUsers = @()
 $failedUsers = @()
+$anonymizationServiceFailures = @()
 
 # Process each user
 foreach ($user in $targetUsers) {
@@ -1565,6 +1990,9 @@ foreach ($user in $targetUsers) {
         ErrorMessage = $null
         ConflictingProjects = @()
         RequiredAction = ""
+        TaskId = $null
+        ManualSteps = @()
+        JiraAdminUrl = $null
     }
 
     # Step 1: Disable the user
@@ -1604,8 +2032,20 @@ foreach ($user in $targetUsers) {
 
         if ($eligibilityCheck.Eligible) {
             Write-Log "User is eligible for anonymization - proceeding..." "SUCCESS"
-            Write-Log "Anonymizing user: $($user.displayName) with content ownership transferring to: $NewProjectLead" "INFO"
-            $anonymizeResult = Set-JiraUserAnonymized -User $user -Headers $apiHeaders -BaseUrl $JiraBaseUrl -NewOwnerKey $NewProjectLead -DryRun:$DryRun -TimeoutSeconds $AnonymizationTimeout
+
+            # Determine who should receive content ownership (separate from project leadership)
+            $contentOwner = if ($ContentOwnershipTransferTo) {
+                $ContentOwnershipTransferTo
+            } else {
+                $NewProjectLead
+            }
+
+            Write-Log "Anonymizing user: $($user.displayName) with content ownership transferring to: $contentOwner" "INFO"
+            if ($ContentOwnershipTransferTo -and ($ContentOwnershipTransferTo -ne $NewProjectLead)) {
+                Write-Log "Note: Project leadership transfers to: $NewProjectLead, Content ownership transfers to: $contentOwner" "INFO"
+            }
+
+            $anonymizeResult = Set-JiraUserAnonymized -User $user -Headers $apiHeaders -BaseUrl $JiraBaseUrl -NewOwnerKey $contentOwner -DryRun:$DryRun -TimeoutSeconds $AnonymizationTimeout
             $userResult.AnonymizeResult = $anonymizeResult
 
             if ($anonymizeResult.Success) {
@@ -1619,7 +2059,17 @@ foreach ($user in $targetUsers) {
                 $errorCount++
                 $userResult.Status = "PartialFailure"
                 $userResult.ErrorMessage = $anonymizeResult.Error
-                Write-Log "Failed to anonymize user: $($user.name) - $($anonymizeResult.Error)" "ERROR"
+
+                # Special handling for anonymization service failures
+                if ($anonymizeResult.Action -eq "AnonymizationServiceFailure") {
+                    $userResult.TaskId = $anonymizeResult.TaskId
+                    $userResult.ManualSteps = $anonymizeResult.ManualSteps
+                    $userResult.JiraAdminUrl = $anonymizeResult.JiraAdminUrl
+                    $anonymizationServiceFailures += $userResult
+                    Write-Log "JIRA ANONYMIZATION SERVICE FAILURE: $($user.name) - Manual intervention required" "ERROR"
+                } else {
+                    Write-Log "Failed to anonymize user: $($user.name) - $($anonymizeResult.Error)" "ERROR"
+                }
             }
         } else {
             # User not eligible for anonymization
@@ -1684,9 +2134,35 @@ if ($successfulUsers.Count -gt 0) {
     }
 }
 
+# Report JIRA anonymization service failures (critical issue)
+if ($anonymizationServiceFailures.Count -gt 0) {
+    Write-Log "=== 🚨 CRITICAL: JIRA ANONYMIZATION SERVICE FAILURES ===" "ERROR"
+    Write-Log "These users had successful API responses but were NOT actually anonymized:" "ERROR"
+    Write-Log "This indicates a JIRA service malfunction requiring immediate attention." "ERROR"
+    Write-Log "" "INFO"
+
+    foreach ($user in $anonymizationServiceFailures) {
+        Write-Log "• $($user.DisplayName) [$($user.Username)] - Task ID: $($user.TaskId)" "ERROR"
+        Write-Log "  Current status: Still has original personal data" "ERROR"
+        Write-Log "  Required action: Manual anonymization via JIRA Admin interface" "INFO"
+        if ($user.JiraAdminUrl) {
+            Write-Log "  Admin URL: $($user.JiraAdminUrl)" "INFO"
+        }
+    }
+
+    Write-Log "" "INFO"
+    Write-Log "📋 IMMEDIATE ACTIONS FOR JIRA ADMINISTRATORS:" "WARNING"
+    Write-Log "1. Check JIRA system logs for anonymization errors" "INFO"
+    Write-Log "2. Try manual anonymization for each failed user" "INFO"
+    Write-Log "3. Contact Atlassian Support if manual anonymization also fails" "INFO"
+    Write-Log "4. Consider restarting JIRA anonymization service if multiple users affected" "INFO"
+    Write-Log "" "INFO"
+    Write-Log "⚠️  $($anonymizationServiceFailures.Count) users require manual anonymization" "WARNING"
+}
+
 # Report other failures
 if ($failedUsers.Count -gt 0) {
-    Write-Log "=== FAILED USERS (Non-recoverable) ===" "ERROR"
+    Write-Log "=== FAILED USERS (Other Issues) ===" "ERROR"
     foreach ($user in $failedUsers) {
         Write-Log "• $($user.DisplayName) [$($user.Username)] - $($user.ErrorMessage)" "ERROR"
     }

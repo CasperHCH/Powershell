@@ -1,6 +1,6 @@
 # Jira Bulk User Deletion Script with Enhanced Error Handling and Logging
-# This script safely deletes users from a Jira On-Prem instance based on CSV input.
-# Features: Input validation, logging, progress tracking, dry-run mode, and comprehensive error handling.
+# This script safely deletes users from a Jira On-Prem instance based on CSV input or automatically discovers disabled users.
+# Features: Input validation, logging, progress tracking, dry-run mode, disabled user discovery, and comprehensive error handling.
 # Requires PowerShell 5.1 or later and Jira REST API access with admin privileges.
 
 <#
@@ -8,12 +8,13 @@
   Enterprise-grade bulk user deletion for Jira On-Prem instances.
 
 .DESCRIPTION
-  This script safely processes CSV files to delete users from Jira using the REST API.
+  This script safely processes CSV files to delete users from Jira using the REST API, or automatically discovers and deletes all disabled users.
   Features include:
   - Input validation and safety checks
   - Comprehensive logging with timestamps
   - Progress tracking and statistics
   - Dry-run mode for testing
+  - Automatic disabled user discovery
   - Detailed error reporting
   - Backup recommendations and confirmation prompts
 
@@ -41,6 +42,9 @@
 .PARAMETER DelayBetweenRequests
   Delay in milliseconds between API calls to avoid rate limiting (default: 500).
 
+.PARAMETER ProcessAllDisabledUsers
+  If specified, automatically discovers and processes all disabled users in Jira instead of reading from CSV.
+
 .EXAMPLE
   .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token" -DryRun
   Performs a dry run to validate the CSV and check connectivity.
@@ -49,12 +53,20 @@
   .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token"
   Executes the actual user deletion process.
 
+.EXAMPLE
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers -DryRun
+  Discovers and shows all disabled users without deleting them.
+
+.EXAMPLE
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers
+  Automatically discovers and deletes all disabled users in Jira.
+
 .NOTES
-    Version:        2.0
+    Version:        2.1
     Author:         Casper Hjorth Christensen
     Creation Date:  2025-10-09
-    Last Modified:  2025-10-09
-    Purpose/Change: Enhanced enterprise version with safety features and comprehensive logging
+    Last Modified:  2025-10-10
+    Purpose/Change: Added automatic disabled user discovery functionality for mass cleanup operations
 
 .LINK
     https://developer.atlassian.com/server/jira/platform/rest-apis/
@@ -67,8 +79,12 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$JiraBaseUrl,
 
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({Test-Path $_ -PathType Leaf})]
+    [Parameter(Mandatory = $false)]
+    [ValidateScript({
+        if ($ProcessAllDisabledUsers) { return $true }
+        if (-not (Test-Path $_ -PathType Leaf)) { throw "CSV file not found: $_" }
+        return $true
+    })]
     [string]$CsvPath,
 
     [Parameter(Mandatory = $true)]
@@ -91,7 +107,10 @@ param(
 
     [Parameter()]
     [ValidateRange(0, 5000)]
-    [int]$DelayBetweenRequests = 500
+    [int]$DelayBetweenRequests = 500,
+
+    [Parameter()]
+    [switch]$ProcessAllDisabledUsers
 )
 
 # Initialize logging and error tracking
@@ -170,6 +189,57 @@ function Test-CsvStructure {
     }
 }
 
+# Get all disabled users from Jira
+function Get-AllDisabledJiraUsers {
+    param(
+        [hashtable]$Headers,
+        [string]$BaseUrl
+    )
+
+    try {
+        Write-LogMessage "Discovering disabled users in Jira..." -Level 'INFO'
+        $allUsers = @()
+        $startAt = 0
+        $maxResults = 50  # Jira API limit
+
+        do {
+            $searchUri = "$BaseUrl/rest/api/2/user/search?username=%&includeInactive=true&startAt=$startAt&maxResults=$maxResults"
+            Write-LogMessage "Fetching users (batch starting at $startAt)..." -Level 'INFO'
+
+            $response = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $Headers -ErrorAction Stop
+
+            if ($response -is [Array]) {
+                $users = $response
+            } else {
+                $users = @($response)
+            }
+
+            # Filter for disabled users
+            $disabledInBatch = $users | Where-Object { $_.active -eq $false }
+
+            if ($disabledInBatch) {
+                $allUsers += $disabledInBatch
+                Write-LogMessage "Found $($disabledInBatch.Count) disabled users in this batch" -Level 'INFO'
+            }
+
+            $startAt += $maxResults
+
+            # Safety check to prevent infinite loops
+            if ($users.Count -eq 0 -or $startAt -gt 10000) {
+                break
+            }
+
+        } while ($users.Count -eq $maxResults)
+
+        Write-LogMessage "✅ Discovery complete. Found $($allUsers.Count) disabled users total." -Level 'SUCCESS'
+        return $allUsers
+    }
+    catch {
+        Write-LogMessage "❌ Failed to discover disabled users: $($_.Exception.Message)" -Level 'ERROR'
+        throw
+    }
+}
+
 # Delete single user with enhanced error handling
 function Remove-JiraUser {
     param(
@@ -189,7 +259,7 @@ function Remove-JiraUser {
             return @{ Success = $true; Action = 'DryRun' }
         }
         else {
-            $response = Invoke-RestMethod -Uri $uri -Method Delete -Headers $Headers -ErrorAction Stop
+            Invoke-RestMethod -Uri $uri -Method Delete -Headers $Headers -ErrorAction Stop | Out-Null
             Write-LogMessage "✅ User '$Username' successfully deleted." -Level 'SUCCESS'
             return @{ Success = $true; Action = 'Deleted' }
         }
@@ -239,7 +309,7 @@ function Remove-JiraUser {
 # Main execution starts here
 try {
     Write-LogMessage "=== Jira Bulk User Deletion Script Started ===" -Level 'INFO'
-    Write-LogMessage "Script Version: 2.0" -Level 'INFO'
+    Write-LogMessage "Script Version: 2.1" -Level 'INFO'
     Write-LogMessage "Execution Mode: $(if ($DryRun) { 'DRY RUN' } else { 'LIVE DELETION' })" -Level 'INFO'
     Write-LogMessage "Log File: $LogPath" -Level 'INFO'
 
@@ -255,13 +325,34 @@ try {
         'Accept' = 'application/json'
     }
 
+    # Validate parameters
+    if (-not $ProcessAllDisabledUsers -and [string]::IsNullOrEmpty($CsvPath)) {
+        throw "Either provide a CSV file path or use -ProcessAllDisabledUsers parameter"
+    }
+
+    if ($ProcessAllDisabledUsers -and -not [string]::IsNullOrEmpty($CsvPath)) {
+        Write-LogMessage "⚠️ Both CSV path and ProcessAllDisabledUsers specified. Will process all disabled users and ignore CSV." -Level 'WARNING'
+    }
+
     # Validate connectivity
     if (-not (Test-JiraConnection -Headers $authHeader)) {
         throw "Unable to establish connection to Jira instance"
     }
 
-    # Validate CSV and get user count
-    $Stats.TotalUsers = Test-CsvStructure -Path $CsvPath
+    # Determine processing mode and get user count
+    if ($ProcessAllDisabledUsers) {
+        Write-LogMessage "Processing Mode: Discover and process ALL disabled users" -Level 'INFO'
+        $disabledUsers = Get-AllDisabledJiraUsers -Headers $authHeader -BaseUrl $JiraBaseUrl
+        $Stats.TotalUsers = $disabledUsers.Count
+
+        if ($Stats.TotalUsers -eq 0) {
+            Write-LogMessage "✅ No disabled users found in Jira. Nothing to process." -Level 'SUCCESS'
+            exit 0
+        }
+    } else {
+        Write-LogMessage "Processing Mode: CSV file input" -Level 'INFO'
+        $Stats.TotalUsers = Test-CsvStructure -Path $CsvPath
+    }
 
     # Safety confirmation for live runs
     if (-not $DryRun) {
@@ -277,9 +368,15 @@ try {
         }
     }
 
-    # Load and process users
-    Write-LogMessage "Loading users from CSV: $CsvPath" -Level 'INFO'
-    $users = Import-Csv -Path $CsvPath
+    # Load and process users based on mode
+    if ($ProcessAllDisabledUsers) {
+        Write-LogMessage "Using discovered disabled users list" -Level 'INFO'
+        # Convert disabled user objects to simple username objects for consistent processing
+        $users = $disabledUsers | ForEach-Object { [PSCustomObject]@{ Username = $_.name } }
+    } else {
+        Write-LogMessage "Loading users from CSV: $CsvPath" -Level 'INFO'
+        $users = Import-Csv -Path $CsvPath
+    }
 
     Write-LogMessage "Starting processing of $($Stats.TotalUsers) users in batches of $BatchSize..." -Level 'INFO'
 
@@ -348,12 +445,13 @@ try {
 
     Write-LogMessage "" -Level 'INFO'
     Write-LogMessage "=== FINAL REPORT ===" -Level 'INFO'
+    Write-LogMessage "Processing Mode: $(if ($ProcessAllDisabledUsers) { 'All Disabled Users Discovery' } else { 'CSV File Input' })" -Level 'INFO'
     Write-LogMessage "Total Users: $($Stats.TotalUsers)" -Level 'INFO'
     Write-LogMessage "Successfully Processed: $($Stats.SuccessCount)" -Level 'SUCCESS'
     Write-LogMessage "Failed: $($Stats.FailureCount)" -Level $(if ($Stats.FailureCount -gt 0) { 'ERROR' } else { 'INFO' })
     Write-LogMessage "Skipped/Not Found: $($Stats.SkippedCount)" -Level 'WARNING'
     Write-LogMessage "Execution Time: $($Stats.Duration.ToString('hh\:mm\:ss'))" -Level 'INFO'
-    Write-LogMessage "Mode: $(if ($DryRun) { 'DRY RUN - No users were actually deleted' } else { 'LIVE EXECUTION - Users were permanently deleted' })" -Level 'INFO'
+    Write-LogMessage "Execution Mode: $(if ($DryRun) { 'DRY RUN - No users were actually deleted' } else { 'LIVE EXECUTION - Users were permanently deleted' })" -Level 'INFO'
     Write-LogMessage "Log File: $LogPath" -Level 'INFO'
     Write-LogMessage "=== Script Completed ===" -Level 'SUCCESS'
 

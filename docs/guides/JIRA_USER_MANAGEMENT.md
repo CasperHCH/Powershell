@@ -1,12 +1,13 @@
 # JIRA Enterprise User Management Documentation
 
-> **Last Updated:** October 10, 2025  
-> **Script Version:** 3.0  
+> **Last Updated:** October 10, 2025
+> **Script Version:** 3.0
+> **Script Name:** Manage-JiraUserLifecycle.ps1
 > **Author:** Enterprise PowerShell Team
 
 ## Overview
 
-The `Bulk_Disable_Jira_Users.ps1` script provides comprehensive enterprise-grade user lifecycle management for JIRA on-premise instances. It handles user discovery, project lead conflict resolution, user disabling, and GDPR-compliant anonymization with proper content ownership transfer.
+The `Manage-JiraUserLifecycle.ps1` script provides comprehensive enterprise-grade user lifecycle management for JIRA on-premise instances. It handles the complete user lifecycle: discovery, project lead conflict resolution, user disabling, and GDPR-compliant anonymization with proper content ownership transfer.
 
 ## Key Features
 
@@ -38,24 +39,24 @@ The `Bulk_Disable_Jira_Users.ps1` script provides comprehensive enterprise-grade
 
 ### Basic User Discovery and Anonymization
 ```powershell
-.\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -PersonalAccessToken "your_token"
+.\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -PersonalAccessToken "your_token"
 ```
 
 ### With Project Lead Transfer and Debug Logging
 ```powershell
-.\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
+.\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
 ```
 
 ### Dry Run Mode for Testing
 ```powershell
-.\Bulk_Disable_Jira_Users.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -DryRun -PersonalAccessToken "your_token"
+.\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -DryRun -PersonalAccessToken "your_token"
 ```
 
 ## API Endpoints Used
 
 ### User Discovery
 1. `GET /rest/api/2/user/search?username=@{domain}` - Direct domain search
-2. `GET /rest/api/2/user/search?username=.&query=@{domain}` - Query-based search  
+2. `GET /rest/api/2/user/search?username=.&query=@{domain}` - Query-based search
 3. `GET /rest/api/2/user/picker?query=@{domain}` - User picker API
 4. `GET /rest/api/2/user/search?username=.&query=*&includeInactive=true` - Comprehensive fallback
 
