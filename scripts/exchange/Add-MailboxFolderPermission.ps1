@@ -3,7 +3,11 @@
 Add-MailboxFolderPermissions.ps1
 
 .DESCRIPTION
-A proof of concept script for adding mailbox folder
+A proof of concept script for adding ma    $folder = $mailboxfolder.FolderPath.Replace("/","\")
+
+    if ($folder -match "Top of Information Store") {
+        $folder = $folder.Replace("\Top of Information Store","\")
+    } folder
 permissions to all folders in a mailbox.
 
 .OUTPUTS
@@ -19,12 +23,12 @@ The user you are granting mailbox folder permissions to.
 The permissions to grant for each folder.
 
 .EXAMPLE
-.\Add-MailboxFolderPermissions.ps1 -Mailbox alex.heyne -User alan.reid -Access Reviewer
+.\Add-MailboxFolderPermissions.ps1 -Mailbox john.doe -User manager -Access Reviewer
 
-This will grant Alan Reid  access to all folders in Alex Heyne's mailbox.
+This will grant manager access to all folders in John Doe's mailbox.
 
 .LINK
-http://exchangeserverpro.com/grant-read-access-exchange-mailbox/
+https://docs.microsoft.com/en-us/exchange/recipients/mailbox-folder-permissions
 
 .NOTES
 Written by: Paul Cunningham
@@ -59,14 +63,15 @@ param (
 # Variables
 #...................................
 
-$exclusions = @(,
-                ,
-                ,
-                ,
-                ,
-                ,
-                ,
-
+$exclusions = @(
+                "/Sync Issues",
+                "/Sync Issues/Conflicts", 
+                "/Sync Issues/Local Failures",
+                "/Sync Issues/Server Failures",
+                "/Recoverable Items",
+                "/Deletions",
+                "/Purges",
+                "/Versions"
                 )
 
 

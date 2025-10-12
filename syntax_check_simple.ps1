@@ -1,12 +1,13 @@
-# Simple PowerShell syntax checker for c:\PS
-$psFiles = Get-ChildItem -Path "c:\PS" -Recurse -Include "*.ps1", "*.psm1", "*.psd1" -File -ErrorAction SilentlyContinue
+# Simple PowerShell syntax checker - dynamic path resolution
+$ScanPath = $PSScriptRoot -or (Get-Location).Path
+$psFiles = Get-ChildItem -Path $ScanPath -Recurse -Include "*.ps1", "*.psm1", "*.psd1" -File -ErrorAction SilentlyContinue
 $results = @()
 
-Write-Output "Checking $($psFiles.Count) PowerShell files in c:\PS..."
+Write-Output "Checking $($psFiles.Count) PowerShell files in $ScanPath..."
 Write-Output ""
 
 foreach ($file in $psFiles) {
-    $relativePath = $file.FullName.Replace("c:\PS\", "")
+    $relativePath = $file.FullName.Replace("$ScanPath\", "")
 
     try {
         $content = Get-Content $file.FullName -Raw -ErrorAction Stop

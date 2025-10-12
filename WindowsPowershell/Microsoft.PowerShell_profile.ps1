@@ -4,13 +4,14 @@ $Host.UI.RawUI.WindowTitle = "PowerShell - $env:USERNAME"
 ###  ADMIN PROGRAM ALIASES ###
 # DISABLED: Referenced scripts do not exist in current structure
 # The following aliases have been commented out until the referenced scripts are available
-# Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
-# Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
-# Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
-# Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
-# Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
-# Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
-# Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
+# SECURITY NOTE: Use dynamic paths with $PSScriptRoot for portability
+# Set-Alias adm "$PSScriptRoot\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1"
+# Set-Alias adminTools "$PSScriptRoot\Tools\Powershell-Stuff\Start-AdminTools.ps1"
+# Set-Alias capa "$PSScriptRoot\Tools\Powershell-Stuff\Start-CapaAdmin.ps1"
+# Set-Alias chrome "$PSScriptRoot\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1"
+# Set-Alias IIS "$PSScriptRoot\Tools\Powershell-Stuff\Start-IISadmin.ps1"
+# Set-Alias mRemote "$PSScriptRoot\Tools\Powershell-Stuff\Start-mRemote.ps1"
+# Set-Alias SQL "$PSScriptRoot\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1"
 
 #$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
 #$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
@@ -46,16 +47,19 @@ if (!(Test-Path ps:)) {
 
 #Function Connect-OnPremPS {
 #    Import-Module ActiveDirectory
-#    $RPSession = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionUri http://PROD-EXCH-01/Powershell
+#    # SECURITY: Use environment variables for server configuration
+#    $ExchangeServer = $env:EXCHANGE_SERVER -or "exchange.contoso.com"
+#    $RPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "http://$ExchangeServer/Powershell"
 #    Import-PSSession $RPSession -AllowClobber
 #}
 #
 #Function Remove-OnPremPS {
-#    Get-PSSession -Name  | Remove-PSSession
+#    Get-PSSession -Name "ExchangeOnPrem" | Remove-PSSession
 #}
 #
 #Function Disconnect-EXO  {
-#    Get-PSSession | ? { $_.ComputerName -eq  } | Remove-PSSession
+#    $ExchangeServer = $env:EXCHANGE_SERVER -or "exchange.contoso.com"
+#    Get-PSSession | Where-Object { $_.ComputerName -eq $ExchangeServer } | Remove-PSSession
 #}
 #
 #Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description
@@ -64,7 +68,8 @@ if (!(Test-Path ps:)) {
 #Set-Alias -Name d-exo -Value Disconnect-EXO -Description
 
 # directory of scripts to auto-load in PS
-# $psdir = "c:\ps"  # Variable assigned but never used
+# SECURITY: Use dynamic path resolution instead of hardcoded paths
+# $psdir = $PSScriptRoot  # Dynamic path resolution
 
 # load all 'autoload' scripts
 Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | Out-Null
@@ -105,7 +110,7 @@ if ($TestCredsPath.count -eq 0){
 }else{
     # Retrieve existing stored credential for validation
     Write-Verbose "Loading existing stored credential..." -Verbose
-    $null = Get-StoredCredential -UserName chcadmin
+    $null = Get-StoredCredential -UserName $env:USERNAME
 }
 #>
 

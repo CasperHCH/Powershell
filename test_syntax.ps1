@@ -1,9 +1,10 @@
-# Comprehensive PowerShell syntax test for entire c:\PS folder
-Write-Host "🔍 Scanning c:\PS for PowerShell files..." -ForegroundColor Cyan
+# Comprehensive PowerShell syntax test - dynamic path resolution  
+$ScanPath = $PSScriptRoot -or (Get-Location).Path
+Write-Host "🔍 Scanning $ScanPath for PowerShell files..." -ForegroundColor Cyan
 Write-Host "=" * 80 -ForegroundColor Gray
 
 # Get all PowerShell files recursively
-$psFiles = Get-ChildItem -Path "c:\PS" -Recurse -Include "*.ps1", "*.psm1", "*.psd1" -File -ErrorAction SilentlyContinue
+$psFiles = Get-ChildItem -Path $ScanPath -Recurse -Include "*.ps1", "*.psm1", "*.psd1" -File -ErrorAction SilentlyContinue
 
 $totalFiles = $psFiles.Count
 $errorFiles = 0
@@ -15,7 +16,7 @@ Write-Host ""
 
 foreach ($file in $psFiles) {
     $checkedFiles++
-    $relativePath = $file.FullName.Replace("c:\PS\", "")
+    $relativePath = $file.FullName.Replace("$ScanPath\", "")
 
     Write-Host "[$checkedFiles/$totalFiles] Checking: $relativePath" -ForegroundColor Gray
 
