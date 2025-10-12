@@ -46,19 +46,19 @@
   If specified, automatically discovers and processes all disabled users in Jira instead of reading from CSV.
 
 .EXAMPLE
-  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token" -DryRun
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token" -DryRun
   Performs a dry run to validate the CSV and check connectivity.
 
 .EXAMPLE
-  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token"
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token"
   Executes the actual user deletion process.
 
 .EXAMPLE
-  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers -DryRun
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers -DryRun
   Discovers and shows all disabled users without deleting them.
 
 .EXAMPLE
-  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.company.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers
   Automatically discovers and deletes all disabled users in Jira.
 
 .NOTES

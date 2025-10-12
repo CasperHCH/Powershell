@@ -7,7 +7,7 @@
     and maintain a clean workflow configuration. It includes safety checks and logging.
 
 .PARAMETER JiraBaseUrl
-    The base URL of your JIRA instance (e.g., https://jira.company.com)
+    The base URL of your JIRA instance (e.g., https://jira.contoso.com)
 
 .PARAMETER Username
     JIRA username for authentication (if not provided, will prompt)
@@ -22,18 +22,18 @@
     If specified, skips workflow backup before deletion
 
 .EXAMPLE
-    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.company.com" -DryRun
+    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.contoso.com" -DryRun
 
 .EXAMPLE
-    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.company.com" -Username "admin@company.com"
+    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin@contoso.com"
 
 .EXAMPLE
-    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.company.com" -CredentialFile ".\jira_creds.xml"
+    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.contoso.com" -CredentialFile ".\jira_creds.xml"
 
 .EXAMPLE
     # Create credential file for reuse
     Get-Credential | Export-Clixml -Path "jira_creds.xml"
-    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.company.com" -CredentialFile "jira_creds.xml"
+    .\JIRA_CleanUpWorkflows.ps1 -JiraBaseUrl "https://jira.contoso.com" -CredentialFile "jira_creds.xml"
 
 .NOTES
     Author: Enhanced Script
@@ -43,8 +43,9 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $false)]
-    [string]$JiraBaseUrl = "https://your-jira-server.com",
+    [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https://jira.contoso.com)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$JiraBaseUrl,
 
     [Parameter(Mandatory = $false)]
     [string]$Username,

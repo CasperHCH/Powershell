@@ -27,11 +27,11 @@ try {
 <p>Så er det igen blevet tid til at rydde op i inaktive brugere.</p>
 <p>Al dokumenteret info omkring denne opgave findes her:</p>
 <p>Se her, for at generer en liste over alle brugere, husk det kun er eksterne vi er interesseret i:</p>
-<p><a href="https://confluence.miracle.dk/display/ATLASSIAN/Aktive+Users">https://confluence.miracle.dk/display/ATLASSIAN/Aktive+Users</a></p>
+<p><a href="https://confluence.contoso.com/display/ATLASSIAN/Active+Users">https://confluence.contoso.com/display/ATLASSIAN/Active+Users</a></p>
 <p>For at se hvordan brugerne disables, så kig her, husk at nogle er service konti, som ikke skal deaktiveres.<strong>NOT</strong> to disable:</p>
-<p><a href="https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere">https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere</a></p>
+<p><a href="https://confluence.contoso.com/display/ATLASSIAN/User+Deactivation">https://confluence.contoso.com/display/ATLASSIAN/User+Deactivation</a></p>
 <p>Den første manuelle opgave på denne opgave er denne:</p>
-<p><a href="https://jira.miracle.dk/browse/MIRATL-11">https://jira.miracle.dk/browse/MIRATL-11</a></p>
+<p><a href="https://jira.contoso.com/browse/PROJ-11">https://jira.contoso.com/browse/PROJ-11</a></p>
 <p>Husk at dokumentere hvad der er gjort, hvis ikke dokumentationem stemmer, og opdater så denne</p>
 <table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
 <tbody>
@@ -40,7 +40,7 @@ try {
 <table style="width: 100%;" border="0" cellspacing="0" cellpadding="0">
 <tbody>
 <tr>
-<td style="font-weight: bold;"><strong>Miracle's PO Atlassian Team</strong><br />E-mail: helpdesk@miracle.dk</td>
+<td style="font-weight: bold;"><strong>Contoso Atlassian Team</strong><br />E-mail: helpdesk@contoso.com</td>
 </tr>
 </tbody>
 </table>cal Exchange server info for message relay.
@@ -83,9 +83,9 @@ try {
     exit 1
 }
 <p>For at se hvordan brugerne disables, så kig her, husk at nogle er service konti, som ikke skal deaktiveres.<strong>NOT</strong> to disable:&nbsp;</p>
-<p><a href=>https://confluence.miracle.dk/display/ATLASSIAN/Deaktivering+af+brugere</a></p>
+<p><a href="https://confluence.contoso.com/display/ATLASSIAN/User+Deactivation">User Deactivation Guide</a></p>
 <p>Den første manuelle opgave på denne opgave er denne:</p>
-<p><a href=>https://jira.miracle.dk/browse/MIRATL-11</a></p>
+<p><a href="https://jira.contoso.com/browse/PROJ-11">Manual Task PROJ-11</a></p>
 <p>Husk at dokumentere hvad der er gjort, hvis ikke dokumentationem stemmer, og opdater så denne</p>
 <table style= border= width= cellspacing= cellpadding=>
 <tbody>
@@ -94,7 +94,7 @@ try {
 <table style= border= width= cellspacing= cellpadding=>
 <tbody>
 <tr>
-<td style=><span style=><strong>Miracle's PO Atlassian Team</strong></span><br />E-mail:&nbsp;helpdesk@miracle.dk</td>
+<td style=""><span style=""><strong>Contoso Atlassian Team</strong></span><br />E-mail:&nbsp;helpdesk@contoso.com</td>
 </tr>
 </tbody>
 </table>

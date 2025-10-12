@@ -87,12 +87,12 @@ Returns a report with the mailbox statistics for all mailbox users in
 database HO-MB-01
 
 .EXAMPLE
-.\Get-MailboxReport.ps1 -All -SendEmail -MailFrom exchangereports@exchangeserverpro.net -MailTo alan.reid@exchangeserverpro.net -MailServer smtp.exchangeserverpro.net
+.\Get-MailboxReport.ps1 -All -SendEmail -MailFrom reports@contoso.com -MailTo admin@contoso.com -MailServer smtp.contoso.com
 Returns a report with the mailbox statistics for all mailbox users and
 sends an email report to the specified recipient.
 
 .LINK
-http://exchangeserverpro.com/powershell-script-create-mailbox-size-report-exchange-server-2010
+# Based on Exchange mailbox reporting script for Exchange Server 2010+
 
 .NOTES
 Written by: Paul Cunningham
