@@ -1,17 +1,77 @@
-# Quick script to analyze all email domains in JIRA
+<#
+.SYNOPSIS
+    Secure JIRA email domain analysis with enterprise authentication
+
+.DESCRIPTION
+    Enterprise-grade script to analyze email domains across JIRA users with secure authentication.
+    All credentials are parameterized and support secure credential management.
+
+.PARAMETER JiraBaseUrl
+    Base URL of the JIRA instance (e.g., "https://jira.contoso.com")
+
+.PARAMETER PersonalAccessToken
+    JIRA Personal Access Token (secure string recommended)
+
+.PARAMETER UseStoredCredentials
+    Use stored encrypted credentials instead of token
+
+.PARAMETER CredentialPath
+    Path to stored credential file
+
+.EXAMPLE
+    .\Analyze-EmailDomains.ps1 -JiraBaseUrl "https://jira.contoso.com" -UseStoredCredentials
+
+.NOTES
+    SECURITY CLASSIFICATION: CONFIDENTIAL
+    DATA HANDLING: JIRA user email analysis operations
+    AUDIT REQUIREMENTS: All API operations logged
+    CREDENTIALS REQUIRED: JIRA administrative access
+#>
+
 param(
-    [string]$JiraBaseUrl = "https://jira-ks.norlys.dk",
-    [string]$PersonalAccessToken = "MDE0MjQ0MTI5MDY4Ot0gdXFHBkZqfZJD4UeNbhdc18J4"
+    [Parameter(Mandatory=$true, HelpMessage="JIRA base URL (e.g., https://jira.contoso.com)")]
+    [ValidatePattern('^https://.*')]
+    [string]$JiraBaseUrl,
+
+    [Parameter(Mandatory=$false, HelpMessage="JIRA Personal Access Token")]
+    [ValidateNotNullOrEmpty()]
+    [string]$PersonalAccessToken,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use stored encrypted credentials")]
+    [switch]$UseStoredCredentials,
+
+    [Parameter(Mandatory=$false, HelpMessage="Path to stored credential file")]
+    [ValidateScript({Test-Path $_ -PathType Leaf})]
+    [string]$CredentialPath
 )
 
-# Setup authentication
+# 🔐 Secure credential management
+if ($UseStoredCredentials) {
+    $credPath = if ($CredentialPath) { $CredentialPath } else { "$env:USERPROFILE\.credentials\jira.xml" }
+    
+    if (Test-Path $credPath) {
+        Write-Host "🔑 Loading stored credentials from $credPath" -ForegroundColor Yellow
+        $credential = Import-Clixml -Path $credPath
+        $PersonalAccessToken = $credential.GetNetworkCredential().Password
+    } else {
+        Write-Host "⚠️ No stored credentials found, prompting for token" -ForegroundColor Yellow
+        $PersonalAccessToken = Read-Host "Enter JIRA Personal Access Token" -AsSecureString
+        $PersonalAccessToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($PersonalAccessToken))
+    }
+} elseif (-not $PersonalAccessToken) {
+    Write-Host "🔑 No token provided, prompting for authentication" -ForegroundColor Yellow
+    $PersonalAccessToken = Read-Host "Enter JIRA Personal Access Token" -AsSecureString
+    $PersonalAccessToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($PersonalAccessToken))
+}
+
+# Setup authentication headers
 $apiHeaders = @{
     'Authorization' = "Bearer $PersonalAccessToken"
     'Content-Type' = 'application/json'
     'Accept' = 'application/json'
 }
 
-Write-Host "=== Analyzing Email Domains in JIRA ===" -ForegroundColor Cyan
+Write-Host "🔒 Starting JIRA email domain analysis" -ForegroundColor Cyan
 Write-Host ""
 
 # Get all users using the same method as the main script
@@ -81,17 +141,20 @@ try {
             Write-Host "  No Telia-related users found" -ForegroundColor Gray
         }
 
-        # Check specifically for teliacompany.com
-        Write-Host "=== TELIACOMPANY.COM ANALYSIS ===" -ForegroundColor Yellow
-        $teliacompanyUsers = $response | Where-Object { $_.emailAddress -and $_.emailAddress.ToLower().EndsWith("@teliacompany.com") }
-        if ($teliacompanyUsers) {
-            Write-Host "Found $($teliacompanyUsers.Count) users with @teliacompany.com domain:" -ForegroundColor Green
-            foreach ($user in $teliacompanyUsers) {
-                $status = if ($user.active) { "ACTIVE" } else { "INACTIVE" }
-                Write-Host "  [$status] $($user.name) - $($user.displayName) - $($user.emailAddress)" -ForegroundColor $(if ($user.active) { "Red" } else { "Gray" })
+        # Domain-specific analysis (parameterize target domain)
+        $targetDomain = Read-Host "Enter specific domain to analyze (e.g., contoso.com) or press Enter to skip"
+        if ($targetDomain) {
+            Write-Host "=== DOMAIN ANALYSIS: $($targetDomain.ToUpper()) ===" -ForegroundColor Yellow
+            $domainUsers = $response | Where-Object { $_.emailAddress -and $_.emailAddress.ToLower().EndsWith("@$($targetDomain.ToLower())") }
+            if ($domainUsers) {
+                Write-Host "Found $($domainUsers.Count) users with @$targetDomain domain:" -ForegroundColor Green
+                foreach ($user in $domainUsers) {
+                    $status = if ($user.active) { "ACTIVE" } else { "INACTIVE" }
+                    Write-Host "  [$status] $($user.name) - $($user.displayName) - $($user.emailAddress)" -ForegroundColor $(if ($user.active) { "Green" } else { "Gray" })
+                }
+            } else {
+                Write-Host "No users found with @$targetDomain domain" -ForegroundColor Yellow
             }
-        } else {
-            Write-Host "No users found with @teliacompany.com domain" -ForegroundColor Red
         }
 
     } else {

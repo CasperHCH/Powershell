@@ -106,9 +106,10 @@ cp $JIRAAPP/atlassian-jira/WEB-INF/classes/*cache.prop* $EXPORT/cache-cfg
 #tomcat-config
 echo ' - Packing tomcat configuration files'
 cp $JIRAAPP/conf/* $EXPORT/tomcat-config/
-#sanitization
-(Get-Content $EXPORT/tomcat-config/server.xml) -replace 'keystorePass=".+"','keystorePass=<sanitized_by_support>' | Set-Content $EXPORT/tomcat-config/server.xml
-(Get-Content $EXPORT/tomcat-config/tomcat-users.xml) -replace 'password=".+"','password="sanitized_by_Support'  | Set-Content $EXPORT/tomcat-config/tomcat-users.xml
+# Security sanitization - remove sensitive credentials from config files
+Write-Host "🔒 Sanitizing configuration files for security" -ForegroundColor Yellow
+(Get-Content $EXPORT/tomcat-config/server.xml) -replace 'keystorePass=".+"','keystorePass="<REDACTED_FOR_SECURITY>"' | Set-Content $EXPORT/tomcat-config/server.xml
+(Get-Content $EXPORT/tomcat-config/tomcat-users.xml) -replace 'password=".+"','password="<REDACTED_FOR_SECURITY>"' | Set-Content $EXPORT/tomcat-config/tomcat-users.xml
 
 #healthchecks				
 #If exists <jira-home>/logs/support (possibly will gather old data) will grab the file however changing name to avoid confusion
