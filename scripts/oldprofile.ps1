@@ -22,7 +22,7 @@ if (!(Test-Path ps:)) {
 
 ##  Change location to PS  ##
 #Set-Location PS:
-    Set-Location C:\PS\Scripts
+    Set-Location $PSScriptRoot\..\..
 
 ##  Load all O365 connections as functions  ##
 #.\Connect-Office365Services.ps1
@@ -51,7 +51,7 @@ if (!(Test-Path ps:)) {
 #Set-Alias -Name d-exo -Value Disconnect-EXO -Description
 
 # directory of scripts to auto-load in PS
-$psdir = "C:\PS\autoload"
+$psdir = Join-Path (Split-Path $PSScriptRoot -Parent) "autoload"
 
 # load all 'autoload' scripts
 Get-ChildItem $psdir\*.ps1 | ForEach-Object { .$_ } | out-null
@@ -72,17 +72,23 @@ $TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
 if ($TestCredsPath.count -eq '0'){
 $creds = Get-Credential -Message "Please enter your credentials" | New-StoredCredential -target $KeyPath
 }else{
-$creds = (Get-StoredCredential -UserName chcadmin)
+$creds = (Get-StoredCredential -UserName $env:USERNAME)
 }
 
 ###  RUN PROGRAMS AS ADMIN ###
-Set-Alias adm C:\PS\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1
-Set-Alias adminTools C:\PS\Tools\Powershell-Stuff\Start-AdminTools.ps1
-Set-Alias capa C:\PS\Tools\Powershell-Stuff\Start-CapaAdmin.ps1
-Set-Alias chrome C:\PS\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1
-Set-Alias IIS C:\PS\Tools\Powershell-Stuff\Start-IISadmin.ps1
-Set-Alias mRemote C:\PS\Tools\Powershell-Stuff\Start-mRemote.ps1
-Set-Alias SQL C:\PS\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1
+# Dynamic path resolution for admin tools
+$PSRootPath = Split-Path $PSScriptRoot -Parent
+$ToolsPath = Join-Path $PSRootPath "Tools\Powershell-Stuff"
+
+if (Test-Path $ToolsPath) {
+    Set-Alias adm (Join-Path $ToolsPath "Start-AllAdminPrograms.ps1")
+    Set-Alias adminTools (Join-Path $ToolsPath "Start-AdminTools.ps1") 
+    Set-Alias capa (Join-Path $ToolsPath "Start-CapaAdmin.ps1")
+    Set-Alias chrome (Join-Path $ToolsPath "Start-ChromeAdmin.ps1")
+    Set-Alias IIS (Join-Path $ToolsPath "Start-IISadmin.ps1")
+    Set-Alias mRemote (Join-Path $ToolsPath "Start-mRemote.ps1")
+    Set-Alias SQL (Join-Path $ToolsPath "Start-SQLManagementServer.ps1")
+}
 
 ###  PERSISTENT HISTORY  ###
 $HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) .ps_history
@@ -97,7 +103,8 @@ if ($dt.DayOfWeek -match "Tuesday") {
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
          Write-Host $error[$i].exception
     }
-    C:\PS\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1
+    $UpdateModulesScript = Join-Path (Split-Path $PSScriptRoot -Parent) "PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1"
+    if (Test-Path $UpdateModulesScript) { & $UpdateModulesScript }
 }
 
 #Import Modules & Snap-ins

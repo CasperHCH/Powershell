@@ -13,18 +13,18 @@
     SECURITY: Parameterized - no hardcoded service names
 
 .PARAMETER JiraHomeDirectory
-    Path to Jira home directory (e.g., "D:\Apps\JiraHome" or "C:\Program Files\Jira")
+    Path to Jira home directory (e.g., "%PROGRAMFILES%\Jira" or "%JIRAHOME%")
     SECURITY: Parameterized - no hardcoded paths
 
 .PARAMETER TranscriptLogPath
-    Directory path for transcript logging (e.g., "C:\Logs\Jira")
+    Directory path for transcript logging (e.g., "%TEMP%\JiraLogs" or "%USERPROFILE%\Logs")
     SECURITY: Parameterized - no hardcoded network paths
 
 .PARAMETER WhatIf
     Preview actions without executing them
 
 .EXAMPLE
-    .\Graceful_Jira_Restart_v1.1.ps1 -JiraServiceName "JiraSoftware" -JiraHomeDirectory "D:\Apps\Jira" -TranscriptLogPath "C:\Logs"
+    .\Graceful_Jira_Restart_v1.1.ps1 -JiraServiceName "JiraSoftware" -JiraHomeDirectory "$env:PROGRAMFILES\Jira" -TranscriptLogPath "$env:TEMP\JiraLogs"
 
 .EXAMPLE
     .\Graceful_Jira_Restart_v1.1.ps1 -JiraServiceName "Jira" -JiraHomeDirectory "D:\Apps\Jira" -WhatIf
@@ -49,11 +49,11 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$JiraServiceName,
 
-    [Parameter(Mandatory=$true, HelpMessage="Jira home directory path (e.g., D:\Apps\Jira or C:\Program Files\Jira)")]
+    [Parameter(Mandatory=$true, HelpMessage="Jira home directory path (e.g., %PROGRAMFILES%\Jira or %JIRAHOME%)")]
     [ValidateScript({Test-Path $_ -PathType Container})]
     [string]$JiraHomeDirectory,
 
-    [Parameter(Mandatory=$false, HelpMessage="Transcript log directory (e.g., C:\Logs\Jira)")]
+    [Parameter(Mandatory=$false, HelpMessage="Transcript log directory (e.g., %TEMP%\JiraLogs)")]
     [ValidateScript({Test-Path $_ -PathType Container})]
     [string]$TranscriptLogPath = "$env:TEMP\JiraLogs",
 
