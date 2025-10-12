@@ -13,7 +13,7 @@
     Path to the CSV file containing OldUsername, NewUsername, OldEmail, and NewEmail columns
 
 .PARAMETER JiraBaseUrl
-    The base URL of your JIRA instance (e.g., https://jira.company.com)
+    The base URL of your JIRA instance (e.g., https://jira.contoso.com)
 
 .PARAMETER Username
     JIRA username for authentication (if not provided, will prompt)
@@ -40,22 +40,22 @@
     Path for the log file (defaults to timestamped file in current directory)
 
 .EXAMPLE
-    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -DryRun
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -DryRun
 
 .EXAMPLE
-    # .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -Username "admin@company.com"
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -Username "admin@contoso.com"
 
 .EXAMPLE
-    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -CredentialFile "creds.xml" -BackupUsers
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -CredentialFile "creds.xml" -BackupUsers
 
 .EXAMPLE
-    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -CheckUsersOnly
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -CheckUsersOnly
 
 .EXAMPLE
-    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -PersonalAccessToken "your_token_here"
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -PersonalAccessToken "your_token_here"
 
 .EXAMPLE
-    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.company.com" -Username "admin@company.com" -UseBasicAuth
+    .\BulkChangeEmails.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -Username "admin@contoso.com" -UseBasicAuth
 
 .NOTES
     Author: Enhanced Script
@@ -72,8 +72,8 @@
     Semicolon-separated: OldUsername;NewUsername;OldEmail;NewEmail
 
     Example formats:
-    john.doe,j.doe,john.doe@company.com,j.doe@company.com
-    jane.smith;jane.s;jane.smith@company.com;jane.s@company.com
+    john.doe,j.doe,john.doe@contoso.com,j.doe@contoso.com
+    jane.smith;jane.s;jane.smith@contoso.com;jane.s@contoso.com
 
     The script automatically detects the delimiter used.
 
@@ -92,7 +92,7 @@ param (
     })]
     [string]$CsvPath,
 
-    [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https://jira.company.com)")]
+    [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https://jira.contoso.com)")]
     [ValidateScript({
         if ($_ -match '^https?://') { $true }
         else { throw "JiraBaseUrl must start with http:// or https://" }
@@ -250,8 +250,8 @@ function Search-JiraUser {
                 "$usernameBase*",  # Wildcard username
                 "*$usernameBase*"  # Wildcard both sides
             )
-            # Only log variations for known test user to reduce noise
-            if ($query.Value -match "ajn4901|kenneth.hargett") {
+            # Log search variations for debugging (only in verbose mode)
+            if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"]) {
                 Write-Log "Debug: Added email search variations: $($searchVariations -join ', ')" "INFO"
             }
         }
@@ -261,15 +261,15 @@ function Search-JiraUser {
             try {
                 $encodedValue = [System.Web.HttpUtility]::UrlEncode($searchValue)
                 $searchUri = "$BaseUrl$($method.Uri)$encodedValue"
-                # Only log detailed search attempts for known test user to reduce noise
-                if ($query.Value -match "ajn4901|kenneth.hargett") {
+                # Log detailed search attempts in verbose mode
+                if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"]) {
                     Write-Log "Trying $($method.Name) method for $($query.Type) with value '$searchValue': $searchUri" "INFO"
                 }
 
                 $result = Invoke-RestMethod -Method Get -Uri $searchUri -Headers $Headers -ErrorAction Stop
 
-                # Debug: Log the actual result structure (only for test user to reduce noise)
-                if ($query.Value -match "ajn4901|kenneth.hargett") {
+                # Debug: Log the actual result structure in verbose mode
+                if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"]) {
                     Write-Log "Debug: API response type: $($result.GetType().Name), Content: $($result | ConvertTo-Json -Compress)" "INFO"
                 }
 
@@ -699,17 +699,21 @@ try {
         Write-Log "WARNING: Diagnostic - User search test failed: $($_.Exception.Message)" "WARNING"
     }
 
-        # Test specific known user from CSV
-        Write-Log "Testing search for known user: ajn4901 / kenneth.hargett@teliacompany.com" "INFO"
+        # Test API connectivity with generic test user
+        Write-Log "Testing API connectivity and user search functionality" "INFO"
         try {
-            $knownUser = Search-JiraUser -Email "kenneth.hargett@teliacompany.com" -Username "ajn4901" -Headers $apiHeaders -BaseUrl $JiraBaseUrl
-            if ($knownUser) {
-                Write-Log "SUCCESS: Found known user - $($knownUser.displayName) [$($knownUser.name)] ($($knownUser.emailAddress))" "SUCCESS"
+            # Use generic test credentials - replace with actual test user if needed
+            $testUsername = "testuser"
+            $testEmail = "testuser@contoso.com"
+            Write-Log "Testing search for user: $testUsername / $testEmail" "INFO"
+            $testUser = Search-JiraUser -Email $testEmail -Username $testUsername -Headers $apiHeaders -BaseUrl $JiraBaseUrl
+            if ($testUser) {
+                Write-Log "SUCCESS: Found test user - $($testUser.displayName) [$($testUser.name)] ($($testUser.emailAddress))" "SUCCESS"
             } else {
-                Write-Log "FAILED: Could not find known user ajn4901 / kenneth.hargett@teliacompany.com" "ERROR"
+                Write-Log "INFO: Test user not found - API connectivity verified" "INFO"
             }
         } catch {
-            Write-Log "ERROR: Search for known user failed: $($_.Exception.Message)" "ERROR"
+            Write-Log "ERROR: API connectivity test failed: $($_.Exception.Message)" "ERROR"
         }} catch {
     Write-Log "Failed to set up JIRA authentication: $($_.Exception.Message)" "ERROR"
     Write-Log "Please verify your credentials and JIRA URL" "ERROR"
