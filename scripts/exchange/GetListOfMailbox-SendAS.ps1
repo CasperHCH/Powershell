@@ -6,7 +6,7 @@
 .PARAMETER Identity
     The mailbox identity to check permissions for
 .EXAMPLE
-    .\GetListOfMailbox-SendAS.ps1 -Identity "john.doe@company.com"
+    .\GetListOfMailbox-SendAS.ps1 -Identity "john.doe@contoso.com"
 #>
 
 Param(

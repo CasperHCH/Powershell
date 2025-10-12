@@ -8,7 +8,7 @@
 .PARAMETER Users
     Comma-separated list of users to grant Send-On-Behalf-To permissions
 .EXAMPLE
-    .\GrantSendOnBehalfTo.ps1 -Identity "john.doe@company.com" -Users "jane.smith@company.com,admin@company.com"
+    .\GrantSendOnBehalfTo.ps1 -Identity "john.doe@contoso.com" -Users "jane.smith@contoso.com,admin@contoso.com"
 #>
 
 Param(

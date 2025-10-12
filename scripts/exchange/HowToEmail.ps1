@@ -1,6 +1,17 @@
 <#
 .SYNOPSIS
-    Send email using SMTP with secure credentials
+    Send email using SMTP w# ⚠️ SECURITY NOTICE: This is example code demonstrating email functionality
+# In production, always use parameterized inputs and secure credential management
+#
+# Reference: https://support.google.com/accounts/answer/185833
+# Use App Passwords for Gmail authentication
+
+# Example implementation with parameterized inputs:
+Write-Host "📧 EXAMPLE: Secure Email Implementation Pattern" -ForegroundColor Cyan
+Write-Host "For production use, implement the secure send_email.ps1 script instead" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Example parameters:" -ForegroundColor White
+Write-Host "  .\send_email.ps1 -To 'recipient@contoso.com' -From 'sender@contoso.com' -Subject 'Monthly Report' -Body 'Good Morning' -SmtpServer 'smtp.contoso.com' -UseStoredCredentials" -ForegroundColor Grayntials
 .DESCRIPTION
     Example script showing how to send email using PowerShell with secure credential handling.
 .NOTES
