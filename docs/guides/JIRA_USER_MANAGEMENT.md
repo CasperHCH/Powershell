@@ -1,13 +1,20 @@
-# JIRA Enterprise User Management Documentation
+# Secure JIRA Enterprise User Management Documentation
 
-> **Last Updated:** October 10, 2025
-> **Script Version:** 3.0
+> **Last Updated:** October 12, 2025
+> **Script Version:** 3.1 - Security Hardened
 > **Script Name:** Manage-JiraUserLifecycle.ps1
-> **Author:** Enterprise PowerShell Team
+> **Classification:** INTERNAL - Contains secure operational procedures
 
-## Overview
+## 🔐 **Security Overview**
 
-The `Manage-JiraUserLifecycle.ps1` script provides comprehensive enterprise-grade user lifecycle management for JIRA on-premise instances. It handles the complete user lifecycle: discovery, project lead conflict resolution, user disabling, and GDPR-compliant anonymization with proper content ownership transfer.
+The `Manage-JiraUserLifecycle.ps1` script provides **security-hardened enterprise-grade** user lifecycle management for JIRA instances. All operations follow **zero hardcoded credentials** policy and include comprehensive audit trails.
+
+### **Security Features**
+- ✅ **Parameterized authentication** - No hardcoded credentials or server URLs
+- ✅ **Generic examples** - No company-specific domains in documentation
+- ✅ **Audit compliance** - Full SOX/GDPR audit trail implementation
+- ✅ **Input validation** - Comprehensive parameter validation and sanitization
+- ✅ **Error sanitization** - No sensitive information exposure in error messages
 
 ## Key Features
 
@@ -37,14 +44,35 @@ The `Manage-JiraUserLifecycle.ps1` script provides comprehensive enterprise-grad
 
 ## Usage Examples
 
-### Basic User Discovery and Anonymization
+### Secure User Discovery and Anonymization
 ```powershell
-.\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -PersonalAccessToken "your_token"
+# ✅ SECURE: Parameterized with secure credential management
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Target email domains (e.g., contoso.com)")]
+    [string[]]$EmailDomains,
+
+    [Parameter(Mandatory=$true, HelpMessage="JIRA server URL (e.g., https://jira.contoso.com)")]
+    [ValidateScript({$_ -match '^https://'})]
+    [string]$JiraBaseUrl,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use stored personal access token")]
+    [switch]$UseStoredToken
+)
+
+if ($UseStoredToken) {
+    $token = Get-StoredApiToken -Service "JIRA" -Server $JiraBaseUrl
+} else {
+    $secureToken = Read-Host "Enter Personal Access Token" -AsSecureString
+    $token = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken))
+}
+
+.\Manage-JiraUserLifecycle.ps1 -EmailDomains $EmailDomains -JiraBaseUrl $JiraBaseUrl -AnonymizeUsers -PersonalAccessToken $token
 ```
 
-### With Project Lead Transfer and Debug Logging
+### Secure Project Lead Transfer with Audit Logging
 ```powershell
-.\Manage-JiraUserLifecycle.ps1 -EmailDomains "teliacompany.com" -JiraBaseUrl "https://jira-ks.norlys.dk" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
+# ✅ SECURE: With comprehensive audit trail and generic examples
+.\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -UseStoredToken -EnableDebugLogging -AuditLogPath "C:\Logs\JiraUserManagement.log"
 ```
 
 ### Dry Run Mode for Testing

@@ -1,11 +1,24 @@
-# PowerShell Development Best Practices
+# PowerShell Security Development Standards
 
-This guide outlines the coding standards and best practices for contributing to this PowerShell library.
+This guide outlines the **mandatory security standards** and coding practices for contributing to this enterprise PowerShell library.
+
+## 🔐 **CRITICAL: Security-First Development Requirements**
+
+### **Mandatory Security Checklist**
+Every script MUST pass the following security requirements:
+- [ ] **NO hardcoded credentials, API keys, or sensitive data**
+- [ ] **NO company-specific names, domains, or identifiers**
+- [ ] **ALL environment values converted to validated parameters**
+- [ ] **Secure credential management implementation**
+- [ ] **Audit logging for all sensitive operations**
+- [ ] **Sanitized error messages (no information disclosure)**
+- [ ] **Comprehensive input validation and parameter validation**
+- [ ] **WhatIf support for all destructive operations**
 
 ## 📝 **Script Structure Standards**
 
-### **Header Documentation**
-Every script must include comprehensive help documentation:
+### **Security-Enhanced Header Documentation**
+Every script MUST include comprehensive security documentation:
 
 ```powershell
 <#
@@ -14,33 +27,46 @@ Every script must include comprehensive help documentation:
 
 .DESCRIPTION
     Detailed explanation of what the script does, how it works,
-    and any important considerations or limitations
+    and any important security considerations or data handling requirements
 
-.PARAMETER ParameterName
-    Description of each parameter including:
-    - What it accepts
-    - Required vs Optional
-    - Default values
-    - Validation requirements
+.PARAMETER OrganizationDomain
+    Organization domain name (e.g., contoso.com)
+    SECURITY: Generic parameter - no hardcoded company names
+
+.PARAMETER ServerName
+    Target server hostname or IP address
+    SECURITY: Parameterized - no hardcoded server names
+
+.PARAMETER UseStoredCredentials
+    Use encrypted stored credentials instead of prompting
+    SECURITY: Secure credential management option
 
 .EXAMPLE
-    ScriptName.ps1 -Parameter "Value"
+    ScriptName.ps1 -OrganizationDomain "contoso.com" -ServerName "server.contoso.com"
 
-    Description of what this example does and expected output
+    Connects to specified server using secure credential prompt
+    SECURITY: Uses generic example domain
 
 .EXAMPLE
-    ScriptName.ps1 -Parameter "Value" -WhatIf
+    ScriptName.ps1 -OrganizationDomain "contoso.com" -UseStoredCredentials -WhatIf
 
-    Show additional examples demonstrating different usage patterns
+    Shows what actions would be performed without executing them
+    SECURITY: Safe testing mode with stored credentials
 
 .NOTES
-    Author: Your Name
+    Author: [Your Name]
     Version: 1.0
-    Dependencies: List any required modules or external tools
+    Dependencies: [List required modules]
     Last Modified: YYYY-MM-DD
 
+    SECURITY CLASSIFICATION: [PUBLIC/INTERNAL/CONFIDENTIAL/RESTRICTED]
+    DATA HANDLING: [Describe types of data accessed/modified]
+    AUDIT REQUIREMENTS: [SOX/GDPR/HIPAA compliance notes]
+    CREDENTIALS REQUIRED: [Describe authentication needs]
+
 .LINK
-    Related documentation or API references
+    Internal security documentation
+    Relevant API documentation
 #>
 ```
 

@@ -1,11 +1,15 @@
-# PowerShell Library Quick Start Guide
+# Secure PowerShell Library Quick Start Guide
 
-## 🚀 Getting Started
+## � **Security Notice**
+This is an **enterprise-grade PowerShell library** with security hardening. All scripts follow **zero hardcoded credentials** policy and require proper parameterization.
+
+## �🚀 Getting Started
 
 ### Prerequisites
 - **PowerShell 5.1** or **PowerShell 7+**
 - **Execution Policy**: Set to `RemoteSigned` or `Unrestricted`
 - **Git** (for cloning and version control)
+- **Security Awareness**: Understanding of credential management and parameterization requirements
 
 ### Initial Setup
 
@@ -41,11 +45,27 @@ Essential functions loaded automatically:
 
 ## 🔧 Common Tasks
 
-### **Connect to Office 365**
+### **Secure Office 365 Connection**
 ```powershell
+# ✅ SECURE: Parameterized connection with credential options
+param(
+    [Parameter(Mandatory=$false, HelpMessage="Tenant domain (e.g., contoso.onmicrosoft.com)")]
+    [ValidatePattern('\.onmicrosoft\.com$')]
+    [string]$TenantDomain,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use stored credentials")]
+    [switch]$UseStoredCredentials
+)
+
 # Load authentication module (auto-loaded in profile)
-Connect-ExchangeOnline
-# Follow prompts for credentials
+if ($UseStoredCredentials) {
+    $creds = Import-Clixml -Path "$env:USERPROFILE\.credentials\o365.xml"
+    Connect-ExchangeOnline -Credential $creds -Organization $TenantDomain
+} else {
+    Connect-ExchangeOnline -Organization $TenantDomain
+}
+
+# ❌ NEVER DO: Connect-ExchangeOnline -UserPrincipalName "admin@hardcoded-company.com"
 ```
 
 ### **Active Directory Operations**

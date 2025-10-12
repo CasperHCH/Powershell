@@ -1,12 +1,27 @@
 # GitHub Copilot Instructions for PowerShell Scripts Repository
 
 ## 🎯 **Repository Overview**
-This is a comprehensive PowerShell automation library containing scripts for:
-- **Atlassian Products** (Jira Cloud/On-Prem, Confluence, OpsGenie)
-- **Office 365 & Exchange** (User management, mailbox operations, permissions)
-- **Active Directory** (User lifecycle, group management, security)
+This is a comprehensive PowerShell automation library containing enterprise-grade scripts for:
+- **Collaboration Platforms** (Issue tracking, documentation systems, incident management)
+- **Cloud & Email Services** (User management, mailbox operations, permissions)
+- **Directory Services** (User lifecycle, group management, security)
 - **System Administration** (Monitoring, maintenance, troubleshooting)
 - **Network Operations** (Connectivity testing, infrastructure management)
+
+## 🔐 **Security & Compliance Requirements**
+
+### **Data Protection & Privacy**
+- **NO hardcoded credentials, API keys, or sensitive data**
+- **NO company-specific names, domains, or identifiers**
+- Use generic placeholders (e.g., `contoso.com`, `example.org`)
+- Implement secure credential management using `Get-Credential` or Azure Key Vault
+- All sensitive operations must include audit logging
+
+### **Code Security Standards**
+- Validate all user inputs and parameters
+- Use secure communication protocols (HTTPS/TLS)
+- Implement proper error handling without exposing sensitive information
+- Follow principle of least privilege for all operations
 
 ## 📁 **Reorganized Folder Structure**
 - **`core/`** - Reusable modules and functions
@@ -39,94 +54,307 @@ This is a comprehensive PowerShell automation library containing scripts for:
 
 ## 📋 **PowerShell Best Practices to Follow**
 
-### **1. Security Standards**
+### **1. Security & Parameterization Standards**
 ```powershell
-# ✅ GOOD: Use secure credential handling
-$creds = Get-Credential
-$secureApiKey = Read-Host "Enter API key" -AsSecureString
+# ✅ GOOD: Secure credential handling with parameters
+param(
+    [Parameter(Mandatory=$false, HelpMessage="Username for authentication")]
+    [string]$Username,
 
-# ❌ AVOID: Hardcoded credentials
-$password = "mypassword123"
-$apiKey = "abc-123-xyz"
+    [Parameter(Mandatory=$false, HelpMessage="Use Windows Authentication")]
+    [switch]$UseWindowsAuth,
+
+    [Parameter(Mandatory=$false, HelpMessage="Path to credential file")]
+    [ValidateScript({Test-Path $_})]
+    [string]$CredentialPath
+)
+
+# Secure credential retrieval
+if ($CredentialPath) {
+    $creds = Import-Clixml -Path $CredentialPath
+} elseif ($Username) {
+    $creds = Get-Credential -UserName $Username
+} else {
+    $creds = Get-Credential
+}
+
+# ❌ AVOID: Any hardcoded values
+$companyName = "ACME Corp"           # Use parameter instead
+$serverName = "prod-server-01"       # Use parameter instead
+$apiKey = "abc-123-xyz"             # Use secure storage instead
+$domain = "@company.com"            # Use parameter instead
 ```
 
-### **2. Parameter Validation**
+### **2. Generic Parameterization Pattern**
 ```powershell
-# ✅ GOOD: Comprehensive parameter validation
+# ✅ REQUIRED: All company-specific values as parameters
 param(
-    [Parameter(Mandatory=$true, HelpMessage="Enter server name")]
+    [Parameter(Mandatory=$true, HelpMessage="Organization domain (e.g., contoso.com)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$OrganizationDomain,
+
+    [Parameter(Mandatory=$true, HelpMessage="Server hostname or IP")]
     [ValidateNotNullOrEmpty()]
     [string]$ServerName,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$false, HelpMessage="Environment (Dev, Test, Prod)")]
+    [ValidateSet("Dev", "Test", "Prod")]
+    [string]$Environment = "Test",
+
+    [Parameter(Mandatory=$false, HelpMessage="Timeout in seconds")]
     [ValidateRange(1, 300)]
     [int]$TimeoutSeconds = 30
 )
 ```
 
-### **3. Error Handling**
+### **3. Configuration File Pattern**
 ```powershell
-# ✅ GOOD: Comprehensive error handling
-try {
-    $result = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
-    Write-Host "✅ Success: Operation completed" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Error: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Log -Level ERROR -Message $_.Exception.Message
+# ✅ GOOD: External configuration for environment-specific values
+$configPath = Join-Path $PSScriptRoot "config.json"
+if (Test-Path $configPath) {
+    $config = Get-Content $configPath | ConvertFrom-Json
+} else {
+    Write-Warning "Configuration file not found. Using default values."
+    $config = @{
+        DefaultDomain = "example.org"
+        DefaultTimeout = 30
+        DefaultEnvironment = "Test"
+    }
 }
 ```
 
-### **4. User Experience**
+### **4. Secure Error Handling & Logging**
 ```powershell
-# ✅ GOOD: Colorized, informative output
-Write-Host "🚀 Starting process..." -ForegroundColor Cyan
-Write-Host "📊 Processing 25 items..." -ForegroundColor Yellow
-Write-Host "✅ Completed successfully!" -ForegroundColor Green
+# ✅ GOOD: Comprehensive error handling with audit trail
+try {
+    $result = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+    Write-Host "✅ Success: Operation completed" -ForegroundColor Green
+    Write-AuditLog -Action "API_CALL_SUCCESS" -Target $uri -User $env:USERNAME
+} catch {
+    # Sanitize error messages - remove sensitive information
+    $sanitizedError = $_.Exception.Message -replace $OrganizationDomain, "[DOMAIN]" -replace $apiKey, "[REDACTED]"
+    Write-Host "❌ Error: $sanitizedError" -ForegroundColor Red
+    Write-AuditLog -Action "API_CALL_FAILED" -Target $uri -User $env:USERNAME -Error $sanitizedError
 
-# ❌ AVOID: Plain or confusing output
-Write-Host "Starting"
-Write-Host "Done"
+    # Log full error details to secure log (not displayed to user)
+    Write-Log -Level ERROR -Message $_.Exception.Message -Sensitive $true
+}
 ```
 
-## Developer Workflows
-- **Testing**: Use `Pester` for unit testing PowerShell scripts. Example test files can be found in the `Powershell-Master/scripts/` directory.
-- **Debugging**: Leverage the `Write-Debug` cmdlet for inline debugging. Ensure debug messages are meaningful and actionable.
-- **Script Signing**: Use the `SignScripts.ps1` script in the `Scripts/` folder to sign PowerShell scripts before deployment.
-
-## API Integrations
-- Replace `Invoke-RestMethod` with `curl` for API calls where possible.
-- Ensure API calls include proper authentication and error handling.
-- Refer to `autoload/Connect-Office365Services.ps1` for examples of API integration patterns.
-
-## 🛠️ **Code Patterns to Use**
-
-### **API Integration Pattern**
+### **5. User Experience & Information Disclosure**
 ```powershell
-# Standard API call with error handling
+# ✅ GOOD: Informative output without sensitive data
+Write-Host "🚀 Starting process for $Environment environment..." -ForegroundColor Cyan
+Write-Host "📊 Processing $($items.Count) items..." -ForegroundColor Yellow
+Write-Host "✅ Completed successfully!" -ForegroundColor Green
+
+# ✅ GOOD: Progress reporting with generic information
+$itemType = if ($items[0].GetType().Name -eq "User") { "users" } else { "items" }
+Write-Progress -Activity "Processing $itemType" -Status "$completed of $total completed"
+
+# ❌ AVOID: Exposing sensitive information in output
+Write-Host "Processing user john.doe@company.com"     # Use "Processing user ****" instead
+Write-Host "Connected to server PROD-DB-01"          # Use parameter name instead
+Write-Host "Using API key abc123xyz"                 # Never display credentials
+```
+
+## 📝 **Mandatory Documentation Standards**
+
+### **Script Header Template**
+```powershell
+<#
+.SYNOPSIS
+    Brief description of script functionality
+
+.DESCRIPTION
+    Detailed description of what the script does, its purpose, and any important notes.
+
+.PARAMETER ParameterName
+    Description of each parameter, including valid values and examples
+
+.EXAMPLE
+    Example-Function -Parameter "Value" -Environment "Test"
+    Description of what this example does
+
+.NOTES
+    Author: [Your Name]
+    Created: [Date]
+    Version: 1.0
+    Requirements: PowerShell 5.1+, [List any modules or permissions needed]
+
+    SECURITY: This script handles [describe data types handled]
+    COMPLIANCE: Follows [relevant standards: SOX, GDPR, etc.]
+
+.LINK
+    Link to documentation or related resources
+#>
+```
+
+### **Security Documentation Requirements**
+- Document all data access and modification operations
+- List required permissions and service accounts
+- Include data retention and privacy compliance notes
+- Specify audit trail requirements
+
+## Developer Workflows
+
+### **Testing Requirements**
+- **Unit Testing**: Use `Pester` framework for all script testing
+- **Security Testing**: Validate parameter injection protection
+- **Compliance Testing**: Verify no hardcoded sensitive data
+- **Documentation Testing**: Ensure all help documentation is accurate
+
+### **Code Review Checklist**
+- [ ] No hardcoded credentials, company names, or sensitive data
+- [ ] All company-specific values converted to parameters
+- [ ] Proper error handling without information disclosure
+- [ ] Comprehensive parameter validation
+- [ ] Audit logging implemented
+- [ ] Security documentation complete
+
+### **Script Signing & Deployment**
+- All production scripts must be code-signed
+- Use certificate-based authentication where possible
+- Implement script integrity verification
+
+## 🛠️ **Secure Code Patterns**
+
+### **Parameterized API Integration Pattern**
+```powershell
+# ✅ REQUIRED: Secure API pattern with full parameterization
+param(
+    [Parameter(Mandatory=$true, HelpMessage="API base URL (e.g., https://api.example.com)")]
+    [ValidateScript({$_ -match '^https://'})]
+    [string]$ApiBaseUrl,
+
+    [Parameter(Mandatory=$true, HelpMessage="API endpoint path")]
+    [string]$EndpointPath,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use stored credentials")]
+    [switch]$UseStoredCredentials,
+
+    [Parameter(Mandatory=$false, HelpMessage="Request timeout in seconds")]
+    [ValidateRange(5, 300)]
+    [int]$TimeoutSeconds = 30
+)
+
+# Secure token retrieval
+if ($UseStoredCredentials) {
+    $apiToken = Get-StoredApiToken -Service $ServiceName
+} else {
+    $secureToken = Read-Host "Enter API token" -AsSecureString
+    $apiToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken))
+}
+
+# Construct full URL
+$fullUrl = "$ApiBaseUrl/$EndpointPath".Replace("//", "/")
+
 $headers = @{
     'Authorization' = "Bearer $apiToken"
     'Content-Type' = 'application/json'
     'Accept' = 'application/json'
+    'User-Agent' = 'PowerShellScript/1.0'
 }
 
 try {
-    $response = Invoke-RestMethod -Uri $apiUrl -Method $method -Headers $headers -Body $body
+    $response = Invoke-RestMethod -Uri $fullUrl -Method $Method -Headers $headers -Body $Body -TimeoutSec $TimeoutSeconds
+    Write-AuditLog -Action "API_SUCCESS" -Endpoint $EndpointPath -User $env:USERNAME
     return $response
 } catch {
-    Write-Host "❌ API call failed: $($_.Exception.Message)" -ForegroundColor Red
+    $sanitizedUrl = $fullUrl -replace $OrganizationDomain, "[DOMAIN]"
+    Write-Host "❌ API call failed to $sanitizedUrl : $($_.Exception.Message)" -ForegroundColor Red
+    Write-AuditLog -Action "API_FAILED" -Endpoint $EndpointPath -User $env:USERNAME -Error $_.Exception.Message
     throw
+} finally {
+    # Clear sensitive variables
+    $apiToken = $null
+    $secureToken = $null
 }
 ```
 
-### **Logging Pattern**
+### **Secure Logging & Audit Pattern**
 ```powershell
-# Consistent logging across all scripts
+# ✅ REQUIRED: Secure logging with audit trail
 function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
+
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("INFO", "WARNING", "ERROR", "DEBUG", "AUDIT")]
+        [string]$Level = "INFO",
+
+        [Parameter(Mandatory=$false)]
+        [switch]$Sensitive,
+
+        [Parameter(Mandatory=$false)]
+        [string]$LogPath = $script:LogFile
+    )
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "[$timestamp] [$Level] $Message"
-    Write-Host $logEntry
-    Add-Content -Path $logFile -Value $logEntry
+    $sessionId = $script:SessionId ?? (New-Guid).ToString().Substring(0,8)
+
+    # Sanitize message for display (remove sensitive data)
+    $displayMessage = $Message
+    if ($script:OrganizationDomain) {
+        $displayMessage = $displayMessage -replace $script:OrganizationDomain, "[DOMAIN]"
+    }
+
+    $logEntry = "[$timestamp] [$sessionId] [$Level] $displayMessage"
+
+    # Display non-sensitive logs
+    if (-not $Sensitive) {
+        $color = switch ($Level) {
+            "ERROR" { "Red" }
+            "WARNING" { "Yellow" }
+            "AUDIT" { "Cyan" }
+            default { "White" }
+        }
+        Write-Host $logEntry -ForegroundColor $color
+    }
+
+    # Always log full message to file (including sensitive data for troubleshooting)
+    $fullLogEntry = "[$timestamp] [$sessionId] [$Level] [$env:USERNAME] $Message"
+    try {
+        Add-Content -Path $LogPath -Value $fullLogEntry -ErrorAction Stop
+    } catch {
+        Write-Warning "Failed to write to log file: $_"
+    }
+}
+
+# Audit-specific logging function
+function Write-AuditLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Action,
+
+        [Parameter(Mandatory=$false)]
+        [string]$Target,
+
+        [Parameter(Mandatory=$true)]
+        [string]$User,
+
+        [Parameter(Mandatory=$false)]
+        [string]$Error,
+
+        [Parameter(Mandatory=$false)]
+        [hashtable]$AdditionalData
+    )
+
+    $auditEntry = @{
+        Timestamp = Get-Date -Format "o"
+        SessionId = $script:SessionId
+        Action = $Action
+        User = $User
+        Target = $Target
+        Error = $Error
+        ComputerName = $env:COMPUTERNAME
+        ScriptName = $MyInvocation.ScriptName
+        AdditionalData = $AdditionalData
+    }
+
+    $auditJson = $auditEntry | ConvertTo-Json -Compress
+    Write-Log -Message $auditJson -Level "AUDIT" -Sensitive $true
 }
 ```
 
@@ -154,42 +382,115 @@ Write-Progress -Activity "Processing Items" -Completed
 - **Scripts:** Descriptive names (CreateJiraIssue.ps1, TestNetworkConnectivity.ps1)
 - **Variables:** Clear, descriptive ($mailboxPermissions, $apiResponse)
 
-## 🔧 **Common Issues to Fix**
+## � **Critical Security Fixes Required**
 
-### **1. Incomplete Assignments**
+### **1. Eliminate All Hardcoded Values**
 ```powershell
-# ❌ AVOID: Empty assignments
-$variable =
-$apiKey =
+# ❌ CRITICAL: Hardcoded company data - MUST BE FIXED
+$serverName = "PROD-SQL-01"
+$domain = "@acmecorp.com"
+$apiKey = "sk-1234567890abcdef"
+$companyName = "Acme Corporation"
 
-# ✅ FIX: Complete assignments or use proper validation
-$variable = "default-value"
-if (-not $apiKey) { $apiKey = Read-Host "Enter API key" }
+# ✅ REQUIRED FIX: Parameterize everything
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Server hostname")]
+    [string]$ServerName,
+
+    [Parameter(Mandatory=$true, HelpMessage="Organization domain (e.g., @contoso.com)")]
+    [string]$Domain,
+
+    [Parameter(Mandatory=$true, HelpMessage="Organization display name")]
+    [string]$OrganizationName
+)
+
+# For API keys - never hardcode, always prompt or use secure storage
+$apiKey = Get-SecureApiKey -ServiceName $ServiceName
 ```
 
-### **2. Poor Error Messages**
+### **2. Sanitize All Output and Errors**
 ```powershell
-# ❌ AVOID: Generic errors
-catch { Write-Error "Error occurred" }
-
-# ✅ FIX: Specific, actionable errors
+# ❌ CRITICAL: Exposing sensitive information
 catch {
-    Write-Host "❌ Failed to connect to $serverName : $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "💡 Check network connectivity and credentials" -ForegroundColor Yellow
+    Write-Error "Failed to connect to prod-db-01.acme.corp with key abc123"
+    Write-Host "Error in user processing for john.doe@acmecorp.com"
+}
+
+# ✅ REQUIRED FIX: Sanitized error handling
+catch {
+    $sanitizedError = $_.Exception.Message -replace $OrganizationDomain, "[DOMAIN]" -replace $ServerName, "[SERVER]"
+    Write-Host "❌ Connection failed: $sanitizedError" -ForegroundColor Red
+    Write-Host "💡 Check network connectivity and authentication" -ForegroundColor Yellow
+
+    # Log full details securely for troubleshooting
+    Write-AuditLog -Action "CONNECTION_FAILED" -Target $ServerName -User $env:USERNAME -Error $_.Exception.Message
 }
 ```
 
-### **3. Missing Parameter Help**
+### **3. Implement Comprehensive Parameter Validation**
 ```powershell
-# ❌ AVOID: No help text
-param([string]$Name)
+# ❌ AVOID: Minimal or no validation
+param([string]$Email)
 
-# ✅ FIX: Comprehensive help
+# ✅ REQUIRED: Comprehensive validation and documentation
 param(
-    [Parameter(Mandatory=$true, HelpMessage="Enter user display name")]
+    [Parameter(
+        Mandatory=$true,
+        Position=0,
+        ValueFromPipeline=$true,
+        HelpMessage="Email address in format user@domain.com"
+    )]
+    [ValidatePattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')]
     [ValidateNotNullOrEmpty()]
-    [string]$Name
+    [string]$EmailAddress,
+
+    [Parameter(Mandatory=$false, HelpMessage="Validate email domain exists")]
+    [switch]$ValidateDomain,
+
+    [Parameter(Mandatory=$false, HelpMessage="Maximum processing time in minutes")]
+    [ValidateRange(1, 60)]
+    [int]$TimeoutMinutes = 5
 )
+```
+
+### **4. Data Classification & Protection**
+```powershell
+# ✅ REQUIRED: Classify and protect data appropriately
+$DataClassification = @{
+    PUBLIC = @("ServerStatus", "GeneralConfiguration")
+    INTERNAL = @("UserLists", "GroupMemberships")
+    CONFIDENTIAL = @("EmailAddresses", "PersonalData")
+    RESTRICTED = @("Passwords", "ApiKeys", "Tokens")
+}
+
+# Implement appropriate handling based on classification
+function Process-Data {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DataType,
+
+        [Parameter(Mandatory=$true)]
+        $Data
+    )
+
+    $classification = Get-DataClassification -DataType $DataType
+
+    switch ($classification) {
+        "RESTRICTED" {
+            # Never log, minimal processing, immediate cleanup
+            Write-AuditLog -Action "RESTRICTED_DATA_ACCESS" -User $env:USERNAME
+            # Process without logging content
+            $null = $Data  # Clear reference immediately
+        }
+        "CONFIDENTIAL" {
+            # Limited logging, sanitized output
+            Write-Log "Processing confidential data type: $DataType" -Sensitive $true
+        }
+        default {
+            Write-Log "Processing $DataType data"
+        }
+    }
+}
 ```
 
 ## 🎨 **UI/UX Standards**
@@ -212,62 +513,213 @@ Write-Host "📊 Processing 150 items..." -ForegroundColor White
 Write-Host "💡 Tip: Use -WhatIf to preview changes" -ForegroundColor Gray
 ```
 
-## 📚 **API Documentation Reference**
+## 📚 **Compliance & Documentation Requirements**
 
-When working with API integrations, refer to:
-- **`docs/api-references/ATLASSIAN_API_REFERENCE.md`** - Complete Atlassian API documentation
-- **Microsoft Graph API** - For Office 365/Azure AD operations
-- **Exchange Online PowerShell** - For mailbox and email operations
+### **Regulatory Compliance**
+- **Data Protection**: GDPR, CCPA, SOX compliance for data handling
+- **Audit Trail**: All data access and modifications must be logged
+- **Data Retention**: Follow organizational data retention policies
+- **Privacy**: Implement data minimization and purpose limitation
 
-## 🧪 **Testing Guidelines**
+### **API Integration Standards**
+When working with API integrations, ensure:
+- **Authentication**: Use secure authentication methods (OAuth, certificates)
+- **Rate Limiting**: Implement proper rate limiting and retry logic
+- **Data Validation**: Validate all API responses before processing
+- **Error Handling**: Log API errors without exposing sensitive details
 
-### **WhatIf Implementation**
+### **Required Documentation**
+- **API References**: Document all external API dependencies
+- **Security Assessment**: Include security impact analysis for each script
+- **Compliance Matrix**: Map scripts to applicable regulations and standards
+- **Change Log**: Maintain detailed change history with security implications
+
+## 🧪 **Security Testing & Validation**
+
+### **Mandatory WhatIf Implementation**
 ```powershell
-param([switch]$WhatIf)
+# ✅ REQUIRED: WhatIf support for all destructive operations
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$TargetResource,
 
-if ($WhatIf) {
-    Write-Host "🔍 WhatIf Mode: Would delete user $userName" -ForegroundColor Yellow
-    return
+    [Parameter(Mandatory=$false)]
+    [switch]$Force
+)
+
+if ($PSCmdlet.ShouldProcess($TargetResource, "Delete Operation")) {
+    if ($Force -or $PSCmdlet.ShouldContinue("Are you sure?", "Confirm Deletion")) {
+        # Perform actual operation
+        Write-Log "Executing deletion of $TargetResource"
+    }
+} else {
+    # WhatIf mode - show what would be done
+    Write-Host "🔍 WhatIf: Would delete resource [$TargetResource]" -ForegroundColor Yellow
+    Write-AuditLog -Action "WHATIF_DELETE" -Target $TargetResource -User $env:USERNAME
 }
-# Actual operation
 ```
 
-### **Validation Checks**
+### **Comprehensive Validation Pattern**
 ```powershell
-# Pre-flight checks
-if (-not (Test-Path $filePath)) {
-    Write-Host "❌ File not found: $filePath" -ForegroundColor Red
-    return
+# ✅ REQUIRED: Multi-level validation
+function Test-Prerequisites {
+    param(
+        [Parameter(Mandatory=$true)]
+        [hashtable]$ValidationRules
+    )
+
+    $validationResults = @()
+
+    foreach ($rule in $ValidationRules.GetEnumerator()) {
+        try {
+            $result = & $rule.Value
+            $validationResults += @{
+                Rule = $rule.Key
+                Passed = $result.Success
+                Message = $result.Message
+                Severity = $result.Severity ?? "Error"
+            }
+        } catch {
+            $validationResults += @{
+                Rule = $rule.Key
+                Passed = $false
+                Message = "Validation failed: $($_.Exception.Message)"
+                Severity = "Critical"
+            }
+        }
+    }
+
+    return $validationResults
 }
 
-if (-not $apiKey) {
-    Write-Host "❌ API key required for this operation" -ForegroundColor Red
-    return
+# Example validation rules
+$validationRules = @{
+    "FileAccess" = {
+        @{ Success = (Test-Path $FilePath); Message = "File accessibility check" }
+    }
+    "NetworkConnectivity" = {
+        @{ Success = (Test-NetConnection $ServerName -Port $Port -WarningAction SilentlyContinue).TcpTestSucceeded; Message = "Network connectivity check" }
+    }
+    "Permissions" = {
+        @{ Success = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); Message = "Administrative privileges check" }
+    }
+    "DataIntegrity" = {
+        @{ Success = (Get-FileHash $FilePath).Hash -eq $ExpectedHash; Message = "File integrity verification" }
+    }
+}
+
+$validationResults = Test-Prerequisites -ValidationRules $validationRules
+$criticalFailures = $validationResults | Where-Object { -not $_.Passed -and $_.Severity -eq "Critical" }
+
+if ($criticalFailures) {
+    Write-Host "❌ Critical validation failures detected:" -ForegroundColor Red
+    foreach ($failure in $criticalFailures) {
+        Write-Host "  • $($failure.Rule): $($failure.Message)" -ForegroundColor Red
+    }
+    Write-AuditLog -Action "VALIDATION_FAILED" -User $env:USERNAME -Error ($criticalFailures | ConvertTo-Json)
+    exit 1
 }
 ```
 
-## Contribution Guidelines
-- Follow the development guidelines outlined above.
-- Test scripts thoroughly using `Pester`.
-- Document any new scripts or updates in the `README.md` files.
+## 🎯 **Mandatory AI Agent Guidelines**
 
-## Notes for AI Agents
-- Focus on improving error handling, logging, and modularization in scripts.
-- Ensure compatibility with both cloud and on-prem environments where possible.
-- Prioritize the use of `curl` for API calls.
-- Add or update documentation as needed.
-- Refer to `autoload/` for reusable functions and modules.
-- Ensure all scripts include appropriate comments and documentation.
-- Maintain consistent formatting and style across all scripts.
-- Include error handling and logging in all scripts.
-- Use `Pester` for testing and ensure scripts are well-tested before committing.
-- Consider performance implications and optimize scripts for efficiency.
-- Ensure scripts are secure, especially when handling sensitive data or credentials.
-- Follow best practices for PowerShell scripting.
-- Use version control effectively, with clear commit messages and branches for new features or fixes.
-- Document any new scripts or updates in the `README.md` files.
-- Regularly review and update scripts to ensure they remain relevant and effective.
-- Ensure all scripts are properly documented and include usage examples.
+### **CRITICAL: Security-First Development**
+When rewriting or correcting scripts, AI agents MUST:
 
-## Contact
-For any questions or contributions, please contact the repository maintainer.
+1. **🚫 ELIMINATE ALL HARDCODED VALUES**
+   - Replace company names with generic parameters (`$OrganizationName`)
+   - Replace server names with parameters (`$ServerName`, `$DatabaseServer`)
+   - Replace domains with parameters (`$OrganizationDomain`)
+   - Replace API keys/credentials with secure retrieval methods
+   - Replace file paths with configurable parameters
+
+2. **🔒 IMPLEMENT SECURITY PATTERNS**
+   - Add comprehensive parameter validation
+   - Implement secure credential handling
+   - Add audit logging for all operations
+   - Sanitize all output to prevent information disclosure
+   - Add data classification handling
+
+3. **📋 ENSURE COMPLIANCE**
+   - Add required documentation headers
+   - Implement WhatIf support for destructive operations
+   - Add comprehensive error handling
+   - Include regulatory compliance considerations
+   - Document security impact and data handling
+
+### **Example Transformation Pattern**
+```powershell
+# ❌ BEFORE: Hardcoded, insecure script
+$server = "PROD-SQL-01.acmecorp.com"
+$database = "UserData"
+$user = "sa"
+$password = "P@ssw0rd123"
+
+Get-SqlData -Server $server -Database $database -User $user -Password $password
+
+# ✅ AFTER: Parameterized, secure script
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Database server hostname")]
+    [ValidateNotNullOrEmpty()]
+    [string]$DatabaseServer,
+
+    [Parameter(Mandatory=$true, HelpMessage="Database name")]
+    [ValidateNotNullOrEmpty()]
+    [string]$DatabaseName,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use Windows Authentication")]
+    [switch]$UseWindowsAuth,
+
+    [Parameter(Mandatory=$false, HelpMessage="Connection timeout in seconds")]
+    [ValidateRange(5, 300)]
+    [int]$TimeoutSeconds = 30
+)
+
+# Secure credential handling
+if ($UseWindowsAuth) {
+    $credentials = $null
+} else {
+    $credentials = Get-Credential -Message "Enter database credentials"
+}
+
+# Validation and execution with audit trail
+if ($PSCmdlet.ShouldProcess($DatabaseServer, "Connect to Database")) {
+    try {
+        $result = Get-SqlData -Server $DatabaseServer -Database $DatabaseName -Credential $credentials -Timeout $TimeoutSeconds
+        Write-AuditLog -Action "DATABASE_ACCESS_SUCCESS" -Target "$DatabaseServer\$DatabaseName" -User $env:USERNAME
+        return $result
+    } catch {
+        $sanitizedError = $_.Exception.Message -replace $DatabaseServer, "[SERVER]"
+        Write-Host "❌ Database connection failed: $sanitizedError" -ForegroundColor Red
+        Write-AuditLog -Action "DATABASE_ACCESS_FAILED" -Target "$DatabaseServer\$DatabaseName" -User $env:USERNAME -Error $_.Exception.Message
+        throw
+    }
+}
+```
+
+### **Contribution Requirements**
+- **Security Review**: Every script must pass security compliance check
+- **Testing**: Comprehensive Pester tests including security validation
+- **Documentation**: Complete security and compliance documentation
+- **Audit**: All changes must include audit trail implementation
+- **Validation**: Parameter validation and input sanitization required
+
+### **Deployment Standards**
+- Code signing required for all production scripts
+- Security scanning before deployment
+- Compliance verification against organizational standards
+- Change approval process for scripts handling sensitive data
+
+### **Emergency Response**
+- Immediate remediation process for security issues
+- Incident response procedures for data exposure
+- Rollback procedures for failed deployments
+- Security incident documentation requirements
+
+## 📞 **Contact & Governance**
+- **Security Officer**: For security-related questions and approvals
+- **Compliance Team**: For regulatory compliance verification
+- **Repository Maintainer**: For technical questions and contributions
+- **Change Advisory Board**: For production deployment approvals

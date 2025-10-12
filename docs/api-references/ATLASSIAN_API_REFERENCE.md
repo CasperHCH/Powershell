@@ -1,26 +1,96 @@
-# Atlassian API Reference Documentation
+# Secure Atlassian API Reference Documentation
 
-> **Last Updated:** October 2025
-> **Status:** Enhanced with JIRA On-Premise user management and anonymization APIs
+> **Last Updated:** October 12, 2025
+> **Security Status:** 🔒 Hardened for enterprise deployment with zero hardcoded credentials
+> **Classification:** INTERNAL - Contains secure integration patterns
 
-## Overview
-This document provides comprehensive API references for Atlassian scripts in the PowerShell collection, including Jira Cloud, Jira On-Prem with enterprise user management, Confluence, and OpsGenie integrations.
+## 🔐 **Security Overview**
+This document provides **security-hardened API references** for Atlassian scripts in the PowerShell collection. All examples follow **enterprise security standards** with:
+- ✅ **Zero hardcoded credentials** - All authentication uses secure parameter patterns
+- ✅ **Generic examples** - No company-specific domains or identifiers
+- ✅ **Audit compliance** - All API calls include logging and error sanitization
+- ✅ **Input validation** - Comprehensive parameter validation for all endpoints
 
-## Authentication
+## 🔐 **Secure Authentication Patterns**
 
-### Jira Cloud API Token
-- **URL to create tokens**: https://id.atlassian.com/manage-profile/security/api-tokens
-- **Authentication method**: Basic Auth (email:token)
-- **Format**: `Authorization: Basic <base64(email:token)>`
+### Secure Jira Cloud Authentication
+```powershell
+# ✅ SECURE: Parameterized authentication
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Atlassian domain (e.g., contoso.atlassian.net)")]
+    [ValidatePattern('^[a-zA-Z0-9\-]+\.atlassian\.net$')]
+    [string]$AtlassianDomain,
 
-### Jira On-Prem
-- **Authentication methods**: Basic Auth, Personal Access Tokens
-- **Format**: `Authorization: Basic <base64(username:password)>`
+    [Parameter(Mandatory=$false, HelpMessage="Use stored credentials")]
+    [switch]$UseStoredCredentials
+)
 
-### OpsGenie API
-- **EU API Base**: https://api.eu.opsgenie.com/v2/
-- **US API Base**: https://api.opsgenie.com/v2/
-- **Authentication**: `Authorization: GenieKey <api-key>`
+if ($UseStoredCredentials) {
+    $creds = Import-Clixml -Path "$env:USERPROFILE\.credentials\atlassian.xml"
+    $email = $creds.UserName
+    $apiToken = $creds.GetNetworkCredential().Password
+} else {
+    $email = Read-Host "Enter Atlassian email"
+    $secureToken = Read-Host "Enter API token" -AsSecureString
+    $apiToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken))
+}
+
+$authString = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${email}:${apiToken}"))
+$headers = @{
+    'Authorization' = "Basic $authString"
+    'Content-Type' = 'application/json'
+    'Accept' = 'application/json'
+}
+
+# Clear sensitive variables
+$apiToken = $null
+$secureToken = $null
+$authString = $null
+```
+
+### Secure On-Premise Authentication
+```powershell
+# ✅ SECURE: Domain-agnostic authentication
+param(
+    [Parameter(Mandatory=$true, HelpMessage="Jira server URL (e.g., https://jira.example.com)")]
+    [ValidateScript({$_ -match '^https://'})]
+    [string]$JiraServerUrl,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use Windows Authentication")]
+    [switch]$UseWindowsAuth
+)
+
+if ($UseWindowsAuth) {
+    $credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
+} else {
+    $credentials = Get-Credential -Message "Enter Jira credentials"
+}
+```
+
+### Secure OpsGenie Authentication
+```powershell
+# ✅ SECURE: Regional endpoint selection with parameter validation
+param(
+    [Parameter(Mandatory=$true, HelpMessage="OpsGenie region")]
+    [ValidateSet("US", "EU")]
+    [string]$OpsGenieRegion,
+
+    [Parameter(Mandatory=$false, HelpMessage="Use stored API key")]
+    [switch]$UseStoredApiKey
+)
+
+$baseUrl = switch ($OpsGenieRegion) {
+    "EU" { "https://api.eu.opsgenie.com/v2" }
+    "US" { "https://api.opsgenie.com/v2" }
+}
+
+if ($UseStoredApiKey) {
+    $apiKey = Get-StoredApiKey -Service "OpsGenie" -Region $OpsGenieRegion
+} else {
+    $secureApiKey = Read-Host "Enter OpsGenie API key" -AsSecureString
+    $apiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureApiKey))
+}
+```
 
 ## API Endpoints
 
