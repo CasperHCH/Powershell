@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Switches a Shelly1 device 
 .DESCRIPTION
@@ -24,7 +24,7 @@ try {
 	if ($turnMode -eq "") { $turnMode = Read-Host "Enter the turn mode (on/off/toggle)" }
 	if ($timer -eq -999) { [int]$timer = Read-Host "Enter the timer in seconds (0=endless)" }
 
-	$result = Invoke-RestMethod "http://$($host)/relay/0?turn=$($turnMode)&timer=$($timer)"
+	$result = Invoke-RestMethod "https://$($host)/relay/0?turn=$($turnMode)&timer=$($timer)"
 	
 	"✅ Switched Shelly1 device at $host to $turnMode for $timer sec."
 	exit 0 # success
@@ -32,3 +32,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

@@ -975,7 +975,7 @@ try {
   }
 
   $Location = "$City,$Country"
-  $Url = "http://api.openweathermap.org/data/2.5/weather?q=$Location&appid=$API&units=metric"
+  $Url = "https://api.openweathermap.org/data/2.5/weather?q=$Location&appid=$API&units=metric"
 
   Write-Host "Getting weather for $Location..." -ForegroundColor Cyan
 
@@ -1145,3 +1145,4 @@ function Show-WeatherImage {
     Write-Host
   }
 }
+

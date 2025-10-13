@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the weather report
 .DESCRIPTION
@@ -90,8 +90,8 @@ function GetWindDir([string]$text) {
 }
 
 try {
-	Write-Progress "Loading weather data from http://wttr.in ..."
-	$weather = (Invoke-WebRequest -URI http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	Write-Progress "Loading weather data from https://wttr.in ..."
+	$weather = (Invoke-WebRequest -URI https://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
 	$area = $weather.nearest_area.areaName.value
 	$region = $weather.nearest_area.region.value
 	$country = $weather.nearest_area.country.value
@@ -132,3 +132,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

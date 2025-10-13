@@ -17,9 +17,9 @@ Written by: Paul Cunningham
 
 Find me on:
 
-* My Blog:	http://paulcunningham.me
+* My Blog:	https://paulcunningham.me
 * Twitter:	https://twitter.com/paulcunningham
-* LinkedIn:	http://au.linkedin.com/in/cunninghamp/
+* LinkedIn:	https://au.linkedin.com/in/cunninghamp/
 * Github:	https://github.com/cunninghamp
 
 For more Office 365 tips, tricks and news
@@ -50,9 +50,9 @@ Function New-StoredCredential {
 
     Find me on:
 
-    * My Blog:	http://paulcunningham.me
+    * My Blog:	https://paulcunningham.me
     * Twitter:	https://twitter.com/paulcunningham
-    * LinkedIn:	http://au.linkedin.com/in/cunninghamp/
+    * LinkedIn:	https://au.linkedin.com/in/cunninghamp/
     * Github:	https://github.com/cunninghamp
 
     For more Office 365 tips, tricks and news
@@ -120,9 +120,9 @@ Function Get-StoredCredential {
 
     Find me on:
 
-    * My Blog:	http://paulcunningham.me
+    * My Blog:	https://paulcunningham.me
     * Twitter:	https://twitter.com/paulcunningham
-    * LinkedIn:	http://au.linkedin.com/in/cunninghamp/
+    * LinkedIn:	https://au.linkedin.com/in/cunninghamp/
     * Github:	https://github.com/cunninghamp
 
     For more Office 365 tips, tricks and news

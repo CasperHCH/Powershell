@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Installs the Calibre server (needs admin rights)
 .DESCRIPTION
@@ -50,9 +50,10 @@ try {
 
 	[int]$elapsed = $stopWatch.Elapsed.TotalSeconds
 	"✅ Calibre server installed in $($elapsed)s."
-	"   (URL=http://$(hostname):$port media=$mediaFolder userDB=$userDB log=$logfile)."
+	"   (URL=https://$(hostname):$port media=$mediaFolder userDB=$userDB log=$logfile)."
 	exit 0 # success
 } catch {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

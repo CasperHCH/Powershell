@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PowerShell Security Compliance Report</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .header { background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .summary { background-color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .critical { color: #e74c3c; font-weight: bold; }
+        .high { color: #e67e22; font-weight: bold; }
+        .medium { color: #f39c12; font-weight: bold; }
+        .low { color: #3498db; font-weight: bold; }
+        .compliant { color: #27ae60; font-weight: bold; }
+        .issue-table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: white; }
+        .issue-table th, .issue-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .issue-table th { background-color: #34495e; color: white; }
+        .code-snippet { background-color: #f8f9fa; border-left: 4px solid #007acc; padding: 10px; margin: 5px 0; font-family: 'Courier New', monospace; }
+        .file-section { background-color: white; margin-bottom: 15px; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔒 PowerShell Security Compliance Report</h1>
+        <p>Generated: 2025-10-13 09:17:57 | Scan Path: C:\PS\Tools\development</p>
+    </div>
+
+    <div class="summary">
+        <h2>📊 Executive Summary</h2>
+        <ul>
+            <li><strong>Total Files Scanned:</strong> 4</li>
+            <li><strong>Files with Issues:</strong> 4</li>
+            <li><strong>Total Security Issues:</strong> 38</li>
+        </ul>
+
+        <h3>Issues by Severity</h3>
+        <ul>
+            <li><strong>Critical:</strong> <span class="critical">0</span></li>
+            <li><strong>High:</strong> <span class="high">0</span></li>
+            <li><strong>Medium:</strong> <span class="medium">26</span></li>
+            <li><strong>Low:</strong> <span class="low">7</span></li>
+        </ul>
+    </div>    <div class="file-section">
+        <h3>📄 Invoke-SecurityComplianceScan.ps1</h3>
+        <p><strong>Issues Found:</strong> 2</p>
+
+        <table class="issue-table">
+            <thead>
+                <tr>
+                    <th>Line</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Match</th>
+                </tr>
+            </thead>
+            <tbody>                <tr>
+                    <td>82</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>133</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param(
+        [string]$FilePath
+    )</code></td>
+                </tr>            </tbody>
+        </table>
+    </div>    <div class="file-section">
+        <h3>📄 Quick-ComplianceCheck.ps1</h3>
+        <p><strong>Issues Found:</strong> 6</p>
+
+        <table class="issue-table">
+            <thead>
+                <tr>
+                    <th>Line</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Match</th>
+                </tr>
+            </thead>
+            <tbody>                <tr>
+                    <td>3</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\PS\scripts\atlassian\On-Prem\Jira\BulkChangeEmails.ps1&quot;</code></td>
+                </tr>            </tbody>
+        </table>
+    </div>    <div class="file-section">
+        <h3>📄 Remediate-MediumSeverityIssues-Fixed.ps1</h3>
+        <p><strong>Issues Found:</strong> 15</p>
+
+        <table class="issue-table">
+            <thead>
+                <tr>
+                    <th>Line</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Match</th>
+                </tr>
+            </thead>
+            <tbody>                <tr>
+                    <td>75</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>76</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>77</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>57</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>58</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\windows\\temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>59</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\users\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>60</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>61</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\&quot;</code></td>
+                </tr>                <tr>
+                    <td>68</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\TEMP\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>69</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\WINDOWS\\TEMP\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>70</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\USERS\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>193</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\PS\SECURITY_COMPLIANCE_STATUS_REPORT.html&quot;</code></td>
+                </tr>                <tr>
+                    <td>119</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$Content)</code></td>
+                </tr>                <tr>
+                    <td>131</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$FilePath)</code></td>
+                </tr>                <tr>
+                    <td>166</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$FilePath)</code></td>
+                </tr>            </tbody>
+        </table>
+    </div>    <div class="file-section">
+        <h3>📄 Remediate-MediumSeverityIssues.ps1</h3>
+        <p><strong>Issues Found:</strong> 15</p>
+
+        <table class="issue-table">
+            <thead>
+                <tr>
+                    <th>Line</th>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Match</th>
+                </tr>
+            </thead>
+            <tbody>                <tr>
+                    <td>71</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>72</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>73</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>InsecureProtocols</td>
+                    <td>Insecure HTTP protocols detected</td>
+                    <td><code>https://</code></td>
+                </tr>                <tr>
+                    <td>57</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>58</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>59</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\windows\\temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>60</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\Windows\\Temp\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>61</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\users\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>62</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>C:\\Users\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>63</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\&#39;</code></td>
+                </tr>                <tr>
+                    <td>64</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\\&quot;</code></td>
+                </tr>                <tr>
+                    <td>180</td>
+                    <td><span class="medium">MEDIUM</span></td>
+                    <td>HardcodedPaths</td>
+                    <td>Hardcoded file paths detected</td>
+                    <td><code>c:\PS\SECURITY_COMPLIANCE_STATUS_REPORT.html&quot;</code></td>
+                </tr>                <tr>
+                    <td>115</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$Content)</code></td>
+                </tr>                <tr>
+                    <td>127</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$FilePath)</code></td>
+                </tr>                <tr>
+                    <td>153</td>
+                    <td><span class="low">LOW</span></td>
+                    <td>MissingParameterValidation</td>
+                    <td>Parameters without validation attributes</td>
+                    <td><code>param([string]$FilePath)</code></td>
+                </tr>            </tbody>
+        </table>
+    </div>    <div class="summary">
+        <h2>🎯 Remediation Recommendations</h2>
+        <ul>
+            <li><strong>Critical/High Issues:</strong> Immediate remediation required - contains security vulnerabilities</li>
+            <li><strong>Medium Issues:</strong> Should be addressed in next maintenance cycle</li>
+            <li><strong>Low Issues:</strong> Consider addressing for improved security posture</li>
+        </ul>
+
+        <h3>Security Best Practices</h3>
+        <ul>
+            <li>Use parameterized inputs for all environment-specific values</li>
+            <li>Implement secure credential management with Get-Credential or Azure Key Vault</li>
+            <li>Add comprehensive parameter validation attributes</li>
+            <li>Use HTTPS/TLS for all external communications</li>
+            <li>Implement audit logging for all sensitive operations</li>
+        </ul>
+    </div>
+</body>
+</html>

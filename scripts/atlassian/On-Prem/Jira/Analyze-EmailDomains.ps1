@@ -48,7 +48,7 @@ param(
 # 🔐 Secure credential management
 if ($UseStoredCredentials) {
     $credPath = if ($CredentialPath) { $CredentialPath } else { "$env:USERPROFILE\.credentials\jira.xml" }
-    
+
     if (Test-Path $credPath) {
         Write-Host "🔑 Loading stored credentials from $credPath" -ForegroundColor Yellow
         $credential = Import-Clixml -Path $credPath

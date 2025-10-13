@@ -1,20 +1,53 @@
-# Test script to demonstrate the enhanced anonymization payload
+<#
+.SYNOPSIS
+    Test script for Jira user anonymization payload validation
+
+.DESCRIPTION
+    This script demonstrates and tests the enhanced anonymization payload construction
+    for Jira user anonymization operations. It validates the payload structure without
+    exposing sensitive data.
+
+.PARAMETER UserEmailToTest
+    Test user email address for anonymization payload testing
+
+.PARAMETER NewOwnerUserKey
+    New owner user key for reassignment testing
+
+.EXAMPLE
+    .\Test-AnonymizationPayload.ps1 -UserEmailToTest "user@example.com" -NewOwnerUserKey "newowner@example.com"
+
+.NOTES
+    SECURITY CLASSIFICATION: INTERNAL
+    Version: 2.0
+    Author: Security Team
+    Last Modified: $(Get-Date -Format "yyyy-MM-dd")
+#>
+
+[CmdletBinding()]
 param(
-    [string]$UserToTest = "elizabeth.genberg@teliacompany.com",
-    [string]$NewOwnerKey = "joharg@norlys.dk"
+    [Parameter(Mandatory = $true, HelpMessage = "Test user email address")]
+    [ValidatePattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')]
+    [string]$UserEmailToTest,
+
+    [Parameter(Mandatory = $true, HelpMessage = "New owner user key for testing")]
+    [ValidatePattern('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')]
+    [string]$NewOwnerUserKey
 )
 
 # Simulate the payload construction that now happens in Set-JiraUserAnonymized
 Write-Host "=== Enhanced Anonymization Payload Test ===" -ForegroundColor Cyan
 Write-Host ""
 
-# Mock user object
+# Extract username from email for mock object creation
+$username = ($UserEmailToTest -split "@")[0]
+
+# Mock user object with sanitized data
 $mockUser = [PSCustomObject]@{
-    name = "elizabeth.genberg"
-    displayName = "Elisabeth Genberg"
-    emailAddress = $UserToTest
-    accountId = "557058:12345678-1234-1234-1234-123456789012"
-    userKey = "elizabeth.genberg"
+    name         = $username
+    displayName  = "Test User Display Name"
+    emailAddress = $UserEmailToTest
+    accountId    = "557058:12345678-1234-1234-1234-123456789012"  # Example format
+    userKey      = $username
 }
 
 Write-Host "User to anonymize:" -ForegroundColor Yellow
@@ -40,11 +73,13 @@ if ($mockUser.accountId) {
     $userIdentifier = $mockUser.accountId
     $identifierType = "accountId"
     $anonymizePayload.userIdentify = $userIdentifier
-} elseif ($mockUser.userKey) {
+}
+elseif ($mockUser.userKey) {
     $userIdentifier = $mockUser.userKey
     $identifierType = "userKey"
     $anonymizePayload.userKey = $userIdentifier
-} else {
+}
+else {
     $userIdentifier = $mockUser.name
     $identifierType = "username"
     $anonymizePayload.userKey = $userIdentifier

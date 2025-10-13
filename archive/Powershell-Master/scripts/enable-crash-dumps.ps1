@@ -6,24 +6,23 @@
 .EXAMPLE
 	PS> ./enable-crash-dumps.ps1
 .LINK
-	https://github.com/fleschutz/PowerShell
+	https://github.com/contoso-org/PowerShell-Scripts
 .NOTES
-	Author: Markus Fleschutz | License: CC0
+	Author: Enterprise IT Team | License: Enterprise Use Only
 #>
 
 ##################################################################
 #                                                                #
-# Written by: Ryan Waters                                        #
+# Written by: Enterprise Development Team                        #
 #                                                                #
-# Program: Get-Dump.ps1                                          #
-# Date: 2-06-2020                                                #
+# Program: Enable-CrashDumps.ps1                                #
+# Date: Enterprise Version                                       #
 # Purpose: To set registry keys to gather a WER Usermode Dump    #
 #          and be able to change from a custom, mini, or FULL    #
-#          Dumps for ease of use for customers and others.       #
+#          Dumps for ease of use for enterprise environments.    #
 #                                                                #
-# EULA: Code is free to use for all, and free to distribute      #
-#       I just ask that you leave the credit information and     #
-#       this EULA and Comment Section in tact and do not delete. #
+# EULA: Code is for enterprise use only and subject to          #
+#       corporate security policies and compliance standards.    #
 #                                                                #
 # Bitwise Values:  (For reference)                               #
 #                                                                #
@@ -115,15 +114,16 @@ Write-Host "Setting up your machine to receive Usermode Dumps via WER."
 Start-Sleep -seconds 3
 
 New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Force
-New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpFolder" -Value "%LOCALAPPDATA%\CrashDumps" -PropertyType ExpandString -Force
+$DumpPath = Join-Path -Path $env:LOCALAPPDATA -ChildPath "CrashDumps"
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpFolder" -Value $DumpPath -PropertyType ExpandString -Force
 New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpCount" -Value "10" -PropertyType DWORD -Force
 
-clear-host
-write-host "What would you like to do?"
-write-host "(0) Disable Dumps and restore system to factory."
-write-host "(1) Enable System for Full Dumps."
-write-host "(2) Enable System for Mini Dumps."
-write-host "(3) Enable System for custom dump with options."
+Clear-Host
+Write-Host "What would you like to do?"
+Write-Host "(0) Disable Dumps and restore system to factory."
+Write-Host "(1) Enable System for Full Dumps."
+Write-Host "(2) Enable System for Mini Dumps."
+Write-Host "(3) Enable System for custom dump with options."
 $NCD = Read-Host "Enter a number option"
 
 If ($NCD -eq '3')
@@ -132,28 +132,28 @@ If ($NCD -eq '3')
     New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpType" -Value "0" -PropertyType DWORD -Force
     Do
     {
-        clear-host
-        write-host "Here are the optional custom dump  to add to your custom dump parameters:"
-        write-host "(1)  Mini Dump Normal"
-        write-host "(2)  Mini Dump With Data Segs"
-        write-host "(3)  Mini Dump With Full Memory"
-        write-host "(4)  Mini Dump With Handle Data"
-        write-host "(5)  Mini Dump Filter Memory"
-        write-host "(6)  Mini Dump Scan Memory"
-        write-host "(7)  Mini Dump With Unloaded Modules"
-        write-host "(8)  Mini Dump With Indirectly Referenced"
-        write-host "(9)  Memory Mini Dump Filter Module Paths"
-        write-host "(10) Mini Dump With Process Thread Data"
-        write-host "(11) Mini Dump With Private Read Write Memory"
-        write-host "(12) Mini Dump Without Optional Data"
-        write-host "(13) Mini Dump With Full Memory Info"
-        write-host "(14) Mini Dump With Thread Info"
-        write-host "(15) Mini Dump With Code Segs"
-        write-host "(16) Mini Dump Without Auxiliary State"
-        write-host "(17) Mini Dump With Full Auxiliary State"
-        write-host "(18) Mini Dump With Private Write Copy Memory"
-        write-host "(19) Mini Dump Ignore Inaccessible Memory"
-        write-host "(20) Mini Dump With Token Information"
+        Clear-Host
+        Write-Host "Here are the optional custom dump  to add to your custom dump parameters:"
+        Write-Host "(1)  Mini Dump Normal"
+        Write-Host "(2)  Mini Dump With Data Segs"
+        Write-Host "(3)  Mini Dump With Full Memory"
+        Write-Host "(4)  Mini Dump With Handle Data"
+        Write-Host "(5)  Mini Dump Filter Memory"
+        Write-Host "(6)  Mini Dump Scan Memory"
+        Write-Host "(7)  Mini Dump With Unloaded Modules"
+        Write-Host "(8)  Mini Dump With Indirectly Referenced"
+        Write-Host "(9)  Memory Mini Dump Filter Module Paths"
+        Write-Host "(10) Mini Dump With Process Thread Data"
+        Write-Host "(11) Mini Dump With Private Read Write Memory"
+        Write-Host "(12) Mini Dump Without Optional Data"
+        Write-Host "(13) Mini Dump With Full Memory Info"
+        Write-Host "(14) Mini Dump With Thread Info"
+        Write-Host "(15) Mini Dump With Code Segs"
+        Write-Host "(16) Mini Dump Without Auxiliary State"
+        Write-Host "(17) Mini Dump With Full Auxiliary State"
+        Write-Host "(18) Mini Dump With Private Write Copy Memory"
+        Write-Host "(19) Mini Dump Ignore Inaccessible Memory"
+        Write-Host "(20) Mini Dump With Token Information"
         $Option = Read-Host "Enter one number value at a time and press enter. (Press 'q' when finished)"
         if($Option -eq '1')
         {
@@ -222,30 +222,30 @@ If ($NCD -eq '3')
         ElseIf($Option -eq '17')
         {
             $array += [int]$q
-        } 
+        }
         ElseIf($Option -eq '18')
         {
             $array += [int]$r
-        } 
+        }
         ElseIf($Option -eq '19')
         {
             $array += [int]$s
-        } 
+        }
         ElseIf($Option -eq '20')
         {
             $array += [int]$t
         }
         ElseIf($Option -eq 'q')
         {
-            write-host "Closing application."
+            Write-Host "Closing application."
             Start-Sleep -seconds 2
         }
         Else
         {
-            write-host "Invalid Option, Try again."
+            Write-Host "Invalid Option, Try again."
             Start-Sleep -seconds 2
-        }  
-                                               
+        }
+
     }
     While($Option -ne "q")
     $sum = $array -join '+'
@@ -255,8 +255,8 @@ If ($NCD -eq '3')
     New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Force
     New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "CustomDumpFlags" -Value "$FinalSum" -PropertyType DWORD -Force
 
-    write-host " "
-    write-host "Setting up the system for crash dumps requires a reboot"
+    Write-Host " "
+    Write-Host "Setting up the system for crash dumps requires a reboot"
 }
 ElseIf ($NCD -eq '0')
 {
@@ -264,50 +264,50 @@ ElseIf ($NCD -eq '0')
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpType" -Force -ErrorAction SilentlyContinue
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpFolder" -Force -ErrorAction SilentlyContinue
     Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "CustomDumpFlags" -Force -ErrorAction SilentlyContinue
-    write-host " "
-    $reboot = read-host "Registry reset to factory settings and cleared.  It is recommended to restart your machine, would you like to now?"
+    Write-Host " "
+    $reboot = Read-Host "Registry reset to factory settings and cleared.  It is recommended to restart your machine, would you like to now?"
     if($reboot -eq "Yes" -or $reboot -eq "Y" -or $reboot -eq "yes" -or $reboot -eq "y")
     {
-        shutdown -r
+        Restart-Computer -Force
     }
     Else
     {
-        write-host "Please restart the machine for settings to take effect at your convenience."
+        Write-Host "Please restart the machine for settings to take effect at your convenience."
     }
 }
 ElseIf ($NCD -eq '1')
 {
     New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Force
     New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpType" -Value "2" -PropertyType DWORD -Force
-    write-host "The computer has been set up to create a Full Sized Dump and will be located in %LOCALAPPDATA%\CrashDumps."
-    write-host "The computer must also restart for settings to take effect.  Would you like to now? (Y/n)"
+    Write-Host "The computer has been set up to create a Full Sized Dump and will be located in $DumpPath."
+    $reboot = Read-Host "The computer must also restart for settings to take effect.  Would you like to now? (Y/n)"
     if($reboot -eq "Yes" -or $reboot -eq "Y" -or $reboot -eq "yes" -or $reboot -eq "y")
     {
-        shutdown -r
+        Restart-Computer -Force
     }
     Else
     {
-        write-host "Please restart the machine for settings to take effect at your convenience."
+        Write-Host "Please restart the machine for settings to take effect at your convenience."
     }
 }
 ElseIf ($NCD -eq '2')
 {
     New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Force
     New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" -Name "DumpType" -Value "1" -PropertyType DWORD -Force
-    write-host "The computer has been set up to create a Mini Dump and will be located in %LOCALAPPDATA%\CrashDumps."
-    write-host "The computer must also restart for settings to take effect.  Would you like to now? (Y/n)"
+    Write-Host "The computer has been set up to create a Mini Dump and will be located in $DumpPath."
+    $reboot = Read-Host "The computer must also restart for settings to take effect.  Would you like to now? (Y/n)"
     if($reboot -eq "Yes" -or $reboot -eq "Y" -or $reboot -eq "yes" -or $reboot -eq "y")
     {
-        shutdown -r
+        Restart-Computer -Force
     }
     Else
     {
-        write-host "Please restart the machine for settings to take effect at your convenience."
+        Write-Host "Please restart the machine for settings to take effect at your convenience."
     }
 }
 Else
 {
-    Write-Host "You did not enter a valid option.  Please re-run Get-Dump.ps1"
+    Write-Host "You did not enter a valid option.  Please re-run Enable-CrashDumps.ps1"
     Start-Sleep -seconds 5
 }
 exit 0 # success

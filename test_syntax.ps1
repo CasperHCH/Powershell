@@ -1,4 +1,4 @@
-# Comprehensive PowerShell syntax test - dynamic path resolution  
+# Comprehensive PowerShell syntax test - dynamic path resolution
 $ScanPath = $PSScriptRoot -or (Get-Location).Path
 Write-Host "🔍 Scanning $ScanPath for PowerShell files..." -ForegroundColor Cyan
 Write-Host "=" * 80 -ForegroundColor Gray

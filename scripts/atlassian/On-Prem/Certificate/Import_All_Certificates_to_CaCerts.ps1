@@ -29,20 +29,20 @@
 #>
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="Certificate store password (default: standard Java keystore password)")]
+    [Parameter(Mandatory = $true, HelpMessage = "Certificate store password (required for security compliance)")]
     [ValidateNotNullOrEmpty()]
-    [string]$CertificatePassword = "changeit",
+    [SecureString]$CertificatePassword,
 
-    [Parameter(Mandatory=$true, HelpMessage="Path to JIRA installation directory")]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [Parameter(Mandatory = $true, HelpMessage = "Path to JIRA installation directory")]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$JiraInstallPath,
 
-    [Parameter(Mandatory=$true, HelpMessage="Directory containing certificate files")]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [Parameter(Mandatory = $true, HelpMessage = "Directory containing certificate files")]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$CertificateSourcePath,
 
-    [Parameter(Mandatory=$false, HelpMessage="Path to Confluence installation directory")]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [Parameter(Mandatory = $false, HelpMessage = "Path to Confluence installation directory")]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$ConfluenceInstallPath
 )
 
@@ -56,22 +56,32 @@ Write-Host "🔐 Starting certificate import from: $CertificateSourcePath" -Fore
 
 $certs = Get-ChildItem -Path "$CertificateSourcePath\*" -Include *.crt, *.key, *.pfx
 
-foreach ($c in $certs){
+foreach ($c in $certs) {
     $alias = [IO.Path]::GetFileNameWithoutExtension($c.Name)
     Write-Host "Processing certificate: $($c.Name)" -ForegroundColor Yellow
 
     # Determine destination keystore
     $destinationKeystore = if ($ConfluenceInstallPath) {
         Join-Path $ConfluenceInstallPath "jre\lib\security\cacerts"
-    } else {
+    }
+    else {
         Join-Path $JiraInstallPath "jre\lib\security\cacerts"
     }
 
+    # Convert SecureString to plain text for keytool usage (temporarily in memory only)
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($CertificatePassword)
+    $PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+
     if ([IO.Path]::GetExtension($c.Name) -eq ".pfx") {
-        .\keytool.exe -import -file "$($c.FullName)" -destkeystore "$destinationKeystore" -srcstorepass $CertificatePassword -deststorepass $CertificatePassword -trustcacerts -alias $alias -deststoretype pkcs12 -noprompt
-    } else {
-        .\keytool.exe -import -file "$($c.FullName)" -destkeystore "$destinationKeystore" -deststorepass $CertificatePassword -trustcacerts -alias $alias -deststoretype pkcs12 -noprompt
+        .\keytool.exe -import -file "$($c.FullName)" -destkeystore "$destinationKeystore" -srcstorepass $PlainPassword -deststorepass $PlainPassword -trustcacerts -alias $alias -deststoretype pkcs12 -noprompt
     }
+    else {
+        .\keytool.exe -import -file "$($c.FullName)" -destkeystore "$destinationKeystore" -deststorepass $PlainPassword -trustcacerts -alias $alias -deststoretype pkcs12 -noprompt
+    }
+
+    # Clear sensitive data from memory
+    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+    $PlainPassword = $null
 }
 
 # Look for backup certificates in parent directory structure

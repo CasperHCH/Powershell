@@ -24,11 +24,11 @@
     Path to CSV file containing user information (username, email, or displayName columns)
 
 .PARAMETER JiraBaseUrl
-    The base URL of your JIRA instance (e.g., https colon slash slash jira.example.org)
+    The base URL of your JIRA instance (e.g., https colon slash slash jira.contoso.com)
 
 .PARAMETER EmailDomains
     Comma-separated list of email domains to target. Supports wildcards using * and ?
-    Examples: "oldexample.org,contractor.net", "*.example.org", "temp-*.contractor.net"
+    Examples: "oldcontoso.com,contractor.net", "*.contoso.com", "temp-*.contractor.net"
 
 .PARAMETER UsernamePatterns
     Comma-separated list of username patterns using wildcards (e.g., "temp_*,contractor_*,old.*")
@@ -88,67 +88,67 @@
     If specified, enables detailed debug logging for troubleshooting (may generate verbose output)
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.example.org" -DisableOnly
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -DisableOnly
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "oldexample.org,contractor.net" -JiraBaseUrl "https://jira.example.org" -DryRun
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "oldcontoso.com,contractor.net" -JiraBaseUrl "https://jira.contoso.com" -DryRun
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "example.org" -JiraBaseUrl "https://jira.example.org" -DisableOnly -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -DisableOnly -PersonalAccessToken "your_token"
 
-    Disable only users with @example.org email domain using Personal Access Token authentication
-
-.EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "*.example.org,temp-*.contractor.net" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -PersonalAccessToken "your_token"
-
-    Anonymize users with wildcard domain patterns (e.g., any subdomain of example.org, temp-prefixed contractor accounts)
+    Disable only users with @contoso.com email domain using Personal Access Token authentication
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "example.org" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -NewProjectLead "admin" -ContentOwnershipTransferTo "archive-user@example.org" -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "*.contoso.com,temp-*.contractor.net" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -PersonalAccessToken "your_token"
 
-    Anonymize users with separate targets: project leadership goes to 'admin', but user content ownership goes to 'archive-user@example.org'
+    Anonymize users with wildcard domain patterns (e.g., any subdomain of contoso.com, temp-prefixed contractor accounts)
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -ContentOwnershipTransferTo "archive@example.org" -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -NewProjectLead "admin" -ContentOwnershipTransferTo "archive-user@contoso.com" -PersonalAccessToken "your_token"
+
+    Anonymize users with separate targets: project leadership goes to 'admin', but user content ownership goes to 'archive-user@contoso.com'
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -ContentOwnershipTransferTo "archive@contoso.com" -PersonalAccessToken "your_token"
 
     Anonymize ALL disabled users in JIRA without domain filtering - useful for cleanup and compliance operations
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -ContentOwnershipTransferTo "archive@example.org" -PersonalAccessToken "your_token" -DryRun
+    .\Manage-JiraUserLifecycle.ps1 -ProcessAllDisabledUsers -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -ContentOwnershipTransferTo "archive@contoso.com" -PersonalAccessToken "your_token" -DryRun
 
     Check how many disabled users would be anonymized without actually performing the operation
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -BackupUsers
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -BackupUsers
 
     Anonymize users from CSV (disables and permanently removes personal information)
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -UsernamePatterns "temp_*,old.*" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -BackupUsers
+    .\Manage-JiraUserLifecycle.ps1 -UsernamePatterns "temp_*,old.*" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -BackupUsers
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contractor.net" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contractor.net" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -PersonalAccessToken "your_token"
 
     Anonymize users with @contractor.net domain (works on both active and already disabled users)
     Note: Anonymization permanently removes personal data and cannot be undone
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.example.org" -PersonalAccessToken "your_token" -CheckUsersOnly
+    .\Manage-JiraUserLifecycle.ps1 -CsvPath "users.csv" -JiraBaseUrl "https://jira.contoso.com" -PersonalAccessToken "your_token" -CheckUsersOnly
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "example.org" -JiraBaseUrl "https://jira.example.org" -DisableOnly -ForceProjectLeadTransfer -NewProjectLead "johndoe" -PersonalAccessToken "your_token"
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -DisableOnly -ForceProjectLeadTransfer -NewProjectLead "johndoe" -PersonalAccessToken "your_token"
 
-    Disable users from example.org domain and automatically transfer any project leadership to 'johndoe' user
-
-.EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "example.org" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -PersonalAccessToken "your_token" -DryRun
-
-    Test anonymization of users with @example.org domain without making changes
+    Disable users from contoso.com domain and automatically transfer any project leadership to 'johndoe' user
 
 .EXAMPLE
-    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "example.org" -JiraBaseUrl "https://jira.example.org" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -PersonalAccessToken "your_token" -DryRun
 
-    Anonymize inactive example.org users with debug logging enabled for troubleshooting
+    Test anonymization of users with @contoso.com domain without making changes
+
+.EXAMPLE
+    .\Manage-JiraUserLifecycle.ps1 -EmailDomains "contoso.com" -JiraBaseUrl "https://jira.contoso.com" -AnonymizeUsers -ForceProjectLeadTransfer -NewProjectLead "admin" -PersonalAccessToken "your_token" -EnableDebugLogging
+
+    Anonymize inactive contoso.com users with debug logging enabled for troubleshooting
 
 .NOTES
     Author: Enterprise PowerShell Team
@@ -214,7 +214,7 @@ param (
     [Parameter(ParameterSetName = "PatternInput", Mandatory = $true, HelpMessage = "Comma-separated username patterns with wildcards")]
     [string]$UsernamePatterns,
 
-    [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https`://jira.example.org)")]
+    [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https`://jira.contoso.com)")]
     [ValidateScript({
         if ($_ -match '^https?://') { $true }
         else { throw "JiraBaseUrl must start with http:// or https://" }

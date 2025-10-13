@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the weather of cities
 .DESCRIPTION
@@ -19,11 +19,11 @@
 function List-City-Weather {
 	$cities = @("Hawaii","Los Angeles","Mexico City","Dallas","Miami","New York","Rio de Janeiro","Paris","London","Berlin","Cape Town","Dubai","Mumbai","Singapore","Hong Kong","Perth","Peking","Tokyo","Sydney")
 	foreach($city in $cities) {
-		$icon = (Invoke-WebRequest http://wttr.in/${City}?format="%c" -UserAgent "curl" -useBasicParsing).Content
-		$temp = (Invoke-WebRequest http://wttr.in/${City}?format="%t" -UserAgent "curl" -useBasicParsing).Content
-		$rain = (Invoke-WebRequest http://wttr.in/${City}?format="%p %h" -UserAgent "curl" -useBasicParsing).Content
-		$wind = (Invoke-WebRequest http://wttr.in/${City}?format="%w" -UserAgent "curl" -useBasicParsing).Content
-		$sun = (Invoke-WebRequest http://wttr.in/${City}?format="%S → %s" -UserAgent "curl" -useBasicParsing).Content
+		$icon = (Invoke-WebRequest https://wttr.in/${City}?format="%c" -UserAgent "curl" -useBasicParsing).Content
+		$temp = (Invoke-WebRequest https://wttr.in/${City}?format="%t" -UserAgent "curl" -useBasicParsing).Content
+		$rain = (Invoke-WebRequest https://wttr.in/${City}?format="%p %h" -UserAgent "curl" -useBasicParsing).Content
+		$wind = (Invoke-WebRequest https://wttr.in/${City}?format="%w" -UserAgent "curl" -useBasicParsing).Content
+		$sun = (Invoke-WebRequest https://wttr.in/${City}?format="%S → %s" -UserAgent "curl" -useBasicParsing).Content
 		New-Object PSObject -Property @{ CITY="$city $icon"; TEMP=$temp; RAIN=$rain; WIND=$wind; SUN=$sun }
 	}
 }
@@ -35,3 +35,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

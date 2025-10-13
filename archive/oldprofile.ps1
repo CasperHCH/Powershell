@@ -33,7 +33,7 @@ if (!(Test-Path ps:)) {
 
 #Function Connect-OnPremPS {
 #    Import-Module ActiveDirectory
-#    $RPSession = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionUri http://PROD-EXCH-01/Powershell
+#    $RPSession = New-PSSession -Name  -ConfigurationName Microsoft.Exchange -ConnectionUri https://PROD-EXCH-01/Powershell
 #    Import-PSSession $RPSession -AllowClobber
 #}
 #
@@ -82,7 +82,7 @@ $ToolsPath = Join-Path $PSRootPath "Tools\Powershell-Stuff"
 
 if (Test-Path $ToolsPath) {
     Set-Alias adm (Join-Path $ToolsPath "Start-AllAdminPrograms.ps1")
-    Set-Alias adminTools (Join-Path $ToolsPath "Start-AdminTools.ps1") 
+    Set-Alias adminTools (Join-Path $ToolsPath "Start-AdminTools.ps1")
     Set-Alias capa (Join-Path $ToolsPath "Start-CapaAdmin.ps1")
     Set-Alias chrome (Join-Path $ToolsPath "Start-ChromeAdmin.ps1")
     Set-Alias IIS (Join-Path $ToolsPath "Start-IISadmin.ps1")
@@ -168,3 +168,4 @@ function Reload-Profile {
 
 #Clear the screen
 Clear
+

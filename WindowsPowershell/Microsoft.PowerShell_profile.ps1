@@ -23,10 +23,10 @@ Remove-Item alias:curl -Force
 New-Alias curl curl.exe
 
 
-Set-PSReadLineOption -colors @{
-  Operator           = 'Cyan'
-  Parameter          = 'Cyan'
-  String             = 'White'
+Set-PSReadLineOption -Colors @{
+    Operator  = 'Cyan'
+    Parameter = 'Cyan'
+    String    = 'White'
 }
 ##  change dir to PS-Drive ps:  ##
 $PSRootPath = Split-Path -Parent $PSScriptRoot
@@ -36,7 +36,7 @@ if (!(Test-Path ps:)) {
 
 ##  Change location to PS  ##
 #Set-Location PS:
-    Set-Location $PSRootPath
+Set-Location $PSRootPath
 
 ##  Load all O365 connections as functions  ##
 #.\Connect-Office365Services.ps1
@@ -49,7 +49,7 @@ if (!(Test-Path ps:)) {
 #    Import-Module ActiveDirectory
 #    # SECURITY: Use environment variables for server configuration
 #    $ExchangeServer = $env:EXCHANGE_SERVER -or "exchange.contoso.com"
-#    $RPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "http://$ExchangeServer/Powershell"
+#    $RPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://$ExchangeServer/Powershell"
 #    Import-PSSession $RPSession -AllowClobber
 #}
 #
@@ -76,11 +76,10 @@ Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | Out-Null
 
 # Load scripts from the following locations
 # Get environmental folders for PS scripts
-$CustomScripts = Get-ChildItem -path $PSRootPath -Directory -Recurse | ForEach-Object{$_.FullName}
+$CustomScripts = Get-ChildItem -Path $PSRootPath -Directory -Recurse | ForEach-Object { $_.FullName }
 # Ensure $env:Path is initialized before appending
 if (-not $env:Path) { $env:Path = "" }
-foreach($s in $CustomScripts)
-{
+foreach ($s in $CustomScripts) {
     if ($null -ne $s -and $s -ne "") {
         $env:Path += ";$s"
     }
@@ -90,11 +89,14 @@ foreach($s in $CustomScripts)
 # 🌐 CROSS-PLATFORM COMPATIBILITY: Platform-agnostic credential path
 $KeyPath = if ($IsWindows -or $env:OS -eq "Windows_NT") {
     "$env:USERPROFILE\.creds"
-} elseif ($IsMacOS) {
+}
+elseif ($IsMacOS) {
     "$env:HOME/.creds"
-} elseif ($IsLinux) {
+}
+elseif ($IsLinux) {
     "$env:HOME/.creds"
-} else {
+}
+else {
     # Fallback for unknown platforms
     Join-Path $env:HOME ".creds"
 }
@@ -125,7 +127,7 @@ if ($dt.DayOfWeek -eq "Tuesday") {
     $error.Clear()
     Update-Help -ErrorAction SilentlyContinue -Force
     for ($i = 0 ; $i -lt $error.Count ; $i ++) {
-         Write-Warning $error[$i].exception
+        Write-Warning $error[$i].exception
     }
     & "$PSRootPath\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1"
 }
@@ -139,12 +141,12 @@ function Import-ModuleIfAvailable {
     )
 
     # If module is imported say that and do nothing
-    if (Get-Module | Where-Object {$_.Name -eq $ModuleName}) {
+    if (Get-Module | Where-Object { $_.Name -eq $ModuleName }) {
         Write-Verbose "Module $ModuleName is already loaded" -Verbose
     }
     else {
         # If module is not imported, but available on disk then import
-        if (Get-Module -ListAvailable | Where-Object {$_.Name -eq $ModuleName}) {
+        if (Get-Module -ListAvailable | Where-Object { $_.Name -eq $ModuleName }) {
             Import-Module $ModuleName -Verbose
         }
         else {
@@ -153,7 +155,8 @@ function Import-ModuleIfAvailable {
                 if (Find-Module -Name $ModuleName -ErrorAction SilentlyContinue) {
                     Install-Module -Name $ModuleName -Force -Verbose -Scope CurrentUser
                     Import-Module $ModuleName -Verbose
-                } else {
+                }
+                else {
                     Write-Warning "Module $ModuleName not found and cannot be installed"
                     return $false
                 }
@@ -162,68 +165,71 @@ function Import-ModuleIfAvailable {
                 Write-Error "Failed to install module $ModuleName`: $($_.Exception.Message)"
                 return $false
             }
-      }
+        }
     }
-  }
+}
 
 # REST API Helper Function
 function Invoke-RestApiCall {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory = $true)]
-    [string]$url,
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$url,
 
-    [Parameter(Mandatory = $true)]
-    [string]$uri,
+        [Parameter(Mandatory = $true)]
+        [string]$uri,
 
-    [Parameter(Mandatory = $false)]
-    [string]$method = "GET",
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Default", "Delete", "Get", "Post", "Put", "Patch", "Head", "Options", "Trace", "Merge")]
+        [string]$method = "GET",
 
-    [Parameter(Mandatory = $false)]
-    [hashtable]$headers,
+        [Parameter(Mandatory = $false)]
+        [hashtable]$headers,
 
-    [Parameter(Mandatory = $false)]
-    [string]$Body
-  )
+        [Parameter(Mandatory = $false)]
+        [string]$Body
+    )
 
-  $uri = $url + $uri
+    $uri = $url + $uri
 
-  try {
-      If($method -eq "GET") {
-          $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
-      }
-      else{
-          $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
-      }
-  } catch {
-      # 🔧 ENTERPRISE PATTERN: Proper resource management with guaranteed disposal
-      $reader = $null
-      try {
-          $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-          $reader.BaseStream.Position = 0
-          $reader.DiscardBufferedData()
-          $response = $reader.ReadToEnd()
-          # $StatusCode = [string]$_.Exception.Response.StatusCode.value__  # Variable assigned but never used
-          # $StatusDescription = [string]$_.Exception.Response.StatusDescription  # Variable assigned but never used
-          $message = $response
-          $message += " URI: " + $uri + " Exception: " + $_.Exception
-          Write-Log -Message $message
-      } finally {
-          # Guarantee resource cleanup - Close() is insufficient, use Dispose()
-          if ($reader) {
-              $reader.Dispose()
-              $reader = $null
-          }
-      }
-  }
-  return $response
+    try {
+        if ($method -eq "GET") {
+            $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+        }
+        else {
+            $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
+        }
+    }
+    catch {
+        # 🔧 ENTERPRISE PATTERN: Proper resource management with guaranteed disposal
+        $reader = $null
+        try {
+            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+            $reader.BaseStream.Position = 0
+            $reader.DiscardBufferedData()
+            $response = $reader.ReadToEnd()
+            # $StatusCode = [string]$_.Exception.Response.StatusCode.value__  # Variable assigned but never used
+            # $StatusDescription = [string]$_.Exception.Response.StatusDescription  # Variable assigned but never used
+            $message = $response
+            $message += " URI: " + $uri + " Exception: " + $_.Exception
+            Write-Log -Message $message
+        }
+        finally {
+            # Guarantee resource cleanup - Close() is insufficient, use Dispose()
+            if ($reader) {
+                $reader.Dispose()
+                $reader = $null
+            }
+        }
+    }
+    return $response
 }
 
 
 function Invoke-ProfileReload {
-[CmdletBinding()]
-param()
-& $profile
+    [CmdletBinding()]
+    param()
+    & $profile
 }
 
 # 📈 ENTERPRISE PROGRESS TRACKING: Monitor script transformation progress
@@ -256,9 +262,11 @@ function Show-EnterpriseProgress {
     foreach ($script in $completedScripts) {
         if ($script -match "✅") {
             Write-Host $script -ForegroundColor Green
-        } elseif ($script -match "⚠️") {
+        }
+        elseif ($script -match "⚠️") {
             Write-Host $script -ForegroundColor Yellow
-        } else {
+        }
+        else {
             Write-Host $script -ForegroundColor White
         }
     }
@@ -286,3 +294,4 @@ Set-Alias -Name "enterprise-progress" -Value Show-EnterpriseProgress -Descriptio
 
 #Clear the screen
 Clear-Host
+

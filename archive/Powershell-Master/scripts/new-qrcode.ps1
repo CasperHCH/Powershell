@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Creates a QR code
 .DESCRIPTION
@@ -37,7 +37,7 @@ try {
 	$newFile = "$pathToPictures/QR_code.$fileFormat"
 
 	$WebClient = New-Object System.Net.WebClient
-	$WebClient.DownloadFile(("http://api.qrserver.com/v1/create-qr-code/?data=" + $text + "&ecc=" + $ECC +`
+	$WebClient.DownloadFile(("https://api.qrserver.com/v1/create-qr-code/?data=" + $text + "&ecc=" + $ECC +`
 		"&size=" + $imageSize + "&qzone=" + $QuietZone + `
 		"&color=" + $ForegroundColor + "&bgcolor=" + $BackgroundColor.Text + `
 		"&format=" + $fileFormat), $newFile)
@@ -48,3 +48,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

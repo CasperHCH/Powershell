@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists the phone calls of the FRITZ!Box device
 .DESCRIPTION
@@ -27,7 +27,7 @@ $FQDN = "fritz.box"
 
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]'Tls,Tls11,Tls12'
 
-[xml]$serviceinfo = Invoke-RestMethod -Method GET -Uri "http://$($FQDN):49000/tr64desc.xml"
+[xml]$serviceinfo = Invoke-RestMethod -Method GET -Uri "https://$($FQDN):49000/tr64desc.xml"
 [System.Xml.XmlNamespaceManager]$ns = new-Object System.Xml.XmlNamespaceManager $serviceinfo.NameTable
 $ns.AddNamespace("ns",$serviceinfo.DocumentElement.NamespaceURI)
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
@@ -70,7 +70,7 @@ function New-Request {
         # SOAP Request Body Template
         [xml]$request = @"
 <?xml version="1.0"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Envelope xmlns:s="https://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="https://schemas.xmlsoap.org/soap/encoding/">
     <s:Body>
     </s:Body>
 </s:Envelope>
@@ -100,3 +100,4 @@ function GetCallList { param([int]$MaxEntries = 999, [int]$MaxDays = 999
 GetCallList | format-table -property Date,Duration,Caller,Called
 Write-Output $Result
 exit 0 # success
+

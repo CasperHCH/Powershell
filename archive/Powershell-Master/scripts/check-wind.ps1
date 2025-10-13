@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the wind conditions
 .DESCRIPTION
@@ -16,7 +16,7 @@
 param([string]$location = "") # empty means determine automatically
 
 try {
-	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	$Weather = (Invoke-WebRequest https://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
 	$WindSpeed = $Weather.current_condition.windspeedKmph
 	$WindDir = $Weather.current_condition.winddir16Point
 	$Area = $Weather.nearest_area.areaName.value
@@ -28,3 +28,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

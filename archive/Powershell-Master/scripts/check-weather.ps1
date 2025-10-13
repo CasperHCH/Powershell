@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the weather 
 .DESCRIPTION
@@ -16,7 +16,7 @@
 param([string]$location = "") # empty means determine automatically
 
 try {
-	$Weather = (Invoke-WebRequest http://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
+	$Weather = (Invoke-WebRequest https://wttr.in/${location}?format=j1 -userAgent "curl" -useBasicParsing).Content | ConvertFrom-Json
 
 	$Temp = $Weather.current_condition.temp_C
 	$Precip = $Weather.current_condition.precipMM
@@ -37,3 +37,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

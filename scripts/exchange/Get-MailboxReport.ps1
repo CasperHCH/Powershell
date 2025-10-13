@@ -105,8 +105,8 @@ Find me on:
 * Github:	https://github.com/cunninghamp
 
 Additional Credits:
-Chris Brown, http://www.flamingkeys.com
-Boe Prox, http://learn-powershell.net/
+Chris Brown, https://www.flamingkeys.com
+Boe Prox, https://learn-powershell.net/
 
 License:
 
@@ -458,7 +458,7 @@ function Initialize-EnterpriseExchangeFramework {
                     # Try on-premises Exchange
                     $exchangeServer = (Get-ExchangeServer | Select-Object -First 1).Fqdn
                     if ($exchangeServer) {
-                        $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "http://$exchangeServer/PowerShell/"
+                        $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://$exchangeServer/PowerShell/"
                         Import-PSSession $session -AllowClobber | Out-Null
                         Write-Host "   ✅ Connected to Exchange On-Premises: $exchangeServer" -ForegroundColor Green
                     }
@@ -1733,3 +1733,4 @@ Write-EnterpriseLog -Level "Info" -Message "Mailbox report generation completed"
     OutputFile = if (-not $mailbox) { $reportfile } else { "Console" }
     EmailSent = if ($SendEmail -and $reportcount -gt 0) { "Attempted" } else { "No" }
 }
+

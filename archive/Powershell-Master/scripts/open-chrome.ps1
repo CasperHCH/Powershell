@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Launches the Chrome browser
 .DESCRIPTION
@@ -15,7 +15,7 @@
 
 #requires -version 5.1
 
-param([string]$URL = "http://www.fleschutz.de")
+param([string]$URL = "https://www.fleschutz.de")
 
 try {
 	Start-Process chrome.exe "$URL"
@@ -24,3 +24,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

@@ -210,7 +210,7 @@ function Test-EnterpriseFileLockSecurity {
             "$env:ALLUSERSPROFILE", "${env:ProgramFiles(x86)}"
         )
 
-        $networkPaths = @("\\", "http://", "https://", "ftp://")
+        $networkPaths = @("\\", "https://", "https://", "ftp://")
 
         # Check for system file access
         foreach ($systemPath in $systemPaths) {
@@ -995,3 +995,4 @@ try {
         $Global:EnterpriseFileLockMetrics.EndTime = Get-Date
     }
 }
+

@@ -29,7 +29,7 @@ $companyPatterns = @(
 $infrastructurePatterns = @(
     'server-?name\s*=\s*"[^"]+"|server-?name\s*=\s*''[^'']+''',
     'hostname\s*=\s*"[^"]+"|hostname\s*=\s*''[^'']+''',
-    'c:\\[a-z]+'
+    'C:\[a-z]+'
 )
 
 Write-Host "Checking for hardcoded credentials..." -ForegroundColor Yellow

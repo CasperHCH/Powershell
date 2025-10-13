@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Lists FRITZ!Box's known devices
 .DESCRIPTION
@@ -27,7 +27,7 @@ write-progress "Contacting FRITZ!Box ..."
 [string]$SOAPAction="urn:dslforum-org:service:Hosts:1#X_AVM-DE_GetHostListPath"
 [string]$SOAPrequest = @"
 <?xml version="1.0"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Envelope xmlns:s="https://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="https://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
     <u:X_AVM-DE_GetHostListPath xmlns:u="urn:dslforum-org:service:Hosts:1" />
   </s:Body>
@@ -52,3 +52,4 @@ $HostTable = $HostList.List.Item.GetEnumerator()
 $HostTable | format-table -property Active,IPAddress,MACAddress,HostName,InterfaceType,X_AVM-DE_Speed
 
 exit 0 # success
+

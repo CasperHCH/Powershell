@@ -3,15 +3,22 @@ param(
     [string]$CertFolder = "C:\apache24\conf\ssl",
     [string]$KeytoolPath = "C:\Atlassian\jira\jre\bin\keytool.exe",
     [string]$CacertsPath = "D:\Atlassian\Confluence\jre\lib\security\cacerts",
-    [string]$StorePass = "changeit",
+    [Parameter(Mandatory = $true)]
+    [SecureString]$StorePass,
     [switch]$ConvertPfxToCerAndKey
 )
+
+# Convert SecureString to plain text for keytool (kept in memory briefly)
+$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($StorePass)
+$StorePassPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+[System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
 
 $LogFile = Join-Path $CertFolder "cert_import_log.txt"
 function Log {
     param([string]$Message)
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Add-Content -Path $LogFile -Value "$timestamp - $Message"
+    Write-AuditLog -Message "Certificate Import: $Message" -Severity "Info"
 }
 
 function Ensure-OpenSSL {
@@ -20,13 +27,15 @@ function Ensure-OpenSSL {
         if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
             Write-Warning "Chocolatey is not installed. Please install OpenSSL manually from https://slproweb.com/products/Win32OpenSSL.html"
             Read-Host "Press Enter once OpenSSL is installed and available in PATH"
-        } else {
+        }
+        else {
             Log "Installing OpenSSL via Chocolatey..."
             choco install openssl.light -y
             $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
             Log "OpenSSL installed via Chocolatey."
         }
-    } else {
+    }
+    else {
         Log "OpenSSL is available."
     }
 }
@@ -68,7 +77,7 @@ foreach ($c in $certs) {
             -srcstoretype PKCS12 `
             -srcstorepass $pfxPassPlain `
             -destkeystore $CacertsPath `
-            -deststorepass $StorePass `
+            -deststorepass $StorePassPlain `
             -alias $alias `
             -noprompt
         Log "Imported PFX: $($c.Name)"
@@ -82,18 +91,24 @@ foreach ($c in $certs) {
             Log "Converted to: $cerPath and $keyPath"
         }
 
-    } elseif ($ext -eq ".crt") {
+    }
+    elseif ($ext -eq ".crt") {
         Log "Importing CRT: $($c.FullName)"
         & $KeytoolPath -import `
             -file $c.FullName `
             -alias $alias `
             -keystore $CacertsPath `
-            -storepass $StorePass `
+            -storepass $StorePassPlain `
             -trustcacerts `
             -noprompt
         Log "Imported CRT: $($c.Name)"
     }
 }
 
+# Clear sensitive variables from memory
+$StorePassPlain = $null
+[System.GC]::Collect()
+
 Write-Host "Certificate import completed."
+Write-AuditLog -Message "Certificate import process completed successfully" -Severity "Info"
 Log "Certificate import completed."

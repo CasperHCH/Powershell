@@ -213,14 +213,14 @@ $GroupTable | format-table $myFormatShow -auto
 
 # With thanks to:
 #Reading from the event log: https://greiginsydney.com/trawling-exchanges-application-event-logs-using-powershell/
-#Reading from the event log MUCH FASTER: THANK YOU PAT RICHARD! http://lync.ideascale.com/a/dtd/GUI-and-PS-command-to-see-who-is-federating-with-me/506570-16285
-#Step Back in Time: http://blogs.msdn.com/b/powershell/archive/2006/09/17/the-wonders-of-date-math-using-windows-powershell.aspx
-#Reading agent group membership: http://social.technet.microsoft.com/Forums/lync/en-US/bea63bc0-fdd9-4219-af4e-f4b5846e3b9a/powershell-agent-groups-membership
+#Reading from the event log MUCH FASTER: THANK YOU PAT RICHARD! https://lync.ideascale.com/a/dtd/GUI-and-PS-command-to-see-who-is-federating-with-me/506570-16285
+#Step Back in Time: https://blogs.msdn.com/b/powershell/archive/2006/09/17/the-wonders-of-date-math-using-windows-powershell.aspx
+#Reading agent group membership: https://social.technet.microsoft.com/Forums/lync/en-US/bea63bc0-fdd9-4219-af4e-f4b5846e3b9a/powershell-agent-groups-membership
 #Creating custom object:
-#	1) http://powershell.com/cs/forums/p/7751/12634.aspx
-#	2) http://exchangeserverpro.com/forums/powershell-corner/139-powershell-combining-results-two-cmdlets.html
-#Creating custom tables: http://technet.microsoft.com/en-us/library/ee692794.aspx
-#Removing agents from a group: http://blogs.technet.com/b/nexthop/archive/2011/07/13/agmanagingresponsegroups.aspx
+#	1) https://powershell.com/cs/forums/p/7751/12634.aspx
+#	2) https://exchangeserverpro.com/forums/powershell-corner/139-powershell-combining-results-two-cmdlets.html
+#Creating custom tables: https://technet.microsoft.com/en-us/library/ee692794.aspx
+#Removing agents from a group: https://blogs.technet.com/b/nexthop/archive/2011/07/13/agmanagingresponsegroups.aspx
 
 # Code signing certificate with thanks to DigiCert:
 # SIG # Begin signature block
@@ -377,3 +377,4 @@ $GroupTable | format-table $myFormatShow -auto
 # yoQX6zCjwxXWU/kH1iJgvrCkei2dBo1aoMIJFJgklyBRik8fryOgSzAniSq2tied
 # X10TEWri7DPG2PXPpfU4//MhRhmazshQJCu72W5gE0Xn1nbGS85P80dtMmU=
 # SIG # End signature block
+

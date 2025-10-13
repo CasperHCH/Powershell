@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 	Checks the time of dusk 
 .DESCRIPTION
@@ -25,7 +25,7 @@ function TimeSpanToString { param([TimeSpan]$Delta)
 
 try {
 	[system.threading.thread]::currentThread.currentCulture=[system.globalization.cultureInfo]"en-US"
-	$String = (Invoke-WebRequest http://wttr.in/?format="%d" -UserAgent "curl" -useBasicParsing).Content
+	$String = (Invoke-WebRequest https://wttr.in/?format="%d" -UserAgent "curl" -useBasicParsing).Content
 	$Hour,$Minute,$Second = $String -split ':'
 	$Dusk = Get-Date -Hour $Hour -Minute $Minute -Second $Second
 	$Now = [DateTime]::Now
@@ -42,3 +42,4 @@ try {
 	"⚠️ ERROR: $($Error[0]) (script line $($_.InvocationInfo.ScriptLineNumber))"
 	exit 1
 }
+

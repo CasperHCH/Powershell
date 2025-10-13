@@ -101,7 +101,7 @@ Function Connect-EnterpriseExchange {
                 $sessionParams = @{
                     Name = "EnterpriseExchange"
                     ConfigurationName = "Microsoft.Exchange"
-                    ConnectionURI = "http://$ExchangeServer/Powershell"
+                    ConnectionURI = "https://$ExchangeServer/Powershell"
                     ErrorAction = "Stop"
                 }
 
@@ -412,3 +412,4 @@ Set-Alias -Name "Get-ConnectionStatus" -Value "Get-EnterpriseConnectionStatus" -
 Set-Alias -Name "Disconnect-All" -Value "Disconnect-AllEnterpriseConnections" -Description "Disconnect all enterprise services"
 
 Write-Host "✅ Enterprise Connection Management Framework loaded" -ForegroundColor Green -InformationAction Continue
+
