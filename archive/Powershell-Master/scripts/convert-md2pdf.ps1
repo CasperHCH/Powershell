@@ -1,1 +1,0 @@
-﻿Get-ChildItem -r -i *.md | ForEach-Object{$pdf=$_.directoryname+"\" +$_.basename+".pdf";pandoc -f markdown -s --citeproc $_.name -o $pdf}ci -r -i *.md |foreach{$pdf=$_.directoryname+"\"+$_.basename+".pdf";pandoc -f markdown -s --citeproc $_.name -o $pdf}
