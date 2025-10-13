@@ -200,10 +200,10 @@
 param (
     [Parameter(ParameterSetName = "CsvInput", Mandatory = $false, HelpMessage = "Path to CSV file with user information")]
     [ValidateScript({
-        if ([string]::IsNullOrEmpty($_)) { $true }
-        elseif (Test-Path $_) { $true }
-        else { throw "CSV file not found: $_" }
-    })]
+            if ([string]::IsNullOrEmpty($_)) { $true }
+            elseif (Test-Path $_) { $true }
+            else { throw "CSV file not found: $_" }
+        })]
     [string]$CsvPath,
 
     [Parameter(ParameterSetName = "DomainInput", Mandatory = $true, HelpMessage = "Comma-separated email domains to target")]
@@ -216,19 +216,19 @@ param (
 
     [Parameter(Mandatory = $true, HelpMessage = "JIRA base URL (e.g., https`://jira.example.org)")]
     [ValidateScript({
-        if ($_ -match '^https?://') { $true }
-        else { throw "JiraBaseUrl must start with http:// or https://" }
-    })]
+            if ($_ -match '^https?://') { $true }
+            else { throw "JiraBaseUrl must start with http:// or https://" }
+        })]
     [string]$JiraBaseUrl,
 
     [Parameter(Mandatory = $false)]
     [string]$Username,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, HelpMessage = "Path to encrypted credential file (Clixml PSCredential). Only the file path is accepted; credentials are securely loaded as PSCredential.")]
     [ValidateScript({
-        if ([string]::IsNullOrEmpty($_) -or (Test-Path $_)) { $true }
-        else { throw "Credential file not found: $_" }
-    })]
+            if ([string]::IsNullOrEmpty($_) -or (Test-Path $_)) { $true }
+            else { throw "Credential file not found: $_" }
+        })]
     [string]$CredentialFile,
 
     [Parameter(Mandatory = $false)]
@@ -305,12 +305,12 @@ function Write-Log {
     # 🎨 ENTERPRISE UX: Color-coded console output for operational clarity
     if (-not $NoConsole) {
         $consoleColor = switch ($Level.ToUpper()) {
-            "ERROR"     { "Red" }
-            "WARNING"   { "Yellow" }
-            "SUCCESS"   { "Green" }
-            "CRITICAL"  { "Magenta" }
-            "DEBUG"     { "Cyan" }
-            default     { "White" }
+            "ERROR" { "Red" }
+            "WARNING" { "Yellow" }
+            "SUCCESS" { "Green" }
+            "CRITICAL" { "Magenta" }
+            "DEBUG" { "Cyan" }
+            default { "White" }
         }
         Write-Host $logMessage -ForegroundColor $consoleColor
     }
@@ -324,11 +324,13 @@ function Write-Log {
             # 🔒 SECURITY: Atomic write operations to prevent log corruption
             Add-Content -Path $LogFile -Value $logMessage -ErrorAction Stop
             break
-        } catch {
+        }
+        catch {
             $retryCount++
             if ($retryCount -eq $maxRetries) {
                 Write-Warning "Failed to write to log file after $maxRetries attempts: $($_.Exception.Message)"
-            } else {
+            }
+            else {
                 Start-Sleep -Milliseconds (100 * $retryCount) # Exponential backoff
             }
         }
@@ -359,13 +361,16 @@ function Test-JiraAuthentication {
 
                 if ($endpoint -eq "/rest/api/2/myself") {
                     Write-Log "Authentication test successful - logged in as: $($testResult.displayName) ($($testResult.emailAddress))" "SUCCESS"
-                } elseif ($endpoint -eq "/rest/api/2/serverInfo") {
+                }
+                elseif ($endpoint -eq "/rest/api/2/serverInfo") {
                     Write-Log "Authentication test successful - JIRA Server: $($testResult.serverTitle) (Version: $($testResult.version))" "SUCCESS"
-                } else {
+                }
+                else {
                     Write-Log "Authentication test successful using $endpoint" "SUCCESS"
                 }
                 return $true
-            } catch {
+            }
+            catch {
                 Write-Log "Endpoint $endpoint failed: $($_.Exception.Message)" "DEBUG"
                 continue
             }
@@ -373,7 +378,8 @@ function Test-JiraAuthentication {
 
         throw "All authentication test endpoints failed"
 
-    } catch {
+    }
+    catch {
         Write-Log "Authentication test failed: $($_.Exception.Message)" "ERROR"
 
         # Provide specific guidance based on error
@@ -381,7 +387,8 @@ function Test-JiraAuthentication {
             $statusCode = $_.Exception.Response.StatusCode.value__
             if ($statusCode -eq 401) {
                 Write-Log "401 Unauthorized - Check credentials or session expiry" "ERROR"
-            } elseif ($statusCode -eq 403) {
+            }
+            elseif ($statusCode -eq 403) {
                 Write-Log "403 Forbidden - Account may be locked or insufficient permissions" "ERROR"
             }
         }
@@ -428,10 +435,12 @@ function Get-AllDisabledJiraUsers {
                     }
 
                     $startAt += $pageSize
-                } else {
+                }
+                else {
                     break
                 }
-            } catch {
+            }
+            catch {
                 Write-Log "Error retrieving user batch at $startAt : $($_.Exception.Message)" "WARNING"
                 break
             }
@@ -460,7 +469,8 @@ function Get-AllDisabledJiraUsers {
 
         return $allUsers
 
-    } catch {
+    }
+    catch {
         Write-Log "Failed to retrieve disabled users: $($_.Exception.Message)" "ERROR"
         return @()
     }
@@ -489,7 +499,8 @@ function Test-EmailDomainMatch {
             # Convert wildcard pattern to regex
             $regexPattern = "^" + [regex]::Escape($DomainPattern).Replace("\*", ".*").Replace("\?", ".") + "$"
             return $emailDomain -match $regexPattern
-        } else {
+        }
+        else {
             # Exact domain match
             return $emailDomain -eq $DomainPattern
         }
@@ -559,7 +570,8 @@ function Search-JiraUsers {
                         Write-Log "Raw response type: $($result.GetType().Name)" "DEBUG"
                         if ($result -is [array]) {
                             Write-Log "Response is array with $($result.Count) items" "DEBUG"
-                        } elseif ($result.PSObject.Properties) {
+                        }
+                        elseif ($result.PSObject.Properties) {
                             $propNames = ($result.PSObject.Properties | Select-Object -ExpandProperty Name) -join ', '
                             Write-Log "Response properties: $propNames" "DEBUG"
                         }
@@ -570,16 +582,20 @@ function Search-JiraUsers {
                     if ($result -is [array]) {
                         $users = $result
                         Write-Log "Using direct array response: $($users.Count) users" "DEBUG"
-                    } elseif ($result.users -and $result.users -is [array]) {
+                    }
+                    elseif ($result.users -and $result.users -is [array]) {
                         $users = $result.users  # User picker format
                         Write-Log "Using result.users property: $($users.Count) users" "DEBUG"
-                    } elseif ($result.values -and $result.values -is [array]) {
+                    }
+                    elseif ($result.values -and $result.values -is [array]) {
                         $users = $result.values  # Some endpoints use 'values'
                         Write-Log "Using result.values property: $($users.Count) users" "DEBUG"
-                    } elseif ($result.PSObject.Properties['users']) {
+                    }
+                    elseif ($result.PSObject.Properties['users']) {
                         $users = $result.users
                         Write-Log "Using PSObject users property: $($users.Count) users" "DEBUG"
-                    } elseif ($result -and $result.name) {
+                    }
+                    elseif ($result -and $result.name) {
                         $users = @($result)  # Single user response
                         Write-Log "Single user response converted to array" "DEBUG"
                     }
@@ -638,43 +654,46 @@ function Search-JiraUsers {
 
                         # Special handling for when we get many users but no emails populated
                         if ($domainUsers.Count -eq 0 -and $users.Count -gt 10) {
-                        Write-Log "Large result set with no email matches - checking if emails are populated" "DEBUG"
-                        $usersWithEmail = $users | Where-Object { $_.emailAddress -and $_.emailAddress.Trim() -ne "" }
-                        Write-Log "Users with populated email addresses: $($usersWithEmail.Count) out of $($users.Count)" "INFO"
+                            Write-Log "Large result set with no email matches - checking if emails are populated" "DEBUG"
+                            $usersWithEmail = $users | Where-Object { $_.emailAddress -and $_.emailAddress.Trim() -ne "" }
+                            Write-Log "Users with populated email addresses: $($usersWithEmail.Count) out of $($users.Count)" "INFO"
 
-                        # For debugging: show unique domains found in the search results
-                        if ($usersWithEmail.Count -gt 0) {
-                            $foundDomains = @{}
-                            foreach ($userWithEmail in $usersWithEmail) {
-                                if ($userWithEmail.emailAddress -match "@(.+)$") {
-                                    $foundDomain = $matches[1].ToLower()
-                                    if ($foundDomains.ContainsKey($foundDomain)) {
-                                        $foundDomains[$foundDomain]++
-                                    } else {
-                                        $foundDomains[$foundDomain] = 1
+                            # For debugging: show unique domains found in the search results
+                            if ($usersWithEmail.Count -gt 0) {
+                                $foundDomains = @{}
+                                foreach ($userWithEmail in $usersWithEmail) {
+                                    if ($userWithEmail.emailAddress -match "@(.+)$") {
+                                        $foundDomain = $matches[1].ToLower()
+                                        if ($foundDomains.ContainsKey($foundDomain)) {
+                                            $foundDomains[$foundDomain]++
+                                        }
+                                        else {
+                                            $foundDomains[$foundDomain] = 1
+                                        }
                                     }
                                 }
-                            }
-                            $topDomains = $foundDomains.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 5
-                            $domainList = ($topDomains | ForEach-Object { "$($_.Name) ($($_.Value))" }) -join ", "
-                            Write-Log "Top email domains found: $domainList" "INFO"
+                                $topDomains = $foundDomains.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 5
+                                $domainList = ($topDomains | ForEach-Object { "$($_.Name) ($($_.Value))" }) -join ", "
+                                Write-Log "Top email domains found: $domainList" "INFO"
 
-                            # Check for target domain (with wildcard support)
-                            $matchingUsers = $usersWithEmail | Where-Object { Test-EmailDomainMatch -Email $_.emailAddress -DomainPattern $domain }
-                            if ($matchingUsers.Count -gt 0) {
-                                Write-Log "Found $($matchingUsers.Count) users matching domain pattern '$domain'" "SUCCESS"
-                                foreach ($matchingUser in $matchingUsers | Select-Object -First 3) {
-                                    Write-Log "Sample matching user: $($matchingUser.name) - $($matchingUser.emailAddress) - Active: $($matchingUser.active)" "INFO"
+                                # Check for target domain (with wildcard support)
+                                $matchingUsers = $usersWithEmail | Where-Object { Test-EmailDomainMatch -Email $_.emailAddress -DomainPattern $domain }
+                                if ($matchingUsers.Count -gt 0) {
+                                    Write-Log "Found $($matchingUsers.Count) users matching domain pattern '$domain'" "SUCCESS"
+                                    foreach ($matchingUser in $matchingUsers | Select-Object -First 3) {
+                                        Write-Log "Sample matching user: $($matchingUser.name) - $($matchingUser.emailAddress) - Active: $($matchingUser.active)" "INFO"
+                                    }
                                 }
-                            } else {
-                                # Check if it's a wildcard pattern that might not have matches
-                                if ($domain -match "[*?]") {
-                                    Write-Log "No users found matching wildcard domain pattern '$domain'" "WARNING"
-                                } else {
-                                    Write-Log "Target domain '$domain' not found in search results" "WARNING"
+                                else {
+                                    # Check if it's a wildcard pattern that might not have matches
+                                    if ($domain -match "[*?]") {
+                                        Write-Log "No users found matching wildcard domain pattern '$domain'" "WARNING"
+                                    }
+                                    else {
+                                        Write-Log "Target domain '$domain' not found in search results" "WARNING"
+                                    }
                                 }
-                            }
-                        }                            if ($usersWithEmail.Count -eq 0) {
+                            }                            if ($usersWithEmail.Count -eq 0) {
                                 Write-Log "No users have populated email addresses in search results - attempting detailed user lookup" "INFO"
 
                                 # Try to get detailed user information for a sample to check if emails are available
@@ -697,7 +716,8 @@ function Search-JiraUsers {
                                                 Write-Log "User matches domain in detailed lookup: $($detailedUser.displayName) [$($detailedUser.name)] ($($detailedUser.emailAddress))" "SUCCESS"
                                             }
                                         }
-                                    } catch {
+                                    }
+                                    catch {
                                         Write-Log "Failed to get detailed user info for $($sampleUser.name): $($_.Exception.Message)" "DEBUG"
                                     }
                                 }
@@ -719,7 +739,8 @@ function Search-JiraUsers {
                                             if ($detailedUser.emailAddress -and $detailedUser.emailAddress.ToLower().Contains($domain.ToLower())) {
                                                 $domainUsers += $detailedUser
                                             }
-                                        } catch {
+                                        }
+                                        catch {
                                             Write-Log "Failed detailed lookup for $($user.name): $($_.Exception.Message)" "DEBUG"
                                         }
 
@@ -728,7 +749,8 @@ function Search-JiraUsers {
                                     }
 
                                     Write-Log "Completed detailed lookup - found $($domainUsers.Count) users matching domain" "SUCCESS"
-                                } else {
+                                }
+                                else {
                                     Write-Log "No email addresses found even in detailed user lookup" "WARNING"
                                     Write-Log "This JIRA instance may not expose email addresses or users don't have emails set" "INFO"
                                     Write-Log "Consider using username patterns instead: -UsernamePatterns '*$domain*'" "INFO"
@@ -748,7 +770,8 @@ function Search-JiraUsers {
                             $foundUsers += $domainUsers
                             $domainUsersFound = $true
                             break  # Success, no need to try other methods for this domain
-                        } else {
+                        }
+                        else {
                             Write-Log "No users matched domain filter for $($attempt.Method)" "DEBUG"
                             # Show sample users to help debug
                             $sampleAll = $users | Select-Object -First 2
@@ -756,11 +779,13 @@ function Search-JiraUsers {
                                 Write-Log "Sample response user: $($sample.displayName) [$($sample.name)] ($($sample.emailAddress))" "DEBUG"
                             }
                         }
-                    } else {
+                    }
+                    else {
                         Write-Log "No users returned from $($attempt.Method)" "DEBUG"
                     }
 
-                } catch {
+                }
+                catch {
                     Write-Log "$($attempt.Method) failed: $($_.Exception.Message)" "DEBUG"
 
                     # Log additional error details for 400 errors
@@ -770,7 +795,8 @@ function Search-JiraUsers {
                             $reader = New-Object System.IO.StreamReader($errorStream)
                             $errorBody = $reader.ReadToEnd()
                             Write-Log "400 Error details: $errorBody" "DEBUG"
-                        } catch {
+                        }
+                        catch {
                             # Ignore errors reading error response
                         }
                     }
@@ -807,7 +833,8 @@ function Search-JiraUsers {
                             $domainUsersFound = $true
                         }
                     }
-                } catch {
+                }
+                catch {
                     Write-Log "Comprehensive user search failed: $($_.Exception.Message)" "DEBUG"
                 }
 
@@ -841,9 +868,11 @@ function Search-JiraUsers {
                     $users = @()
                     if ($result -is [array]) {
                         $users = $result
-                    } elseif ($result.users) {
+                    }
+                    elseif ($result.users) {
                         $users = $result.users
-                    } else {
+                    }
+                    else {
                         $users = @($result)
                     }
 
@@ -862,7 +891,8 @@ function Search-JiraUsers {
                         }
                     }
 
-                } catch {
+                }
+                catch {
                     Write-Log "$($attempt.Method) failed: $($_.Exception.Message)" "DEBUG"
                     continue
                 }
@@ -882,7 +912,7 @@ function Search-JiraUsers {
 }
 
 # Function to transfer project leadership
-function Transfer-JiraProjectLead {
+function Set-JiraProjectLead {
     param(
         [string]$ProjectKey,
         [string]$CurrentLead,
@@ -914,13 +944,14 @@ function Transfer-JiraProjectLead {
                 Write-Log "Trying payload format: $updatePayload" "DEBUG"
 
                 $updateUri = "$BaseUrl/rest/api/2/project/$ProjectKey"
-                $result = Invoke-RestMethod -Uri $updateUri -Method Put -Headers $Headers -Body $updatePayload -ContentType "application/json" -UseBasicParsing -ErrorAction Stop
+                Invoke-RestMethod -Uri $updateUri -Method Put -Headers $Headers -Body $updatePayload -ContentType "application/json" -UseBasicParsing -ErrorAction Stop
 
                 $success = $true
-                Write-Log "Successfully transferred project lead using format: $($payloadFormat.GetType().Name)" "DEBUG"
+                Write-Log "Successfully set project lead using format: $($payloadFormat.GetType().Name)" "DEBUG"
                 break
 
-            } catch {
+            }
+            catch {
                 Write-Log "Payload format failed: $($_.Exception.Message)" "DEBUG"
                 continue
             }
@@ -936,16 +967,18 @@ function Transfer-JiraProjectLead {
         $actualLead = $updatedProject.lead.name
 
         if ($actualLead -eq $NewLead) {
-            Write-Log "Successfully transferred project lead for $ProjectKey to $NewLead (verified)" "SUCCESS"
-            return @{ Success = $true; Message = "Project lead transferred successfully to $actualLead" }
-        } else {
-            Write-Log "Transfer appeared successful but verification failed. Expected: $NewLead, Actual: $actualLead" "WARNING"
-            return @{ Success = $false; Message = "Transfer verification failed - lead is still $actualLead" }
+            Write-Log "Successfully set project lead for $ProjectKey to $NewLead (verified)" "SUCCESS"
+            return @{ Success = $true; Message = "Project lead set successfully to $actualLead" }
+        }
+        else {
+            Write-Log "Set appeared successful but verification failed. Expected: $NewLead, Actual: $actualLead" "WARNING"
+            return @{ Success = $false; Message = "Set verification failed - lead is still $actualLead" }
         }
 
-    } catch {
+    }
+    catch {
         $errorMessage = $_.Exception.Message
-        Write-Log "Failed to transfer project lead for ${ProjectKey}: $errorMessage" "ERROR"
+        Write-Log "Failed to set project lead for ${ProjectKey}: $errorMessage" "ERROR"
 
         # Try to get detailed error information
         if ($_.Exception.Response) {
@@ -954,7 +987,8 @@ function Transfer-JiraProjectLead {
                 $reader = New-Object System.IO.StreamReader($errorStream)
                 $errorBody = $reader.ReadToEnd()
                 Write-Log "Transfer error details: $errorBody" "DEBUG"
-            } catch {
+            }
+            catch {
                 # Ignore errors reading error response
             }
         }
@@ -963,7 +997,6 @@ function Transfer-JiraProjectLead {
     }
 }
 
-# Function to disable a JIRA user
 function Disable-JiraUser {
     param(
         [PSCustomObject]$User,
@@ -1004,7 +1037,8 @@ function Disable-JiraUser {
         Write-Log "Successfully disabled user: $($User.displayName) [$($User.name)]" "SUCCESS"
         return @{ Success = $true; Action = "Disabled"; Result = $result }
 
-    } catch {
+    }
+    catch {
         $errorMessage = $_.Exception.Message
         Write-Log "Failed to disable user $($User.name): $errorMessage" "ERROR"
 
@@ -1025,18 +1059,19 @@ function Disable-JiraUser {
                     Write-Log "CONFLICT: User $($User.name) is project lead on: $($conflictingProjects -join ', ')" "WARNING"
 
                     if ($ForceProjectLeadTransfer) {
-                        Write-Log "ForceProjectLeadTransfer enabled - attempting to transfer project leads..." "INFO"
+                        Write-Log "ForceProjectLeadTransfer enabled - attempting to set project leads..." "INFO"
                         $allTransfersSuccessful = $true
 
                         foreach ($projectKey in $conflictingProjects) {
-                            Write-Log "Transferring project lead for $projectKey to $NewProjectLead..." "INFO"
-                            $transferResult = Transfer-JiraProjectLead -ProjectKey $projectKey.Trim() -CurrentLead $User.name -NewLead $NewProjectLead -Headers $Headers -BaseUrl $BaseUrl
+                            Write-Log "Setting project lead for $projectKey to $NewProjectLead..." "INFO"
+                            $transferResult = Set-JiraProjectLead -ProjectKey $projectKey.Trim() -CurrentLead $User.name -NewLead $NewProjectLead -Headers $Headers -BaseUrl $BaseUrl
 
                             if (-not $transferResult.Success) {
-                                Write-Log "Failed to transfer project lead for ${projectKey}: $($transferResult.Message)" "ERROR"
+                                Write-Log "Failed to set project lead for ${projectKey}: $($transferResult.Message)" "ERROR"
                                 $allTransfersSuccessful = $false
-                            } else {
-                                Write-Log "Successfully transferred project lead for $projectKey" "SUCCESS"
+                            }
+                            else {
+                                Write-Log "Successfully set project lead for $projectKey" "SUCCESS"
                             }
                         }
 
@@ -1048,34 +1083,38 @@ function Disable-JiraUser {
                                 $retryResult = Invoke-RestMethod -Method Put -Uri $disableUri -Headers $Headers -Body $disablePayload -UseBasicParsing -ErrorAction Stop
                                 Write-Log "Successfully disabled user after project lead transfers: $($User.displayName) [$($User.name)]" "SUCCESS"
                                 return @{ Success = $true; Action = "DisabledAfterTransfer"; Result = $retryResult }
-                            } catch {
+                            }
+                            catch {
                                 Write-Log "Failed to disable user even after project lead transfers: $($_.Exception.Message)" "ERROR"
                                 return @{ Success = $false; Action = "DisableFailedAfterTransfer"; Error = $_.Exception.Message }
                             }
-                        } else {
+                        }
+                        else {
                             Write-Log "Some project lead transfers failed. Cannot disable user." "ERROR"
                             return @{
-                                Success = $false;
-                                Action = "ProjectLeadTransferFailed";
-                                Error = "Failed to transfer some project leads";
+                                Success             = $false
+                                Action              = "ProjectLeadTransferFailed"
+                                Error               = "Failed to transfer some project leads"
                                 ConflictingProjects = $conflictingProjects
                             }
                         }
-                    } else {
+                    }
+                    else {
                         Write-Log "ACTION REQUIRED: Transfer project leadership before disabling user" "INFO"
                         Write-Log "Go to each project settings and change the project lead to another user" "INFO"
                         Write-Log "Or use -ForceProjectLeadTransfer -NewProjectLead 'username' to automatically transfer" "INFO"
 
                         return @{
-                            Success = $false;
-                            Action = "ProjectLeadConflict";
-                            Error = "User is project lead on: $($conflictingProjects -join ', ')";
+                            Success             = $false
+                            Action              = "ProjectLeadConflict"
+                            Error               = "User is project lead on: $($conflictingProjects -join ', ')"
                             ConflictingProjects = $conflictingProjects
                         }
                     }
                 }
 
-            } catch {
+            }
+            catch {
                 Write-Log "Could not read error response details" "DEBUG"
             }
         }
@@ -1097,7 +1136,8 @@ function Wait-AnonymizationProgress {
     if ($TaskId) {
         $progressUri = "$BaseUrl/rest/api/2/user/anonymization/progress?taskId=$TaskId"
         Write-Log "Monitoring anonymization task: $TaskId" "DEBUG"
-    } else {
+    }
+    else {
         $progressUri = "$BaseUrl/rest/api/2/user/anonymization/progress"
     }
     $elapsed = 0
@@ -1121,28 +1161,35 @@ function Wait-AnonymizationProgress {
                 if ($status -eq "FINISHED" -or $status -eq "COMPLETED") {
                     Write-Log "Anonymization task completed successfully: $status" "SUCCESS"
                     return $true
-                } elseif ($status -eq "FAILED" -or $status -eq "ERROR") {
+                }
+                elseif ($status -eq "FAILED" -or $status -eq "ERROR") {
                     Write-Log "Anonymization task failed with status: $status" "ERROR"
                     return $false
-                } elseif ($status -eq "IN_PROGRESS" -or $status -eq "RUNNING") {
+                }
+                elseif ($status -eq "IN_PROGRESS" -or $status -eq "RUNNING") {
                     Write-Log "Anonymization still in progress..." "INFO"
-                } else {
+                }
+                else {
                     Write-Log "Unknown anonymization status: $status - continuing to monitor..." "WARNING"
                 }
-            } elseif ($progress -is [array] -and $progress.Count -eq 0) {
+            }
+            elseif ($progress -is [array] -and $progress.Count -eq 0) {
                 Write-Log "No anonymization process currently running (empty array response)" "SUCCESS"
                 return $true
-            } elseif (-not $progress.inProgress -and $null -ne $progress.inProgress) {
+            }
+            elseif (-not $progress.inProgress -and $null -ne $progress.inProgress) {
                 Write-Log "No anonymization process currently running (inProgress: false)" "SUCCESS"
                 return $true
-            } elseif ($progress.inProgress -eq $true) {
+            }
+            elseif ($progress.inProgress -eq $true) {
                 # Progress information available
                 $progressPercent = if ($progress.progress) { "$($progress.progress)%" } else { "Unknown" }
                 $currentUser = if ($progress.currentUser) { $progress.currentUser } else { "Unknown user" }
                 $submittedTime = if ($progress.submittedTime) { " (Started: $($progress.submittedTime))" } else { "" }
 
                 Write-Log "Anonymization in progress: $progressPercent complete for user: $currentUser$submittedTime" "INFO"
-            } else {
+            }
+            else {
                 # No clear progress indicator - assume complete
                 Write-Log "Anonymization progress check complete (no active process detected)" "SUCCESS"
                 return $true
@@ -1151,14 +1198,16 @@ function Wait-AnonymizationProgress {
             Start-Sleep -Seconds $checkInterval
             $elapsed += $checkInterval
 
-        } catch {
+        }
+        catch {
             # Handle different error scenarios
             if ($_.Exception.Response) {
                 $statusCode = $_.Exception.Response.StatusCode.value__
                 if ($statusCode -eq 404) {
                     Write-Log "Anonymization progress endpoint not available - assuming no process running" "INFO"
                     return $true
-                } elseif ($statusCode -eq 403) {
+                }
+                elseif ($statusCode -eq 403) {
                     Write-Log "No permission to check anonymization progress - continuing anyway" "WARNING"
                     return $true
                 }
@@ -1191,9 +1240,9 @@ function Test-UserAnonymizationEligibility {
             Write-Log "❌ External directory users CANNOT be anonymized through API" "ERROR"
             Write-Log "✅ SOLUTION: Remove user from external directory, sync JIRA, then re-run anonymization" "INFO"
             return @{
-                Eligible = $false;
-                Reason = "External directory user (Directory ID: $($User.directoryId)) - API anonymization not supported";
-                Action = "Remove from external directory and sync before anonymizing"
+                Eligible = $false
+                Reason   = "External directory user (Directory ID: $($User.directoryId)) - API anonymization not supported"
+                Action   = "Remove from external directory and sync before anonymizing"
             }
         }
 
@@ -1204,9 +1253,9 @@ function Test-UserAnonymizationEligibility {
         if ($User.name -match "^jirauser\d+$") {
             Write-Log "User appears to already be anonymized (username: $($User.name))" "INFO"
             return @{
-                Eligible = $false;
-                Reason = "Already anonymized";
-                Action = "No action needed"
+                Eligible = $false
+                Reason   = "Already anonymized"
+                Action   = "No action needed"
             }
         }
 
@@ -1217,16 +1266,17 @@ function Test-UserAnonymizationEligibility {
 
         Write-Log "User $($User.name) is eligible for anonymization" "SUCCESS"
         return @{
-            Eligible = $true;
-            Reason = "User meets anonymization requirements"
+            Eligible = $true
+            Reason   = "User meets anonymization requirements"
         }
 
-    } catch {
+    }
+    catch {
         Write-Log "Failed to check anonymization eligibility for $($User.name): $($_.Exception.Message)" "WARNING"
         # Assume eligible if check fails
         return @{
-            Eligible = $true;
-            Reason = "Eligibility check failed - attempting anyway"
+            Eligible = $true
+            Reason   = "Eligibility check failed - attempting anyway"
         }
     }
 }
@@ -1256,14 +1306,15 @@ function Resolve-JiraUserIdentifier {
                 if ($matchedUser) {
                     Write-Log "Found JIRA user for email $UserIdentifier - Username: $($matchedUser.name)" "SUCCESS"
                     return @{
-                        Success = $true
-                        Username = $matchedUser.name
-                        UserKey = if ($matchedUser.key) { $matchedUser.key } else { $matchedUser.name }
-                        AccountId = $matchedUser.accountId
+                        Success     = $true
+                        Username    = $matchedUser.name
+                        UserKey     = if ($matchedUser.key) { $matchedUser.key } else { $matchedUser.name }
+                        AccountId   = $matchedUser.accountId
                         DisplayName = $matchedUser.displayName
-                        Email = $matchedUser.email
+                        Email       = $matchedUser.email
                     }
-                } else {
+                }
+                else {
                     Write-Log "No exact email match found for: $UserIdentifier" "WARNING"
                 }
             }
@@ -1275,18 +1326,20 @@ function Resolve-JiraUserIdentifier {
 
                 Write-Log "Found user by direct lookup: $($directResult.name)" "SUCCESS"
                 return @{
-                    Success = $true
-                    Username = $directResult.name
-                    UserKey = if ($directResult.key) { $directResult.key } else { $directResult.name }
-                    AccountId = $directResult.accountId
+                    Success     = $true
+                    Username    = $directResult.name
+                    UserKey     = if ($directResult.key) { $directResult.key } else { $directResult.name }
+                    AccountId   = $directResult.accountId
                     DisplayName = $directResult.displayName
-                    Email = $directResult.emailAddress
+                    Email       = $directResult.emailAddress
                 }
-            } catch {
+            }
+            catch {
                 Write-Log "Direct user lookup failed for: $UserIdentifier" "DEBUG"
             }
 
-        } else {
+        }
+        else {
             # Assume it's already a username, try direct lookup
             Write-Log "Identifier appears to be username, verifying..." "DEBUG"
 
@@ -1296,14 +1349,15 @@ function Resolve-JiraUserIdentifier {
 
                 Write-Log "Verified username exists: $($directResult.name)" "SUCCESS"
                 return @{
-                    Success = $true
-                    Username = $directResult.name
-                    UserKey = if ($directResult.key) { $directResult.key } else { $directResult.name }
-                    AccountId = $directResult.accountId
+                    Success     = $true
+                    Username    = $directResult.name
+                    UserKey     = if ($directResult.key) { $directResult.key } else { $directResult.name }
+                    AccountId   = $directResult.accountId
                     DisplayName = $directResult.displayName
-                    Email = $directResult.emailAddress
+                    Email       = $directResult.emailAddress
                 }
-            } catch {
+            }
+            catch {
                 Write-Log "Username verification failed for: $UserIdentifier" "WARNING"
             }
         }
@@ -1312,14 +1366,15 @@ function Resolve-JiraUserIdentifier {
         Write-Log "Failed to resolve user identifier: $UserIdentifier" "ERROR"
         return @{
             Success = $false
-            Error = "User not found in JIRA"
+            Error   = "User not found in JIRA"
         }
 
-    } catch {
+    }
+    catch {
         Write-Log "Error resolving user identifier $UserIdentifier : $($_.Exception.Message)" "ERROR"
         return @{
             Success = $false
-            Error = $_.Exception.Message
+            Error   = $_.Exception.Message
         }
     }
 }
@@ -1353,8 +1408,8 @@ function Set-JiraUserAnonymized {
             Write-Log "Anonymization requires a valid JIRA user to transfer content ownership" "ERROR"
             return @{
                 Success = $false
-                Action = "OwnerResolutionFailed"
-                Error = "Cannot resolve content ownership target: $NewOwnerKey - $($ownerResolution.Error)"
+                Action  = "OwnerResolutionFailed"
+                Error   = "Cannot resolve content ownership target: $NewOwnerKey - $($ownerResolution.Error)"
             }
         }
 
@@ -1376,12 +1431,14 @@ function Set-JiraUserAnonymized {
             $userIdentifier = $User.accountId
             $identifierType = "accountId"
             Write-Log "Using accountId for anonymization: $userIdentifier" "DEBUG"
-        } elseif (-not [string]::IsNullOrEmpty($User.key) -and $User.key -ne $User.name) {
+        }
+        elseif (-not [string]::IsNullOrEmpty($User.key) -and $User.key -ne $User.name) {
             # Jira with separate user keys
             $userIdentifier = $User.key
             $identifierType = "userKey"
             Write-Log "Using userKey for anonymization: $userIdentifier" "DEBUG"
-        } else {
+        }
+        else {
             # Legacy Jira with username as key
             $userIdentifier = $User.name
             $identifierType = "username"
@@ -1397,9 +1454,11 @@ function Set-JiraUserAnonymized {
 
         if ($identifierType -eq "accountId") {
             $anonymizePayload.userIdentify = $userIdentifier
-        } elseif ($identifierType -eq "userKey") {
+        }
+        elseif ($identifierType -eq "userKey") {
             $anonymizePayload.userKey = $userIdentifier
-        } else {
+        }
+        else {
             # For legacy systems, use the username as userKey
             $anonymizePayload.userKey = $userIdentifier
         }
@@ -1449,10 +1508,12 @@ function Set-JiraUserAnonymized {
                 if ($verifyUser.name -match "^jirauser\d+$") {
                     $isAnonymized = $true
                     Write-Log "✅ VERIFICATION SUCCESS: User anonymized successfully - new username: $($verifyUser.name)" "SUCCESS"
-                } elseif ($verifyUser.displayName -match "^user-[a-f0-9-]+$") {
+                }
+                elseif ($verifyUser.displayName -match "^user-[a-f0-9-]+$") {
                     $isAnonymized = $true
                     Write-Log "✅ VERIFICATION SUCCESS: User anonymized successfully - new display name: $($verifyUser.displayName)" "SUCCESS"
-                } else {
+                }
+                else {
                     Write-Log "❌ VERIFICATION FAILED: User data not anonymized despite API success" "ERROR"
                     Write-Log "Current username: $($verifyUser.name)" "ERROR"
                     Write-Log "Current display name: $($verifyUser.displayName)" "ERROR"
@@ -1465,14 +1526,15 @@ function Set-JiraUserAnonymized {
                         Write-Log "SOLUTION: Remove user from external directory, sync, then re-run anonymization" "INFO"
 
                         return @{
-                            Success = $false;
-                            Action = "AnonymizationVerificationFailed";
-                            Error = "External directory user (Directory ID: $($verifyUser.directoryId)) - API reports success but anonymization not applied";
-                            UserIdentifier = $userIdentifier;
-                            IdentifierType = $identifierType;
-                            Solution = "Remove from external directory and sync before anonymizing"
+                            Success        = $false
+                            Action         = "AnonymizationVerificationFailed"
+                            Error          = "External directory user (Directory ID: $($verifyUser.directoryId)) - API reports success but anonymization not applied"
+                            UserIdentifier = $userIdentifier
+                            IdentifierType = $identifierType
+                            Solution       = "Remove from external directory and sync before anonymizing"
                         }
-                    } else {
+                    }
+                    else {
                         Write-Log "� JIRA ANONYMIZATION SERVICE ISSUE DETECTED" "ERROR"
                         Write-Log "Task completed successfully but user data unchanged - this indicates a JIRA service problem" "ERROR"
                         Write-Log "" "INFO"
@@ -1494,20 +1556,20 @@ function Set-JiraUserAnonymized {
                         Write-Log "⚠️  CONTINUING WITH NEXT USER - MANUAL INTERVENTION REQUIRED FOR: $($User.name)" "WARNING"
 
                         return @{
-                            Success = $false;
-                            Action = "AnonymizationServiceFailure";
-                            Error = "JIRA anonymization service malfunction - API reports success but user not anonymized";
-                            UserIdentifier = $userIdentifier;
-                            IdentifierType = $identifierType;
-                            TaskId = $taskId;
-                            ManualSteps = @(
+                            Success        = $false
+                            Action         = "AnonymizationServiceFailure"
+                            Error          = "JIRA anonymization service malfunction - API reports success but user not anonymized"
+                            UserIdentifier = $userIdentifier
+                            IdentifierType = $identifierType
+                            TaskId         = $taskId
+                            ManualSteps    = @(
                                 "Check JIRA system logs for task ID: $taskId",
                                 "Try manual anonymization in JIRA Admin interface",
                                 "Clear user sessions and retry",
                                 "Contact Atlassian Support if issue persists"
-                            );
-                            JiraAdminUrl = "$BaseUrl/secure/admin/user/UserBrowser.jspa";
-                            SystemLogsUrl = "$BaseUrl/secure/admin/ViewLogging.jspa"
+                            )
+                            JiraAdminUrl   = "$BaseUrl/secure/admin/user/UserBrowser.jspa"
+                            SystemLogsUrl  = "$BaseUrl/secure/admin/ViewLogging.jspa"
                         }
                     }
                 }
@@ -1515,52 +1577,56 @@ function Set-JiraUserAnonymized {
                 if ($isAnonymized) {
                     Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
                     return @{
-                        Success = $true;
-                        Action = "Anonymized";
-                        Result = $result;
-                        UserIdentifier = $userIdentifier;
-                        IdentifierType = $identifierType;
-                        VerifiedAnonymized = $true;
-                        NewUsername = $verifyUser.name;
-                        NewDisplayName = $verifyUser.displayName
+                        Success            = $true
+                        Action             = "Anonymized"
+                        Result             = $result
+                        UserIdentifier     = $userIdentifier
+                        IdentifierType     = $identifierType
+                        VerifiedAnonymized = $true
+                        NewUsername        = $verifyUser.name
+                        NewDisplayName     = $verifyUser.displayName
                     }
                 }
 
-            } catch {
+            }
+            catch {
                 # User not found could mean anonymization worked (user no longer exists with original identifier)
                 if ($_.Exception.Response -and $_.Exception.Response.StatusCode.value__ -eq 404) {
                     Write-Log "✅ VERIFICATION SUCCESS: User no longer found with original identifier (likely anonymized)" "SUCCESS"
                     Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
                     return @{
-                        Success = $true;
-                        Action = "Anonymized";
-                        Result = $result;
-                        UserIdentifier = $userIdentifier;
-                        IdentifierType = $identifierType;
-                        VerifiedAnonymized = $true;
-                        Note = "User not found with original identifier - assumed anonymized"
+                        Success            = $true
+                        Action             = "Anonymized"
+                        Result             = $result
+                        UserIdentifier     = $userIdentifier
+                        IdentifierType     = $identifierType
+                        VerifiedAnonymized = $true
+                        Note               = "User not found with original identifier - assumed anonymized"
                     }
-                } else {
+                }
+                else {
                     Write-Log "Could not verify anonymization status: $($_.Exception.Message)" "WARNING"
                     Write-Log "Assuming anonymization succeeded based on API response" "INFO"
                     Write-Log "User personal data has been permanently anonymized and cannot be recovered" "WARNING"
                     return @{
-                        Success = $true;
-                        Action = "Anonymized";
-                        Result = $result;
-                        UserIdentifier = $userIdentifier;
-                        IdentifierType = $identifierType;
+                        Success            = $true
+                        Action             = "Anonymized"
+                        Result             = $result
+                        UserIdentifier     = $userIdentifier
+                        IdentifierType     = $identifierType
                         VerificationFailed = $true
                     }
                 }
             }
-        } else {
+        }
+        else {
             Write-Log "Anonymization timeout for user: $($User.name) after $TimeoutSeconds seconds" "WARNING"
             Write-Log "The anonymization may still be processing in the background" "INFO"
             return @{ Success = $false; Action = "Anonymize"; Error = "Anonymization timeout - check JIRA admin console" }
         }
 
-    } catch {
+    }
+    catch {
         $errorMessage = $_.Exception.Message
         Write-Log "Failed to anonymize user $($User.name): $errorMessage" "ERROR"
 
@@ -1598,15 +1664,16 @@ function Set-JiraUserAnonymized {
                         Write-Log "Internal Server Error (500) - JIRA server error during anonymization" "ERROR"
                     }
                 }
-            } catch {
+            }
+            catch {
                 Write-Log "Could not read detailed error response" "DEBUG"
             }
         }
 
         return @{
-            Success = $false;
-            Action = "Anonymize";
-            Error = $errorMessage;
+            Success        = $false
+            Action         = "Anonymize"
+            Error          = $errorMessage
             UserIdentifier = if (Get-Variable -Name userIdentifier -ErrorAction SilentlyContinue) { $userIdentifier } else { $User.name }
         }
     }
@@ -1678,7 +1745,8 @@ try {
     if (-not $PersonalAccessToken -and ($null -eq $creds -or $null -eq $creds.UserName)) {
         throw "Invalid credentials provided."
     }
-} catch {
+}
+catch {
     Write-Log "Failed to handle credentials: $($_.Exception.Message)" "ERROR"
     exit 1
 }
@@ -1690,8 +1758,8 @@ try {
     if ($PersonalAccessToken) {
         Write-Log "Using Personal Access Token authentication" "INFO"
         $apiHeaders = @{
-            'Content-Type' = 'application/json'
-            'Accept' = 'application/json'
+            'Content-Type'  = 'application/json'
+            'Accept'        = 'application/json'
             'Authorization' = "Bearer $PersonalAccessToken"
         }
         $session = $null  # No session needed for PAT
@@ -1710,13 +1778,14 @@ try {
             $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($secureCredString))
 
             $apiHeaders = @{
-                'Content-Type' = 'application/json'
-                'Accept' = 'application/json'
+                'Content-Type'  = 'application/json'
+                'Accept'        = 'application/json'
                 'Authorization' = "Basic $base64AuthInfo"
             }
             $session = $null  # No session needed for Basic Auth
             Write-Log "Basic Authentication configured" "SUCCESS"
-        } finally {
+        }
+        finally {
             # 🔒 SECURITY: Immediately clear sensitive data from memory
             if ($secureCredString) {
                 $secureCredString = $null
@@ -1733,7 +1802,7 @@ try {
         Write-Log "Creating JIRA session for cookie-based authentication..." "INFO"
         $sessionHeaders = @{
             'Content-Type' = 'application/json'
-            'Accept' = 'application/json'
+            'Accept'       = 'application/json'
         }
 
         # 🛡️ ENTERPRISE SECURITY: Secure session body creation with memory protection
@@ -1745,7 +1814,8 @@ try {
                 password = $creds.GetNetworkCredential().Password
             }
             $sessionBody = $sessionBodyObject | ConvertTo-Json
-        } finally {
+        }
+        finally {
             # 🔒 SECURITY: Immediately clear password from memory after use
             if ($sessionBodyObject) {
                 $sessionBodyObject.password = $null
@@ -1774,16 +1844,19 @@ try {
             # Create session headers for subsequent requests
             $apiHeaders = @{
                 'Content-Type' = 'application/json'
-                'Accept' = 'application/json'
-                'Cookie' = "$($session.session.name)=$($session.session.value)"
+                'Accept'       = 'application/json'
+                'Cookie'       = "$($session.session.name)=$($session.session.value)"
             }
-        } catch {
+        }
+        catch {
             # Handle specific session creation errors
             if ($_.Exception.Response.StatusCode -eq 401) {
                 Write-Log "Authentication failed: Invalid username or password" "ERROR"
-            } elseif ($_.Exception.Response.StatusCode -eq 403) {
+            }
+            elseif ($_.Exception.Response.StatusCode -eq 403) {
                 Write-Log "Access denied: Account may be locked or CAPTCHA triggered" "ERROR"
-            } else {
+            }
+            else {
                 Write-Log "Session creation failed: $($_.Exception.Message)" "ERROR"
             }
             throw
@@ -1798,7 +1871,8 @@ try {
         exit 1
     }
 
-} catch {
+}
+catch {
     Write-Log "Failed to set up JIRA authentication: $($_.Exception.Message)" "ERROR"
     Write-Log "Please verify your credentials and JIRA URL" "ERROR"
     exit 1
@@ -1824,7 +1898,8 @@ try {
             if ($semicolonCount -gt $commaCount) {
                 $delimiter = ";"
                 Write-Log "Detected semicolon (;) delimiter" "INFO"
-            } else {
+            }
+            else {
                 Write-Log "Detected comma (,) delimiter" "INFO"
             }
         }
@@ -1852,7 +1927,8 @@ try {
             try {
                 $searchUri = if ($username) {
                     "$JiraBaseUrl/rest/api/2/user/search?username=$username&maxResults=1"
-                } else {
+                }
+                else {
                     "$JiraBaseUrl/rest/api/2/user/search?query=$email&maxResults=1"
                 }
 
@@ -1861,10 +1937,12 @@ try {
                 if ($searchResult -and $searchResult.Count -gt 0) {
                     $targetUsers += $searchResult[0]
                     Write-Log "Found user: $($searchResult[0].displayName) [$($searchResult[0].name)]" "SUCCESS"
-                } else {
+                }
+                else {
                     Write-Log "User not found in JIRA: ${username}/${email}" "WARNING"
                 }
-            } catch {
+            }
+            catch {
                 Write-Log "Failed to search for user ${username}/${email}: $($_.Exception.Message)" "ERROR"
             }
         }
@@ -1883,7 +1961,8 @@ try {
 
         if ($targetUsers.Count -eq 0) {
             Write-Log "No disabled users found in JIRA" "WARNING"
-        } else {
+        }
+        else {
             Write-Log "Found $($targetUsers.Count) disabled users ready for processing" "SUCCESS"
         }
     }
@@ -1902,16 +1981,19 @@ try {
         # When processing all disabled users, they're already filtered to disabled only
         Write-Log "Processing all disabled users mode: $($uniqueUsers.Count) disabled users" "SUCCESS"
         # No need to filter further, all users are already disabled
-    } elseif ($AnonymizeUsers -and -not $DisableOnly) {
+    }
+    elseif ($AnonymizeUsers -and -not $DisableOnly) {
         # For anonymization, process both active and inactive users
         $targetUsers = $uniqueUsers
         Write-Log "Anonymization mode: Processing both active and inactive users ($($uniqueUsers.Count) total)" "SUCCESS"
-    } elseif ($DisableOnly) {
+    }
+    elseif ($DisableOnly) {
         # For disable-only operations, process only active users
         $targetUsers = $activeUsers
         Write-Log "Disable-only mode: Processing active users only ($($activeUsers.Count) users)" "SUCCESS"
         Write-Log "Inactive users (will skip): $($inactiveUsers.Count)" "INFO"
-    } else {
+    }
+    else {
         # Default behavior: process active users for disable+anonymize operations
         $targetUsers = $activeUsers
         Write-Log "Standard mode: Processing active users for disable operations ($($activeUsers.Count) users)" "SUCCESS"
@@ -1926,7 +2008,8 @@ try {
         Write-Log "Found user: $($user.displayName) [$($user.name)] - Status: $status - Action: $action" "DEBUG"
     }
 
-} catch {
+}
+catch {
     Write-Log "Failed to identify target users: $($_.Exception.Message)" "ERROR"
     exit 1
 }
@@ -1934,7 +2017,8 @@ try {
 if ($targetUsers.Count -eq 0) {
     if ($AnonymizeUsers -and -not $DisableOnly) {
         Write-Log "No users (active or inactive) found to process. Exiting." "WARNING"
-    } else {
+    }
+    else {
         Write-Log "No active users found to process. Exiting." "WARNING"
     }
     exit 0
@@ -1946,7 +2030,8 @@ if ($BackupUsers) {
     try {
         $targetUsers | ConvertTo-Json -Depth 5 | Out-File -FilePath $backupPath -Encoding UTF8
         Write-Log "User data backup created: $backupPath" "SUCCESS"
-    } catch {
+    }
+    catch {
         Write-Log "Failed to create user backup: $($_.Exception.Message)" "WARNING"
     }
 }
@@ -1981,18 +2066,18 @@ foreach ($user in $targetUsers) {
     Write-Log "Processing user $processedCount/$($targetUsers.Count): $($user.displayName) [$($user.name)]" "INFO"
 
     $userResult = [PSCustomObject]@{
-        Username = $user.name
-        DisplayName = $user.displayName
-        Email = $user.emailAddress
-        DisableResult = $null
-        AnonymizeResult = $null
-        Status = "Pending"
-        ErrorMessage = $null
+        Username            = $user.name
+        DisplayName         = $user.displayName
+        Email               = $user.emailAddress
+        DisableResult       = $null
+        AnonymizeResult     = $null
+        Status              = "Pending"
+        ErrorMessage        = $null
         ConflictingProjects = @()
-        RequiredAction = ""
-        TaskId = $null
-        ManualSteps = @()
-        JiraAdminUrl = $null
+        RequiredAction      = ""
+        TaskId              = $null
+        ManualSteps         = @()
+        JiraAdminUrl        = $null
     }
 
     # Step 1: Disable the user
@@ -2006,7 +2091,8 @@ foreach ($user in $targetUsers) {
             if (-not $DryRun) {
                 Write-Log "User disabled successfully: $($user.name)" "SUCCESS"
             }
-        } else {
+        }
+        else {
             $errorCount++
             $userResult.Status = "Failed"
             $userResult.ErrorMessage = $disableResult.Error
@@ -2017,7 +2103,8 @@ foreach ($user in $targetUsers) {
                 $userResult.RequiredAction = "Transfer project leadership manually or use -ForceProjectLeadTransfer"
                 $manualInterventionRequired += $userResult
                 Write-Log "MANUAL INTERVENTION REQUIRED: $($user.name) - Project lead on: $($disableResult.ConflictingProjects -join ', ')" "WARNING"
-            } else {
+            }
+            else {
                 $failedUsers += $userResult
                 Write-Log "Failed to disable user: $($user.name) - $($disableResult.Error)" "ERROR"
             }
@@ -2036,7 +2123,8 @@ foreach ($user in $targetUsers) {
             # Determine who should receive content ownership (separate from project leadership)
             $contentOwner = if ($ContentOwnershipTransferTo) {
                 $ContentOwnershipTransferTo
-            } else {
+            }
+            else {
                 $NewProjectLead
             }
 
@@ -2055,7 +2143,8 @@ foreach ($user in $targetUsers) {
                     Write-Log "User anonymized successfully: $($user.name)" "SUCCESS"
                     Write-Log "IMPORTANT: User data has been permanently anonymized and cannot be recovered" "WARNING"
                 }
-            } else {
+            }
+            else {
                 $errorCount++
                 $userResult.Status = "PartialFailure"
                 $userResult.ErrorMessage = $anonymizeResult.Error
@@ -2067,11 +2156,13 @@ foreach ($user in $targetUsers) {
                     $userResult.JiraAdminUrl = $anonymizeResult.JiraAdminUrl
                     $anonymizationServiceFailures += $userResult
                     Write-Log "JIRA ANONYMIZATION SERVICE FAILURE: $($user.name) - Manual intervention required" "ERROR"
-                } else {
+                }
+                else {
                     Write-Log "Failed to anonymize user: $($user.name) - $($anonymizeResult.Error)" "ERROR"
                 }
             }
-        } else {
+        }
+        else {
             # User not eligible for anonymization
             $skippedCount++
             $userResult.Status = "Skipped"
@@ -2079,14 +2170,16 @@ foreach ($user in $targetUsers) {
             Write-Log "Skipping anonymization for $($user.name): $($eligibilityCheck.Reason)" "WARNING"
             Write-Log "Required action: $($eligibilityCheck.Action)" "INFO"
         }
-    } elseif ($DisableOnly) {
+    }
+    elseif ($DisableOnly) {
         $userResult.Status = if ($disableResult.Success) { "Success" } else { "Failed" }
     }
 
     # Categorize the final result
     if ($userResult.Status -eq "Success") {
         $successfulUsers += $userResult
-    } elseif ($userResult.Status -eq "Skipped") {
+    }
+    elseif ($userResult.Status -eq "Skipped") {
         # Already logged above, just track it
     }
 
@@ -2189,7 +2282,8 @@ $reportPath = ".\JiraUserManagementReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').
 try {
     $processedUsers | Export-Csv -Path $reportPath -NoTypeInformation -Encoding UTF8
     Write-Log "Detailed report saved to: $reportPath" "SUCCESS"
-} catch {
+}
+catch {
     Write-Log "Failed to create detailed report: $($_.Exception.Message)" "WARNING"
 }
 
@@ -2198,11 +2292,12 @@ if ($manualInterventionRequired.Count -gt 0) {
     $manualReportPath = ".\JiraManualIntervention_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
     try {
         $manualInterventionRequired | Select-Object Username, DisplayName, Email, ErrorMessage,
-            @{Name='ConflictingProjects'; Expression={$_.ConflictingProjects -join '; '}},
-            RequiredAction | Export-Csv -Path $manualReportPath -NoTypeInformation -Encoding UTF8
+        @{Name = 'ConflictingProjects'; Expression = { $_.ConflictingProjects -join '; ' } },
+        RequiredAction | Export-Csv -Path $manualReportPath -NoTypeInformation -Encoding UTF8
         Write-Log "Manual intervention report saved to: $manualReportPath" "WARNING"
         Write-Log "Review this file for users requiring manual action before rerunning the script" "INFO"
-    } catch {
+    }
+    catch {
         Write-Log "Failed to create manual intervention report: $($_.Exception.Message)" "WARNING"
     }
 }
@@ -2222,7 +2317,8 @@ if ($session -and -not $PersonalAccessToken -and -not $UseBasicAuth) {
         $SessionUri = "$JiraBaseUrl/rest/auth/1/session"
         Invoke-RestMethod -Method Delete -Uri $SessionUri -Headers $apiHeaders -UseBasicParsing -ErrorAction SilentlyContinue
         Write-Log "JIRA session closed successfully" "SUCCESS"
-    } catch {
+    }
+    catch {
         Write-Log "Warning: Failed to properly close JIRA session" "WARNING"
     }
 }
@@ -2251,8 +2347,10 @@ Write-Log "=== JIRA Enterprise User Management Script Completed ===" "SUCCESS"
 if ($manualInterventionRequired.Count -gt 0) {
     Write-Log "Script completed with manual intervention required" "WARNING"
     exit 2  # Special exit code for manual intervention needed
-} elseif ($errorCount -gt 0) {
+}
+elseif ($errorCount -gt 0) {
     exit 1  # General error
-} else {
+}
+else {
     exit 0  # Success
 }
