@@ -125,88 +125,88 @@ if (Test-Path $configPath) {
 
 ### **4. Secure Error Handling & Logging**
 ```powershell
-# ✅ GOOD: Comprehensive error handling with audit trail
-try {
-    $result = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
-    Write-Host "✅ Success: Operation completed" -ForegroundColor Green
-    Write-AuditLog -Action "API_CALL_SUCCESS" -Target $uri -User $env:USERNAME
-} catch {
-    # Sanitize error messages - remove sensitive information
-    $sanitizedError = $_.Exception.Message -replace $OrganizationDomain, "[DOMAIN]" -replace $apiKey, "[REDACTED]"
-    Write-Host "❌ Error: $sanitizedError" -ForegroundColor Red
-    Write-AuditLog -Action "API_CALL_FAILED" -Target $uri -User $env:USERNAME -Error $sanitizedError
+# ✅ REQUIRED: Secure logging with audit trail
+# Audit logs MUST be placed next to the script file (in the same directory), not in a central logs directory. This ensures portability and consistent access regardless of execution location.
+function Write-Log {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
 
-    # Log full error details to secure log (not displayed to user)
-    Write-Log -Level ERROR -Message $_.Exception.Message -Sensitive $true
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("INFO", "WARNING", "ERROR", "DEBUG", "AUDIT")]
+        [string]$Level = "INFO",
+
+        [Parameter(Mandatory=$false)]
+        [switch]$Sensitive,
+
+        [Parameter(Mandatory=$false)]
+        [string]$LogPath = (Join-Path $PSScriptRoot "ScriptAudit.log")
+    )
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $sessionId = $script:SessionId ?? (New-Guid).ToString().Substring(0,8)
+
+    # Sanitize message for display (remove sensitive data)
+    $displayMessage = $Message
+    if ($script:OrganizationDomain) {
+        $displayMessage = $displayMessage -replace $script:OrganizationDomain, "[DOMAIN]"
+    }
+
+    $logEntry = "[$timestamp] [$sessionId] [$Level] $displayMessage"
+
+    # Display non-sensitive logs
+    if (-not $Sensitive) {
+        $color = switch ($Level) {
+            "ERROR" { "Red" }
+            "WARNING" { "Yellow" }
+            "AUDIT" { "Cyan" }
+            default { "White" }
+        }
+        Write-Host $logEntry -ForegroundColor $color
+    }
+
+    # Always log full message to file (including sensitive data for troubleshooting)
+    $fullLogEntry = "[$timestamp] [$sessionId] [$Level] [$env:USERNAME] $Message"
+    try {
+        Add-Content -Path $LogPath -Value $fullLogEntry -ErrorAction Stop
+    } catch {
+        Write-Warning "Failed to write to log file: $_"
+    }
 }
-```
 
-### **5. User Experience & Information Disclosure**
-```powershell
-# ✅ GOOD: Informative output without sensitive data
-Write-Host "🚀 Starting process for $Environment environment..." -ForegroundColor Cyan
-Write-Host "📊 Processing $($items.Count) items..." -ForegroundColor Yellow
-Write-Host "✅ Completed successfully!" -ForegroundColor Green
+function Write-AuditLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Action,
 
-# ✅ GOOD: Progress reporting with generic information
-$itemType = if ($items[0].GetType().Name -eq "User") { "users" } else { "items" }
-Write-Progress -Activity "Processing $itemType" -Status "$completed of $total completed"
+        [Parameter(Mandatory=$false)]
+        [string]$Target,
 
-# ❌ AVOID: Exposing sensitive information in output
-Write-Host "Processing user john.doe@company.com"     # Use "Processing user ****" instead
-Write-Host "Connected to server PROD-DB-01"          # Use parameter name instead
-Write-Host "Using API key abc123xyz"                 # Never display credentials
-```
+        [Parameter(Mandatory=$true)]
+        [string]$User,
 
-## 📝 **Mandatory Documentation Standards**
+        [Parameter(Mandatory=$false)]
+        [string]$Error,
 
-### **Script Header Template**
-```powershell
-<#
-.SYNOPSIS
-    Brief description of script functionality
+        [Parameter(Mandatory=$false)]
+        [hashtable]$AdditionalData
+    )
 
-.DESCRIPTION
-    Detailed description of what the script does, its purpose, and any important notes.
+    $auditEntry = @{
+        Timestamp = Get-Date -Format "o"
+        SessionId = $script:SessionId
+        Action = $Action
+        User = $User
+        Target = $Target
+        Error = $Error
+        ComputerName = $env:COMPUTERNAME
+        ScriptName = $MyInvocation.ScriptName
+        AdditionalData = $AdditionalData
+    }
 
-.PARAMETER ParameterName
-    Description of each parameter, including valid values and examples
-
-.EXAMPLE
-    Example-Function -Parameter "Value" -Environment "Test"
-    Description of what this example does
-
-.NOTES
-    Author: [Your Name]
-    Created: [Date]
-    Version: 1.0
-    Requirements: PowerShell 5.1+, [List any modules or permissions needed]
-
-    SECURITY: This script handles [describe data types handled]
-    COMPLIANCE: Follows [relevant standards: SOX, GDPR, etc.]
-
-.LINK
-    Link to documentation or related resources
-#>
-```
-
-### **Security Documentation Requirements**
-- Document all data access and modification operations
-- List required permissions and service accounts
-- Include data retention and privacy compliance notes
-- Specify audit trail requirements
-
-## Developer Workflows
-
-### **Testing Requirements**
-- **Unit Testing**: Use `Pester` framework for all script testing
-- **Security Testing**: Validate parameter injection protection
-- **Compliance Testing**: Verify no hardcoded sensitive data
-- **Documentation Testing**: Ensure all help documentation is accurate
-
-### **Code Review Checklist**
-- [ ] No hardcoded credentials, company names, or sensitive data
-- [ ] All company-specific values converted to parameters
+    $auditJson = $auditEntry | ConvertTo-Json -Compress
+    Write-Log -Message $auditJson -Level "AUDIT" -Sensitive $true
+}
 - [ ] Proper error handling without information disclosure
 - [ ] Comprehensive parameter validation
 - [ ] Audit logging implemented

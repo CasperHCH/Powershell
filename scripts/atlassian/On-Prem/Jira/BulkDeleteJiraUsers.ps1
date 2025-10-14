@@ -1,6 +1,6 @@
 # Jira Bulk User Deletion Script with Enhanced Error Handling and Logging
-# This script safely deletes users from a Jira On-Prem instance based on CSV input or automatically discovers disabled users.
-# Features: Input validation, logging, progress tracking, dry-run mode, disabled user discovery, and comprehensive error handling.
+# This script safely deletes users from a Jira On-Prem instance based on CSV input, automatically discovers disabled users, or deletes anonymized inactive users.
+# Features: Input validation, logging, progress tracking, dry-run mode, disabled user discovery, anonymized user deletion, and comprehensive error handling.
 # Requires PowerShell 5.1 or later and Jira REST API access with admin privileges.
 
 <#
@@ -8,13 +8,14 @@
   Enterprise-grade bulk user deletion for Jira On-Prem instances.
 
 .DESCRIPTION
-  This script safely processes CSV files to delete users from Jira using the REST API, or automatically discovers and deletes all disabled users.
+  This script safely processes CSV files to delete users from Jira using the REST API, automatically discovers and deletes all disabled users, or deletes anonymized inactive users.
   Features include:
   - Input validation and safety checks
   - Comprehensive logging with timestamps
   - Progress tracking and statistics
   - Dry-run mode for testing
   - Automatic disabled user discovery
+  - Anonymized inactive user deletion
   - Detailed error reporting
   - Backup recommendations and confirmation prompts
 
@@ -45,6 +46,9 @@
 .PARAMETER ProcessAllDisabledUsers
   If specified, automatically discovers and processes all disabled users in Jira instead of reading from CSV.
 
+.PARAMETER DeleteAnonymizedUsers
+  If specified, deletes all anonymized inactive users in Jira.
+
 .EXAMPLE
   .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -CsvPath "users.csv" -Username "admin" -ApiToken "your-token" -DryRun
   Performs a dry run to validate the CSV and check connectivity.
@@ -60,6 +64,14 @@
 .EXAMPLE
   .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin" -ApiToken "your-token" -ProcessAllDisabledUsers
   Automatically discovers and deletes all disabled users in Jira.
+
+.EXAMPLE
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin" -ApiToken "your-token" -DeleteAnonymizedUsers -DryRun
+  Discovers and shows all anonymized inactive users without deleting them.
+
+.EXAMPLE
+  .\BulkDeleteUsers.ps1 -JiraBaseUrl "https://jira.contoso.com" -Username "admin" -ApiToken "your-token" -DeleteAnonymizedUsers
+  Automatically discovers and deletes all anonymized inactive users in Jira.
 
 .NOTES
     Version:        2.1
@@ -81,7 +93,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateScript({
-        if ($ProcessAllDisabledUsers) { return $true }
+        if ($ProcessAllDisabledUsers -or $DeleteAnonymizedUsers) { return $true }
         if (-not (Test-Path $_ -PathType Leaf)) { throw "CSV file not found: $_" }
         return $true
     })]
@@ -94,6 +106,10 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
     [string]$ApiToken,
+
+    [Parameter()]
+    [ValidateSet('BasicAuth', 'ApiToken')]
+    [string]$AuthMethod = 'ApiToken',
 
     [Parameter()]
     [switch]$DryRun,
@@ -110,7 +126,10 @@ param(
     [int]$DelayBetweenRequests = 500,
 
     [Parameter()]
-    [switch]$ProcessAllDisabledUsers
+    [switch]$ProcessAllDisabledUsers,
+
+    [Parameter()]
+    [switch]$DeleteAnonymizedUsers
 )
 
 # Initialize logging and error tracking
@@ -130,24 +149,50 @@ $Stats = @{
 # Enhanced logging function
 function Write-LogMessage {
     param(
+        [Parameter(Mandatory=$true)]
         [string]$Message,
-        [ValidateSet('INFO', 'WARNING', 'ERROR', 'SUCCESS')]
-        [string]$Level = 'INFO'
+
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("INFO", "WARNING", "ERROR", "SUCCESS", "DEBUG")]
+        [string]$Level = "INFO",
+
+        [Parameter(Mandatory=$false)]
+        [switch]$Sensitive,
+
+        [Parameter(Mandatory=$false)]
+        [string]$LogPath = (Join-Path $PSScriptRoot "ScriptAudit.log")
     )
 
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $logEntry = "[$timestamp] [$Level] $Message"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $sessionId = if ($script:SessionId) { $script:SessionId } else { (New-Guid).ToString().Substring(0,8) }
 
-    # Write to console with appropriate colors
-    switch ($Level) {
-        'SUCCESS' { Write-Host $logEntry -ForegroundColor Green }
-        'WARNING' { Write-Host $logEntry -ForegroundColor Yellow }
-        'ERROR'   { Write-Host $logEntry -ForegroundColor Red }
-        default   { Write-Host $logEntry -ForegroundColor White }
+    # Sanitize message for display (remove sensitive data)
+    $displayMessage = $Message
+    if ($script:OrganizationDomain) {
+        $displayMessage = $displayMessage -replace $script:OrganizationDomain, "[DOMAIN]"
     }
 
-    # Write to log file
-    Add-Content -Path $LogPath -Value $logEntry -ErrorAction SilentlyContinue
+    $logEntry = "[$timestamp] [$sessionId] [$Level] $displayMessage"
+
+    # Display non-sensitive logs
+    if (-not $Sensitive) {
+        $color = switch ($Level) {
+            "ERROR" { "Red" }
+            "WARNING" { "Yellow" }
+            "AUDIT" { "Cyan" }
+            "DEBUG" { "Gray" }
+            default { "White" }
+        }
+        Write-Host $logEntry -ForegroundColor $color
+    }
+
+    # Always log full message to file (including sensitive data for troubleshooting)
+    $fullLogEntry = "[$timestamp] [$sessionId] [$Level] [$env:USERNAME] $Message"
+    try {
+        Add-Content -Path $LogPath -Value $fullLogEntry -ErrorAction Stop
+    } catch {
+        Write-Warning "Failed to write to log file: $_"
+    }
 }
 
 # Validate Jira connectivity
@@ -189,11 +234,77 @@ function Test-CsvStructure {
     }
 }
 
+# Added graphical popup for Username and API Token input
+Add-Type -AssemblyName System.Windows.Forms
+
+function Show-CredentialsPopup {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "Jira Authentication"
+    $form.Size = New-Object System.Drawing.Size(300, 200)
+    $form.StartPosition = "CenterScreen"
+
+    $labelUsername = New-Object System.Windows.Forms.Label
+    $labelUsername.Text = "Username:"
+    $labelUsername.Location = New-Object System.Drawing.Point(10, 20)
+    $labelUsername.Size = New-Object System.Drawing.Size(80, 20)
+    $form.Controls.Add($labelUsername)
+
+    $textBoxUsername = New-Object System.Windows.Forms.TextBox
+    $textBoxUsername.Location = New-Object System.Drawing.Point(100, 20)
+    $textBoxUsername.Size = New-Object System.Drawing.Size(150, 20)
+    $form.Controls.Add($textBoxUsername)
+
+    $labelApiToken = New-Object System.Windows.Forms.Label
+    $labelApiToken.Text = "API Token:"
+    $labelApiToken.Location = New-Object System.Drawing.Point(10, 60)
+    $labelApiToken.Size = New-Object System.Drawing.Size(80, 20)
+    $form.Controls.Add($labelApiToken)
+
+    $textBoxApiToken = New-Object System.Windows.Forms.TextBox
+    $textBoxApiToken.Location = New-Object System.Drawing.Point(100, 60)
+    $textBoxApiToken.Size = New-Object System.Drawing.Size(150, 20)
+    $textBoxApiToken.UseSystemPasswordChar = $true
+    $form.Controls.Add($textBoxApiToken)
+
+    $buttonOk = New-Object System.Windows.Forms.Button
+    $buttonOk.Text = "OK"
+    $buttonOk.Location = New-Object System.Drawing.Point(50, 100)
+    $buttonOk.Add_Click({
+        $form.Tag = @{ Username = $textBoxUsername.Text; ApiToken = $textBoxApiToken.Text }
+        $form.Close()
+    })
+    $form.Controls.Add($buttonOk)
+
+    $buttonCancel = New-Object System.Windows.Forms.Button
+    $buttonCancel.Text = "Cancel"
+    $buttonCancel.Location = New-Object System.Drawing.Point(150, 100)
+    $buttonCancel.Add_Click({
+        $form.Tag = $null
+        $form.Close()
+    })
+    $form.Controls.Add($buttonCancel)
+
+    $form.ShowDialog() | Out-Null
+    return $form.Tag
+}
+
+# Prompt for credentials if not provided
+if (-not $Username -or -not $ApiToken) {
+    $credentials = Show-CredentialsPopup
+    if (-not $credentials) {
+        Write-LogMessage "Operation cancelled by user." -Level 'INFO'
+        exit 0
+    }
+    $Username = $credentials.Username
+    $ApiToken = $credentials.ApiToken
+}
+
 # Get all disabled users from Jira
 function Get-AllDisabledJiraUsers {
     param(
         [hashtable]$Headers,
-        [string]$BaseUrl
+        [string]$BaseUrl,
+        [switch]$OnlyAnonymized
     )
 
     try {
@@ -203,10 +314,18 @@ function Get-AllDisabledJiraUsers {
         $maxResults = 50  # Jira API limit
 
         do {
-            $searchUri = "$BaseUrl/rest/api/2/user/search?username=%&includeInactive=true&startAt=$startAt&maxResults=$maxResults"
+            $searchUri = "$BaseUrl/rest/api/2/user/search?username=.&includeInactive=true&startAt=$startAt&maxResults=$maxResults"
             Write-LogMessage "Fetching users (batch starting at $startAt)..." -Level 'INFO'
 
+            # Log request details
+            Write-LogMessage "Request URI: $searchUri" -Level 'DEBUG'
+            Write-LogMessage "Request Headers: $(ConvertTo-Json $Headers -Depth 10)" -Level 'DEBUG'
+
             $response = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $Headers -ErrorAction Stop
+
+            # Log raw API response and headers for debugging
+            Write-LogMessage "Response Headers: $(ConvertTo-Json $response.PSObject.Properties -Depth 10)" -Level 'DEBUG'
+            Write-LogMessage "Raw API Response: $(ConvertTo-Json $response -Depth 10)" -Level 'DEBUG'
 
             if ($response -is [Array]) {
                 $users = $response
@@ -216,6 +335,10 @@ function Get-AllDisabledJiraUsers {
 
             # Filter for disabled users
             $disabledInBatch = $users | Where-Object { $_.active -eq $false }
+
+            if ($OnlyAnonymized) {
+                $disabledInBatch = $disabledInBatch | Where-Object { $_.emailAddress -match '^anonymized_' }
+            }
 
             if ($disabledInBatch) {
                 $allUsers += $disabledInBatch
@@ -306,6 +429,28 @@ function Remove-JiraUser {
     }
 }
 
+# Updated authentication logic to support both Basic Auth and API Token
+# Added parameter to determine which authentication method to use
+
+# Updated authentication header creation logic
+function Get-AuthHeader {
+    param(
+        [string]$Username,
+        [string]$ApiToken,
+        [string]$AuthMethod
+    )
+
+    if ($AuthMethod -eq 'BasicAuth') {
+        $authString = "$Username`:$ApiToken"
+        $authBytes = [System.Text.Encoding]::UTF8.GetBytes($authString)
+        return @{ 'Authorization' = "Basic $([Convert]::ToBase64String($authBytes))" }
+    } elseif ($AuthMethod -eq 'ApiToken') {
+        return @{ 'Authorization' = "Bearer $ApiToken" }
+    } else {
+        throw "Invalid authentication method specified: $AuthMethod"
+    }
+}
+
 # Main execution starts here
 try {
     Write-LogMessage "=== Jira Bulk User Deletion Script Started ===" -Level 'INFO'
@@ -317,21 +462,21 @@ try {
     $JiraBaseUrl = $JiraBaseUrl.TrimEnd('/')
 
     # Create authentication header
-    $authString = "$Username`:$ApiToken"
-    $authBytes = [System.Text.Encoding]::UTF8.GetBytes($authString)
-    $authHeader = @{
-        'Authorization' = "Basic $([Convert]::ToBase64String($authBytes))"
-        'Content-Type' = 'application/json'
-        'Accept' = 'application/json'
-    }
+    $authHeader = Get-AuthHeader -Username $Username -ApiToken $ApiToken -AuthMethod $AuthMethod
+    $authHeader['Content-Type'] = 'application/json'
+    $authHeader['Accept'] = 'application/json'
 
     # Validate parameters
-    if (-not $ProcessAllDisabledUsers -and [string]::IsNullOrEmpty($CsvPath)) {
-        throw "Either provide a CSV file path or use -ProcessAllDisabledUsers parameter"
+    if (-not $ProcessAllDisabledUsers -and -not $DeleteAnonymizedUsers -and [string]::IsNullOrEmpty($CsvPath)) {
+        throw "Either provide a CSV file path or use -ProcessAllDisabledUsers or -DeleteAnonymizedUsers parameter"
     }
 
     if ($ProcessAllDisabledUsers -and -not [string]::IsNullOrEmpty($CsvPath)) {
         Write-LogMessage "⚠️ Both CSV path and ProcessAllDisabledUsers specified. Will process all disabled users and ignore CSV." -Level 'WARNING'
+    }
+
+    if ($DeleteAnonymizedUsers -and -not [string]::IsNullOrEmpty($CsvPath)) {
+        Write-LogMessage "⚠️ Both CSV path and DeleteAnonymizedUsers specified. Will process all anonymized users and ignore CSV." -Level 'WARNING'
     }
 
     # Validate connectivity
@@ -349,6 +494,17 @@ try {
             Write-LogMessage "✅ No disabled users found in Jira. Nothing to process." -Level 'SUCCESS'
             exit 0
         }
+    } elseif ($DeleteAnonymizedUsers) {
+        Write-LogMessage "Processing Mode: Discover and process ALL anonymized inactive users" -Level 'INFO'
+        $anonymizedUsers = Get-AllDisabledJiraUsers -Headers $authHeader -BaseUrl $JiraBaseUrl -OnlyAnonymized
+        $Stats.TotalUsers = $anonymizedUsers.Count
+
+        if ($Stats.TotalUsers -eq 0) {
+            Write-LogMessage "✅ No anonymized inactive users found in Jira. Nothing to process." -Level 'SUCCESS'
+            exit 0
+        }
+
+        $users = $anonymizedUsers | ForEach-Object { [PSCustomObject]@{ Username = $_.name } }
     } else {
         Write-LogMessage "Processing Mode: CSV file input" -Level 'INFO'
         $Stats.TotalUsers = Test-CsvStructure -Path $CsvPath
@@ -373,6 +529,9 @@ try {
         Write-LogMessage "Using discovered disabled users list" -Level 'INFO'
         # Convert disabled user objects to simple username objects for consistent processing
         $users = $disabledUsers | ForEach-Object { [PSCustomObject]@{ Username = $_.name } }
+    } elseif ($DeleteAnonymizedUsers) {
+        Write-LogMessage "Using discovered anonymized users list" -Level 'INFO'
+        # Users are already loaded as $users in the discovery step
     } else {
         Write-LogMessage "Loading users from CSV: $CsvPath" -Level 'INFO'
         $users = Import-Csv -Path $CsvPath
@@ -445,7 +604,7 @@ try {
 
     Write-LogMessage "" -Level 'INFO'
     Write-LogMessage "=== FINAL REPORT ===" -Level 'INFO'
-    Write-LogMessage "Processing Mode: $(if ($ProcessAllDisabledUsers) { 'All Disabled Users Discovery' } else { 'CSV File Input' })" -Level 'INFO'
+    Write-LogMessage "Processing Mode: $(if ($ProcessAllDisabledUsers) { 'All Disabled Users Discovery' } elseif ($DeleteAnonymizedUsers) { 'All Anonymized Users Discovery' } else { 'CSV File Input' })" -Level 'INFO'
     Write-LogMessage "Total Users: $($Stats.TotalUsers)" -Level 'INFO'
     Write-LogMessage "Successfully Processed: $($Stats.SuccessCount)" -Level 'SUCCESS'
     Write-LogMessage "Failed: $($Stats.FailureCount)" -Level $(if ($Stats.FailureCount -gt 0) { 'ERROR' } else { 'INFO' })

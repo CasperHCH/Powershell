@@ -88,7 +88,7 @@ try {
         # Analyze email domains
         $emailDomains = @{}
         $usersWithEmails = 0
-        $teliaUsers = @()
+        $listOfUsers = @()
 
         foreach ($user in $response) {
             if ($user.emailAddress) {
@@ -105,8 +105,8 @@ try {
                     }
 
                     # Check for Telia-related domains
-                    if ($domain -like "*telia*") {
-                        $teliaUsers += [PSCustomObject]@{
+                    if ($domain -like "$($SearchDomain)") {
+                        $listOfUsers += [PSCustomObject]@{
                             Username = $user.name
                             DisplayName = $user.displayName
                             Email = $user.emailAddress
@@ -129,8 +129,8 @@ try {
 
         Write-Host ""
         Write-Host "=== TELIA-RELATED USERS ===" -ForegroundColor Yellow
-        if ($teliaUsers.Count -gt 0) {
-            foreach ($user in $teliaUsers) {
+        if ($listOfUsers.Count -gt 0) {
+            foreach ($user in $listOfUsers) {
                 $status = if ($user.Active) { "ACTIVE" } else { "INACTIVE" }
                 Write-Host "  [$status] $($user.Username) - $($user.DisplayName)" -ForegroundColor $(if ($user.Active) { "Red" } else { "Gray" })
                 Write-Host "    Email: $($user.Email)" -ForegroundColor White
