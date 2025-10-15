@@ -1,3 +1,20 @@
+
+# Table of Contents
+1. [Repository Overview](#repository-overview)
+2. [Security & Compliance Requirements](#security--compliance-requirements)
+3. [Reorganized Folder Structure](#reorganized-folder-structure)
+4. [PowerShell Best Practices to Follow](#powershell-best-practices-to-follow)
+5. [Secure Code Patterns](#secure-code-patterns)
+6. [Repository Structure Guidelines](#repository-structure-guidelines)
+7. [Critical Security Fixes Required](#critical-security-fixes-required)
+8. [Compliance & Documentation Requirements](#compliance--documentation-requirements)
+9. [Security Testing & Validation](#security-testing--validation)
+10. [Mandatory AI Agent Guidelines](#mandatory-ai-agent-guidelines)
+11. [Contribution Quickstart](#contribution-quickstart)
+12. [Accessibility & Localization](#accessibility--localization)
+13. [Common Mistakes](#common-mistakes)
+14. [FAQ](#faq)
+
 # GitHub Copilot Instructions for PowerShell Scripts Repository
 
 ## 🎯 **Repository Overview**
@@ -9,6 +26,13 @@ This is a comprehensive PowerShell automation library containing enterprise-grad
 - **Network Operations** (Connectivity testing, infrastructure management)
 
 ## 🔐 **Security & Compliance Requirements**
+> **CRITICAL:**
+> - 🚫 **NO hardcoded credentials, API keys, or sensitive data**
+> - 🚫 **NO company-specific names, domains, or identifiers**
+> - 🔒 **Audit logging required for all sensitive operations**
+> - 🛡️ **Comprehensive parameter validation required**
+> - 🧹 **Sanitize all output and errors**
+> - 📋 **Compliance checklist must be completed before submission**
 
 ### **Data Protection & Privacy**
 - **NO hardcoded credentials, API keys, or sensitive data**
@@ -24,6 +48,35 @@ This is a comprehensive PowerShell automation library containing enterprise-grad
 - Follow principle of least privilege for all operations
 
 ## 📁 **Reorganized Folder Structure**
+```plaintext
+PS/
+├── core/
+│   ├── authentication/
+│   ├── reporting/
+│   └── utilities/
+├── scripts/
+│   ├── exchange/
+│   ├── active-directory/
+│   ├── communication/
+│   ├── atlassian/
+│   ├── system-administration/
+│   ├── network/
+│   └── ...
+├── tools/
+│   ├── development/
+│   ├── installation/
+│   ├── legacy/
+│   └── ...
+├── docs/
+│   ├── api-references/
+│   ├── guides/
+│   ├── templates/
+│   └── ...
+├── data/
+├── tests/
+├── archive/
+└── ...
+```
 - **`core/`** - Reusable modules and functions
   - `authentication/` - Credential management, AD authentication
   - `utilities/` - General utility functions
@@ -52,9 +105,24 @@ This is a comprehensive PowerShell automation library containing enterprise-grad
 - **System Monitoring**: Scripts for checking system uptime, listing running services, and fetching weather data.
 - **Automation Tasks**: Scripts for installing Jenkins agents, creating event logs, and managing user accounts.
 
-## 📋 **PowerShell Best Practices to Follow**
+## 📋 PowerShell Best Practices to Follow
+
+
+### 🔎 Quick Reference
+**Always:**
+- Use parameters for all environment-specific values
+- Validate all inputs
+- Use `Get-Credential` or secure vaults
+- Implement audit logging
+- Sanitize errors/output
+- Support `-WhatIf` for destructive actions
+- Document compliance and security impact
 
 ### **1. Security & Parameterization Standards**
+```powershell
+# Good: Secure credential handling
+# ...existing code...
+```
 ```powershell
 # ✅ GOOD: Secure credential handling with parameters
 param(
@@ -87,6 +155,10 @@ $domain = "@company.com"            # Use parameter instead
 
 ### **2. Generic Parameterization Pattern**
 ```powershell
+# Good: All company-specific values as parameters
+# ...existing code...
+```
+```powershell
 # ✅ REQUIRED: All company-specific values as parameters
 param(
     [Parameter(Mandatory=$true, HelpMessage="Organization domain (e.g., contoso.com)")]
@@ -109,6 +181,10 @@ param(
 
 ### **3. Configuration File Pattern**
 ```powershell
+# Good: External configuration for environment-specific values
+# ...existing code...
+```
+```powershell
 # ✅ GOOD: External configuration for environment-specific values
 $configPath = Join-Path $PSScriptRoot "config.json"
 if (Test-Path $configPath) {
@@ -124,6 +200,11 @@ if (Test-Path $configPath) {
 ```
 
 ### **4. Secure Error Handling & Logging**
+```powershell
+# Good: Secure logging with audit trail
+# ...existing code...
+```
+> **Tip:** Rotate logs regularly and restrict access to audit files.
 ```powershell
 # ✅ REQUIRED: Secure logging with audit trail
 # Audit logs MUST be placed next to the script file (in the same directory), not in a central logs directory. This ensures portability and consistent access regardless of execution location.
@@ -213,13 +294,23 @@ function Write-AuditLog {
 - [ ] Security documentation complete
 
 ### **Script Signing & Deployment**
+> **Checklist:**
+> - [ ] Code signed
+> - [ ] Certificate-based authentication
+> - [ ] Integrity verification
 - All production scripts must be code-signed
 - Use certificate-based authentication where possible
 - Implement script integrity verification
 
-## 🛠️ **Secure Code Patterns**
+## 🛠️ Secure Code Patterns
+
+> **Common Mistake:** Hardcoding values. Always use parameters and secure storage.
 
 ### **Parameterized API Integration Pattern**
+```powershell
+# Good: Secure API pattern with full parameterization
+# ...existing code...
+```
 ```powershell
 # ✅ REQUIRED: Secure API pattern with full parameterization
 param(
@@ -273,6 +364,10 @@ try {
 ```
 
 ### **Secure Logging & Audit Pattern**
+```powershell
+# Good: Secure logging with audit trail
+# ...existing code...
+```
 ```powershell
 # ✅ REQUIRED: Secure logging with audit trail
 function Write-Log {
@@ -361,6 +456,10 @@ function Write-AuditLog {
 ### **Progress Reporting**
 ```powershell
 # Progress indicators for long operations
+# ...existing code...
+```
+```powershell
+# Progress indicators for long operations
 $totalItems = $items.Count
 for ($i = 0; $i -lt $totalItems; $i++) {
     $percentComplete = [math]::Round(($i / $totalItems) * 100)
@@ -369,7 +468,9 @@ for ($i = 0; $i -lt $totalItems; $i++) {
 Write-Progress -Activity "Processing Items" -Completed
 ```
 
-## 📁 **Repository Structure Guidelines**
+## 📁 Repository Structure Guidelines
+
+> **Visual Example:** See folder tree above.
 
 ### **File Organization**
 - **`core/`** - Reusable functions and modules
@@ -382,9 +483,16 @@ Write-Progress -Activity "Processing Items" -Completed
 - **Scripts:** Descriptive names (CreateJiraIssue.ps1, TestNetworkConnectivity.ps1)
 - **Variables:** Clear, descriptive ($mailboxPermissions, $apiResponse)
 
-## � **Critical Security Fixes Required**
+## 🚨 Critical Security Fixes Required
+
 
 ### **1. Eliminate All Hardcoded Values**
+```powershell
+# Bad: Hardcoded company data
+# ...existing code...
+# Good: Parameterize everything
+# ...existing code...
+```
 ```powershell
 # ❌ CRITICAL: Hardcoded company data - MUST BE FIXED
 $serverName = "PROD-SQL-01"
@@ -410,6 +518,12 @@ $apiKey = Get-SecureApiKey -ServiceName $ServiceName
 
 ### **2. Sanitize All Output and Errors**
 ```powershell
+# Bad: Exposing sensitive information
+# ...existing code...
+# Good: Sanitized error handling
+# ...existing code...
+```
+```powershell
 # ❌ CRITICAL: Exposing sensitive information
 catch {
     Write-Error "Failed to connect to prod-db-01.acme.corp with key abc123"
@@ -428,6 +542,12 @@ catch {
 ```
 
 ### **3. Implement Comprehensive Parameter Validation**
+```powershell
+# Bad: Minimal or no validation
+# ...existing code...
+# Good: Comprehensive validation and documentation
+# ...existing code...
+```
 ```powershell
 # ❌ AVOID: Minimal or no validation
 param([string]$Email)
@@ -454,6 +574,10 @@ param(
 ```
 
 ### **4. Data Classification & Protection**
+```powershell
+# Good: Classify and protect data appropriately
+# ...existing code...
+```
 ```powershell
 # ✅ REQUIRED: Classify and protect data appropriately
 $DataClassification = @{
@@ -494,6 +618,11 @@ function Process-Data {
 ```
 
 ## 🎨 **UI/UX Standards**
+> Use icons and color coding for clarity. Example:
+```powershell
+Write-Host "🚀 Starting deployment process..." -ForegroundColor Cyan
+# ...existing code...
+```
 
 ### **Color Coding**
 - 🔵 **Cyan**: Process start, headers, information
@@ -513,7 +642,32 @@ Write-Host "📊 Processing 150 items..." -ForegroundColor White
 Write-Host "💡 Tip: Use -WhatIf to preview changes" -ForegroundColor Gray
 ```
 
-## 📚 **Compliance & Documentation Requirements**
+## 📚 Compliance & Documentation Requirements
+
+> **Compliance Checklist:**
+> - [ ] Data protection (GDPR, CCPA, SOX)
+> - [ ] Audit trail implemented
+> - [ ] Data retention policy followed
+> - [ ] Privacy controls in place
+> - [ ] API integration documented
+> - [ ] Security assessment included
+> - [ ] Change log updated
+> - [ ] User & developer guides provided
+> - [ ] FAQ and support info included
+> - [ ] Accessibility standards met
+> - [ ] Versioning and licensing documented
+> - [ ] Contribution guidelines followed
+> - [ ] Disaster/incident response plans included
+> - [ ] Training materials available
+> - [ ] Performance metrics documented
+> - [ ] Localization guidelines followed
+> - [ ] Audit logs secured
+> - [ ] Change management process followed
+> - [ ] Security reviews performed
+> - [ ] Data encryption in transit/at rest
+> - [ ] Environment segregation used
+> - [ ] Backup procedures documented
+> - [ ] Monitoring & alerts implemented
 
 ### **Regulatory Compliance**
 - **Data Protection**: GDPR, CCPA, SOX compliance for data handling
@@ -533,8 +687,58 @@ When working with API integrations, ensure:
 - **Security Assessment**: Include security impact analysis for each script
 - **Compliance Matrix**: Map scripts to applicable regulations and standards
 - **Change Log**: Maintain detailed change history with security implications
+- **User Guide**: Provide clear instructions for script usage and parameters
+- **Developer Guide**: Include coding standards, patterns, and best practices
+- **FAQ**: Address common questions and troubleshooting tips
+- **Support Information**: Provide contact details for support and escalation
+- **Glossary**: Define technical terms and acronyms used in the scripts
+- **In-line Documentation**: Use comment-based help for all functions and scripts
+- **Examples**: Provide usage examples for complex operations
+- **Templates**: Include script templates for common tasks
+- **Security Guidelines**: Outline security best practices for script development and usage
+- **Testing Procedures**: Document testing strategies and validation steps
+- **Backup & Recovery**: Provide guidelines for data backup and recovery processes
+- **Versioning**: Implement version control and document version history
+- **Licensing**: Include appropriate licensing information for the repository
+- **Contribution Guidelines**: Define how to contribute to the repository, including code reviews and security checks
+- **Code of Conduct**: Establish a code of conduct for contributors and users
+- **Disaster Recovery Plan**: Outline steps for disaster recovery related to script failures or data loss
+- **Incident Response Plan**: Provide a plan for responding to security incidents involving the scripts
+- **Training Materials**: Include training resources for users and developers
+- **Performance Metrics**: Document performance benchmarks and optimization strategies
+- **Accessibility Standards**: Ensure scripts and documentation meet accessibility requirements
+- **Localization**: Provide guidelines for localization and internationalization if applicable
+- **Review Schedule**: Establish a schedule for regular review and updates of scripts and documentation
+- **Feedback Mechanism**: Implement a way for users to provide feedback on scripts and documentation
+- **Audit Logs**: Ensure audit logs are stored securely and access is controlled
+- **Change Management**: Implement change management processes for script updates
+- **Compliance Checks**: Regularly review scripts for compliance with policies and regulations
+- **Security Reviews**: Conduct periodic security reviews and penetration testing of scripts
+- **Data Encryption**: Ensure sensitive data is encrypted in transit and at rest
+- **Environment Segregation**: Use separate environments for development, testing, and production
+- **Backup Procedures**: Document backup procedures for scripts and configuration files
+- **Monitoring & Alerts**: Implement monitoring and alerting for script failures or anomalies
 
-## 🧪 **Security Testing & Validation**
+
+## 🧪 Security Testing & Validation
+
+> **WhatIf Example:**
+```powershell
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$TargetResource,
+    [Parameter(Mandatory=$false)]
+    [switch]$Force
+)
+
+if ($PSCmdlet.ShouldProcess($TargetResource, "Delete Operation")) {
+    # ...existing code...
+} else {
+    Write-Host "🔍 WhatIf: Would delete resource [$TargetResource]" -ForegroundColor Yellow
+    # ...existing code...
+}
+```
 
 ### **Mandatory WhatIf Implementation**
 ```powershell
@@ -622,7 +826,15 @@ if ($criticalFailures) {
 }
 ```
 
-## 🎯 **Mandatory AI Agent Guidelines**
+## 🎯 Mandatory AI Agent Guidelines
+
+> **Quick Reference:**
+> - Eliminate hardcoded values
+> - Implement security patterns
+> - Ensure compliance
+> - Add documentation
+> - Add audit trail
+> - Validate parameters
 
 ### **CRITICAL: Security-First Development**
 When rewriting or correcting scripts, AI agents MUST:
@@ -700,6 +912,7 @@ if ($PSCmdlet.ShouldProcess($DatabaseServer, "Connect to Database")) {
 ```
 
 ### **Contribution Requirements**
+> See Quickstart below.
 - **Security Review**: Every script must pass security compliance check
 - **Testing**: Comprehensive Pester tests including security validation
 - **Documentation**: Complete security and compliance documentation
@@ -707,18 +920,61 @@ if ($PSCmdlet.ShouldProcess($DatabaseServer, "Connect to Database")) {
 - **Validation**: Parameter validation and input sanitization required
 
 ### **Deployment Standards**
+> See Compliance Checklist above.
 - Code signing required for all production scripts
 - Security scanning before deployment
 - Compliance verification against organizational standards
 - Change approval process for scripts handling sensitive data
 
 ### **Emergency Response**
+> See Disaster/Incident Response Plans above.
 - Immediate remediation process for security issues
 - Incident response procedures for data exposure
 - Rollback procedures for failed deployments
 - Security incident documentation requirements
 
 ## 📞 **Contact & Governance**
+> For support, see FAQ below.
+## Contribution Quickstart
+
+1. Fork the repo
+2. Clone locally
+3. Create a feature branch
+4. Implement changes (follow all security/compliance rules)
+5. Run tests and validate compliance
+6. Submit a pull request
+7. Respond to code review feedback
+8. Ensure audit logging and documentation are complete
+9. Get approval and merge
+
+## Accessibility & Localization
+
+- Ensure scripts and docs are screen reader compatible
+- Use plain language and provide translations if needed
+
+## Common Mistakes
+
+- Hardcoded credentials or company data
+- Missing parameter validation
+- No audit logging
+- Exposing sensitive info in errors
+- Skipping compliance documentation
+
+## FAQ
+**Q: How do I securely handle credentials?**
+A: Always use `Get-Credential` or a secure vault. Never hardcode secrets.
+
+**Q: How do I sign scripts?**
+A: Use code signing certificates and verify integrity before deployment.
+
+**Q: What if I need to log sensitive actions?**
+A: Use the provided audit logging pattern and restrict access to log files.
+
+**Q: How do I check compliance?**
+A: Use the compliance checklist above before submitting any script.
+
+**Q: Where can I get help?**
+A: See Contact & Governance section or open an issue in the repo.
 - **Security Officer**: For security-related questions and approvals
 - **Compliance Team**: For regulatory compliance verification
 - **Repository Maintainer**: For technical questions and contributions

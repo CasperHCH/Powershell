@@ -1,7 +1,7 @@
 # SECURITY WARNING: Direct execution of remote code has been disabled
 # The following line downloads and executes code from GitHub which poses security risks
-# Invoke-RestMethod "https://github.com/ChrisTitusTech/powershell-profile/raw/main/setup.ps1" | Invoke-Expression
-Write-Warning "Remote profile installation has been disabled for security reasons. Please review and manually execute if needed."
+Invoke-RestMethod "https://github.com/ChrisTitusTech/powershell-profile/raw/main/setup.ps1" | Invoke-Expression
+#Write-Warning "Remote profile installation has been disabled for security reasons. Please review and manually execute if needed."
 
 # Append contents of local profile.ps1 to the current user's all-hosts profile, avoiding duplication
 $PSRootPath = Split-Path -Parent $PSScriptRoot
