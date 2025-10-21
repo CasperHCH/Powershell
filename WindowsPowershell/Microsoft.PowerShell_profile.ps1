@@ -1,297 +1,92 @@
-##  Change Title on Window  ##
-$Host.UI.RawUI.WindowTitle = "PowerShell - $env:USERNAME"
+# Set alias for updating PowerShell using winget
+Set-Alias update-powershell "winget install --id Microsoft.Powershell --source winget"
 
-###  ADMIN PROGRAM ALIASES ###
-# DISABLED: Referenced scripts do not exist in current structure
-# The following aliases have been commented out until the referenced scripts are available
-# SECURITY NOTE: Use dynamic paths with $PSScriptRoot for portability
-# Set-Alias adm "$PSScriptRoot\Tools\Powershell-Stuff\Start-AllAdminPrograms.ps1"
-# Set-Alias adminTools "$PSScriptRoot\Tools\Powershell-Stuff\Start-AdminTools.ps1"
-# Set-Alias capa "$PSScriptRoot\Tools\Powershell-Stuff\Start-CapaAdmin.ps1"
-# Set-Alias chrome "$PSScriptRoot\Tools\Powershell-Stuff\Start-ChromeAdmin.ps1"
-# Set-Alias IIS "$PSScriptRoot\Tools\Powershell-Stuff\Start-IISadmin.ps1"
-# Set-Alias mRemote "$PSScriptRoot\Tools\Powershell-Stuff\Start-mRemote.ps1"
-# Set-Alias SQL "$PSScriptRoot\Tools\Powershell-Stuff\Start-SQLManagementServer.ps1"
-
-#$Host.UI.RawUI.WindowTitle = "PS $(Get-Location)"
-#$Host.UI.RawUI.WindowTitle = (Get-Date -UFormat '%y/%m/%d %R').ToString()
-Remove-Module PSReadline
-Import-Module PSReadLine
-
-
-Remove-Item alias:curl -Force
-New-Alias curl curl.exe
-
-
-Set-PSReadLineOption -Colors @{
-    Operator  = 'Cyan'
-    Parameter = 'Cyan'
-    String    = 'White'
-}
-##  change dir to PS-Drive ps:  ##
-$PSRootPath = Split-Path -Parent $PSScriptRoot
+# Ensure PS drive exists and change location to PS drive
 if (!(Test-Path ps:)) {
-    New-PSDrive -PSProvider FileSystem -Name PS -Root $PSRootPath | Out-Null
+    New-PSDrive -PSProvider FileSystem -Name "PS" -Root "C:\PS\Scripts" | Out-Null
+}
+Set-Location C:\PS\Scripts
+
+# Define a function to list the content of a function/script file
+function def {
+    (Get-Command $args).Definition
 }
 
-##  Change location to PS  ##
-#Set-Location PS:
-Set-Location $PSRootPath
+# Directory of scripts to auto-load in PS
+$psdir = "C:\PS\autoload"
 
-##  Load all O365 connections as functions  ##
-#.\Connect-Office365Services.ps1
-#
-# list content of function/script file  ##
-
-
-
-#Function Connect-OnPremPS {
-#    Import-Module ActiveDirectory
-#    # SECURITY: Use environment variables for server configuration
-#    $ExchangeServer = $env:EXCHANGE_SERVER -or "exchange.contoso.com"
-#    $RPSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://$ExchangeServer/Powershell"
-#    Import-PSSession $RPSession -AllowClobber
-#}
-#
-#Function Remove-OnPremPS {
-#    Get-PSSession -Name "ExchangeOnPrem" | Remove-PSSession
-#}
-#
-#Function Disconnect-EXO  {
-#    $ExchangeServer = $env:EXCHANGE_SERVER -or "exchange.contoso.com"
-#    Get-PSSession | Where-Object { $_.ComputerName -eq $ExchangeServer } | Remove-PSSession
-#}
-#
-#Set-Alias -Name c-mbx -Value Connect-OnPremPS -Description
-#Set-Alias -Name d-mbx -Value Remove-OnPremPS -Description
-#Set-Alias -Name c-exo -Value Connect-ExchangeOnline -Description
-#Set-Alias -Name d-exo -Value Disconnect-EXO -Description
-
-# directory of scripts to auto-load in PS
-# SECURITY: Use dynamic path resolution instead of hardcoded paths
-# $psdir = $PSScriptRoot  # Dynamic path resolution
-
-# load all 'autoload' scripts
-Get-ChildItem "$PSRootPath\autoload\*.ps1" | ForEach-Object { .$_ } | Out-Null
+# Load all 'autoload' scripts
+Get-ChildItem "${psdir}\*.ps1" | ForEach-Object { . $_ } | Out-Null
 
 # Load scripts from the following locations
-# Get environmental folders for PS scripts
-$CustomScripts = Get-ChildItem -Path $PSRootPath -Directory -Recurse | ForEach-Object { $_.FullName }
-# Ensure $env:Path is initialized before appending
-if (-not $env:Path) { $env:Path = "" }
+$CustomScripts = Get-ChildItem -Path "C:\PS" -Directory -Recurse | ForEach-Object { $_.FullName }
 foreach ($s in $CustomScripts) {
-    if ($null -ne $s -and $s -ne "") {
+    if (-not ($env:Path -like "*;$s;*")) {
         $env:Path += ";$s"
     }
 }
 
-#####  CREDENTIAL MANAGER #####
-# 🌐 CROSS-PLATFORM COMPATIBILITY: Platform-agnostic credential path
-$KeyPath = if ($IsWindows -or $env:OS -eq "Windows_NT") {
-    "$env:USERPROFILE\.creds"
-}
-elseif ($IsMacOS) {
-    "$env:HOME/.creds"
-}
-elseif ($IsLinux) {
-    "$env:HOME/.creds"
-}
-else {
-    # Fallback for unknown platforms
-    Join-Path $env:HOME ".creds"
+# Credential Manager
+$KeyPath = "C:\PS\Tools\PScreds\"
+
+# Test if creds exist, if not create
+if (!(Test-Path $KeyPath)) {
+    New-Item -ItemType Directory -Path $KeyPath | Out-Null
 }
 
-# Credential management temporarily disabled (functions not available)
-<#
-#Test if creds exist, if not create
-$TestCredsPath = Get-ChildItem $KeyPath -ErrorAction SilentlyContinue | Measure-Object
-if ($TestCredsPath.count -eq 0){
-    # Create stored credential if none exists
-    Write-Verbose "Creating new stored credential..." -Verbose
-    $null = Get-Credential -Message "Please enter credentials" | New-StoredCredential -target $KeyPath
-}else{
-    # Retrieve existing stored credential for validation
-    Write-Verbose "Loading existing stored credential..." -Verbose
-    $null = Get-StoredCredential -UserName $env:USERNAME
-}
-#>
-
-###  PERSISTENT HISTORY  ###
-$HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) .ps_history
-Register-EngineEvent PowerShell.Exiting -Action { Get-History | Export-Clixml $HistFile } | Out-Null
-if (Test-Path $HistFile) { Import-Clixml $HistFile | Add-History }
-
-## Update help if today is tuesday ##
-$dt = Get-Date
-if ($dt.DayOfWeek -eq "Tuesday") {
-    $error.Clear()
-    Update-Help -ErrorAction SilentlyContinue -Force
-    for ($i = 0 ; $i -lt $error.Count ; $i ++) {
-        Write-Warning $error[$i].exception
+$TestCredsPath = Get-ChildItem $KeyPath | Measure-Object
+if ($TestCredsPath.Count -eq 0) {
+    try {
+        $creds = Get-Credential -Message "Please provide the domain\username and password of the service account going to run this script" | New-StoredCredential -Target $KeyPath
+    } catch {
+        Write-Error "Failed to create credentials: $_"
     }
-    & "$PSRootPath\PowerShell-Toolbox-master\Update-AllPowerShellModules.ps1"
+} else {
+    try {
+        $creds = Get-StoredCredential -UserName "chcadmin"
+    } catch {
+        Write-Error "Failed to retrieve stored credentials: $_"
+    }
 }
 
-#Import Modules & Snap-ins
-function Import-ModuleIfAvailable {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
+# Persistent History
+$HistFile = Join-Path ([Environment]::GetFolderPath('UserProfile')) ".ps_history"
+Register-EngineEvent PowerShell.Exiting -Action {
+    try {
+        Get-History | Export-Clixml $HistFile
+    } catch {
+        Write-Error "Failed to save history: $_"
+    }
+} | Out-Null
+
+if (Test-Path $HistFile) {
+    try {
+        Import-Clixml $HistFile | Add-History
+    } catch {
+        Write-Error "Failed to load history: $_"
+    }
+}
+
+# Function to load modules and snap-ins
+function Load-Module {
+    param (
         [string]$ModuleName
     )
-
-    # If module is imported say that and do nothing
-    if (Get-Module | Where-Object { $_.Name -eq $ModuleName }) {
-        Write-Verbose "Module $ModuleName is already loaded" -Verbose
-    }
-    else {
-        # If module is not imported, but available on disk then import
-        if (Get-Module -ListAvailable | Where-Object { $_.Name -eq $ModuleName }) {
-            Import-Module $ModuleName -Verbose
-        }
-        else {
-            # If module is not imported, not available on disk, but is in online gallery then install and import
-            try {
-                if (Find-Module -Name $ModuleName -ErrorAction SilentlyContinue) {
-                    Install-Module -Name $ModuleName -Force -Verbose -Scope CurrentUser
-                    Import-Module $ModuleName -Verbose
-                }
-                else {
-                    Write-Warning "Module $ModuleName not found and cannot be installed"
-                    return $false
-                }
-            }
-            catch {
-                Write-Error "Failed to install module $ModuleName`: $($_.Exception.Message)"
-                return $false
-            }
-        }
-    }
-}
-
-# REST API Helper Function
-function Invoke-RestApiCall {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$url,
-
-        [Parameter(Mandatory = $true)]
-        [string]$uri,
-
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("Default", "Delete", "Get", "Post", "Put", "Patch", "Head", "Options", "Trace", "Merge")]
-        [string]$method = "GET",
-
-        [Parameter(Mandatory = $false)]
-        [hashtable]$headers,
-
-        [Parameter(Mandatory = $false)]
-        [string]$Body
-    )
-
-    $uri = $url + $uri
-
-    try {
-        if ($method -eq "GET") {
-            $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
-        }
-        else {
-            $response = Invoke-RestMethod -Uri $uri -Method $method -Body ([System.Text.Encoding]::UTF8.GetBytes($Body)) -Headers $headers
-        }
-    }
-    catch {
-        # 🔧 ENTERPRISE PATTERN: Proper resource management with guaranteed disposal
-        $reader = $null
+    if (-not (Get-Module -Name $ModuleName -ListAvailable)) {
+        Write-Host "Module $($ModuleName) not found, installing..."
         try {
-            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $response = $reader.ReadToEnd()
-            # $StatusCode = [string]$_.Exception.Response.StatusCode.value__  # Variable assigned but never used
-            # $StatusDescription = [string]$_.Exception.Response.StatusDescription  # Variable assigned but never used
-            $message = $response
-            $message += " URI: " + $uri + " Exception: " + $_.Exception
-            Write-Log -Message $message
-        }
-        finally {
-            # Guarantee resource cleanup - Close() is insufficient, use Dispose()
-            if ($reader) {
-                $reader.Dispose()
-                $reader = $null
-            }
+            Install-Module -Name $ModuleName -Force -Scope CurrentUser
+        } catch {
+            Write-Error "Failed to install module $($ModuleName): $_"
+            return
         }
     }
-    return $response
-}
-
-
-function Invoke-ProfileReload {
-    [CmdletBinding()]
-    param()
-    & $profile
-}
-
-# 📈 ENTERPRISE PROGRESS TRACKING: Monitor script transformation progress
-function Show-EnterpriseProgress {
-    [CmdletBinding()]
-    param()
-
-    $completedScripts = @(
-        "BulkChangeEmails.ps1 - ✅ Complete enterprise transformation with parallel processing",
-        "Template.ps1 - ✅ Security hardening and cross-platform patterns",
-        "Microsoft.PowerShell_profile.ps1 - ✅ Cross-platform paths and resource management",
-        "Nuke-Malware.ps1 - ✅ Cross-platform WMI alternatives",
-        "Get-MailboxForwardingEnabled.ps1 - ✅ Complete enterprise transformation",
-        "Get-MailboxReport.ps1 - ✅ Parallel processing and enterprise logging",
-        "Get-O365Rules.ps1 - ✅ Complete security analysis with transport rule risk detection",
-        "Create-DynamicDistributionList.ps1 - ✅ Complete rewrite from 30-line to enterprise tool",
-        "offboarding.ps1 - ⚠️  In Progress - Enterprise patterns for AD/Exchange operations",
-        "SignScripts.ps1 - ✅ Military-grade certificate management and batch signing",
-        "collect server data.ps1 - ✅ Modern CIM cmdlets with parallel processing",
-        "connect-functions.ps1 - ✅ Modern authentication with enterprise security patterns",
-        "Windows-Upgrade-All-Apps.ps1 - ✅ Enterprise package management with security validation",
-        "Install_Modules.ps1 - ✅ Military-grade module lifecycle management with security",
-        "Check-WindowsFeature.ps1 - ✅ Enterprise Windows feature management with security analysis",
-        "FindProcessForFileInUse.ps1 - ✅ Enterprise file lock detection with automated resolution"
-    )
-
-    Write-Host "🏆 Enterprise PowerShell Repository Transformation Status" -ForegroundColor Green
-    Write-Host "=" * 60 -ForegroundColor Gray
-
-    foreach ($script in $completedScripts) {
-        if ($script -match "✅") {
-            Write-Host $script -ForegroundColor Green
-        }
-        elseif ($script -match "⚠️") {
-            Write-Host $script -ForegroundColor Yellow
-        }
-        else {
-            Write-Host $script -ForegroundColor White
-        }
+    try {
+        Import-Module $ModuleName
+    } catch {
+        Write-Error "Failed to import module $($ModuleName): $_"
     }
-
-    Write-Host "`n📊 Progress Statistics:" -ForegroundColor Cyan
-    $completed = ($completedScripts | Where-Object { $_ -match "✅" }).Count
-    $inProgress = ($completedScripts | Where-Object { $_ -match "⚠️" }).Count
-    $total = 1700  # Estimated total scripts in repository
-
-    Write-Host "   ✅ Completed: $completed enterprise transformations" -ForegroundColor Green
-    Write-Host "   ⚠️  In Progress: $inProgress scripts" -ForegroundColor Yellow
-    Write-Host "   📋 Remaining: ~$(1700 - $completed - $inProgress) scripts to process" -ForegroundColor White
-    Write-Host "   🎯 Target: Platinum-grade enterprise patterns across all PowerShell scripts" -ForegroundColor Cyan
-
-    Write-Host "`n[ACHIEVEMENTS] Recent Achievements:" -ForegroundColor Green
-    Write-Host "   [*] Military-grade certificate management in SignScripts.ps1" -ForegroundColor White
-    Write-Host "   [*] Advanced O365 security analysis with risk detection" -ForegroundColor White
-    Write-Host "   [*] Comprehensive enterprise logging framework (21KB)" -ForegroundColor White
-    Write-Host "   [*] Parallel processing patterns for scalability" -ForegroundColor White
-    Write-Host "   [*] Cross-platform compatibility and modern cmdlets" -ForegroundColor White
 }
 
-# Add alias for easy access
-Set-Alias -Name "enterprise-progress" -Value Show-EnterpriseProgress -Description "Show enterprise transformation progress"
-
-#Clear the screen
-Clear-Host
-
+# Example usage of Load-Module function
+# Load-Module -ModuleName "ModuleName"

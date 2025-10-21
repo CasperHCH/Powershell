@@ -64,7 +64,11 @@
     Requires: PowerShell 5.1+ or PowerShell Core 7+
     Author: Enterprise PowerShell Framework
     Version: 2.0 (Enterprise Edition)
-    Last Modified: January 2025
+    Last Modified: Oktober 2025
+
+# EXAMPLE
+    .\Install_Modules.ps1
+    Installs all modules in the default enterprise module list.
 
 .EXAMPLE
     .\Install_Modules.ps1 -UpdateExisting -VerifySignatures
@@ -83,12 +87,17 @@ param(
         "Microsoft.Graph",
         "ExchangeOnlineManagement",
         "MicrosoftTeams",
-        "MSOnline",
-        "AzureAD",
-        "SharePointPnPPowerShellOnline",
-        "Microsoft.Online.SharePoint.PowerShell",
-        "JiraPS",
+        "PnP.PowerShell",
+        "ActiveDirectory",
+        "ThreadJob",
         "ImportExcel",
+        "PSWriteHtml",
+        "powershell-yaml",
+        "Terminal-Icons",
+        "Oh-My-Posh",
+        "Pester",
+        "PlatyPS",
+        "ModuleBuilder",
         "PSScriptAnalyzer"
     ),
 
