@@ -19,10 +19,20 @@ $psdir = "C:\PS\autoload"
 Get-ChildItem "${psdir}\*.ps1" | ForEach-Object { . $_ } | Out-Null
 
 # Load scripts from the following locations
-$CustomScripts = Get-ChildItem -Path "C:\PS" -Directory -Recurse | ForEach-Object { $_.FullName }
+# Get environmental folders for PS scripts
+# Recursively collect all subdirectories under $PSRootPath and append them to $env:Path.
+# This enables PowerShell to discover scripts and modules located anywhere in the repository.
+# CAUTION: Adding all directories to $env:Path may impact system path resolution and script/module discovery.
+# Ensure $env:Path is initialized before appending
+if (-not $env:Path) { $env:Path = "" }
+
+$CustomScripts = Get-ChildItem -Path $PSRootPath -Directory -Recurse
 foreach ($s in $CustomScripts) {
-    if (-not ($env:Path -like "*;$s;*")) {
-        $env:Path += ";$s"
+    if ($null -ne $s -and $s -ne "") {
+        $currentPaths = $env:Path -split ';'
+        if ($currentPaths -notcontains $s.FullName) {
+            $env:Path += ";$($s.FullName)"
+        }
     }
 }
 
