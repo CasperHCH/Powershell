@@ -1,3 +1,5 @@
+# Compliance Note
+All examples and documentation in this file use full cmdlet names. Abbreviations, short names, and command aliases are strictly avoided to ensure compliance.
 
 # Table of Contents
 1. [Repository Overview](#repository-overview)
@@ -117,10 +119,49 @@ PS/
 - Sanitize errors/output
 - Support `-WhatIf` for destructive actions
 - Document compliance and security impact
+- **Do not use abbreviations, short names, or command aliases—always use the full cmdlet name (e.g., `Get-ChildItem` instead of `gci`).**
+**Do not use abbreviations, short names, or command aliases—always use the full cmdlet name. Examples:**
+    - `Get-ChildItem` instead of `gci`, `ls`, or `dir`
+    - `Set-Location` instead of `cd` or `chdir`
+    - `Get-Process` instead of `ps` or `gps`
+    - `Remove-Item` instead of `rm`, `del`, or `erase`
+    - `Copy-Item` instead of `cp`
+    - `Move-Item` instead of `mv`
+    - `Clear-Host` instead of `clear` or `cls`
+    - `Get-Content` instead of `cat` or `type`
+    - `Get-Help` instead of `help` or `man`
+    - `Pop-Location` instead of `popd`
+    - `Push-Location` instead of `pushd`
+    - `New-Item` instead of `ni` or `md` or `mkdir`
+    - `Remove-Item` instead of `rd` or `rmdir`
+    - `Start-Sleep` instead of `sleep`
+    - `Write-Output` instead of `echo` or `write`
+    - `Measure-Object` instead of `measure`
+    - `Select-Object` instead of `select`
+    - `Sort-Object` instead of `sort`
+    - `Group-Object` instead of `group`
+    - `Where-Object` instead of `where`
+    - `ForEach-Object` instead of `foreach`
+    - `Get-Location` instead of `pwd`
+    - `Get-History` instead of `history` or `h`
+    - `Get-Item` instead of `gi`
+    - `Set-Item` instead of `si`
+    - `Get-Variable` instead of `gv`
+    - `Set-Variable` instead of `sv`
+    - `Get-Alias` instead of `gal`
+    - `Export-Alias` instead of `epal`
+    - `Import-Alias` instead of `ipal`
+    - `Get-Command` instead of `gcm`
+    - `Get-Service` instead of `gsv`
+    - `Start-Service` instead of `sasv`
+    - `Stop-Service` instead of `spsv`
+    - `Restart-Service` instead of `rsasv`
+    - `Get-EventLog` instead of `gel`
+    - `Show-Command` instead of `shcm`
 
 ### **1. Security & Parameterization Standards**
 ```powershell
-# Good: Secure credential handling
+Write-Host "✅ Good: Secure credential handling"
 # ...existing code...
 ```
 ```powershell
@@ -155,7 +196,7 @@ $domain = "@company.com"            # Use parameter instead
 
 ### **2. Generic Parameterization Pattern**
 ```powershell
-# Good: All company-specific values as parameters
+Write-Host "✅ Good: All company-specific values as parameters"
 # ...existing code...
 ```
 ```powershell
@@ -181,7 +222,7 @@ param(
 
 ### **3. Configuration File Pattern**
 ```powershell
-# Good: External configuration for environment-specific values
+Write-Host "✅ Good: External configuration for environment-specific values"
 # ...existing code...
 ```
 ```powershell
@@ -201,7 +242,7 @@ if (Test-Path $configPath) {
 
 ### **4. Secure Error Handling & Logging**
 ```powershell
-# Good: Secure logging with audit trail
+Write-Host "✅ Good: Secure logging with audit trail"
 # ...existing code...
 ```
 > **Tip:** Rotate logs regularly and restrict access to audit files.
@@ -225,7 +266,11 @@ function Write-Log {
     )
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $sessionId = $script:SessionId ?? (New-Guid).ToString().Substring(0,8)
+    if ($script:SessionId) {
+        $sessionId = $script:SessionId
+    } else {
+        $sessionId = (New-Guid).ToString().Substring(0,8)
+    }
 
     # Sanitize message for display (remove sensitive data)
     $displayMessage = $Message
@@ -308,7 +353,7 @@ function Write-AuditLog {
 
 ### **Parameterized API Integration Pattern**
 ```powershell
-# Good: Secure API pattern with full parameterization
+Write-Host "✅ Good: Secure API pattern with full parameterization"
 # ...existing code...
 ```
 ```powershell
@@ -387,7 +432,11 @@ function Write-Log {
     )
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $sessionId = $script:SessionId ?? (New-Guid).ToString().Substring(0,8)
+    if ($script:SessionId) {
+        $sessionId = $script:SessionId
+    } else {
+        $sessionId = (New-Guid).ToString().Substring(0,8)
+    }
 
     # Sanitize message for display (remove sensitive data)
     $displayMessage = $Message
@@ -455,7 +504,7 @@ function Write-AuditLog {
 
 ### **Progress Reporting**
 ```powershell
-# Progress indicators for long operations
+Write-Host "📊 Progress indicators for long operations"
 # ...existing code...
 ```
 ```powershell
@@ -488,9 +537,9 @@ Write-Progress -Activity "Processing Items" -Completed
 
 ### **1. Eliminate All Hardcoded Values**
 ```powershell
-# Bad: Hardcoded company data
+Write-Host "❌ Bad: Hardcoded company data"
 # ...existing code...
-# Good: Parameterize everything
+Write-Host "✅ Good: Parameterize everything"
 # ...existing code...
 ```
 ```powershell
@@ -518,9 +567,9 @@ $apiKey = Get-SecureApiKey -ServiceName $ServiceName
 
 ### **2. Sanitize All Output and Errors**
 ```powershell
-# Bad: Exposing sensitive information
+Write-Host "❌ Bad: Exposing sensitive information"
 # ...existing code...
-# Good: Sanitized error handling
+Write-Host "✅ Good: Sanitized error handling"
 # ...existing code...
 ```
 ```powershell
@@ -543,9 +592,9 @@ catch {
 
 ### **3. Implement Comprehensive Parameter Validation**
 ```powershell
-# Bad: Minimal or no validation
+Write-Host "❌ Bad: Minimal or no validation"
 # ...existing code...
-# Good: Comprehensive validation and documentation
+Write-Host "✅ Good: Comprehensive validation and documentation"
 # ...existing code...
 ```
 ```powershell
@@ -575,7 +624,7 @@ param(
 
 ### **4. Data Classification & Protection**
 ```powershell
-# Good: Classify and protect data appropriately
+Write-Host "✅ Good: Classify and protect data appropriately"
 # ...existing code...
 ```
 ```powershell
@@ -782,7 +831,11 @@ function Test-Prerequisites {
                 Rule = $rule.Key
                 Passed = $result.Success
                 Message = $result.Message
-                Severity = $result.Severity ?? "Error"
+                if ($result.Severity) {
+                    Severity = $result.Severity
+                } else {
+                    Severity = "Error"
+                }
             }
         } catch {
             $validationResults += @{
