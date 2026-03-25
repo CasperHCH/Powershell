@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCCM Software Collection Consolidation - Operational Documentation</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1f2937;
+      margin: 24px;
+      max-width: 1100px;
+    }
+    h1, h2, h3 { color: #0f172a; }
+    h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+    h2 { margin-top: 28px; border-left: 4px solid #2563eb; padding-left: 10px; }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: Consolas, "Courier New", monospace;
+    }
+    pre {
+      background: #0b1020;
+      color: #e5e7eb;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+    .callout {
+      border-left: 4px solid #16a34a;
+      background: #f0fdf4;
+      padding: 12px;
+      margin: 14px 0;
+    }
+    .warning {
+      border-left: 4px solid #d97706;
+      background: #fffbeb;
+      padding: 12px;
+      margin: 14px 0;
+    }
+    .toc ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .small {
+      color: #4b5563;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>SCCM Software Collection Consolidation - Operational Documentation</h1>
+  <p class="small">Document purpose: technical and operational documentation for Confluence.</p>
+
+  <div class="callout">
+    <strong>What this script does:</strong><br />
+    Consolidates versioned SCCM software collections into three master collections, optionally builds application supersedence, migrates deployments to the latest app version, safely removes legacy objects, and cleans up empty folders.
+  </div>
+
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <ul>
+      <li><a href="#scope">1. Scope and Outcomes</a></li>
+      <li><a href="#inputs">2. Inputs and Parameters</a></li>
+      <li><a href="#high-level">3. End-to-End Procedure (Phase Order)</a></li>
+      <li><a href="#deep-dive">4. Deep Dive by Workflow Area</a></li>
+      <li><a href="#why">5. Why the Script Is Structured This Way</a></li>
+      <li><a href="#safety">6. Safety, Idempotency, and Failure Controls</a></li>
+      <li><a href="#outputs">7. Outputs and Audit Artifacts</a></li>
+      <li><a href="#runbook">8. Runbook Guidance</a></li>
+      <li><a href="#known">9. Known Behaviors and Notes</a></li>
+    </ul>
+  </div>
+
+  <h2 id="scope">1. Scope and Outcomes</h2>
+  <p>The script performs software-family consolidation under SCCM by creating or reusing these master collections:</p>
+  <ul>
+    <li><code>&lt;Canonical&gt; - Install (Available)</code></li>
+    <li><code>&lt;Canonical&gt; - Install (Required)</code></li>
+    <li><code>&lt;Canonical&gt; - Uninstall</code></li>
+  </ul>
+  <p>It places masters in:</p>
+  <pre>&lt;SiteCode&gt;:\DeviceCollection\Application Deployment\&lt;TargetFolder&gt;</pre>
+  <p>Then it computes membership and deployment intent from legacy collections, migrates deployments to latest version, preserves app versions needed by task sequences, and deletes obsolete collections/apps/deployments in dependency-safe order.</p>
+
+  <h2 id="inputs">2. Inputs and Parameters</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Parameter</th>
+        <th>Purpose</th>
+        <th>Operational Impact</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>SiteCode</code></td>
+        <td>SCCM site code (example: P03).</td>
+        <td>Defines provider drive and object lookup scope.</td>
+      </tr>
+      <tr>
+        <td><code>SoftwareName</code></td>
+        <td>Requested software family name or partial.</td>
+        <td>Used to discover matching collections/apps and canonical naming.</td>
+      </tr>
+      <tr>
+        <td><code>TargetFolder</code></td>
+        <td>Folder under Application Deployment for masters.</td>
+        <td>Controls object placement and preserve path for folder cleanup.</td>
+      </tr>
+      <tr>
+        <td><code>ManageSupersedence</code></td>
+        <td>Enables supersedence chain creation.</td>
+        <td>Links versioned apps in linear chain (adjacent pairs).</td>
+      </tr>
+      <tr>
+        <td><code>DeleteOldCollections</code></td>
+        <td>Enables cleanup phase.</td>
+        <td>Without this switch, no legacy delete actions are performed.</td>
+      </tr>
+      <tr>
+        <td><code>AutoApprove</code></td>
+        <td>Skips interactive cleanup confirmation.</td>
+        <td>Makes job non-interactive for automation runs.</td>
+      </tr>
+      <tr>
+        <td><code>DryRun</code></td>
+        <td>Simulation mode.</td>
+        <td>Logs intended mutations without executing them.</td>
+      </tr>
+      <tr>
+        <td><code>RetryCount</code>, <code>RetryDelaySeconds</code></td>
+        <td>Controls transient-failure retry loop.</td>
+        <td>Retries failed app/deployment/collection removals.</td>
+      </tr>
+      <tr>
+        <td><code>EnableDebugLog</code></td>
+        <td>Enables script-level DEBUG logs.</td>
+        <td>Useful for diagnostics and root-cause isolation.</td>
+      </tr>
+      <tr>
+        <td><code>CleanupCollectionMembershipDependencies</code></td>
+        <td>Dependency cleanup toggle.</td>
+        <td>Removes include/exclude references that block collection deletes.</td>
+      </tr>
+      <tr>
+        <td><code>ReassignLimitingCollectionDependencies</code></td>
+        <td>Limiting-collection reassignment toggle.</td>
+        <td>Repoints dependent collections before deleting their old limiter.</td>
+      </tr>
+      <tr>
+        <td><code>FallbackLimitingCollectionName</code></td>
+        <td>Fallback limiting collection name.</td>
+        <td>Used when limiter reassignment is required.</td>
+      </tr>
+      <tr>
+        <td><code>ScriptBuildId</code></td>
+        <td>Optional build marker.</td>
+        <td>Included in execution identity log for provenance.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="high-level">3. End-to-End Procedure (Phase Order)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Phase</th>
+        <th>What Happens</th>
+        <th>Why It Exists</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0</td>
+        <td>Start run, record script identity (path/hash/build/host).</td>
+        <td>Traceability and change verification across environments.</td>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Connect to SCCM site provider.</td>
+        <td>Ensures all subsequent CM cmdlets execute in correct context.</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Discover all collections matching requested software string.</td>
+        <td>Defines in-scope legacy artifacts.</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Auto-detect canonical software family name from collection names.</td>
+        <td>Normalizes naming so masters and app lookups are consistent.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Resolve canonical name used for master objects.</td>
+        <td>Prevents fragmented masters caused by naming drift.</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Ensure 3 master collections and move to target folder.</td>
+        <td>Creates stable target state for ongoing deployment operations.</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Populate masters with calculated members; ensure master deployments.</td>
+        <td>Merges membership from old model into clean master model.</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Optionally build supersedence chain (oldest to newest pairs).</td>
+        <td>Makes version progression explicit and deterministic.</td>
+      </tr>
+      <tr>
+        <td>7.5</td>
+        <td>Reset runtime caches including app caches.</td>
+        <td>Avoids stale WMI proxy objects after supersedence revisions.</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Plan and execute cleanup: deployments -> apps -> collections -> folders.</td>
+        <td>Dependency-safe deletion with migration first and safety checks.</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Retry failed deletions after cache reset and delay.</td>
+        <td>Handles transient SCCM/provider timing issues.</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Export failure and migration audit CSVs.</td>
+        <td>Auditable post-run evidence for operations and troubleshooting.</td>
+      </tr>
+      <tr>
+        <td>Final</td>
+        <td>Emit run summary and restore session preferences.</td>
+        <td>Closes run cleanly and avoids session-side effects.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="deep-dive">4. Deep Dive by Workflow Area</h2>
+
+  <h3>4.1 Collection Classification and Membership Math</h3>
+  <p>The script classifies collections into legacy buckets and computes target memberships using set operations:</p>
+  <ul>
+    <li><strong>Legacy Available</strong>: name contains <code>Install (Available)</code></li>
+    <li><strong>Legacy Required</strong>: name contains <code>Install</code>, excluding Available and Uninstall</li>
+    <li><strong>Legacy Uninstall</strong>: name contains <code>Uninstall</code></li>
+  </ul>
+  <p>Membership model:</p>
+  <ul>
+    <li><strong>Master Available</strong> = union of Legacy Available members</li>
+    <li><strong>Master Required</strong> = union of Legacy Required minus Master Available</li>
+    <li><strong>Master Uninstall</strong> = union of Legacy Uninstall members</li>
+  </ul>
+  <p>This avoids placing a device in both Available and Required for the same install intent.</p>
+
+  <h3>4.2 Deployable Application Selection</h3>
+  <p>The script first looks for an exact canonical-name app. If none exists, it selects the latest versioned app for that software family and logs the fallback decision.</p>
+
+  <h3>4.3 Supersedence Behavior</h3>
+  <ul>
+    <li>Skipped if <code>ManageSupersedence</code> is not specified.</li>
+    <li>Builds normalized versioned app list and sorts oldest -> newest.</li>
+    <li>Links adjacent pairs only (linear chain).</li>
+    <li>Uses parameter-set fallbacks to support environment differences in <code>Set-CMApplicationSupersedence</code>.</li>
+    <li>Logs success/failure per link without hard-failing the full run for one failed link.</li>
+  </ul>
+
+  <h3>4.4 Cleanup Plan Logic</h3>
+  <p>Cleanup is enabled only when <code>DeleteOldCollections</code> is specified. Then:</p>
+  <ol>
+    <li>Identify non-master collections.</li>
+    <li>Build deployment delete candidate set from those collections.</li>
+    <li>Compute app keep set: two newest versions + task-sequence-referenced versions.</li>
+    <li>Classify old app versions for deletion.</li>
+    <li>Sort legacy collections by version descending (newest first) to reduce include-rule conflicts.</li>
+    <li>Prompt for confirmation unless <code>AutoApprove</code> is set.</li>
+    <li>Migrate per-collection deployments to latest app, then delete old deployment objects.</li>
+    <li>Delete old apps (skip if referenced by task sequences).</li>
+    <li>Reset caches, then delete old collections.</li>
+    <li>Delete empty folders under Application Deployment (preserving target folder).</li>
+  </ol>
+
+  <h3>4.5 Retry Strategy</h3>
+  <p>Failed app/deployment/collection deletes are collected in in-memory lists. Retry rounds then:</p>
+  <ul>
+    <li>Reset runtime caches between rounds.</li>
+    <li>Retry object removals up to <code>RetryCount</code>.</li>
+    <li>Sleep <code>RetryDelaySeconds</code> between rounds.</li>
+    <li>Log progress and final retry completion.</li>
+  </ul>
+
+  <h2 id="why">5. Why the Script Is Structured This Way</h2>
+
+  <h3>5.1 Migration Before Deletion</h3>
+  <p>Deployments are migrated to the latest app before deleting legacy deployments and collections. This preserves delivery continuity and avoids accidental deployment gaps.</p>
+
+  <h3>5.2 Keep Set Includes Task Sequence References</h3>
+  <p>Even old versions are preserved when referenced by task sequences, preventing operational breakage in TS steps that still point to older application identifiers.</p>
+
+  <h3>5.3 Cache Resets at Mutation Boundaries</h3>
+  <p>SCCM mutations (supersedence, deletes) can invalidate previously fetched provider objects. Cache reset points force fresh reads to reduce stale-object failures and inconsistent behavior.</p>
+
+  <h3>5.4 Dependency-Safe Collection Deletion</h3>
+  <p>Collection dependency handling plus sorted deletion order minimizes include/exclude and limiting-collection conflict failures during cleanup.</p>
+
+  <h2 id="safety">6. Safety, Idempotency, and Failure Controls</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Control</th>
+        <th>Implementation</th>
+        <th>Benefit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Scope validation</td>
+        <td>Rejects too-short software names in sensitive phases.</td>
+        <td>Reduces risk of broad unintended impact.</td>
+      </tr>
+      <tr>
+        <td>Dry run mode</td>
+        <td>Uses dry-run wrappers and log-only behavior.</td>
+        <td>Safe preview before production mutation.</td>
+      </tr>
+      <tr>
+        <td>Auto approval control</td>
+        <td>Interactive prompt unless <code>AutoApprove</code> is set.</td>
+        <td>Operator confirmation gate for destructive actions.</td>
+      </tr>
+      <tr>
+        <td>Robust deployment removal</td>
+        <td>Fallback attempts by InputObject, fresh fetch by ID, and direct ID/name parameter sets.</td>
+        <td>Avoids interactive prompts and stale-object failures.</td>
+      </tr>
+      <tr>
+        <td>Null-safe object handling</td>
+        <td>Property alias resolution and guard checks before property access.</td>
+        <td>Prevents null-reference crashes on irregular SCCM objects.</td>
+      </tr>
+      <tr>
+        <td>Retry mechanism</td>
+        <td>Tracks failures and retries with delay.</td>
+        <td>Improves success in transient provider conditions.</td>
+      </tr>
+      <tr>
+        <td>Structured stage logging</td>
+        <td>Tracks current stage and logs stage-specific failure context.</td>
+        <td>Faster troubleshooting and reproducibility.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warning">
+    <strong>Important behavior note:</strong><br />
+    Supersedence operations can create new app revisions. A cache reset is intentionally performed before cleanup so subsequent app and deployment queries use fresh objects.
+  </div>
+
+  <h2 id="outputs">7. Outputs and Audit Artifacts</h2>
+  <ul>
+    <li>Console logs with timestamped <code>INFO/WARN/ERROR/SUCCESS/DEBUG</code> levels.</li>
+    <li>End-of-run summary counts (collections processed, migrations, failed objects).</li>
+    <li>CSV exports under <code>C:\Temp\SCCMCleanupResults</code>, including deployment migration audit.</li>
+  </ul>
+
+  <h2 id="runbook">8. Runbook Guidance</h2>
+
+  <h3>8.1 Recommended execution sequence</h3>
+  <ol>
+    <li>Run once with <code>-DryRun</code> and inspect plan/log output.</li>
+    <li>Run with <code>-ManageSupersedence</code> and <code>-DeleteOldCollections</code>.</li>
+    <li>Use <code>-AutoApprove</code> only in controlled automation or when plan has been reviewed.</li>
+    <li>If diagnostics are needed, rerun with <code>-EnableDebugLog</code> and capture full output.</li>
+  </ol>
+
+  <h3>8.2 Example command</h3>
+  <pre>C:\Path\To\SCCMSoftwareCollectionConsolidation.ps1 \
+  -SiteCode P03 \
+  -SoftwareName "Example Product" \
+  -TargetFolder "Example Product" \
+  -ManageSupersedence \
+  -DeleteOldCollections \
+  -AutoApprove</pre>
+
+  <h2 id="known">9. Known Behaviors and Notes</h2>
+  <ul>
+    <li>If multiple software-family names are detected and <code>AutoApprove</code> is not set, the script prompts for selection.</li>
+    <li>When no legacy Available collections exist, master Available may be created and deployed empty by design.</li>
+    <li>Application deletions are skipped if task sequence references are present.</li>
+    <li>Folder cleanup uses SCCM and WMI discovery to identify empty candidates under Application Deployment.</li>
+    <li>The script is designed for reruns and no-op states; repeated execution should converge on the same master-state model.</li>
+  </ul>
+
+  <hr />
+  <p class="small">Prepared for Confluence documentation use. This page can be pasted into an HTML macro or converted to native Confluence content sections.</p>
+</body>
+</html>
