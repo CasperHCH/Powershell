@@ -1,0 +1,2 @@
+if((Get-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate).WUServer -like "*scm*"){(Get-WmiObject -Namespace "root\ccm\clientsdk" -Class CCM_SoftwareUpdate -Filter "NOT Name like '%Edge%'" ).Name} 
+else {(New-Object -ComObject Microsoft.Update.Session).CreateupdateSearcher().Search(“IsHidden=0 and IsInstalled=0”).Updates | Where-Object -FilterScript {$_.Title -notlike '*Edge*'} | Select-Object -ExpandProperty Title}
