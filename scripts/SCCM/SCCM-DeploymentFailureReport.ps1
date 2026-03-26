@@ -38,7 +38,7 @@
     .\SCCM-DeploymentFailureReport.ps1 -DeploymentName Chrome
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

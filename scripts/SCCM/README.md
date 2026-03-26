@@ -1,11 +1,38 @@
 # SCCM Script Index
 
-This index summarizes the newly added SCCM automation scripts in this folder.
+This index summarizes SCCM automation scripts in this folder.
 
 ## Notes
 - Run site-level scripts from a host with the Configuration Manager console module installed.
 - Most report scripts are read-only.
 - Remediation scripts support safety features such as `-WhatIf` where applicable.
+
+## WhatIf Support (Quick Reference)
+- All SCCM scripts in this folder now expose `-WhatIf` via `SupportsShouldProcess`.
+- Scripts that perform changes (`remove`, `update`, `redistribute`, `trigger`, `repair`) honor `-WhatIf` as an execution preview.
+- Read-only/report scripts also accept `-WhatIf` for consistency; because they do not perform state changes, behavior is generally unchanged.
+- `-DryRun` note: legacy `-DryRun` parameters are retained only where already present (`SCCM-EnrichSoftwareMetadata.ps1` and `SCCMSoftwareCollectionConsolidation.ps1`) for backward compatibility; `-WhatIf` is the standard going forward.
+
+## Dependency Requirement (Important)
+- The scripts listed below that dot-source `SCCM-Common.ps1` require that file to exist in the same folder (`$PSScriptRoot`) at runtime.
+- If `SCCM-Common.ps1` is missing, these scripts will fail immediately before main execution.
+- When copying scripts to another machine, copy `SCCM-Common.ps1` together with any dependent SCCM script.
+- Recommended approach: copy or clone the full `scripts/SCCM` folder rather than individual files.
+
+Dependent scripts include:
+- `SCCM-AnalyzeStaleCollectionsAndDeployments.ps1`
+- `SCCM-AuditApplicationSupersedence.ps1`
+- `SCCM-BoundaryGroupAudit.ps1`
+- `SCCM-CollectClientLogs.ps1`
+- `SCCM-CollectionMembershipDriftReport.ps1`
+- `SCCM-DeploymentFailureReport.ps1`
+- `SCCM-RedistributeFailedContent.ps1`
+- `SCCM-ReferenceImpactAnalysis.ps1`
+- `SCCM-RepairClientHealth.ps1`
+- `SCCM-RetryFailedDeployments.ps1`
+- `SCCM-SoftwareUpdateComplianceReport.ps1`
+- `SCCM-TestClientHealth.ps1`
+- `SCCM-ValidateContentDistribution.ps1`
 
 ## Shared Helper
 
@@ -130,4 +157,58 @@ $ctx = Initialize-SccmScript -ScriptName 'Example.ps1'
 - Example:
 ```powershell
 .\SCCM-CollectClientLogs.ps1 -ComputerName PC001,PC002 -Compress
+```
+
+### SCCM-RunClientActionsLocal.ps1
+- Purpose: Triggers standard local SCCM client action schedules on the local machine.
+- Key inputs: `-DelaySeconds`, `-ContinueOnError`, `-IncludeOptionalActions`, `-PassThru`.
+- Example:
+```powershell
+.\SCCM-RunClientActionsLocal.ps1 -WhatIf
+```
+
+## Collection Analysis and Cleanup
+
+### SCCM-CollectionAnalyse.ps1
+- Purpose: Performs read-only collection consolidation and safe-to-delete analysis.
+- Key inputs: `-SiteCode`, `-AnalyzeConsolidation`, `-AnalyzeSafeToDelete`, `-AnalyzeAll`, `-Mode`, `-OutputCsv`, `-JsonSummaryPath`.
+- Example:
+```powershell
+.\SCCM-CollectionAnalyse.ps1 -SiteCode P01 -AnalyzeAll -Mode Deep
+```
+
+### SCCM-DeleteWinFolderIfSoftwareIsntPresent.ps1
+- Purpose: Identifies local software folders not represented in SCCM and can remove orphaned folders.
+- Key inputs: `-SCCMSiteServer`, `-SCCMSiteCode`, `-WindowsSoftwareBasePath`, `-MinimumFolderAgeDays`, `-ExcludeFolders`.
+- Example:
+```powershell
+.\SCCM-DeleteWinFolderIfSoftwareIsntPresent.ps1 -SCCMSiteServer sccm-01.contoso.com -SCCMSiteCode P01 -WhatIf
+```
+
+## Software Metadata and Version Intelligence
+
+### SCCM-EnrichSoftwareMetadata.ps1
+- Purpose: Enriches missing SCCM application metadata such as publisher and software version.
+- Key inputs: `-SiteCode`, `-SoftwareName`, `-IncludeAllApplications`, `-VendorMapPath`, `-DryRun`, `-ReportPath`.
+- Example:
+```powershell
+.\SCCM-EnrichSoftwareMetadata.ps1 -SiteCode P01 -SoftwareName Firefox -DryRun
+```
+
+### SCCM-SoftwareVersionAudit.ps1
+- Purpose: Exports SCCM application inventory and compares current vs latest public versions.
+- Key inputs: `-SiteCode`, `-SoftwareName`, `-IncludeAllApplications`, `-ExportOnly`, `-InputCsvPath`, `-OutputDirectory`, `-ExportVendorMap`, `-ExportUnresolvedReport`.
+- Example:
+```powershell
+.\SCCM-SoftwareVersionAudit.ps1 -SiteCode P01 -IncludeAllApplications -ExportOnly
+```
+
+## Legacy / Specialized
+
+### SCCMSoftwareCollectionConsolidation.ps1
+- Purpose: Legacy all-in-one collection consolidation workflow script.
+- Note: This script contains its own helper functions (for example internal site connection helpers) and does not dot-source `SCCM-Common.ps1`.
+- Example:
+```powershell
+.\SCCMSoftwareCollectionConsolidation.ps1 -SiteCode P01
 ```

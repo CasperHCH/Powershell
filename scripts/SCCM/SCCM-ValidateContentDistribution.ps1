@@ -37,7 +37,7 @@
     .\SCCM-ValidateContentDistribution.ps1 -ContentName Firefox -IncludeHealthyContent
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

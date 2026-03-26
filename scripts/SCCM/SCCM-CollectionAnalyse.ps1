@@ -111,7 +111,7 @@ Maximum number of concurrent jobs when EnableParallelRuleScan is active.
 .\SCCM-CollectionAnalyse.ps1 -SiteCode P03 -AnalyzeAll -ProgressInterval 250 -JsonSummaryPath .\Summary.json
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [string]$SiteCode,
 

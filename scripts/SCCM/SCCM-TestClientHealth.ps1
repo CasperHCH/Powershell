@@ -36,7 +36,7 @@
     .\SCCM-TestClientHealth.ps1 -ComputerName PC001,PC002 -ExportJson
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]

@@ -36,7 +36,7 @@
     .\SCCM-ReferenceImpactAnalysis.ps1 -CollectionName "Mozilla Firefox - Install (Required)"
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

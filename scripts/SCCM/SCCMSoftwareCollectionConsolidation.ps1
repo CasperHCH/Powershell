@@ -92,7 +92,7 @@
     Example: "2026.03.20-rc2" or a CI run id.
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [Parameter(Mandatory = $true)]
     [string]$SiteCode,
@@ -138,6 +138,15 @@ param(
     [string]$ScriptBuildId = ''
 )
 
+# Backward compatibility and standardization:
+# -WhatIf implies dry-run execution in this legacy workflow.
+if ($WhatIfPreference -and -not $DryRun) {
+    $DryRun = $true
+}
+if ($DryRun -and -not $WhatIfPreference) {
+    $WhatIfPreference = $true
+}
+
 # ------------------------------------------------------------
 # GLOBAL STATE
 # ------------------------------------------------------------
@@ -146,6 +155,8 @@ $failedApps         = New-Object System.Collections.Generic.List[object]
 $failedCollections  = New-Object System.Collections.Generic.List[object]
 $failedDeployments  = New-Object System.Collections.Generic.List[object]
 $deploymentMigrationAudit = New-Object System.Collections.Generic.List[object]
+$script:ProtectedLegacyCollectionIds = New-Object System.Collections.Generic.HashSet[string]
+$script:ProtectedLegacyCollectionNames = New-Object System.Collections.Generic.HashSet[string]
 
 # Runtime caches reduce repeated SCCM provider calls during one execution.
 # They are intentionally in-memory only and reset between retry rounds.
@@ -993,8 +1004,8 @@ function Get-CollectionDeployments {
     Resolves a normalized four-part version for an application.
 
 .DESCRIPTION
-    Prefers SoftwareVersion when available and falls back to version extraction
-    from application display name.
+    Prefers version text from the application display name and falls back to
+    SoftwareVersion only when the name does not contain a parseable version.
 #>
 function Get-AppVersionNormalized {
     param(
@@ -1004,12 +1015,22 @@ function Get-AppVersionNormalized {
 
     if (-not $App) { return $null }
 
-    if (-not [string]::IsNullOrWhiteSpace($App.SoftwareVersion)) {
-        $norm = Normalize-VersionString -VersionString $App.SoftwareVersion
+    # Prefer the version embedded in the display name when present. In SCCM,
+    # SoftwareVersion can contain vendor-specific product numbering that does not
+    # reflect the deployable application version shown to operators.
+    $displayName = [string](Get-ObjectPropertyValue -InputObject $App -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+    if (-not [string]::IsNullOrWhiteSpace($displayName)) {
+        $norm = Extract-VersionFromName -Name $displayName
         if ($norm) { return $norm }
     }
 
-    return Extract-VersionFromName -Name $App.LocalizedDisplayName
+    $softwareVersion = [string](Get-ObjectPropertyValue -InputObject $App -PropertyNames @('SoftwareVersion'))
+    if (-not [string]::IsNullOrWhiteSpace($softwareVersion)) {
+        $norm = Normalize-VersionString -VersionString $softwareVersion
+        if ($norm) { return $norm }
+    }
+
+    return $null
 }
 
 <#
@@ -1576,6 +1597,71 @@ function Get-CollectionIdentity {
     }
 }
 
+function Protect-LegacyCollectionFromDeletion {
+    <#
+    .SYNOPSIS
+        Marks a legacy collection as protected from delete cleanup.
+
+    .DESCRIPTION
+        Used when query membership rules could not be copied to a master
+        collection. Protected collections are excluded from delete plans.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        $Collection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Reason
+    )
+
+    $identity = Get-CollectionIdentity -InputObject $Collection
+    if (-not $identity.IsValid) {
+        return
+    }
+
+    $id = [string]$identity.Id
+    $name = [string]$identity.Name
+
+    if (-not [string]::IsNullOrWhiteSpace($id)) {
+        [void]$script:ProtectedLegacyCollectionIds.Add($id.ToLowerInvariant())
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($name)) {
+        [void]$script:ProtectedLegacyCollectionNames.Add($name.Trim().ToLowerInvariant())
+    }
+
+    Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Protected from cleanup delete' -Detail ("'{0}' | Reason: {1}" -f $name, $Reason)
+}
+
+function Test-LegacyCollectionProtectedFromDeletion {
+    <#
+    .SYNOPSIS
+        Checks whether a collection is currently protected from deletion.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        $Collection
+    )
+
+    $identity = Get-CollectionIdentity -InputObject $Collection
+    if (-not $identity.IsValid) {
+        return $false
+    }
+
+    $id = [string]$identity.Id
+    $name = [string]$identity.Name
+
+    if (-not [string]::IsNullOrWhiteSpace($id) -and $script:ProtectedLegacyCollectionIds.Contains($id.ToLowerInvariant())) {
+        return $true
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($name) -and $script:ProtectedLegacyCollectionNames.Contains($name.Trim().ToLowerInvariant())) {
+        return $true
+    }
+
+    return $false
+}
+
 <#
 .SYNOPSIS
     Safely executes a command with consistent error logging.
@@ -1670,6 +1756,231 @@ function Ensure-MasterCollectionDeployment {
         }
         else {
             Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not deploy '{0}' as '{1}' to collection '{2}': {3}" -f $appName, $DeploymentPurpose, $collectionName, $_.Exception.Message)
+        }
+    }
+}
+
+function Get-CollectionQueryMembershipRules {
+    <#
+    .SYNOPSIS
+        Returns query membership rules for a collection.
+
+    .DESCRIPTION
+        Uses compatible parameter fallbacks because SCCM cmdlet parameter sets
+        differ between environments.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        $Collection
+    )
+
+    $queryRuleGetCmd = Get-CachedCommand -Name 'Get-CMDeviceCollectionQueryMembershipRule'
+    if (-not $queryRuleGetCmd) {
+        return @()
+    }
+
+    $identity = Get-CollectionIdentity -InputObject $Collection
+    if (-not $identity.IsValid) {
+        return @()
+    }
+
+    $attempts = @()
+    $paramNames = @($queryRuleGetCmd.Parameters.Keys)
+
+    if (($paramNames -contains 'CollectionId') -and -not [string]::IsNullOrWhiteSpace($identity.Id)) {
+        $collectionId = [string]$identity.Id
+        $attempts += { Get-CMDeviceCollectionQueryMembershipRule -CollectionId $collectionId -ErrorAction Stop }
+    }
+
+    if (($paramNames -contains 'CollectionName') -and -not [string]::IsNullOrWhiteSpace($identity.Name)) {
+        $collectionName = [string]$identity.Name
+        $attempts += { Get-CMDeviceCollectionQueryMembershipRule -CollectionName $collectionName -ErrorAction Stop }
+    }
+
+    if ($paramNames -contains 'InputObject') {
+        $collectionObject = $Collection
+        $attempts += { Get-CMDeviceCollectionQueryMembershipRule -InputObject $collectionObject -ErrorAction Stop }
+    }
+
+    if ($attempts.Count -eq 0) {
+        return @()
+    }
+
+    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Get collection query membership rules'
+    if (-not $result.Success) {
+        return @()
+    }
+
+    return Convert-ToSafeArray -InputObject $result.Result
+}
+
+function Add-CollectionQueryMembershipRuleIfMissing {
+    <#
+    .SYNOPSIS
+        Adds a query membership rule to a target collection when missing.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        $TargetCollection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RuleName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$QueryExpression
+    )
+
+    $normalizedQuery = ($QueryExpression -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($normalizedQuery)) {
+        return $false
+    }
+
+    $targetIdentity = Get-CollectionIdentity -InputObject $TargetCollection
+    if (-not $targetIdentity.IsValid) {
+        return $false
+    }
+
+    $existingRules = Get-CollectionQueryMembershipRules -Collection $TargetCollection
+    foreach ($existingRule in $existingRules) {
+        if (-not $existingRule) { continue }
+
+        $existingName = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('RuleName','Name'))
+        $existingQuery = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('QueryExpression','Query'))
+
+        if ((-not [string]::IsNullOrWhiteSpace($existingName) -and $existingName -eq $RuleName) -or
+            (-not [string]::IsNullOrWhiteSpace($existingQuery) -and $existingQuery.Trim() -eq $normalizedQuery)) {
+            return $true
+        }
+    }
+
+    $addRuleCmd = Get-CachedCommand -Name 'Add-CMDeviceCollectionQueryMembershipRule'
+    if (-not $addRuleCmd) {
+        return $false
+    }
+
+    $paramNames = @($addRuleCmd.Parameters.Keys)
+    $attempts = @()
+
+    if (($paramNames -contains 'CollectionId') -and ($paramNames -contains 'RuleName') -and ($paramNames -contains 'QueryExpression') -and -not [string]::IsNullOrWhiteSpace($targetIdentity.Id)) {
+        $targetCollectionId = [string]$targetIdentity.Id
+        $targetRuleName = $RuleName
+        $targetQueryExpression = $normalizedQuery
+        $attempts += { Add-CMDeviceCollectionQueryMembershipRule -CollectionId $targetCollectionId -RuleName $targetRuleName -QueryExpression $targetQueryExpression -ErrorAction Stop | Out-Null }
+    }
+
+    if (($paramNames -contains 'CollectionName') -and ($paramNames -contains 'RuleName') -and ($paramNames -contains 'QueryExpression') -and -not [string]::IsNullOrWhiteSpace($targetIdentity.Name)) {
+        $targetCollectionName = [string]$targetIdentity.Name
+        $targetRuleName = $RuleName
+        $targetQueryExpression = $normalizedQuery
+        $attempts += { Add-CMDeviceCollectionQueryMembershipRule -CollectionName $targetCollectionName -RuleName $targetRuleName -QueryExpression $targetQueryExpression -ErrorAction Stop | Out-Null }
+    }
+
+    if (($paramNames -contains 'InputObject') -and ($paramNames -contains 'RuleName') -and ($paramNames -contains 'QueryExpression')) {
+        $targetCollectionObject = $TargetCollection
+        $targetRuleName = $RuleName
+        $targetQueryExpression = $normalizedQuery
+        $attempts += { Add-CMDeviceCollectionQueryMembershipRule -InputObject $targetCollectionObject -RuleName $targetRuleName -QueryExpression $targetQueryExpression -ErrorAction Stop | Out-Null }
+    }
+
+    if ($attempts.Count -eq 0) {
+        return $false
+    }
+
+    if ($DryRun) {
+        Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would copy query rule' -Detail ("Target='{0}', Rule='{1}'" -f $targetIdentity.Name, $RuleName)
+        return $true
+    }
+
+    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Add collection query membership rule'
+    return $result.Success
+}
+
+function Copy-QueryMembershipRulesToMaster {
+    <#
+    .SYNOPSIS
+        Copies query membership rules from legacy collections to a master.
+
+    .DESCRIPTION
+        If query rules cannot be copied, marks the source collection as protected
+        from cleanup deletion to prevent membership-loss regressions.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        $LegacyCollections,
+
+        [Parameter(Mandatory = $true)]
+        $MasterCollection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$MasterRole
+    )
+
+    if (-not $MasterCollection) {
+        return
+    }
+
+    $masterIdentity = Get-CollectionIdentity -InputObject $MasterCollection
+    if (-not $masterIdentity.IsValid) {
+        return
+    }
+
+    $legacyList = Convert-ToSafeArray -InputObject $LegacyCollections
+    if ($legacyList.Count -eq 0) {
+        return
+    }
+
+    $getRuleCmd = Get-CachedCommand -Name 'Get-CMDeviceCollectionQueryMembershipRule'
+    $addRuleCmd = Get-CachedCommand -Name 'Add-CMDeviceCollectionQueryMembershipRule'
+
+    if (-not $getRuleCmd -or -not $addRuleCmd) {
+        foreach ($legacy in $legacyList) {
+            if (-not $legacy) { continue }
+            Protect-LegacyCollectionFromDeletion -Collection $legacy -Reason 'Query-rule copy command unavailable in this SCCM environment.'
+        }
+        return
+    }
+
+    foreach ($legacy in $legacyList) {
+        if (-not $legacy) { continue }
+
+        $legacyIdentity = Get-CollectionIdentity -InputObject $legacy
+        if (-not $legacyIdentity.IsValid) { continue }
+
+        $queryRules = Get-CollectionQueryMembershipRules -Collection $legacy
+        if (-not $queryRules -or $queryRules.Count -eq 0) {
+            continue
+        }
+
+        $allCopied = $true
+        foreach ($queryRule in $queryRules) {
+            if (-not $queryRule) { continue }
+
+            $sourceRuleName = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('RuleName','Name'))
+            $sourceQuery = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('QueryExpression','Query'))
+
+            if ([string]::IsNullOrWhiteSpace($sourceQuery)) {
+                $allCopied = $false
+                Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Query rule skipped' -Detail ("Source='{0}', Rule='{1}' has empty query expression." -f $legacyIdentity.Name, $sourceRuleName)
+                continue
+            }
+
+            $effectiveRuleName = $sourceRuleName
+            if ([string]::IsNullOrWhiteSpace($effectiveRuleName)) {
+                $effectiveRuleName = ("MigratedQuery-{0}-{1}" -f $MasterRole, ([Guid]::NewGuid().ToString('N').Substring(0, 8)))
+            }
+
+            $copied = Add-CollectionQueryMembershipRuleIfMissing -TargetCollection $MasterCollection -RuleName $effectiveRuleName -QueryExpression $sourceQuery
+            if ($copied) {
+                Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Query rule copied' -Detail ("Source='{0}', Target='{1}', Rule='{2}'" -f $legacyIdentity.Name, $masterIdentity.Name, $effectiveRuleName)
+            }
+            else {
+                $allCopied = $false
+                Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Query rule copy failed' -Detail ("Source='{0}', Target='{1}', Rule='{2}'" -f $legacyIdentity.Name, $masterIdentity.Name, $effectiveRuleName)
+            }
+        }
+
+        if (-not $allCopied) {
+            Protect-LegacyCollectionFromDeletion -Collection $legacy -Reason ("Could not fully copy query membership rules to master '{0}'." -f $masterIdentity.Name)
         }
     }
 }
@@ -1986,11 +2297,76 @@ function Add-DirectMembershipRulesIfMissing {
 
 <#
 .SYNOPSIS
-    Aggregates direct members from multiple collections.
+    Returns effective collection member ResourceIDs for a collection.
 
 .DESCRIPTION
-    Collects direct member ResourceIDs across source collections into a single
-    de-duplicated set used for master collection composition.
+    Prefers evaluated collection membership (query/include/direct results) and
+    falls back to direct membership rules when evaluated membership is not
+    available in the current SCCM cmdlet set.
+#>
+function Get-CollectionEffectiveResourceIds {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Collection
+    )
+
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+
+    if (-not $Collection) {
+        return ,$ids
+    }
+
+    $collectionId = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
+    $collectionName = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('Name', 'CollectionName'))
+
+    $memberCmd = Get-CachedCommand -Name 'Get-CMCollectionMember'
+    if ($memberCmd) {
+        $memberCmdParamNames = @($memberCmd.Parameters.Keys)
+        $memberAttempts = @()
+
+        if (($memberCmdParamNames -contains 'CollectionId') -and -not [string]::IsNullOrWhiteSpace($collectionId)) {
+            $memberAttempts += { Get-CMCollectionMember -CollectionId $collectionId -ErrorAction Stop }
+        }
+        if (($memberCmdParamNames -contains 'CollectionName') -and -not [string]::IsNullOrWhiteSpace($collectionName)) {
+            $memberAttempts += { Get-CMCollectionMember -CollectionName $collectionName -ErrorAction Stop }
+        }
+        if (($memberCmdParamNames -contains 'InputObject')) {
+            $memberAttempts += { Get-CMCollectionMember -InputObject $Collection -ErrorAction Stop }
+        }
+
+        if ($memberAttempts.Count -gt 0) {
+            $memberResult = Invoke-CmCommandWithFallback -Attempts $memberAttempts -ActionName 'Get-CMCollectionMember'
+            if ($memberResult.Success) {
+                $members = Convert-ToSafeArray -InputObject $memberResult.Result
+                foreach ($member in $members) {
+                    if (-not $member) { continue }
+
+                    $resourceId = Get-ObjectPropertyValue -InputObject $member -PropertyNames @('ResourceID', 'ResourceId', 'SMSID', 'SMSId', 'Id')
+                    $resourceIdInt = 0
+                    if ([int]::TryParse([string]$resourceId, [ref]$resourceIdInt) -and $resourceIdInt -gt 0) {
+                        [void]$ids.Add($resourceIdInt)
+                    }
+                }
+
+                if ($ids.Count -gt 0) {
+                    return ,$ids
+                }
+            }
+        }
+    }
+
+    # Compatibility fallback for environments where evaluated membership query is
+    # unavailable or empty.
+    return Get-DirectMembershipResourceIds -Collection $Collection
+}
+
+<#
+.SYNOPSIS
+    Aggregates effective members from multiple collections.
+
+.DESCRIPTION
+    Collects evaluated member ResourceIDs (with direct-rule fallback) across
+    source collections into a de-duplicated set used for master composition.
 #>
 function Get-DeviceMembersFromCollections {
     param(
@@ -2009,19 +2385,19 @@ function Get-DeviceMembersFromCollections {
     }
 
     foreach ($col in $collectionList) {
-        # Pull direct membership rules from each source collection and merge
-        # ResourceIDs into a de-duplicated hash set.
-        if (-not $col -or -not $col.CollectionID -or $col.CollectionID -eq 0) {
+        if (-not $col) {
             continue
         }
 
         try {
-            $rules = Get-CMDeviceCollectionDirectMembershipRule -CollectionId $col.CollectionID -ErrorAction SilentlyContinue
-            if (-not $rules) { continue }
+            $sourceIds = Get-CollectionEffectiveResourceIds -Collection $col
+            if (-not $sourceIds -or $sourceIds.Count -eq 0) {
+                continue
+            }
 
-            foreach ($rule in $rules) {
-                if (-not $rule -or -not $rule.ResourceID) { continue }
-                [void]$ids.Add($rule.ResourceID)
+            foreach ($sourceId in $sourceIds) {
+                if (-not $sourceId) { continue }
+                [void]$ids.Add($sourceId)
             }
         }
         catch {
@@ -2203,6 +2579,12 @@ function Populate-MasterCollections {
                 Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Master 'Available' collection does not exist or has no name."
             }
         }
+
+        $populationStage = 'calculate memberships'
+        $populationStage = 'copy query rules to masters'
+        Copy-QueryMembershipRulesToMaster -LegacyCollections $legacyInstallAvailableCollections -MasterCollection $masterInstallAvailable -MasterRole 'InstallAvailable'
+        Copy-QueryMembershipRulesToMaster -LegacyCollections $legacyInstallRequiredCollections -MasterCollection $masterInstallRequired -MasterRole 'InstallRequired'
+        Copy-QueryMembershipRulesToMaster -LegacyCollections $legacyUninstallCollections -MasterCollection $masterUninstall -MasterRole 'Uninstall'
 
         $populationStage = 'calculate memberships'
         $availableIds = Get-DeviceMembersFromCollections -Collections $legacyInstallAvailableCollections
@@ -2665,9 +3047,12 @@ function Apply-SupersedenceAndDeployments {
                 if (-not $ok) {
                     throw "Set-CMApplicationSupersedence command not supported with detected parameter set."
                 }
-            }
 
-            Write-LogEvent -Level 'SUCCESS' -Scope 'Supersedence' -Action 'Linked' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.Name, $olderEntry.Name)
+                Write-LogEvent -Level 'SUCCESS' -Scope 'Supersedence' -Action 'Linked' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.Name, $olderEntry.Name)
+            }
+            else {
+                Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would link supersedence' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.Name, $olderEntry.Name)
+            }
         }
         catch {
             Write-LogEvent -Level 'WARN' -Scope 'Supersedence' -Action 'Link failed' -Detail (("'{0}' -> '{1}' | {2}") -f $olderEntry.Name, $newerEntry.Name, $_.Exception.Message)
@@ -4258,6 +4643,11 @@ function Plan-And-Execute-Cleanup {
             foreach ($col in $AllCollections) {
                 if (-not $col) { continue }
                 if ($masterNames -notcontains $col.Name) {
+                    if (Test-LegacyCollectionProtectedFromDeletion -Collection $col) {
+                        Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Collection delete skipped (protected)' -Detail ([string](Get-ObjectPropertyValue -InputObject $col -PropertyNames @('Name','CollectionName')))
+                        continue
+                    }
+
                     $oldCollections += $col
                 }
             }
@@ -4694,35 +5084,27 @@ try {
                 $nameForCandidate = $nameForCandidate -replace '\s*-\s*Install\s*(\((Available|Required)\))?\s*$', ''
                 $nameForCandidate = $nameForCandidate -replace '\s*-\s*Uninstall\s*$', ''
 
-                # Split on first numeric sequence (version)
-                $split = $nameForCandidate -split "\d", 2
+                # Remove legacy intent suffixes and then strip only trailing
+                # version text so product-family digits like 'Agent 2' survive.
+                $nameForCandidate = $nameForCandidate -replace '(?i)\s*-\s*(install|uninstall)\s*\(device\)\s*$', ''
+                $nameForCandidate = $nameForCandidate -replace '(?i)\s+v?\d+(?:\.\d+){1,3}\s*$', ''
+                $candidate = $nameForCandidate.Trim()
+                $candidate = $candidate.TrimEnd('-', ' ')
 
-                if ($split.Count -gt 0) {
-                    $candidate = $split[0].Trim()
-                    $candidate = $candidate.TrimEnd('-', ' ')
+                if (
+                    -not [string]::IsNullOrWhiteSpace($candidate) -and
+                    $candidate -match "[A-Za-z]" -and
+                    $candidate.Length -ge 3 -and
+                    ($candidate -split "\s+").Count -ge 2
+                ) {
 
-                    if (
-                        -not [string]::IsNullOrWhiteSpace($candidate) -and
-                        $candidate -match "[A-Za-z]" -and
-                        $candidate.Length -ge 3 -and
-                        ($candidate -split "\s+").Count -ge 2
-                    ) {
-
-                        $softwareNameCandidatesRaw += $candidate
-                    }
-                    else {
-                        $debugFiltered += [PSCustomObject]@{
-                            CollectionName = $originalName
-                            Extracted      = $candidate
-                            Reason         = "Empty or invalid candidate"
-                        }
-                    }
+                    $softwareNameCandidatesRaw += $candidate
                 }
                 else {
                     $debugFiltered += [PSCustomObject]@{
                         CollectionName = $originalName
-                        Extracted      = ""
-                        Reason         = "Split failed"
+                        Extracted      = $candidate
+                        Reason         = "Empty or invalid candidate"
                     }
                 }
             }
@@ -4814,6 +5196,7 @@ try {
         # RESOLVE CANONICAL NAME (AFTER AUTO-DETECTION)
         # ------------------------------------------------------------
         # Phase 4: resolve canonical naming used for master objects and reporting.
+        $resolvedSoftwareName = $SoftwareName
         $canonicalName = Get-CanonicalName -SoftwareName $SoftwareName
 
         Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'Collections in scope' -Detail (("{0} for '{1}'") -f $allCollections.Count, $canonicalName)
@@ -4837,7 +5220,7 @@ try {
         if ($allCollections -and $allCollections.Count -gt 0) {
             Populate-MasterCollections `
                 -CanonicalName $canonicalName `
-                -RequestedSoftwareName $requestedSoftwareName `
+                -RequestedSoftwareName $resolvedSoftwareName `
                 -Masters $masters `
                 -AllCollections $allCollections
         } else {
@@ -4849,7 +5232,7 @@ try {
         # ------------------------------------------------------------
         # Phase 7: apply optional supersedence chain for version progression.
         Apply-SupersedenceAndDeployments `
-            -SoftwareName $canonicalName `
+            -SoftwareName $resolvedSoftwareName `
             -ManageSupersedence:$ManageSupersedence
 
         # Supersedence creates new app revisions in SCCM, invalidating any
@@ -4862,7 +5245,7 @@ try {
         # ------------------------------------------------------------
         # Phase 8: migrate/delete legacy artifacts in dependency-safe order.
         Plan-And-Execute-Cleanup `
-            -SoftwareName $canonicalName `
+            -SoftwareName $resolvedSoftwareName `
             -Masters $masters `
             -AllCollections $allCollections `
             -DeleteOldCollections:$DeleteOldCollections

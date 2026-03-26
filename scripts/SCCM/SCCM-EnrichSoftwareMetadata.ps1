@@ -68,6 +68,11 @@ param(
     [switch]$EnableDebugLog
 )
 
+# Backward compatibility: keep -DryRun working while standardizing on -WhatIf.
+if ($DryRun -and -not $WhatIfPreference) {
+    $WhatIfPreference = $true
+}
+
 $script:SessionId = ([guid]::NewGuid().ToString('N')).Substring(0, 8)
 $script:LogFile = Join-Path -Path $PSScriptRoot -ChildPath 'SCCM-EnrichSoftwareMetadata.log'
 

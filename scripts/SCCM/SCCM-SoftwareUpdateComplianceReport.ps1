@@ -33,7 +33,7 @@
     .\SCCM-SoftwareUpdateComplianceReport.ps1 -CollectionName Workstations -DeploymentName Monthly
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

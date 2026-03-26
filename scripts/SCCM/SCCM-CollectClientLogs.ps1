@@ -30,7 +30,7 @@
     .\SCCM-CollectClientLogs.ps1 -ComputerName PC001,PC002 -Compress
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string[]]$ComputerName = @($env:COMPUTERNAME),

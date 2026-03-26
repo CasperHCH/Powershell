@@ -26,7 +26,7 @@
     .\SCCM-AnalyzeStaleCollectionsAndDeployments.ps1 -SiteCode P01
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

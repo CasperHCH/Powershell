@@ -27,7 +27,7 @@
     .\SCCM-AuditApplicationSupersedence.ps1 -ApplicationName Firefox
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,

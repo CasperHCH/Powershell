@@ -32,7 +32,7 @@
     .\SCCM-CollectionMembershipDriftReport.ps1 -CollectionName Firefox -BaselineCsvPath .\baseline.csv
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SiteCode,
