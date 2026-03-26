@@ -1,7 +1,7 @@
 API Token.txt
 *.log
 *.cred
-
+*.csv
 # SCCM generated report/output artifacts
 scripts/SCCM/output/
 scripts/SCCM/SCCM-SoftwareExport-*.csv
