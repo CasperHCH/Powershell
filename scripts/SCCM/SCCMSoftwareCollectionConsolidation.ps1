@@ -877,15 +877,58 @@ function Get-ApplicationsForSoftwareName {
     }
 
     Write-LogEvent -Level 'INFO' -Scope 'Applications' -Action 'Status' -Detail ("Querying applications for '{0}'..." -f $SoftwareName)
-    try {
-        # Use a provider-side name filter to avoid a full application scan.
-        $apps = @(Get-CMApplication -Name ("*{0}*" -f $SoftwareName) -ErrorAction Stop)
+    $searchTerms = New-Object System.Collections.Generic.List[string]
+    $searchTerms.Add($SoftwareName.Trim())
+
+    # Fallback for names entered with a trailing version token, such as
+    # "Oracle Java 8" when app names are "Oracle Java <version>".
+    $withoutTrailingVersion = (($SoftwareName -as [string]).Trim() -replace '(?i)\s+v?\d+(?:\.\d+){0,3}\s*$', '').Trim()
+    if (-not [string]::IsNullOrWhiteSpace($withoutTrailingVersion) -and ($withoutTrailingVersion -ne $SoftwareName.Trim())) {
+        $searchTerms.Add($withoutTrailingVersion)
     }
-    catch {
-        Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Filtered CMApplication query failed, falling back to full scan: {0}" -f $_.Exception.Message)
+
+    $allTerms = @($searchTerms | Sort-Object -Unique)
+    $appsByKey = @{}
+
+    foreach ($term in $allTerms) {
         try {
-            $apps = @(Get-CMApplication -ErrorAction SilentlyContinue | Where-Object {
-                $_.LocalizedDisplayName -like ("*{0}*" -f $SoftwareName)
+            # Use provider-side filtering first to avoid a full application scan.
+            $matches = @(Get-CMApplication -Name ("*{0}*" -f $term) -ErrorAction Stop)
+            Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Found {0} apps matching pattern '*{1}*'" -f $matches.Count, $term)
+
+            foreach ($app in $matches) {
+                $appKey = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId', 'LocalizedDisplayName', 'ApplicationName', 'Name'))
+                if (-not [string]::IsNullOrWhiteSpace($appKey)) {
+                    $appsByKey[$appKey.ToLowerInvariant()] = $app
+                }
+            }
+        }
+        catch {
+            if ($_.Exception.Message -like '*Not found*') {
+                Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("No apps found matching pattern '*{0}*'" -f $term)
+                continue
+            }
+
+            Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Filtered CMApplication query failed for '{0}': {1}" -f $term, $_.Exception.Message)
+        }
+    }
+
+    $apps = @($appsByKey.Values)
+
+    if ($apps.Count -eq 0) {
+        # Last-resort full scan to cover environments where -Name filtering differs.
+        Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail 'No matches from provider-side filters; falling back to full application scan.'
+        try {
+            $allApps = @(Get-CMApplication -ErrorAction SilentlyContinue)
+            $apps = @($allApps | Where-Object {
+                $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+                foreach ($term in $allTerms) {
+                    if ($displayName -like ("*{0}*" -f $term)) {
+                        return $true
+                    }
+                }
+
+                return $false
             })
         }
         catch {
@@ -893,6 +936,8 @@ function Get-ApplicationsForSoftwareName {
             $apps = @()
         }
     }
+
+    Write-LogEvent -Level 'INFO' -Scope 'Applications' -Action 'Status' -Detail ("Found {0} matching applications after fallback discovery." -f @($apps).Count)
 
     $script:ApplicationQueryCache[$cacheKey] = @($apps)
     return @($apps)
@@ -1114,6 +1159,35 @@ function Get-LatestVersionedApplication {
 
     $versioned = Convert-ToSafeArray -InputObject (Get-VersionedApplicationsForSoftwareName -SoftwareName $SoftwareName)
     if ($versioned.Count -eq 0) {
+        $apps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $SoftwareName)
+        if ($apps.Count -eq 0) {
+            return $null
+        }
+
+        $latestFallback = @($apps | Sort-Object -Property @(
+            @{ Expression = {
+                    $candidate = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DateLastModified', 'LastModified', 'DateCreated', 'CreatedDate')
+                    if ($candidate -is [datetime]) {
+                        return $candidate
+                    }
+
+                    try {
+                        return [datetime]$candidate
+                    }
+                    catch {
+                        return [datetime]::MinValue
+                    }
+                }; Descending = $true },
+            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
+            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) }; Descending = $false }
+        ) | Select-Object -First 1)
+
+        if ($latestFallback.Count -gt 0) {
+            $fallbackName = [string](Get-ObjectPropertyValue -InputObject $latestFallback[0] -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+            Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Fallback latest selection' -Detail ("Version parsing unavailable for '{0}'. Using newest matching application '{1}'." -f $SoftwareName, $fallbackName)
+            return $latestFallback[0]
+        }
+
         return $null
     }
 
@@ -1552,20 +1626,65 @@ function Get-SoftwareCollections {
 
     Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Retrieving collections matching '{0}'..." -f $SoftwareName)
 
-    try {
-        $namePattern = ("*{0}*" -f $SoftwareName)
-        # Query all collections matching the pattern (includes all folders)
-        $collections = @(Get-CMDeviceCollection -Name $namePattern -ErrorAction Stop)
-        Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Found {0} collections matching pattern '{1}'" -f $collections.Count, $namePattern)
-        return $collections
+    $normalizedInput = ($SoftwareName -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($normalizedInput)) {
+        return @()
     }
-    catch {
-        if ($_.Exception.Message -like '*Not found*') {
-            Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("No collections found matching '{0}'." -f $SoftwareName)
-            return @()
+
+    $searchTerms = New-Object System.Collections.Generic.List[string]
+    $searchTerms.Add($normalizedInput)
+
+    # Fallback for names entered with a trailing version token, such as
+    # "Oracle Java 8" when collections are named "Oracle Java - Install (...)".
+    $withoutTrailingVersion = ($normalizedInput -replace '(?i)\s+v?\d+(?:\.\d+){0,3}\s*$', '').Trim()
+    if (-not [string]::IsNullOrWhiteSpace($withoutTrailingVersion) -and ($withoutTrailingVersion -ne $normalizedInput)) {
+        $searchTerms.Add($withoutTrailingVersion)
+    }
+
+    $collectionsById = @{}
+    $collectionsByName = @{}
+
+    foreach ($term in ($searchTerms | Sort-Object -Unique)) {
+        $namePattern = ("*{0}*" -f $term)
+
+        try {
+            $matches = @(Get-CMDeviceCollection -Name $namePattern -ErrorAction Stop)
+            Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Found {0} collections matching pattern '{1}'" -f $matches.Count, $namePattern)
+
+            foreach ($candidate in $matches) {
+                $identity = Get-CollectionIdentity -InputObject $candidate
+                if ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Id)) {
+                    $collectionsById[$identity.Id.ToLowerInvariant()] = $candidate
+                }
+                elseif ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Name)) {
+                    $collectionsByName[$identity.Name.Trim().ToLowerInvariant()] = $candidate
+                }
+            }
         }
-        throw
+        catch {
+            if ($_.Exception.Message -like '*Not found*') {
+                Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("No collections found matching pattern '{0}'" -f $namePattern)
+                continue
+            }
+            throw
+        }
     }
+
+    $results = @()
+    if ($collectionsById.Count -gt 0) {
+        $results += @($collectionsById.Values)
+    }
+    if ($collectionsByName.Count -gt 0) {
+        $results += @($collectionsByName.Values)
+    }
+
+    if ($results.Count -eq 0) {
+        Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("No collections found matching '{0}'." -f $SoftwareName)
+        return @()
+    }
+
+    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Found {0} matching collections after fallback discovery." -f $results.Count)
+    return @($results)
 }
 
 <#
