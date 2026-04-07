@@ -5,3 +5,4 @@ API Token.txt
 # SCCM generated report/output artifacts
 scripts/SCCM/output/
 scripts/SCCM/SCCM-SoftwareExport-*.csv
+scripts/SCCM/programScripts/
