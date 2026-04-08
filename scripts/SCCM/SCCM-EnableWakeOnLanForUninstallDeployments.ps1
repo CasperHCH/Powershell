@@ -77,6 +77,98 @@ $ErrorActionPreference = 'Stop'
 
 $null = Initialize-SccmScript -ScriptName $MyInvocation.MyCommand.Name -EnableDebugLog:$EnableDebugLog
 
+function Get-DeploymentPropertyValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        $InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$PropertyNames
+    )
+
+    if ($null -eq $InputObject) {
+        return $null
+    }
+
+    $resolvedValue = Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames $PropertyNames
+    if ($null -ne $resolvedValue) {
+        return $resolvedValue
+    }
+
+    foreach ($propertyName in $PropertyNames) {
+        if ([string]::IsNullOrWhiteSpace($propertyName)) {
+            continue
+        }
+
+        try {
+            $directValue = $InputObject.$propertyName
+            if ($null -eq $directValue) {
+                continue
+            }
+
+            if ($directValue -is [string]) {
+                if ([string]::IsNullOrWhiteSpace($directValue)) {
+                    continue
+                }
+
+                return $directValue.Trim()
+            }
+
+            return $directValue
+        }
+        catch {
+            Write-Debug -Message ('Get-DeploymentPropertyValue could not inspect direct property [{0}].' -f $propertyName)
+        }
+    }
+
+    $cimPropertyBag = $null
+    try {
+        $cimPropertyBag = $InputObject.CimInstanceProperties
+    }
+    catch {
+        $cimPropertyBag = $null
+    }
+
+    if ($null -eq $cimPropertyBag) {
+        return $null
+    }
+
+    foreach ($propertyName in $PropertyNames) {
+        if ([string]::IsNullOrWhiteSpace($propertyName)) {
+            continue
+        }
+
+        try {
+            $cimProperty = $cimPropertyBag[$propertyName]
+            if ($null -eq $cimProperty) {
+                continue
+            }
+
+            $value = $cimProperty.Value
+            if ($null -eq $value) {
+                continue
+            }
+
+            if ($value -is [string]) {
+                if ([string]::IsNullOrWhiteSpace($value)) {
+                    continue
+                }
+
+                return $value.Trim()
+            }
+
+            return $value
+        }
+        catch {
+            Write-Debug -Message ('Get-DeploymentPropertyValue could not inspect CIM property [{0}].' -f $propertyName)
+        }
+    }
+
+    return $null
+}
+
 function ConvertTo-IntegerValue {
     [CmdletBinding()]
     param(
@@ -176,7 +268,7 @@ function Resolve-DeploymentSummary {
         $InputObject
     )
 
-    $applicationNameValue = [string](Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $applicationNameValue = [string](Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'ApplicationName',
         'LocalizedDisplayName',
         'SoftwareName',
@@ -184,19 +276,19 @@ function Resolve-DeploymentSummary {
         'Name'
     ))
 
-    $collectionNameValue = [string](Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $collectionNameValue = [string](Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'CollectionName',
         'TargetCollectionName'
     ))
 
-    $collectionIdValue = [string](Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $collectionIdValue = [string](Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'CollectionID',
         'CollectionId',
         'TargetCollectionID',
         'TargetCollectionId'
     ))
 
-    $assignmentIdValue = ConvertTo-IntegerValue -Value (Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $assignmentIdValue = ConvertTo-IntegerValue -Value (Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'AssignmentID',
         'AssignmentId',
         'DeploymentID',
@@ -204,23 +296,23 @@ function Resolve-DeploymentSummary {
         'Id'
     ))
 
-    $desiredConfigTypeValue = Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $desiredConfigTypeValue = Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'DesiredConfigType',
         'DeployAction',
         'DeploymentAction'
     )
 
-    $assignmentActionValue = Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $assignmentActionValue = Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'AssignmentAction',
         'Action'
     )
 
-    $enabledValue = ConvertTo-BooleanValue -Value (Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $enabledValue = ConvertTo-BooleanValue -Value (Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'Enabled',
         'IsEnabled'
     ))
 
-    $wakeEnabledValue = ConvertTo-BooleanValue -Value (Get-SccmObjectPropertyValue -InputObject $InputObject -PropertyNames @(
+    $wakeEnabledValue = ConvertTo-BooleanValue -Value (Get-DeploymentPropertyValue -InputObject $InputObject -PropertyNames @(
         'WoLEnabled',
         'WakeUpEnabled',
         'SendWakeUpPacket',
@@ -247,7 +339,7 @@ function Resolve-DeploymentAction {
         $DeploymentSummary
     )
 
-    $explicitAction = [string](Get-SccmObjectPropertyValue -InputObject $DeploymentSummary -PropertyNames @(
+    $explicitAction = [string](Get-DeploymentPropertyValue -InputObject $DeploymentSummary -PropertyNames @(
         'DeployAction',
         'DeploymentAction',
         'DesiredConfigType',
@@ -261,7 +353,7 @@ function Resolve-DeploymentAction {
         }
     }
 
-    $desiredConfigType = Get-SccmObjectPropertyValue -InputObject $DeploymentSummary -PropertyNames @('DesiredConfigType')
+    $desiredConfigType = Get-DeploymentPropertyValue -InputObject $DeploymentSummary -PropertyNames @('DesiredConfigType')
     if ($null -ne $desiredConfigType) {
         switch ([string]$desiredConfigType) {
             '1' { return 'Install' }
@@ -269,7 +361,7 @@ function Resolve-DeploymentAction {
         }
     }
 
-    $assignmentAction = Get-SccmObjectPropertyValue -InputObject $DeploymentSummary -PropertyNames @('AssignmentAction')
+    $assignmentAction = Get-DeploymentPropertyValue -InputObject $DeploymentSummary -PropertyNames @('AssignmentAction')
     if ($null -ne $assignmentAction) {
         switch ([string]$assignmentAction) {
             '1' { return 'Install' }
@@ -312,6 +404,10 @@ try {
     }
 
     $results = New-Object System.Collections.Generic.List[object]
+    $applicationMatchCount = 0
+    $collectionMatchCount = 0
+    $uninstallMatchCount = 0
+    $changeCandidateCount = 0
 
     foreach ($deployment in $deployments) {
         $summary = Resolve-DeploymentSummary -InputObject $deployment
@@ -327,10 +423,12 @@ try {
         if (-not (Test-PatternMatch -Value $summary.ApplicationName -Pattern $ApplicationName)) {
             continue
         }
+        $applicationMatchCount++
 
         if (-not (Test-PatternMatch -Value $summary.CollectionName -Pattern $CollectionName)) {
             continue
         }
+        $collectionMatchCount++
 
         if (-not $IncludeDisabled -and $summary.Enabled -eq $false) {
             Write-SccmLog -Level 'DEBUG' -Message ('Skipping disabled deployment [{0}] for application [{1}].' -f $summary.AssignmentId, $summary.ApplicationName)
@@ -340,8 +438,10 @@ try {
         if ($deploymentAction -ne 'Uninstall') {
             continue
         }
+        $uninstallMatchCount++
 
         $targetLabel = ('{0} -> {1} (AssignmentId={2})' -f $summary.ApplicationName, $summary.CollectionName, $summary.AssignmentId)
+        $changeCandidateCount++
 
         if ($summary.WakeEnabled -eq $true) {
             Write-SccmLog -Level 'DEBUG' -Message ('Wake-up packets already enabled for [{0}].' -f $targetLabel)
@@ -403,6 +503,7 @@ try {
     $alreadyEnabledCount = @($results | Where-Object { $_.Status -eq 'AlreadyEnabled' }).Count
     $whatIfCount = @($results | Where-Object { $_.Status -eq 'WhatIf' }).Count
 
+    Write-SccmLog -Level 'INFO' -Message ('Filter counts: ApplicationMatch={0}; CollectionMatch={1}; UninstallMatch={2}; CandidateCount={3}.' -f $applicationMatchCount, $collectionMatchCount, $uninstallMatchCount, $changeCandidateCount)
     Write-SccmLog -Level 'INFO' -Message ('Wake-up packet remediation summary: Updated={0}; Failed={1}; AlreadyEnabled={2}; WhatIf={3}.' -f $updatedCount, $failedCount, $alreadyEnabledCount, $whatIfCount)
 
     if ($PassThru) {

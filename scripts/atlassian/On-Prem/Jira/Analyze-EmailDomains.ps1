@@ -18,6 +18,9 @@
 .PARAMETER CredentialPath
     Path to stored credential file
 
+.PARAMETER SearchDomain
+    Optional wildcard domain pattern to highlight in results (e.g., "*contoso.com" or "*telia*")
+
 .EXAMPLE
     .\Analyze-EmailDomains.ps1 -JiraBaseUrl "https://jira.contoso.com" -UseStoredCredentials
 
@@ -42,7 +45,11 @@ param(
 
     [Parameter(Mandatory=$false, HelpMessage="Path to stored credential file")]
     [ValidateScript({Test-Path $_ -PathType Leaf})]
-    [string]$CredentialPath
+    [string]$CredentialPath,
+
+    [Parameter(Mandatory=$false, HelpMessage="Optional wildcard domain pattern to highlight (e.g., *contoso.com or *telia*)")]
+    [ValidateNotNullOrEmpty()]
+    [string]$SearchDomain
 )
 
 # 🔐 Secure credential management
@@ -104,8 +111,7 @@ try {
                         $emailDomains[$domain] = 1
                     }
 
-                    # Check for Telia-related domains
-                    if ($domain -like "$($SearchDomain)") {
+                    if ($SearchDomain -and ($domain -like $SearchDomain)) {
                         $listOfUsers += [PSCustomObject]@{
                             Username = $user.name
                             DisplayName = $user.displayName
@@ -127,18 +133,20 @@ try {
             Write-Host "  $($domain.Name): $($domain.Value) users" -ForegroundColor White
         }
 
-        Write-Host ""
-        Write-Host "=== TELIA-RELATED USERS ===" -ForegroundColor Yellow
-        if ($listOfUsers.Count -gt 0) {
-            foreach ($user in $listOfUsers) {
-                $status = if ($user.Active) { "ACTIVE" } else { "INACTIVE" }
-                Write-Host "  [$status] $($user.Username) - $($user.DisplayName)" -ForegroundColor $(if ($user.Active) { "Red" } else { "Gray" })
-                Write-Host "    Email: $($user.Email)" -ForegroundColor White
-                Write-Host "    Domain: $($user.Domain)" -ForegroundColor Cyan
-                Write-Host ""
+        if ($SearchDomain) {
+            Write-Host ""
+            Write-Host "=== MATCHING USERS: $SearchDomain ===" -ForegroundColor Yellow
+            if ($listOfUsers.Count -gt 0) {
+                foreach ($user in $listOfUsers) {
+                    $status = if ($user.Active) { "ACTIVE" } else { "INACTIVE" }
+                    Write-Host "  [$status] $($user.Username) - $($user.DisplayName)" -ForegroundColor $(if ($user.Active) { "Red" } else { "Gray" })
+                    Write-Host "    Email: $($user.Email)" -ForegroundColor White
+                    Write-Host "    Domain: $($user.Domain)" -ForegroundColor Cyan
+                    Write-Host ""
+                }
+            } else {
+                Write-Host "  No users found matching domain pattern '$SearchDomain'" -ForegroundColor Gray
             }
-        } else {
-            Write-Host "  No Telia-related users found" -ForegroundColor Gray
         }
 
         # Domain-specific analysis (parameterize target domain)

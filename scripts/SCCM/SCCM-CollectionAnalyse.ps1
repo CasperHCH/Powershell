@@ -559,36 +559,6 @@ if ($scopedItems.Count -eq 0) {
     return
 }
 
-$analysisCollectionNameById = @{}
-$analysisInstallCollectionIdsBySoftware = @{}
-
-foreach ($containerItem in @($items)) {
-    if (-not $containerItem) { continue }
-
-    $analysisCollectionId = [string]$containerItem.InstanceKey
-    if ([string]::IsNullOrWhiteSpace($analysisCollectionId)) { continue }
-    if (-not $collectionById.ContainsKey($analysisCollectionId)) { continue }
-
-    $analysisCollection = $collectionById[$analysisCollectionId]
-    if (-not $analysisCollection) { continue }
-
-    $analysisCollectionName = [string]$analysisCollection.Name
-    $analysisFolderPath = Get-FolderPath -ContainerNodeID $containerItem.ContainerNodeID
-    $analysisFolderLeaf = Split-Path -Path $analysisFolderPath -Leaf
-    $analysisIdentity = Parse-CollectionIdentity -CollectionName $analysisCollectionName -FolderName $analysisFolderLeaf
-
-    $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
-
-    if ([string]$analysisIdentity.Suffix -ieq 'install' -and -not [string]::IsNullOrWhiteSpace([string]$analysisIdentity.Software)) {
-        $softwareKey = ([string]$analysisIdentity.Software).Trim().ToLowerInvariant()
-        if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
-            $analysisInstallCollectionIdsBySoftware[$softwareKey] = New-Object System.Collections.Generic.List[string]
-        }
-
-        [void]$analysisInstallCollectionIdsBySoftware[$softwareKey].Add($analysisCollectionId)
-    }
-}
-
 # ---------------------------------------------------------
 # VERSIONDETEKTION (Model D – aggressiv)
 # ---------------------------------------------------------
@@ -612,13 +582,14 @@ function Extract-Version {
 
     if (-not $Text) { return $null }
 
-    # Match versions that begin at start-of-text or after common separators,
-    # so embedded tokens like KB5005616 and Wire3.26 are not split mid-number.
-    $regex = '(?:(?<=^)|(?<=[\s\-_\(]))(?:v?\d+(?:\.\d+){0,4})'
+    # Only treat tokens as versions when they are delimited and have at least
+    # one dot, a leading v-prefix, or multiple numeric parts. This avoids
+    # stripping product names like 7-zip down to zip.
+    $versionPattern = '(?<![A-Za-z0-9])((?:v\d+(?:\.\d+){1,4})|(?:\d+\.\d+(?:\.\d+){0,3})(?:-[A-Za-z0-9]+)?)\b'
 
-    $m = [regex]::Match($Text, $regex)
+    $m = [regex]::Match($Text, $versionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     if ($m.Success) {
-        return $m.Value.Trim()
+        return $m.Groups[1].Value.Trim()
     }
 
     return $null
@@ -771,6 +742,36 @@ function Parse-CollectionIdentity {
         Software = $software
         Version  = $version
         Suffix   = $suffix
+    }
+}
+
+$analysisCollectionNameById = @{}
+$analysisInstallCollectionIdsBySoftware = @{}
+
+foreach ($containerItem in @($items)) {
+    if (-not $containerItem) { continue }
+
+    $analysisCollectionId = [string]$containerItem.InstanceKey
+    if ([string]::IsNullOrWhiteSpace($analysisCollectionId)) { continue }
+    if (-not $collectionById.ContainsKey($analysisCollectionId)) { continue }
+
+    $analysisCollection = $collectionById[$analysisCollectionId]
+    if (-not $analysisCollection) { continue }
+
+    $analysisCollectionName = [string]$analysisCollection.Name
+    $analysisFolderPath = Get-FolderPath -ContainerNodeID $containerItem.ContainerNodeID
+    $analysisFolderLeaf = Split-Path -Path $analysisFolderPath -Leaf
+    $analysisIdentity = Parse-CollectionIdentity -CollectionName $analysisCollectionName -FolderName $analysisFolderLeaf
+
+    $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
+
+    if ([string]$analysisIdentity.Suffix -ieq 'install' -and -not [string]::IsNullOrWhiteSpace([string]$analysisIdentity.Software)) {
+        $softwareKey = ([string]$analysisIdentity.Software).Trim().ToLowerInvariant()
+        if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
+            $analysisInstallCollectionIdsBySoftware[$softwareKey] = New-Object System.Collections.Generic.List[string]
+        }
+
+        [void]$analysisInstallCollectionIdsBySoftware[$softwareKey].Add($analysisCollectionId)
     }
 }
 
