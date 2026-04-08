@@ -26,6 +26,7 @@ Dependent scripts include:
 - `SCCM-CollectClientLogs.ps1`
 - `SCCM-CollectionMembershipDriftReport.ps1`
 - `SCCM-DeploymentFailureReport.ps1`
+- `SCCM-EnableWakeOnLanForUninstallDeployments.ps1`
 - `SCCM-RedistributeFailedContent.ps1`
 - `SCCM-ReferenceImpactAnalysis.ps1`
 - `SCCM-RepairClientHealth.ps1`
@@ -79,6 +80,14 @@ $ctx = Initialize-SccmScript -ScriptName 'Example.ps1'
 - Example:
 ```powershell
 .\SCCM-RetryFailedDeployments.ps1 -InputCsvPath .\output\SCCM-DeploymentFailureDetails.csv -WhatIf
+```
+
+### SCCM-EnableWakeOnLanForUninstallDeployments.ps1
+- Purpose: Bulk-enables wake-up packets on uninstall application deployments.
+- Key inputs: `-SiteCode`, `-ApplicationName`, `-CollectionName`, `-AssignmentId`, `-IncludeDisabled`.
+- Example:
+```powershell
+.\SCCM-EnableWakeOnLanForUninstallDeployments.ps1 -SiteCode P01 -WhatIf
 ```
 
 ## Update Compliance and Content Distribution

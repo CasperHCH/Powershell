@@ -6,13 +6,14 @@
     Produces a read-only report of application deployments and highlights which
     deployments are eligible for the SCCM implicit uninstall feature.
 
-    Important:
-    - This script does not modify deployments.
-    - Microsoft documents the implicit uninstall feature in the console UI, but
-      does not document a supported PowerShell parameter on
-      New-CMApplicationDeployment or Set-CMApplicationDeployment to enable it.
-    - Because of that limitation, this script audits readiness and flags items
-      for manual console review instead of attempting unsupported WMI changes.
+        Important:
+        - This script does not modify deployments.
+        - Microsoft documents the implicit uninstall feature in the console UI, but
+            does not document a supported PowerShell parameter on
+            New-CMApplicationDeployment or Set-CMApplicationDeployment to enable it.
+        - In this environment, provider-side discovery showed that SCCM exposes the
+            enabled state through SMS_ApplicationAssignment.AdditionalProperties and
+            OfferFlags bit 64. This script uses those provider properties for audit.
 
 .PARAMETER SiteCode
     SCCM site code. If omitted, the script attempts auto-detection.
@@ -126,6 +127,22 @@ function Resolve-DeploymentAction {
                 default { return $explicitAction.Trim() }
             }
         }
+
+        $desiredConfigType = Get-SccmObjectPropertyValue -InputObject $sourceObject -PropertyNames @('DesiredConfigType')
+        if ($null -ne $desiredConfigType) {
+            switch ([string]$desiredConfigType) {
+                '1' { return 'Install' }
+                '2' { return 'Uninstall' }
+            }
+        }
+
+        $assignmentAction = Get-SccmObjectPropertyValue -InputObject $sourceObject -PropertyNames @('AssignmentAction')
+        if ($null -ne $assignmentAction) {
+            switch ([string]$assignmentAction) {
+                '1' { return 'Install' }
+                '2' { return 'Uninstall' }
+            }
+        }
     }
 
     return 'Unknown'
@@ -191,10 +208,72 @@ function Resolve-ImplicitUninstallPropertySnapshot {
     }
 
     if ($matchingProperties.Count -eq 0) {
-        return 'NotExposedByDocumentedCmdlets'
+        return 'NoImplicitUninstallSpecificPropertyNameFound'
     }
 
     return ($matchingProperties.ToArray() -join '; ')
+}
+
+function Resolve-ImplicitUninstallState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        $DeploymentObject,
+
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        $AssignmentObject
+    )
+
+    $evaluatedAnySignal = $false
+
+    foreach ($sourceObject in @($DeploymentObject, $AssignmentObject)) {
+        if ($null -eq $sourceObject) {
+            continue
+        }
+
+        $offerFlags = Get-SccmObjectPropertyValue -InputObject $sourceObject -PropertyNames @('OfferFlags')
+        if ($null -ne $offerFlags -and -not [string]::IsNullOrWhiteSpace([string]$offerFlags)) {
+            $evaluatedAnySignal = $true
+            try {
+                if (([uint32]$offerFlags -band 64) -eq 64) {
+                    return 'Enabled'
+                }
+            }
+            catch {
+                Write-Debug -Message 'Resolve-ImplicitUninstallState could not parse OfferFlags.'
+            }
+        }
+
+        $additionalProperties = [string](Get-SccmObjectPropertyValue -InputObject $sourceObject -PropertyNames @('AdditionalProperties'))
+        if ([string]::IsNullOrWhiteSpace($additionalProperties)) {
+            continue
+        }
+
+        $evaluatedAnySignal = $true
+
+        try {
+            [xml]$xml = $additionalProperties
+            $implicitNode = $xml.SelectSingleNode('/Properties/ImplicitUninstallEnabled')
+            if ($null -ne $implicitNode) {
+                if ([string]$implicitNode.InnerText -match '^(?i:true|1)$') {
+                    return 'Enabled'
+                }
+
+                return 'Disabled'
+            }
+        }
+        catch {
+            Write-Debug -Message 'Resolve-ImplicitUninstallState could not parse AdditionalProperties XML.'
+        }
+    }
+
+    if ($evaluatedAnySignal) {
+        return 'Disabled'
+    }
+
+    return 'Unknown'
 }
 
 function Get-ManualReviewRecommendation {
@@ -207,7 +286,10 @@ function Get-ManualReviewRecommendation {
         [string]$DeploymentPurpose,
 
         [Parameter(Mandatory = $true)]
-        [string]$DeploymentAction
+        [string]$DeploymentAction,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ImplicitUninstallState
     )
 
     if ($DeploymentAction -ne 'Install') {
@@ -222,7 +304,15 @@ function Get-ManualReviewRecommendation {
         return 'Review collection type manually: deployment collection could not be resolved.'
     }
 
-    return 'Eligible for manual console review. In deployment properties, open Deployment Settings and verify the implicit uninstall option is enabled.'
+    if ($ImplicitUninstallState -eq 'Enabled') {
+        return 'Implicit uninstall appears enabled through SCCM provider properties.'
+    }
+
+    if ($ImplicitUninstallState -eq 'Disabled') {
+        return 'Eligible but currently not enabled. You can enable implicit uninstall in the console or with the provider-side automation script.'
+    }
+
+    return 'Eligible for manual console review. The deployment is valid for implicit uninstall, but the provider state could not be resolved conclusively.'
 }
 
 $connectionContext = $null
@@ -301,7 +391,8 @@ try {
         }
 
         $eligible = ($deploymentAction -eq 'Install' -and $deploymentPurpose -eq 'Required' -and $collectionType -in @('Device', 'User'))
-        $manualRecommendation = Get-ManualReviewRecommendation -CollectionType $collectionType -DeploymentPurpose $deploymentPurpose -DeploymentAction $deploymentAction
+        $implicitUninstallState = Resolve-ImplicitUninstallState -DeploymentObject $deployment -AssignmentObject $assignment
+        $manualRecommendation = Get-ManualReviewRecommendation -CollectionType $collectionType -DeploymentPurpose $deploymentPurpose -DeploymentAction $deploymentAction -ImplicitUninstallState $implicitUninstallState
         $propertySnapshot = Resolve-ImplicitUninstallPropertySnapshot -DeploymentObject $deployment -AssignmentObject $assignment
 
         [void]$results.Add([pscustomobject]@{
@@ -313,7 +404,7 @@ try {
             DeploymentPurpose               = $deploymentPurpose
             DeploymentAction                = $deploymentAction
             EligibleForImplicitUninstall    = $eligible
-            ImplicitUninstallState          = 'ManualConsoleCheckRequired'
+            ImplicitUninstallState          = $implicitUninstallState
             ImplicitUninstallPropertyHint   = $propertySnapshot
             OfferFlags                      = [string]$offerFlags
             ManualReviewRecommendation      = $manualRecommendation

@@ -198,7 +198,7 @@ function Resolve-SccmOutputPath {
     }
 
     if ($CreateDirectory -and -not (Test-Path -Path $baseDirectory)) {
-        $null = New-Item -Path $baseDirectory -ItemType Directory -Force
+        $null = New-Item -Path $baseDirectory -ItemType Directory -Force -WhatIf:$false
     }
 
     return Join-Path -Path $baseDirectory -ChildPath $FileName
@@ -267,7 +267,7 @@ function Write-SccmLog {
     $fileEntry = ('[{0}] [{1}] [{2}] [{3}] {4}' -f $timestamp, $script:SessionId, $Level, $env:USERNAME, [string]$Message)
 
     try {
-        Add-Content -Path $script:LogFile -Value $fileEntry -ErrorAction Stop
+        Add-Content -Path $script:LogFile -Value $fileEntry -ErrorAction Stop -WhatIf:$false
     }
     catch {
         $fallbackEntry = ('[{0}] [WARN] [LOGGING] Failed to write log entry: {1}' -f $timestamp, $_.Exception.Message)
@@ -437,15 +437,15 @@ function Export-SccmData {
 
     $directoryPath = Split-Path -Path $Path -Parent
     if (-not [string]::IsNullOrWhiteSpace($directoryPath) -and -not (Test-Path -Path $directoryPath)) {
-        $null = New-Item -Path $directoryPath -ItemType Directory -Force
+        $null = New-Item -Path $directoryPath -ItemType Directory -Force -WhatIf:$false
     }
 
     switch ($Format) {
         'Json' {
-            $InputObject | ConvertTo-Json -Depth 8 | Set-Content -Path $Path -Encoding UTF8
+            $InputObject | ConvertTo-Json -Depth 8 | Set-Content -Path $Path -Encoding UTF8 -WhatIf:$false
         }
         default {
-            $InputObject | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
+            $InputObject | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8 -WhatIf:$false
         }
     }
 

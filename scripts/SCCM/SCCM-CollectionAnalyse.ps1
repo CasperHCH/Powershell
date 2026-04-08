@@ -281,10 +281,12 @@ function Resolve-ValidatedOutputPath {
 
 $scriptStart = Get-Date
 $script:DeploymentCacheByCollectionId = @{}
+$script:ApplicationAssignmentsCacheByCollectionId = @{}
 $script:MembershipRulesCacheByCollectionId = @{}
 $script:QueryRulesCacheByCollectionId = @{}
 $script:AnalysisWarningCounts = @{
     DeploymentQueryFailures = 0
+    ApplicationAssignmentQueryFailures = 0
     MembershipRuleFailures = 0
     QueryRuleFailures = 0
     DeepReferenceHeuristicMatches = 0
@@ -555,6 +557,36 @@ if ($scopedItems.Count -eq 0) {
     Write-Host ""
     Write-Host "=== Analysis complete - no SCCM changes were made ===" -ForegroundColor Cyan
     return
+}
+
+$analysisCollectionNameById = @{}
+$analysisInstallCollectionIdsBySoftware = @{}
+
+foreach ($containerItem in @($items)) {
+    if (-not $containerItem) { continue }
+
+    $analysisCollectionId = [string]$containerItem.InstanceKey
+    if ([string]::IsNullOrWhiteSpace($analysisCollectionId)) { continue }
+    if (-not $collectionById.ContainsKey($analysisCollectionId)) { continue }
+
+    $analysisCollection = $collectionById[$analysisCollectionId]
+    if (-not $analysisCollection) { continue }
+
+    $analysisCollectionName = [string]$analysisCollection.Name
+    $analysisFolderPath = Get-FolderPath -ContainerNodeID $containerItem.ContainerNodeID
+    $analysisFolderLeaf = Split-Path -Path $analysisFolderPath -Leaf
+    $analysisIdentity = Parse-CollectionIdentity -CollectionName $analysisCollectionName -FolderName $analysisFolderLeaf
+
+    $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
+
+    if ([string]$analysisIdentity.Suffix -ieq 'install' -and -not [string]::IsNullOrWhiteSpace([string]$analysisIdentity.Software)) {
+        $softwareKey = ([string]$analysisIdentity.Software).Trim().ToLowerInvariant()
+        if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
+            $analysisInstallCollectionIdsBySoftware[$softwareKey] = New-Object System.Collections.Generic.List[string]
+        }
+
+        [void]$analysisInstallCollectionIdsBySoftware[$softwareKey].Add($analysisCollectionId)
+    }
 }
 
 # ---------------------------------------------------------
@@ -1005,6 +1037,192 @@ function Get-CollectionDeployments {
     }
 }
 
+function Get-CollectionApplicationAssignments {
+    param([string]$CollectionID)
+
+    $cacheKey = [string]$CollectionID
+    if ([string]::IsNullOrWhiteSpace($cacheKey)) {
+        return @()
+    }
+
+    if ($script:ApplicationAssignmentsCacheByCollectionId.ContainsKey($cacheKey)) {
+        return @($script:ApplicationAssignmentsCacheByCollectionId[$cacheKey])
+    }
+
+    try {
+        $escapedCollectionId = $cacheKey.Replace("'", "''")
+        $assignments = @(Get-CimInstance -Namespace $namespace -ClassName SMS_ApplicationAssignment -Filter ("TargetCollectionID = '{0}'" -f $escapedCollectionId) -ErrorAction Stop)
+        $script:ApplicationAssignmentsCacheByCollectionId[$cacheKey] = @($assignments)
+        return @($assignments)
+    }
+    catch {
+        $script:AnalysisWarningCounts.ApplicationAssignmentQueryFailures++
+        $script:ApplicationAssignmentsCacheByCollectionId[$cacheKey] = @()
+        return @()
+    }
+}
+
+function Resolve-ApplicationAssignmentPurpose {
+    param([Parameter(Mandatory = $false)][AllowNull()]$Assignment)
+
+    if ($null -eq $Assignment) { return 'Unknown' }
+
+    $offerTypeId = $null
+    try { $offerTypeId = $Assignment.OfferTypeID } catch { $offerTypeId = $null }
+    if ($null -ne $offerTypeId) {
+        switch ([int]$offerTypeId) {
+            0 { return 'Required' }
+            2 { return 'Available' }
+        }
+    }
+
+    return 'Unknown'
+}
+
+function Resolve-ApplicationAssignmentAction {
+    param([Parameter(Mandatory = $false)][AllowNull()]$Assignment)
+
+    if ($null -eq $Assignment) { return 'Unknown' }
+
+    $desiredConfigType = $null
+    try { $desiredConfigType = $Assignment.DesiredConfigType } catch { $desiredConfigType = $null }
+    if ($null -ne $desiredConfigType) {
+        switch ([string]$desiredConfigType) {
+            '1' { return 'Install' }
+            '2' { return 'Uninstall' }
+        }
+    }
+
+    $assignmentAction = $null
+    try { $assignmentAction = $Assignment.AssignmentAction } catch { $assignmentAction = $null }
+    if ($null -ne $assignmentAction) {
+        switch ([string]$assignmentAction) {
+            '1' { return 'Install' }
+            '2' { return 'Uninstall' }
+        }
+    }
+
+    return 'Unknown'
+}
+
+function Test-ImplicitUninstallEnabled {
+    param([Parameter(Mandatory = $false)][AllowNull()]$Assignment)
+
+    if ($null -eq $Assignment) {
+        return $false
+    }
+
+    $offerFlags = $null
+    try { $offerFlags = $Assignment.OfferFlags } catch { $offerFlags = $null }
+    if ($null -ne $offerFlags) {
+        try {
+            if (([uint32]$offerFlags -band 64) -eq 64) {
+                return $true
+            }
+        }
+        catch {
+        }
+    }
+
+    $additionalProperties = $null
+    try { $additionalProperties = [string]$Assignment.AdditionalProperties } catch { $additionalProperties = $null }
+    if ([string]::IsNullOrWhiteSpace($additionalProperties)) {
+        return $false
+    }
+
+    try {
+        [xml]$xml = $additionalProperties
+        $implicitNode = $xml.SelectSingleNode('/Properties/ImplicitUninstallEnabled')
+        if ($null -ne $implicitNode) {
+            return ([string]$implicitNode.InnerText -match '^(?i:true|1)$')
+        }
+    }
+    catch {
+    }
+
+    return $false
+}
+
+function Get-CollectionDeploymentSignal {
+    param([string]$CollectionID)
+
+    $deployments = @(Get-CollectionDeployments -CollectionID $CollectionID)
+    $assignments = @(Get-CollectionApplicationAssignments -CollectionID $CollectionID)
+
+    $requiredInstallAssignments = @($assignments | Where-Object {
+        (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Install' -and
+        (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
+    })
+
+    $requiredUninstallAssignments = @($assignments | Where-Object {
+        (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Uninstall' -and
+        (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
+    })
+
+    $implicitInstallAssignments = @($requiredInstallAssignments | Where-Object { Test-ImplicitUninstallEnabled -Assignment $_ })
+
+    return [pscustomobject]@{
+        HasDeployments                    = ($deployments.Count -gt 0 -or $assignments.Count -gt 0)
+        GenericDeploymentCount            = $deployments.Count
+        ApplicationAssignmentCount        = $assignments.Count
+        RequiredInstallAssignmentCount    = $requiredInstallAssignments.Count
+        RequiredUninstallAssignmentCount  = $requiredUninstallAssignments.Count
+        HasRequiredUninstallDeployment    = ($requiredUninstallAssignments.Count -gt 0)
+        HasImplicitUninstallEnabledInstall = ($implicitInstallAssignments.Count -gt 0)
+    }
+}
+
+function Get-PairedImplicitInstallCoverage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CurrentCollectionId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SoftwareName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SoftwareName)) {
+        return $null
+    }
+
+    $softwareKey = $SoftwareName.Trim().ToLowerInvariant()
+    if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
+        return $null
+    }
+
+    $candidateIds = @($analysisInstallCollectionIdsBySoftware[$softwareKey].ToArray() | Where-Object { $_ -ne $CurrentCollectionId })
+    if ($candidateIds.Count -eq 0) {
+        return $null
+    }
+
+    $orderedCandidateIds = @(
+        $candidateIds | Sort-Object -Property @(
+            @{ Expression = {
+                $candidateCollectionName = ''
+                if ($analysisCollectionNameById.ContainsKey([string]$_)) {
+                    $candidateCollectionName = [string]$analysisCollectionNameById[[string]$_]
+                }
+                if ($candidateCollectionName -match '\(Required\)$') { 0 } else { 1 }
+            }; Descending = $false },
+            @{ Expression = { [string]$_ }; Descending = $false }
+        )
+    )
+
+    foreach ($candidateId in $orderedCandidateIds) {
+        $candidateSignal = Get-CollectionDeploymentSignal -CollectionID $candidateId
+        if (-not $candidateSignal.HasImplicitUninstallEnabledInstall) {
+            continue
+        }
+
+        return [pscustomobject]@{
+            CollectionId   = [string]$candidateId
+            CollectionName = if ($analysisCollectionNameById.ContainsKey([string]$candidateId)) { [string]$analysisCollectionNameById[[string]$candidateId] } else { [string]$candidateId }
+        }
+    }
+
+    return $null
+}
+
 <#
 .SYNOPSIS
 Returns direct/query/include/exclude membership rules for a collection.
@@ -1427,14 +1645,18 @@ if ($AnalyzeSafeToDelete) {
         $safeSoftwareName = [string]$safeIdentity.Software
 
         $reasons = @()
+        $blockingCategories = New-Object System.Collections.Generic.List[string]
         $status  = 'Safe'
         $dataQuality = 'Complete'
         $analysisConfidence = 'High'
+        $lifecycleSignal = ''
+        $pairedImplicitInstallCollection = ''
 
-        $deployments = @(Get-CollectionDeployments -CollectionID $colId)
-        if ($deployments.Count -gt 0) {
+        $deploymentSignal = Get-CollectionDeploymentSignal -CollectionID $colId
+        if ($deploymentSignal.HasDeployments) {
             $status = 'NotSafe'
             $reasons += "Has deployments"
+            [void]$blockingCategories.Add('Deployments')
         }
 
         $rules = Get-CollectionMembershipRules -CollectionID $colId
@@ -1443,8 +1665,8 @@ if ($AnalyzeSafeToDelete) {
             $analysisConfidence = 'Medium'
         }
 
-        if ($rules.Direct.Count  -gt 0) { $status = 'NotSafe'; $reasons += "Has direct members" }
-        if ($rules.Query.Count   -gt 0) { $status = 'NotSafe'; $reasons += "Has query membership" }
+        if ($rules.Direct.Count  -gt 0) { $status = 'NotSafe'; $reasons += "Has direct members"; [void]$blockingCategories.Add('DirectMembers') }
+        if ($rules.Query.Count   -gt 0) { $status = 'NotSafe'; $reasons += "Has query membership"; [void]$blockingCategories.Add('QueryMembership') }
         $incomingInclude = @()
         $incomingExclude = @()
 
@@ -1457,6 +1679,7 @@ if ($AnalyzeSafeToDelete) {
 
         if ($incomingInclude.Count -gt 0) {
             $status = 'NotSafe'
+            [void]$blockingCategories.Add('IncludedByCollections')
             $includeNames = @($incomingInclude | ForEach-Object { $_.CollectionName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             if ($includeNames.Count -gt 0) {
                 $reasons += ("Included by collections: " + ($includeNames -join ', '))
@@ -1468,6 +1691,7 @@ if ($AnalyzeSafeToDelete) {
 
         if ($incomingExclude.Count -gt 0) {
             $status = 'NotSafe'
+            [void]$blockingCategories.Add('ExcludedByCollections')
             $excludeNames = @($incomingExclude | ForEach-Object { $_.CollectionName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             if ($excludeNames.Count -gt 0) {
                 $reasons += ("Excluded by collections: " + ($excludeNames -join ', '))
@@ -1480,6 +1704,7 @@ if ($AnalyzeSafeToDelete) {
         $limitingUsedBy = @(Is-LimitingCollection -CollectionID $colId)
         if ($limitingUsedBy.Count -gt 0) {
             $status = 'NotSafe'
+            [void]$blockingCategories.Add('LimitingCollection')
             $reasons += ("Is limiting collection for: " + (($limitingUsedBy | Select-Object -ExpandProperty Name) -join ', '))
         }
 
@@ -1487,6 +1712,7 @@ if ($AnalyzeSafeToDelete) {
             $deepRefs = @(Get-DeepReferences -CollectionID $colId -Collections $allCollections)
             if ($deepRefs.Count -gt 0) {
                 $status = 'NotSafe'
+                [void]$blockingCategories.Add('DeepReferences')
                 $deepRefNames = @($deepRefs | ForEach-Object { $_.CollectionName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
                 $deepConfidences = @($deepRefs | ForEach-Object { [string]$_.Confidence })
                 if ($deepConfidences -contains 'High') {
@@ -1507,6 +1733,29 @@ if ($AnalyzeSafeToDelete) {
             }
         }
 
+        if ([string]$safeIdentity.Suffix -ieq 'uninstall' -and -not [string]::IsNullOrWhiteSpace($safeSoftwareName)) {
+            $pairedImplicitCoverage = Get-PairedImplicitInstallCoverage -CurrentCollectionId $colId -SoftwareName $safeSoftwareName
+            if ($null -ne $pairedImplicitCoverage) {
+                $pairedImplicitInstallCollection = [string]$pairedImplicitCoverage.CollectionName
+
+                if ($blockingCategories.Count -eq 1 -and $blockingCategories.Contains('Deployments') -and $deploymentSignal.HasRequiredUninstallDeployment) {
+                    $status = 'Safe'
+                    $analysisConfidence = 'Medium'
+                    $lifecycleSignal = 'RedundantUninstallCollection'
+                    $reasons = @(
+                        ("Redundant explicit uninstall: paired install collection [{0}] has Required install deployment with implicit uninstall enabled." -f $pairedImplicitInstallCollection)
+                    )
+                }
+                else {
+                    $lifecycleSignal = 'ImplicitUninstallCoverageAvailable'
+                    $reasons += ("Paired install collection [{0}] has implicit uninstall enabled; explicit uninstall collection may be redundant once other blockers are removed." -f $pairedImplicitInstallCollection)
+                    if ($analysisConfidence -eq 'High') {
+                        $analysisConfidence = 'Medium'
+                    }
+                }
+            }
+        }
+
         if ($Mode -eq 'Standard') {
             if ($status -eq 'Safe') {
                 Write-Host ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath) -ForegroundColor Green
@@ -1522,6 +1771,8 @@ if ($AnalyzeSafeToDelete) {
                     Reason         = ''
                     DataQuality    = $dataQuality
                     AnalysisConfidence = $analysisConfidence
+                    LifecycleSignal = $lifecycleSignal
+                    PairedImplicitInstallCollection = $pairedImplicitInstallCollection
                 }
             }
         }
@@ -1545,6 +1796,8 @@ if ($AnalyzeSafeToDelete) {
                 Reason         = ($reasons -join '; ')
                 DataQuality    = $dataQuality
                 AnalysisConfidence = $analysisConfidence
+                LifecycleSignal = $lifecycleSignal
+                PairedImplicitInstallCollection = $pairedImplicitInstallCollection
             }
         }
     }
@@ -1581,7 +1834,7 @@ if (-not [string]::IsNullOrWhiteSpace($OutputCsv)) {
 
     if ($results.Count -gt 0) {
         $results |
-            Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence |
+            Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence, LifecycleSignal, PairedImplicitInstallCollection |
             Export-Csv -Path $OutputCsv -NoTypeInformation -Encoding UTF8
 
         Write-Host ""
