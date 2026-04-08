@@ -105,7 +105,11 @@ try {
         $lastRefresh = Resolve-SccmDateTime -Value (Get-SccmObjectPropertyValue -InputObject $collection -PropertyNames @('LastRefreshTime', 'LastMemberChangeTime', 'LastChangeTime') -AsDateTime)
         $reasonList = New-Object System.Collections.Generic.List[string]
 
-        $linkedDeployments = if ($deploymentsByCollectionId.ContainsKey($collectionId)) { @($deploymentsByCollectionId[$collectionId]) } else { @() }
+        $linkedDeployments = @(
+            if ($deploymentsByCollectionId.ContainsKey($collectionId)) {
+                $deploymentsByCollectionId[$collectionId]
+            }
+        )
 
         if ($memberCount -eq 0) {
             [void]$reasonList.Add('Collection has zero members.')
@@ -176,12 +180,25 @@ try {
     $null = Export-SccmData -InputObject ($results | Sort-Object ObjectType, Name) -Path $reportPath -Format 'Csv'
 
     Write-SccmLog -Level 'SUCCESS' -Message ("Stale object report exported to [{0}]." -f $reportPath)
-    Write-SccmAuditLog -Action 'SCCM_STALE_OBJECT_ANALYSIS' -Result 'Success' -AdditionalData @{ ResultCount = @($results).Count }
+
+    try {
+        Write-SccmAuditLog -Action 'SCCM_STALE_OBJECT_ANALYSIS' -Result 'Success' -AdditionalData @{ ResultCount = @($results).Count }
+    }
+    catch {
+        Write-SccmLog -Level 'WARN' -Message ("Audit logging failed after successful stale-object analysis: {0}" -f $_.Exception.Message)
+    }
 
     if ($PassThru) {
         return @($results)
     }
 }
 finally {
-    Disconnect-SccmSite -ConnectionContext $connectionContext
+    if ($null -ne $connectionContext) {
+        try {
+            Disconnect-SccmSite -ConnectionContext $connectionContext
+        }
+        catch {
+            Write-SccmLog -Level 'WARN' -Message ("Site disconnect failed after stale-object analysis completed: {0}" -f $_.Exception.Message)
+        }
+    }
 }

@@ -1324,7 +1324,7 @@ function Get-DeepReferences {
 
     $references = New-Object System.Collections.Generic.List[object]
     if ([string]::IsNullOrWhiteSpace($CollectionID)) {
-        return @($references)
+           return $references.ToArray()
     }
 
     $targetCollection = @($Collections | Where-Object { ([string]$_.CollectionID) -eq $CollectionID } | Select-Object -First 1)
@@ -1392,7 +1392,7 @@ function Get-DeepReferences {
         }
     }
 
-    return @($references)
+    return $references.ToArray()
 }
 
 # Deep-mode matching, JSON summary export, and configurable progress interval
@@ -1449,10 +1449,10 @@ if ($AnalyzeSafeToDelete) {
         $incomingExclude = @()
 
         if ($dependencyIndex -and $dependencyIndex.IncludeByTargetId.ContainsKey($colId)) {
-            $incomingInclude = @($dependencyIndex.IncludeByTargetId[$colId])
+            $incomingInclude = $dependencyIndex.IncludeByTargetId[$colId].ToArray()
         }
         if ($dependencyIndex -and $dependencyIndex.ExcludeByTargetId.ContainsKey($colId)) {
-            $incomingExclude = @($dependencyIndex.ExcludeByTargetId[$colId])
+            $incomingExclude = $dependencyIndex.ExcludeByTargetId[$colId].ToArray()
         }
 
         if ($incomingInclude.Count -gt 0) {
@@ -1579,7 +1579,7 @@ if (-not [string]::IsNullOrWhiteSpace($OutputCsv)) {
         throw
     }
 
-    if (@($results).Count -gt 0) {
+    if ($results.Count -gt 0) {
         $results |
             Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence |
             Export-Csv -Path $OutputCsv -NoTypeInformation -Encoding UTF8
@@ -1626,9 +1626,9 @@ if (-not [string]::IsNullOrWhiteSpace($JsonSummaryPath)) {
         ProgressInterval = $ProgressInterval
         OutputCsv = $OutputCsv
         Totals = [pscustomobject]@{
-            ScopedCandidates = @($scopedItems).Count
+            ScopedCandidates = $scopedItems.Count
             MasterCollectionsExcluded = $masterCollectionsExcluded
-            ResultRows = @($results).Count
+            ResultRows = $results.Count
             ConsolidationRows = @($results | Where-Object { $_.Type -eq 'Consolidation' }).Count
             SafeToDeleteRows = @($results | Where-Object { $_.Type -eq 'SafeToDelete' }).Count
             SafeRows = @($results | Where-Object { $_.Type -eq 'SafeToDelete' -and $_.Status -eq 'Safe' }).Count
@@ -1648,4 +1648,4 @@ else {
 Write-Host ""
 Write-Host "=== Analysis complete - no SCCM changes were made ===" -ForegroundColor Cyan
 $duration = New-TimeSpan -Start $scriptStart -End (Get-Date)
-Write-PhaseLog -Message ("Analysis completed in {0:hh\:mm\:ss}. Total rows={1}" -f $duration, @($results).Count) -Level 'SUCCESS'
+Write-PhaseLog -Message ("Analysis completed in {0:hh\:mm\:ss}. Total rows={1}" -f $duration, $results.Count) -Level 'SUCCESS'

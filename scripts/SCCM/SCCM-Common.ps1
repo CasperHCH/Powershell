@@ -295,20 +295,27 @@ function Write-SccmAuditLog {
         [hashtable]$AdditionalData
     )
 
-    $auditObject = @{
-        Timestamp    = (Get-Date).ToString('o')
-        SessionId    = $script:SessionId
-        ScriptName   = $script:SccmScriptName
-        Action       = $Action
-        Target       = $Target
-        Result       = $Result
-        Error        = $ErrorMessage
-        User         = $env:USERNAME
-        ComputerName = $env:COMPUTERNAME
-        AdditionalData = $AdditionalData
-    }
+    try {
+        $auditObject = @{
+            Timestamp      = (Get-Date).ToString('o')
+            SessionId      = [string]$script:SessionId
+            ScriptName     = [string]$script:SccmScriptName
+            Action         = [string]$Action
+            Target         = [string]$Target
+            Result         = [string]$Result
+            Error          = [string]$ErrorMessage
+            User           = [string]$env:USERNAME
+            ComputerName   = [string]$env:COMPUTERNAME
+            AdditionalData = $AdditionalData
+        }
 
-    Write-SccmLog -Message ($auditObject | ConvertTo-Json -Compress -Depth 6) -Level 'AUDIT' -Sensitive
+        $auditMessage = $auditObject | ConvertTo-Json -Compress -Depth 6
+        Write-SccmLog -Message ([string]$auditMessage) -Level 'AUDIT' -Sensitive
+    }
+    catch {
+        $fallbackMessage = 'Audit logging failed for action [{0}]: {1}' -f [string]$Action, $_.Exception.Message
+        Write-SccmLog -Message $fallbackMessage -Level 'WARN'
+    }
 }
 
 function Import-SccmConfigurationManagerModule {
@@ -367,6 +374,7 @@ function Connect-SccmSite {
 
     $resolvedSiteCode = Resolve-SccmSiteCode -SiteCode $SiteCode
     $previousLocation = Get-Location
+    $previousLocationPath = [string]$previousLocation.Path
 
     if (-not (Get-PSDrive -Name $resolvedSiteCode -PSProvider CMSite -ErrorAction SilentlyContinue)) {
         $siteDrive = Get-PSDrive -PSProvider CMSite -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -382,8 +390,9 @@ function Connect-SccmSite {
     Set-Location -Path ('{0}:' -f $resolvedSiteCode)
 
     return [pscustomobject]@{
-        SiteCode         = $resolvedSiteCode
-        PreviousLocation = $previousLocation
+        SiteCode             = $resolvedSiteCode
+        PreviousLocation     = $previousLocation
+        PreviousLocationPath = $previousLocationPath
     }
 }
 
@@ -399,10 +408,10 @@ function Disconnect-SccmSite {
         return
     }
 
-    $previousLocation = Get-SccmObjectPropertyValue -InputObject $ConnectionContext -PropertyNames @('PreviousLocation')
-    if ($null -ne $previousLocation) {
+    $previousLocationPath = [string](Get-SccmObjectPropertyValue -InputObject $ConnectionContext -PropertyNames @('PreviousLocationPath', 'PreviousLocation'))
+    if (-not [string]::IsNullOrWhiteSpace($previousLocationPath)) {
         try {
-            Set-Location -Path $previousLocation -ErrorAction Stop
+            Set-Location -Path $previousLocationPath -ErrorAction Stop
         }
         catch {
             Set-Location -Path $PSScriptRoot -ErrorAction SilentlyContinue
