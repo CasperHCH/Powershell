@@ -6,3 +6,5 @@ API Token.txt
 scripts/SCCM/output/
 scripts/SCCM/SCCM-SoftwareExport-*.csv
 scripts/SCCM/programScripts/
+# Local/private SCCM canonical inventory override - do not publish.
+data/SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1

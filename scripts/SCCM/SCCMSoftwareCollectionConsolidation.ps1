@@ -62,6 +62,10 @@
 .PARAMETER AutoApprove
     If specified, perform cleanup without interactive confirmation.
 
+.PARAMETER NonInteractive
+    If specified, never prompt for input. Operations that require manual
+    confirmation or candidate selection will abort with an explicit warning.
+
 .PARAMETER DryRun
     If specified, log all planned actions but do not execute any changes.
 
@@ -111,6 +115,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [switch]$AutoApprove,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$NonInteractive,
 
     [Parameter(Mandatory = $false)]
     [switch]$DryRun,
@@ -168,6 +175,7 @@ $script:AllDeploymentsCache = $null
 $script:AllDeviceCollectionsCache = $null
 $script:CmCollectionByNameCache = @{}
 $script:CollectionDependencyIndexCache = $null
+$script:CanonicalMappingInventoryCache = $null
 
 # ------------------------------------------------------------
 # LOGGING
@@ -893,10 +901,10 @@ function Get-ApplicationsForSoftwareName {
     foreach ($term in $allTerms) {
         try {
             # Use provider-side filtering first to avoid a full application scan.
-            $matches = @(Get-CMApplication -Name ("*{0}*" -f $term) -ErrorAction Stop)
-            Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Found {0} apps matching pattern '*{1}*'" -f $matches.Count, $term)
+            $applicationMatches = @(Get-CMApplication -Name ("*{0}*" -f $term) -ErrorAction Stop)
+            Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Found {0} apps matching pattern '*{1}*'" -f $applicationMatches.Count, $term)
 
-            foreach ($app in $matches) {
+            foreach ($app in $applicationMatches) {
                 $appKey = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId', 'LocalizedDisplayName', 'ApplicationName', 'Name'))
                 if (-not [string]::IsNullOrWhiteSpace($appKey)) {
                     $appsByKey[$appKey.ToLowerInvariant()] = $app
@@ -1080,6 +1088,63 @@ function Get-AppVersionNormalized {
 
 <#
 .SYNOPSIS
+    Formats an application name with version when the name does not include one.
+
+.DESCRIPTION
+    Produces stable operator-facing labels so logs show the resolved application
+    version even when SCCM stores a short display name such as 'Brave'.
+#>
+function Get-VersionAwareDisplayName {
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VersionRaw
+    )
+
+    $resolvedName = ($Name -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($resolvedName)) {
+        $resolvedName = '[Unnamed application]'
+    }
+
+    $resolvedVersion = ($VersionRaw -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($resolvedVersion)) {
+        return $resolvedName
+    }
+
+    if (Extract-VersionFromName -Name $resolvedName) {
+        return $resolvedName
+    }
+
+    return ('{0} {1}' -f $resolvedName, $resolvedVersion)
+}
+
+<#
+.SYNOPSIS
+    Returns a log-friendly application display name.
+
+.DESCRIPTION
+    Resolves display name aliases from a CM application object and appends the
+    normalized version only when the base name does not already contain one.
+#>
+function Get-ApplicationDisplayName {
+    param(
+        [Parameter(Mandatory = $true)]
+        $App
+    )
+
+    if (-not $App) {
+        return '[Unnamed application]'
+    }
+
+    $name = [string](Get-ObjectPropertyValue -InputObject $App -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+    $version = [string](Get-AppVersionNormalized -App $App)
+    return Get-VersionAwareDisplayName -Name $name -VersionRaw $version
+}
+
+<#
+.SYNOPSIS
     Builds a sorted list of unique versioned applications for a software family.
 
 .DESCRIPTION
@@ -1157,41 +1222,148 @@ function Get-LatestVersionedApplication {
         [string]$SoftwareName
     )
 
+    $selection = Get-LatestApplicationSelection -SoftwareName $SoftwareName
+    return $selection.App
+}
+
+<#
+.SYNOPSIS
+    Returns latest-application selection metadata for a software family.
+
+.DESCRIPTION
+    Distinguishes between a version-confirmed latest application and an inferred
+    fallback based on modification timestamps when version parsing is unavailable.
+#>
+function Get-LatestApplicationSelection {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SoftwareName
+    )
+
     $versioned = Convert-ToSafeArray -InputObject (Get-VersionedApplicationsForSoftwareName -SoftwareName $SoftwareName)
-    if ($versioned.Count -eq 0) {
-        $apps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $SoftwareName)
-        if ($apps.Count -eq 0) {
-            return $null
+    if ($versioned.Count -gt 0) {
+        return [pscustomobject]@{
+            App                = $versioned[0].App
+            IsVersionConfirmed = $true
+            SelectionMode      = 'VersionConfirmed'
+            WarningDetail      = ''
         }
-
-        $latestFallback = @($apps | Sort-Object -Property @(
-            @{ Expression = {
-                    $candidate = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DateLastModified', 'LastModified', 'DateCreated', 'CreatedDate')
-                    if ($candidate -is [datetime]) {
-                        return $candidate
-                    }
-
-                    try {
-                        return [datetime]$candidate
-                    }
-                    catch {
-                        return [datetime]::MinValue
-                    }
-                }; Descending = $true },
-            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
-            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) }; Descending = $false }
-        ) | Select-Object -First 1)
-
-        if ($latestFallback.Count -gt 0) {
-            $fallbackName = [string](Get-ObjectPropertyValue -InputObject $latestFallback[0] -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
-            Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Fallback latest selection' -Detail ("Version parsing unavailable for '{0}'. Using newest matching application '{1}'." -f $SoftwareName, $fallbackName)
-            return $latestFallback[0]
-        }
-
-        return $null
     }
 
-    return $versioned[0].App
+    $apps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $SoftwareName)
+    if ($apps.Count -eq 0) {
+        return [pscustomobject]@{
+            App                = $null
+            IsVersionConfirmed = $false
+            SelectionMode      = 'NotFound'
+            WarningDetail      = ''
+        }
+    }
+
+    $latestFallback = @($apps | Sort-Object -Property @(
+        @{ Expression = {
+                $candidate = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DateLastModified', 'LastModified', 'DateCreated', 'CreatedDate')
+                if ($candidate -is [datetime]) {
+                    return $candidate
+                }
+
+                try {
+                    return [datetime]$candidate
+                }
+                catch {
+                    return [datetime]::MinValue
+                }
+            }; Descending = $true },
+        @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
+        @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) }; Descending = $false }
+    ) | Select-Object -First 1)
+
+    if ($latestFallback.Count -gt 0) {
+        $fallbackDisplayName = Get-ApplicationDisplayName -App $latestFallback[0]
+        $warningDetail = "Version parsing unavailable for '{0}'. Latest target is inferred from newest matching application metadata: '{1}'." -f $SoftwareName, $fallbackDisplayName
+        Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Fallback latest selection' -Detail $warningDetail
+        return [pscustomobject]@{
+            App                = $latestFallback[0]
+            IsVersionConfirmed = $false
+            SelectionMode      = 'InferredLatestModified'
+            WarningDetail      = $warningDetail
+        }
+    }
+
+    return [pscustomobject]@{
+        App                = $null
+        IsVersionConfirmed = $false
+        SelectionMode      = 'NotFound'
+        WarningDetail      = ''
+    }
+}
+
+<#!
+.SYNOPSIS
+    Resolves the application object used for master-collection deployments.
+
+.DESCRIPTION
+    Uses the same latest-selection logic as cleanup so master deployments target
+    the same application version. An exact canonical-name app is only preferred
+    when no version-confirmed latest application can be resolved.
+#>
+function Get-MasterDeploymentApplicationSelection {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CanonicalName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$RequestedSoftwareName = ''
+    )
+
+    $exactCanonicalApp = $null
+    $canonicalApps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $CanonicalName)
+    $exactCanonicalMatch = @($canonicalApps | Where-Object {
+        [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) -eq $CanonicalName
+    } | Select-Object -First 1)
+    if ($exactCanonicalMatch.Count -gt 0) {
+        $exactCanonicalApp = $exactCanonicalMatch[0]
+    }
+
+    $selection = $null
+    if (-not [string]::IsNullOrWhiteSpace($RequestedSoftwareName) -and $RequestedSoftwareName -ne $CanonicalName) {
+        $selection = Get-LatestApplicationSelection -SoftwareName $RequestedSoftwareName
+    }
+
+    if (-not $selection -or -not $selection.App) {
+        $selection = Get-LatestApplicationSelection -SoftwareName $CanonicalName
+    }
+
+    if ($selection -and $selection.App) {
+        return [pscustomobject]@{
+            App                       = $selection.App
+            IsVersionConfirmed        = $selection.IsVersionConfirmed
+            SelectionMode             = $selection.SelectionMode
+            WarningDetail             = $selection.WarningDetail
+            ExactCanonicalApp         = $exactCanonicalApp
+            ExactCanonicalWasPreferred = $false
+        }
+    }
+
+    if ($exactCanonicalApp) {
+        return [pscustomobject]@{
+            App                       = $exactCanonicalApp
+            IsVersionConfirmed        = $false
+            SelectionMode             = 'ExactCanonicalFallback'
+            WarningDetail             = ''
+            ExactCanonicalApp         = $exactCanonicalApp
+            ExactCanonicalWasPreferred = $true
+        }
+    }
+
+    return [pscustomobject]@{
+        App                       = $null
+        IsVersionConfirmed        = $false
+        SelectionMode             = 'NotFound'
+        WarningDetail             = ''
+        ExactCanonicalApp         = $exactCanonicalApp
+        ExactCanonicalWasPreferred = $false
+    }
 }
 
 <#
@@ -1246,6 +1418,8 @@ function Ensure-LatestDeploymentForCollection {
 
     $collectionName = Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('CollectionName', 'TargetCollectionName')
     $deploymentId = Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('DeploymentID', 'DeploymentId', 'AssignmentID', 'AssignmentId', 'Id')
+    $latestAppName = [string](Get-ObjectPropertyValue -InputObject $LatestApp -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+    $latestAppDisplayName = Get-ApplicationDisplayName -App $LatestApp
 
     if ([string]::IsNullOrWhiteSpace(($collectionName -as [string]))) {
         $audit = [pscustomobject]@{
@@ -1253,7 +1427,7 @@ function Ensure-LatestDeploymentForCollection {
             SourceDeployment  = $deploymentId
             CollectionName    = $collectionName
             SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $LatestApp.LocalizedDisplayName
+            TargetAppName     = $latestAppDisplayName
             Status            = 'Skipped'
             Notes             = 'Missing collection name on source deployment.'
         }
@@ -1268,7 +1442,7 @@ function Ensure-LatestDeploymentForCollection {
             SourceDeployment  = $deploymentId
             CollectionName    = $collectionName
             SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $LatestApp.LocalizedDisplayName
+            TargetAppName     = $latestAppDisplayName
             Status            = 'AlreadyExists'
             Notes             = 'Latest deployment already present for target collection.'
         }
@@ -1284,13 +1458,13 @@ function Ensure-LatestDeploymentForCollection {
             SourceDeployment  = $deploymentId
             CollectionName    = $collectionName
             SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $LatestApp.LocalizedDisplayName
+            TargetAppName     = $latestAppDisplayName
             Status            = 'Planned'
             Notes             = ("[DryRun] Would migrate deployment with Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
-        Write-LogEvent -Level 'INFO' -Scope 'Deployments' -Action 'Status' -Detail ("[DryRun] Would migrate deployment for collection '{0}' to latest app '{1}' ({2}/{3})." -f $collectionName, $LatestApp.LocalizedDisplayName, $intent.DeployAction, $intent.DeployPurpose)
+        Write-LogEvent -Level 'INFO' -Scope 'Deployments' -Action 'Status' -Detail ("[DryRun] Would migrate deployment for collection '{0}' to latest app '{1}' ({2}/{3})." -f $collectionName, $latestAppDisplayName, $intent.DeployAction, $intent.DeployPurpose)
         return $true
     }
 
@@ -1298,11 +1472,11 @@ function Ensure-LatestDeploymentForCollection {
         $deployAttempts = @()
         if ($intent.DeployPurpose) {
             $deployAttempts += {
-                New-CMApplicationDeployment -CollectionName $collectionName -Name $LatestApp.LocalizedDisplayName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -ErrorAction Stop | Out-Null
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -ErrorAction Stop | Out-Null
             }
         }
         $deployAttempts += {
-            New-CMApplicationDeployment -CollectionName $collectionName -Name $LatestApp.LocalizedDisplayName -DeployAction $intent.DeployAction -ErrorAction Stop | Out-Null
+            New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -ErrorAction Stop | Out-Null
         }
 
         $result = Invoke-CmCommandWithFallback -Attempts $deployAttempts -ActionName 'New-CMApplicationDeployment (migrate)'
@@ -1315,13 +1489,13 @@ function Ensure-LatestDeploymentForCollection {
             SourceDeployment  = $deploymentId
             CollectionName    = $collectionName
             SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $LatestApp.LocalizedDisplayName
+            TargetAppName     = $latestAppDisplayName
             Status            = 'Created'
             Notes             = ("Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
-        Write-LogEvent -Level 'SUCCESS' -Scope 'Deployments' -Action 'Success' -Detail ("Migrated deployment for collection '{0}' to latest app '{1}' ({2}/{3})." -f $collectionName, $LatestApp.LocalizedDisplayName, $intent.DeployAction, $intent.DeployPurpose)
+        Write-LogEvent -Level 'SUCCESS' -Scope 'Deployments' -Action 'Success' -Detail ("Migrated deployment for collection '{0}' to latest app '{1}' ({2}/{3})." -f $collectionName, $latestAppDisplayName, $intent.DeployAction, $intent.DeployPurpose)
         return $true
     }
     catch {
@@ -1330,15 +1504,168 @@ function Ensure-LatestDeploymentForCollection {
             SourceDeployment  = $deploymentId
             CollectionName    = $collectionName
             SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $LatestApp.LocalizedDisplayName
+            TargetAppName     = $latestAppDisplayName
             Status            = 'Failed'
             Notes             = $_.Exception.Message
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
-        Write-LogEvent -Level 'WARN' -Scope 'Deployments' -Action 'Warning' -Detail ("Could not migrate deployment for collection '{0}' to latest app '{1}': {2}" -f $collectionName, $LatestApp.LocalizedDisplayName, $_.Exception.Message)
+        Write-LogEvent -Level 'WARN' -Scope 'Deployments' -Action 'Warning' -Detail ("Could not migrate deployment for collection '{0}' to latest app '{1}': {2}" -f $collectionName, $latestAppDisplayName, $_.Exception.Message)
         return $false
     }
+}
+
+<#
+.SYNOPSIS
+    Deletes an application using the safest available SCCM identifier.
+
+.DESCRIPTION
+    Prefers object, id, and model-name based removal before falling back to the
+    application display name. This reduces the risk of deleting the wrong app
+    when multiple SCCM objects share a visible name.
+#>
+function Remove-Application-Robust {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Application
+    )
+
+    $resolvedApplication = $Application
+    $applicationName = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+    $applicationId = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('CI_ID', 'CIId', 'Id', 'ModelID', 'ModelId'))
+    $applicationModelName = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('ModelName', 'ModelId'))
+
+    if ([string]::IsNullOrWhiteSpace($applicationName) -and
+        [string]::IsNullOrWhiteSpace($applicationId) -and
+        [string]::IsNullOrWhiteSpace($applicationModelName)) {
+        throw 'Application removal requires at least one identifier (InputObject, Id, ModelName, or Name).'
+    }
+
+    $getApplicationCommand = Get-CachedCommand -Name 'Get-CMApplication'
+    if ($getApplicationCommand) {
+        $getApplicationParameterNames = @($getApplicationCommand.Parameters.Keys)
+        $resolveAttempts = @()
+
+        if (($getApplicationParameterNames -contains 'Id') -and -not [string]::IsNullOrWhiteSpace($applicationId)) {
+            $applicationIdValue = $applicationId
+            $resolveAttempts += [pscustomobject]@{
+                Label  = 'Get-CMApplication -Id'
+                Action = { @(Get-CMApplication -Id $applicationIdValue -ErrorAction Stop | Select-Object -First 1) }
+            }
+        }
+
+        if (($getApplicationParameterNames -contains 'ModelName') -and -not [string]::IsNullOrWhiteSpace($applicationModelName)) {
+            $applicationModelNameValue = $applicationModelName
+            $resolveAttempts += [pscustomobject]@{
+                Label  = 'Get-CMApplication -ModelName'
+                Action = { @(Get-CMApplication -ModelName $applicationModelNameValue -ErrorAction Stop | Select-Object -First 1) }
+            }
+        }
+
+        if (($getApplicationParameterNames -contains 'Name') -and -not [string]::IsNullOrWhiteSpace($applicationName)) {
+            $applicationNameValue = $applicationName
+            $resolveAttempts += [pscustomobject]@{
+                Label  = 'Get-CMApplication -Name'
+                Action = { @(Get-CMApplication -Name $applicationNameValue -ErrorAction Stop | Select-Object -First 1) }
+            }
+        }
+
+        foreach ($resolveAttempt in $resolveAttempts) {
+            try {
+                $candidate = @(& $resolveAttempt.Action)
+                if ($candidate.Count -gt 0 -and $candidate[0]) {
+                    $resolvedApplication = $candidate[0]
+                    break
+                }
+            }
+            catch {
+                Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Application rehydrate attempt failed with {0}: {1}" -f $resolveAttempt.Label, $_.Exception.Message)
+            }
+        }
+
+        $applicationName = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+        $applicationId = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('CI_ID', 'CIId', 'Id', 'ModelID', 'ModelId'))
+        $applicationModelName = [string](Get-ObjectPropertyValue -InputObject $resolvedApplication -PropertyNames @('ModelName', 'ModelId'))
+    }
+
+    $applicationDisplayName = $applicationName
+    try {
+        $applicationDisplayName = [string](Get-ApplicationDisplayName -App $resolvedApplication)
+    }
+    catch {
+    }
+
+    $removeApplicationCommand = Get-CachedCommand -Name 'Remove-CMApplication'
+    if (-not $removeApplicationCommand) {
+        throw 'Remove-CMApplication command is not available in current session.'
+    }
+
+    $commandParameters = $null
+    try { $commandParameters = $removeApplicationCommand.Parameters } catch {}
+    if ($null -eq $commandParameters) {
+        $removeApplicationCommand = Get-Command 'Remove-CMApplication' -ErrorAction SilentlyContinue
+        $script:CommandMetadataCache['Remove-CMApplication'] = $removeApplicationCommand
+        try { $commandParameters = $removeApplicationCommand.Parameters } catch {}
+    }
+
+    $commandParameterNames = if ($null -ne $commandParameters) { @($commandParameters.Keys) } else { @() }
+    $attempts = @()
+
+    if (($commandParameterNames -contains 'InputObject') -and $resolvedApplication) {
+        $applicationInputObject = $resolvedApplication
+        $attempts += [pscustomobject]@{
+            Label  = 'InputObject'
+            Action = { Remove-CMApplication -InputObject $applicationInputObject -Force -Confirm:$false -ErrorAction Stop }
+        }
+    }
+
+    if (($commandParameterNames -contains 'Id') -and -not [string]::IsNullOrWhiteSpace($applicationId)) {
+        $applicationIdValue = $applicationId
+        $attempts += [pscustomobject]@{
+            Label  = 'Id'
+            Action = { Remove-CMApplication -Id $applicationIdValue -Force -Confirm:$false -ErrorAction Stop }
+        }
+    }
+
+    if (($commandParameterNames -contains 'ModelName') -and -not [string]::IsNullOrWhiteSpace($applicationModelName)) {
+        $applicationModelNameValue = $applicationModelName
+        $attempts += [pscustomobject]@{
+            Label  = 'ModelName'
+            Action = { Remove-CMApplication -ModelName $applicationModelNameValue -Force -Confirm:$false -ErrorAction Stop }
+        }
+    }
+
+    if (($commandParameterNames -contains 'Name') -and -not [string]::IsNullOrWhiteSpace($applicationName)) {
+        $applicationNameValue = $applicationName
+        $attempts += [pscustomobject]@{
+            Label  = 'Name'
+            Action = { Remove-CMApplication -Name $applicationNameValue -Force -Confirm:$false -ErrorAction Stop }
+        }
+    }
+
+    if ($attempts.Count -eq 0) {
+        throw ("No valid non-interactive Remove-CMApplication call could be built. Available params: {0}" -f ($commandParameterNames -join ', '))
+    }
+
+    $attemptErrors = New-Object System.Collections.Generic.List[string]
+
+    foreach ($attempt in $attempts) {
+        try {
+            & $attempt.Action
+            return $true
+        }
+        catch {
+            $attemptError = [string]$_.Exception.Message
+            if ([string]::IsNullOrWhiteSpace($attemptError)) {
+                $attemptError = '[No exception message available]'
+            }
+
+            Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Remove-CMApplication attempt failed for '{0}' using {1}: {2}" -f $applicationDisplayName, $attempt.Label, $attemptError)
+            [void]$attemptErrors.Add(("{0}: {1}" -f $attempt.Label, $attemptError))
+        }
+    }
+
+    throw ("All Remove-CMApplication fallback attempts failed for '{0}'. Attempt errors: {1}" -f $applicationDisplayName, ([string]::Join(' | ', $attemptErrors)))
 }
 
 # ------------------------------------------------------------
@@ -1447,6 +1774,67 @@ function Extract-VersionFromName {
     }
 
     return $null
+}
+
+<#
+.SYNOPSIS
+    Extracts a software-family candidate from a collection name.
+
+.DESCRIPTION
+    Removes deployment intent suffixes plus trailing version and locale tokens
+    so names like 'Brave Software Inc Brave 146.1.88.138 en-US-install (device)'
+    normalize to a family name candidate instead of a version-specific label.
+#>
+function Get-SoftwareFamilyCandidateFromCollectionName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CollectionName
+    )
+
+    $candidate = ($CollectionName -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($candidate)) {
+        return $null
+    }
+
+    $candidate = $candidate -replace '(?i)\s*-\s*(install|uninstall)\s*\((available|required|device|user)\)\s*$', ''
+    $candidate = $candidate -replace '(?i)\s*-\s*(install|uninstall)\s*(\((available|required)\))?\s*$', ''
+    $candidate = $candidate -replace '(?i)\s*\((device|user)\)\s*$', ''
+    $candidate = $candidate -replace '(?i)\s+v?\d+(?:\.\d+){1,3}(?:\s+[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})+)?\s*$', ''
+    $candidate = $candidate -replace '(?i)\s+[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})+\s*$', ''
+    $candidate = $candidate.Trim().TrimEnd('-', ' ')
+
+    if ([string]::IsNullOrWhiteSpace($candidate)) {
+        return $null
+    }
+
+    return $candidate
+}
+
+<#
+.SYNOPSIS
+    Validates an auto-detected software-name candidate.
+
+.DESCRIPTION
+    Allows single-word product families while rejecting obvious action-only or
+    malformed values that should never become the canonical family name.
+#>
+function Test-SoftwareNameCandidate {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Candidate
+    )
+
+    $trimmedCandidate = ($Candidate -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmedCandidate)) {
+        return $false
+    }
+
+    if ($trimmedCandidate.Length -lt 3 -or $trimmedCandidate -notmatch '[A-Za-z]') {
+        return $false
+    }
+
+    $invalidNames = @('install', 'uninstall', 'available', 'required', 'device', 'user')
+    return $invalidNames -notcontains $trimmedCandidate.ToLowerInvariant()
 }
 
 # ------------------------------------------------------------
@@ -1648,10 +2036,10 @@ function Get-SoftwareCollections {
         $namePattern = ("*{0}*" -f $term)
 
         try {
-            $matches = @(Get-CMDeviceCollection -Name $namePattern -ErrorAction Stop)
-            Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Found {0} collections matching pattern '{1}'" -f $matches.Count, $namePattern)
+            $collectionMatches = @(Get-CMDeviceCollection -Name $namePattern -ErrorAction Stop)
+            Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Found {0} collections matching pattern '{1}'" -f $collectionMatches.Count, $namePattern)
 
-            foreach ($candidate in $matches) {
+            foreach ($candidate in $collectionMatches) {
                 $identity = Get-CollectionIdentity -InputObject $candidate
                 if ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Id)) {
                     $collectionsById[$identity.Id.ToLowerInvariant()] = $candidate
@@ -1840,14 +2228,15 @@ function Ensure-MasterCollectionDeployment {
     }
 
     $collectionName = $MasterCollection.Name
-    $appName = $Application.LocalizedDisplayName
+    $appName = [string](Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+    $appDisplayName = Get-ApplicationDisplayName -App $Application
 
     # Check if deployment already exists
     $collectionDeployments = Get-CollectionDeployments -CollectionName $collectionName
     $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $Application
 
     if ($existingDeployment -or $collectionDeployments.Count -gt 0) {
-        Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appName, $collectionName)
+        Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
         return
     }
 
@@ -1866,15 +2255,15 @@ function Ensure-MasterCollectionDeployment {
 
         Invoke-DryRunAction -Action {
             New-CMApplicationDeployment @deployParams | Out-Null
-            Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'" -f $appName, $DeploymentPurpose, $collectionName)
-        } -Description "deploy '$appName' as $DeploymentPurpose to collection '$collectionName'"
+            Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'" -f $appDisplayName, $DeploymentPurpose, $collectionName)
+        } -Description "deploy '$appDisplayName' as $DeploymentPurpose to collection '$collectionName'"
     }
     catch {
         if ($_.Exception.Message -match 'already been deployed') {
-            Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appName, $collectionName)
+            Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
         }
         else {
-            Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not deploy '{0}' as '{1}' to collection '{2}': {3}" -f $appName, $DeploymentPurpose, $collectionName, $_.Exception.Message)
+            Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not deploy '{0}' as '{1}' to collection '{2}': {3}" -f $appDisplayName, $DeploymentPurpose, $collectionName, $_.Exception.Message)
         }
     }
 }
@@ -2121,6 +2510,120 @@ function Copy-QueryMembershipRulesToMaster {
 
 <#
 .SYNOPSIS
+    Loads the external canonical-name inventory used by consolidation.
+
+.DESCRIPTION
+    Reads the repository-scoped mapping file so canonical names can be updated
+    without editing the script. Prefers a private local inventory file, then a
+    tracked generic template, and finally falls back to an embedded inventory
+    when neither external file is available or valid.
+#>
+function Get-CanonicalMappingInventory {
+    if ($script:CanonicalMappingInventoryCache) {
+        return $script:CanonicalMappingInventoryCache
+    }
+
+    $fallbackInventory = @{
+        CanonicalMappings = @{
+            'Firefox'         = 'Mozilla Firefox'
+            'Mozilla Firefox' = 'Mozilla Firefox'
+            'Chrome'          = 'Google Chrome'
+            'Google Chrome'   = 'Google Chrome'
+            'Notepad'         = 'Notepad++'
+            'Notepad Notepad' = 'Notepad++'
+            'Notepad++'       = 'Notepad++'
+        }
+    }
+
+    $privateInventoryPath = [System.IO.Path]::GetFullPath(
+        (Join-Path -Path $PSScriptRoot -ChildPath '..\..\data\SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1')
+    )
+    $templateInventoryPath = [System.IO.Path]::GetFullPath(
+        (Join-Path -Path $PSScriptRoot -ChildPath '..\..\data\SCCMSoftwareCollectionConsolidation.CanonicalMap.template.psd1')
+    )
+    $inventoryCandidates = @(
+        [pscustomobject]@{ Path = $privateInventoryPath; Type = 'private local inventory' },
+        [pscustomobject]@{ Path = $templateInventoryPath; Type = 'tracked template inventory' }
+    )
+
+    foreach ($inventoryCandidate in $inventoryCandidates) {
+        if (-not (Test-Path -LiteralPath $inventoryCandidate.Path)) {
+            continue
+        }
+
+        try {
+            $inventory = Import-PowerShellDataFile -Path $inventoryCandidate.Path -ErrorAction Stop
+            $mappingCount = 0
+            if ($inventory -and $inventory.ContainsKey('CanonicalMappings') -and $inventory.CanonicalMappings) {
+                $mappingCount = @($inventory.CanonicalMappings.Keys).Count
+                Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail (
+                    "Loaded {0} from '{1}' with {2} mapping entries." -f $inventoryCandidate.Type, $inventoryCandidate.Path, $mappingCount
+                )
+                $script:CanonicalMappingInventoryCache = $inventory
+                return $script:CanonicalMappingInventoryCache
+            }
+
+            throw 'CanonicalMappings key is missing or empty.'
+        }
+        catch {
+            Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Canonical inventory fallback' -Detail (
+                "Could not load {0} from '{1}': {2}" -f $inventoryCandidate.Type, $inventoryCandidate.Path, $_.Exception.Message
+            )
+        }
+    }
+
+    Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Canonical inventory fallback' -Detail (
+        "No valid private or template canonical inventory was available. Using embedded fallback mappings."
+    )
+    $script:CanonicalMappingInventoryCache = $fallbackInventory
+    return $script:CanonicalMappingInventoryCache
+}
+
+<#
+.SYNOPSIS
+    Returns normalized lookup candidates for canonical software resolution.
+
+.DESCRIPTION
+    Strips common deployment-role suffixes such as Available and Required so
+    canonical resolution does not need explicit inventory keys for each role
+    variant.
+#>
+function Get-CanonicalLookupCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SoftwareName
+    )
+
+    $trimmedName = ($SoftwareName -as [string]).Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmedName)) {
+        return [pscustomobject]@{
+            Candidates     = @()
+            NormalizedName = ''
+        }
+    }
+
+    $candidateList = New-Object System.Collections.Generic.List[string]
+    $candidateList.Add($trimmedName)
+
+    $withoutRoleVariant = ($trimmedName -replace '(?i)\s+(available|required)\s*$', '').Trim()
+    if (-not [string]::IsNullOrWhiteSpace($withoutRoleVariant) -and $withoutRoleVariant -ne $trimmedName) {
+        $candidateList.Add($withoutRoleVariant)
+    }
+
+    $uniqueCandidates = @($candidateList | Select-Object -Unique)
+    $normalizedName = $trimmedName
+    if (-not [string]::IsNullOrWhiteSpace($withoutRoleVariant)) {
+        $normalizedName = $withoutRoleVariant
+    }
+
+    return [pscustomobject]@{
+        Candidates     = $uniqueCandidates
+        NormalizedName = $normalizedName
+    }
+}
+
+<#
+.SYNOPSIS
     Resolves a canonical software family name.
 
 .DESCRIPTION
@@ -2133,58 +2636,57 @@ function Get-CanonicalName {
         [string]$SoftwareName
     )
 
-    # Canonical mapping table
-    # Keys may be:
-    #   - exact names
-    #   - simplified names
-    #   - auto-detected names
-    #
-    # Values are the canonical names used for master collections.
-    $map = @{
-        "Firefox"          = "Mozilla Firefox"
-        "Mozilla Firefox"  = "Mozilla Firefox"
-
-        "Chrome"           = "Google Chrome"
-        "Google Chrome"    = "Google Chrome"
-
-        # Notepad family
-        "Notepad"          = "Notepad++"
-        "Notepad Notepad"  = "Notepad++"
-        "Notepad++"        = "Notepad++"
-
-        # Brave family
-        "Brave"                    = "MediaCellen Browser Brave"
-        "Brave Browser"            = "MediaCellen Browser Brave"
-        "MediaCellen Brave"        = "MediaCellen Browser Brave"
-        "MediaCellen Browser Brave"= "MediaCellen Browser Brave"
+    $inventory = Get-CanonicalMappingInventory
+    $map = @{}
+    if ($inventory -and $inventory.ContainsKey('CanonicalMappings') -and $inventory.CanonicalMappings) {
+        $map = $inventory.CanonicalMappings
     }
 
-    # Normalize input for case-insensitive matching
-    $normalizedInput = $SoftwareName.Trim().ToLower()
+    if ($map.Count -eq 0) {
+        return $SoftwareName
+    }
+
+    $lookupCandidates = Get-CanonicalLookupCandidates -SoftwareName $SoftwareName
+    if (-not $lookupCandidates.Candidates -or $lookupCandidates.Candidates.Count -eq 0) {
+        return $SoftwareName
+    }
+
+    $normalizedInputs = @($lookupCandidates.Candidates | ForEach-Object { ($_ -as [string]).Trim().ToLower() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($normalizedInputs.Count -eq 0) {
+        return $lookupCandidates.NormalizedName
+    }
 
     # First: try exact (case-insensitive) match
     foreach ($key in $map.Keys) {
-        if ($key.ToLower() -eq $normalizedInput) {
-            return $map[$key]
+        $normalizedKey = $key.ToLower()
+        foreach ($normalizedInput in $normalizedInputs) {
+            if ($normalizedKey -eq $normalizedInput) {
+                return $map[$key]
+            }
         }
     }
 
     # Second: try partial match (e.g. "notepad" matches "notepad notepad")
     foreach ($key in $map.Keys) {
-        if ($key.ToLower().Contains($normalizedInput)) {
-            return $map[$key]
+        $normalizedKey = $key.ToLower()
+        foreach ($normalizedInput in $normalizedInputs) {
+            if ($normalizedKey.Contains($normalizedInput)) {
+                return $map[$key]
+            }
         }
     }
 
     # Third: try reverse partial match (e.g. "notepad notepad" matches "notepad")
     foreach ($key in $map.Keys) {
-        if ($normalizedInput.Contains($key.ToLower())) {
-            return $map[$key]
+        $normalizedKey = $key.ToLower()
+        foreach ($normalizedInput in $normalizedInputs) {
+            if ($normalizedInput.Contains($normalizedKey)) {
+                return $map[$key]
+            }
         }
     }
 
-    # Fallback: return the input unchanged
-    return $SoftwareName
+    return $lookupCandidates.NormalizedName
 }
 
 <#
@@ -2627,25 +3129,23 @@ function Populate-MasterCollections {
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Legacy Uninstall:           {0}" -f ((@($legacyUninstallCollections | ForEach-Object { [string](& $getCollectionName $_) }) -join ', ')))
 
         $populationStage = 'resolve deployable application'
-        $canonicalApps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $CanonicalName)
-        $appForMasterDeploy = @($canonicalApps | Where-Object { [string]$_.LocalizedDisplayName -eq $CanonicalName } | Select-Object -First 1)
-        if ($appForMasterDeploy.Count -gt 0) {
-            $appForMasterDeploy = $appForMasterDeploy[0]
-        }
-        else {
-            # If the caller supplied a more specific name (e.g. includes a year or
-            # architecture qualifier), try that first so we stay within the right
-            # product generation rather than jumping to the globally latest app.
-            if (-not [string]::IsNullOrWhiteSpace($RequestedSoftwareName) -and
-                $RequestedSoftwareName -ne $CanonicalName) {
-                $appForMasterDeploy = Get-LatestVersionedApplication -SoftwareName $RequestedSoftwareName
+        $appSelection = Get-MasterDeploymentApplicationSelection -CanonicalName $CanonicalName -RequestedSoftwareName $RequestedSoftwareName
+        $appForMasterDeploy = $appSelection.App
+        if ($appForMasterDeploy) {
+            $appForMasterDeployDisplayName = Get-ApplicationDisplayName -App $appForMasterDeploy
+            if ($appSelection.ExactCanonicalWasPreferred) {
+                Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Exact canonical fallback' -Detail (
+                    "No version-confirmed latest app was found for '{0}'. Falling back to exact canonical app '{1}' for master deployments." -f $CanonicalName, $appForMasterDeployDisplayName
+                )
             }
-            if (-not $appForMasterDeploy) {
-                $appForMasterDeploy = Get-LatestVersionedApplication -SoftwareName $CanonicalName
+            elseif (-not $appSelection.IsVersionConfirmed) {
+                Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Inferred deployment target' -Detail (
+                    "No version-confirmed app was found for '{0}'. Using inferred latest app '{1}' for master deployments." -f $CanonicalName, $appForMasterDeployDisplayName
+                )
             }
-            if ($appForMasterDeploy) {
+            else {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
-                    "No exact canonical-name app found for '{0}'. Using latest versioned app '{1}' for master deployments." -f $CanonicalName, ([string]$appForMasterDeploy.LocalizedDisplayName)
+                    "Using latest version-confirmed app '{0}' for master deployments targeting '{1}'." -f $appForMasterDeployDisplayName, $CanonicalName
                 )
             }
         }
@@ -2661,20 +3161,21 @@ function Populate-MasterCollections {
                     if ($app) {
                         $collectionDeployments = Get-CollectionDeployments -CollectionName $masterInstallAvailableNameResolved
                         $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Application $app
+                        $appDisplayName = Get-ApplicationDisplayName -App $app
 
                         if ($existingDeployment -or $collectionDeployments.Count -gt 0) {
-                            Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f ([string]$app.LocalizedDisplayName), $masterInstallAvailableNameResolved)
+                            Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                         }
                         else {
                             try {
                                 Invoke-DryRunAction -Action {
                                     New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -ErrorAction Stop | Out-Null
-                                    Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as 'Available' to collection '{1}'" -f ([string]$app.LocalizedDisplayName), $masterInstallAvailableNameResolved)
-                                } -Description "deploy '$($app.LocalizedDisplayName)' as Available to collection '$masterInstallAvailableNameResolved'"
+                                    Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as 'Available' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
+                                } -Description "deploy '$appDisplayName' as Available to collection '$masterInstallAvailableNameResolved'"
                             }
                             catch {
                                 if ($_.Exception.Message -match 'already been deployed') {
-                                    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f ([string]$app.LocalizedDisplayName), $masterInstallAvailableNameResolved)
+                                    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                                 }
                                 else {
                                     throw
@@ -2689,7 +3190,7 @@ function Populate-MasterCollections {
                 else {
                     $dryRunAppName = $CanonicalName
                     if ($appForMasterDeploy) {
-                        $dryRunAppName = [string]$appForMasterDeploy.LocalizedDisplayName
+                        $dryRunAppName = [string](Get-ApplicationDisplayName -App $appForMasterDeploy)
                     }
                     Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would deploy '{0}' as 'Available' to collection '{1}'" -f $dryRunAppName, $masterInstallAvailableNameResolved)
                 }
@@ -3136,9 +3637,11 @@ function Apply-SupersedenceAndDeployments {
         }
 
         $chainEntries += [pscustomobject]@{
-            App     = $entryApp
-            Name    = $entryName
-            Version = $entryVersion
+            App         = $entryApp
+            Name        = $entryName
+            Version     = $entryVersion
+            VersionRaw  = $entryVersionRaw
+            DisplayName = (Get-VersionAwareDisplayName -Name $entryName -VersionRaw $entryVersionRaw)
         }
     }
 
@@ -3149,7 +3652,7 @@ function Apply-SupersedenceAndDeployments {
         return
     }
 
-    $chainDisplay = [string]::Join(' -> ', @($chainEntries | ForEach-Object { $_.Name }))
+    $chainDisplay = [string]::Join(' -> ', @($chainEntries | ForEach-Object { $_.DisplayName }))
     Write-LogEvent -Level 'INFO' -Scope 'Supersedence' -Action 'Build chain' -Detail $chainDisplay
 
     for ($i = 0; $i -lt $chainEntries.Count - 1; $i++) {
@@ -3167,14 +3670,14 @@ function Apply-SupersedenceAndDeployments {
                     throw "Set-CMApplicationSupersedence command not supported with detected parameter set."
                 }
 
-                Write-LogEvent -Level 'SUCCESS' -Scope 'Supersedence' -Action 'Linked' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.Name, $olderEntry.Name)
+                Write-LogEvent -Level 'SUCCESS' -Scope 'Supersedence' -Action 'Linked' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.DisplayName, $olderEntry.DisplayName)
             }
             else {
-                Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would link supersedence' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.Name, $olderEntry.Name)
+                Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would link supersedence' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.DisplayName, $olderEntry.DisplayName)
             }
         }
         catch {
-            Write-LogEvent -Level 'WARN' -Scope 'Supersedence' -Action 'Link failed' -Detail (("'{0}' -> '{1}' | {2}") -f $olderEntry.Name, $newerEntry.Name, $_.Exception.Message)
+            Write-LogEvent -Level 'WARN' -Scope 'Supersedence' -Action 'Link failed' -Detail (("'{0}' -> '{1}' | {2}") -f $olderEntry.DisplayName, $newerEntry.DisplayName, $_.Exception.Message)
         }
     }
 }
@@ -4167,6 +4670,18 @@ function Is-PermanentAppDeletionError {
         return $true
     }
 
+    if ($ErrorMessage -match 'referenced by other applications') {
+        return $true
+    }
+
+    if ($ErrorMessage -match 'supersed') {
+        return $true
+    }
+
+    if ($ErrorMessage -match 'dependent application') {
+        return $true
+    }
+
     return $false
 }
 
@@ -4625,10 +5140,15 @@ function Plan-And-Execute-Cleanup {
         # Build deployment cleanup set for non-master collections.
         $cleanupStage = 'build deployment cleanup candidate set'
         $deploymentsToDelete = @()
-        $latestAppForMigration = Get-LatestVersionedApplication -SoftwareName $normalizedSoftwareName
+        $latestAppSelection = Get-LatestApplicationSelection -SoftwareName $normalizedSoftwareName
+        $latestAppForMigration = $latestAppSelection.App
 
         if ($latestAppForMigration) {
-            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Migration target selected' -Detail $latestAppForMigration.LocalizedDisplayName
+            $migrationTargetDisplayName = Get-ApplicationDisplayName -App $latestAppForMigration
+            if ($latestAppSelection -and -not $latestAppSelection.IsVersionConfirmed) {
+                Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Migration target inferred' -Detail ("Target '{0}' is inferred from application metadata and is not version-confirmed. Review before allowing deployment migration and cleanup deletes." -f $migrationTargetDisplayName)
+            }
+            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Migration target selected' -Detail $migrationTargetDisplayName
         }
         else {
             Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Migration target missing' -Detail ("Could not identify latest version app for '{0}'." -f $normalizedSoftwareName)
@@ -4725,7 +5245,7 @@ function Plan-And-Execute-Cleanup {
                 $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
                 if (-not $entryApp) { continue }
                 $displayName = ''
-                try { $displayName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName','Name')) } catch {}
+                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch {}
                 if (-not [string]::IsNullOrWhiteSpace($displayName)) { $displayName }
             }
         )
@@ -4736,7 +5256,7 @@ function Plan-And-Execute-Cleanup {
                 $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
                 if (-not $entryApp) { continue }
                 $displayName = ''
-                try { $displayName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName','Name')) } catch {}
+                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch {}
                 if (-not [string]::IsNullOrWhiteSpace($displayName)) { $displayName }
             }
         )
@@ -4803,20 +5323,28 @@ function Plan-And-Execute-Cleanup {
         $cleanupStage = 'confirm cleanup plan'
         if (($deploymentsToDelete.Count -eq 0) -and ($oldApps.Count -eq 0) -and ($oldCollections.Count -eq 0)) {
             Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'No-op' -Detail 'No legacy deployments, applications, or collections require cleanup.'
-        }
-
-        if (-not $AutoApprove) {
-        Write-Host ""
-        Write-Host "Planned cleanup actions:" -ForegroundColor Cyan
-        Write-Host (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
-        Write-Host (" - Applications to delete: {0}" -f $oldApps.Count)
-        Write-Host (" - Collections to delete:  {0}" -f $oldCollections.Count)
-        Write-Host ""
-        $answer = Read-Host "Proceed with cleanup? (Y/N)"
-        if ($answer -notin @('Y','y','Yes','yes')) {
-            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Aborted' -Detail 'User declined confirmation prompt.'
             return
         }
+
+        if ($DryRun) {
+            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmation skipped' -Detail 'DryRun is active. Continuing with simulated cleanup actions without prompting.'
+        }
+        elseif (-not $AutoApprove) {
+            if ($NonInteractive) {
+                Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Aborted' -Detail 'Cleanup confirmation is required, but NonInteractive is set. Re-run with -AutoApprove to proceed without prompts.'
+                return
+            }
+            Write-Host ""
+            Write-Host "Planned cleanup actions:" -ForegroundColor Cyan
+            Write-Host (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
+            Write-Host (" - Applications to delete: {0}" -f $oldApps.Count)
+            Write-Host (" - Collections to delete:  {0}" -f $oldCollections.Count)
+            Write-Host ""
+            $answer = Read-Host "Proceed with cleanup? (Y/N)"
+            if ($answer -notin @('Y','y','Yes','yes')) {
+                Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Aborted' -Detail 'User declined confirmation prompt.'
+                return
+            }
         }
         else {
             Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmed' -Detail 'AutoApprove enabled. Running without additional prompts.'
@@ -4857,13 +5385,14 @@ function Plan-And-Execute-Cleanup {
         if (-not $entryApp) { continue }
 
         $appName      = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName','Name'))
+        $appDisplayName = Get-ApplicationDisplayName -App $entryApp
         $appId        = Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID','CIId','ModelID','ModelId')
         $appModelName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('ModelName', 'ModelId'))
 
         $tsRefs = Find-TaskSequencesReferencingApp -AppCI_ID $appId -AppModelName $appModelName
 
         if ($tsRefs.Count -gt 0) {
-            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete skipped' -Detail (("'{0}' (CI_ID: {1}) is referenced by {2} task sequence(s).") -f $appName, $appId, $tsRefs.Count)
+            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete skipped' -Detail (("'{0}' (CI_ID: {1}) is referenced by {2} task sequence(s).") -f $appDisplayName, $appId, $tsRefs.Count)
 
             foreach ($r in $tsRefs) {
                 Write-Host (" - Task Sequence: {0} (PackageId: {1})" -f $r.TaskSequenceName, $r.PackageId)
@@ -4874,25 +5403,26 @@ function Plan-And-Execute-Cleanup {
 
         try {
             Invoke-DryRunAction -Action {
-                Remove-CMApplication -Name $appName -Force -Confirm:$false -ErrorAction Stop
-            } -Description "delete software application '$appName'"
+                [void](Remove-Application-Robust -Application $entryApp)
+            } -Description "delete software application '$appDisplayName'"
             if (-not $DryRun) {
-                Write-LogEvent -Level 'SUCCESS' -Scope 'Cleanup' -Action 'Application deleted' -Detail $appName
+                Write-LogEvent -Level 'SUCCESS' -Scope 'Cleanup' -Action 'Application deleted' -Detail $appDisplayName
             }
         }
         catch {
-            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete failed' -Detail (("'{0}' | {1}") -f $appName, $_.Exception.Message)
+            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete failed' -Detail (("'{0}' | {1}") -f $appDisplayName, $_.Exception.Message)
 
             if (Is-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
-                Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $appName)
+                Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $appDisplayName)
                 continue
             }
 
             [void]$failedApps.Add(
                 [pscustomobject]@{
-                    Name  = $appName
-                    CI_ID = $appId
-                    Error = $_.Exception.Message
+                    Name      = $appName
+                    CI_ID     = $appId
+                    ModelName = $appModelName
+                    Error     = $_.Exception.Message
                 }
             )
         }
@@ -5063,22 +5593,23 @@ function Retry-FailedDeletions {
                 # Retry application deletions that previously failed due to
                 # transient provider state or timing.
                 try {
-                    Remove-CMApplication -Name $a.Name -Force -Confirm:$false -ErrorAction Stop
-                    Write-LogEvent -Level 'SUCCESS' -Scope 'Retry' -Action 'Application deleted' -Detail $a.Name
+                    [void](Remove-Application-Robust -Application $a)
+                    Write-LogEvent -Level 'SUCCESS' -Scope 'Retry' -Action 'Application deleted' -Detail (Get-ApplicationDisplayName -App $a)
                 }
                 catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Application retry failed' -Detail (("'{0}' | {1}") -f $a.Name, $_.Exception.Message)
 
                     if (Is-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
-                        Write-LogEvent -Level 'INFO' -Scope 'Retry' -Action 'Application retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $a.Name)
+                        Write-LogEvent -Level 'INFO' -Scope 'Retry' -Action 'Application retry skipped' -Detail (("'{0}' blocked by dependency references.") -f (Get-ApplicationDisplayName -App $a))
                         continue
                     }
 
                     [void]$failedApps.Add(
                         [pscustomobject]@{
-                            Name  = $a.Name
-                            CI_ID = $a.CI_ID
-                            Error = $_.Exception.Message
+                            Name      = $a.Name
+                            CI_ID     = $a.CI_ID
+                            ModelName = $a.ModelName
+                            Error     = $_.Exception.Message
                         }
                     )
                 }
@@ -5195,26 +5726,11 @@ try {
                 # Extract a software-family candidate from each matching
                 # collection name by trimming version suffixes.
                 $originalName = $col.Name
-                $name = $originalName.Trim()
-
-                # Remove deployment intent suffixes so candidate extraction works
-                # with names like "Product - Install (Available)".
-                $nameForCandidate = $name
-                $nameForCandidate = $nameForCandidate -replace '\s*-\s*Install\s*(\((Available|Required)\))?\s*$', ''
-                $nameForCandidate = $nameForCandidate -replace '\s*-\s*Uninstall\s*$', ''
-
-                # Remove legacy intent suffixes and then strip only trailing
-                # version text so product-family digits like 'Agent 2' survive.
-                $nameForCandidate = $nameForCandidate -replace '(?i)\s*-\s*(install|uninstall)\s*\(device\)\s*$', ''
-                $nameForCandidate = $nameForCandidate -replace '(?i)\s+v?\d+(?:\.\d+){1,3}\s*$', ''
-                $candidate = $nameForCandidate.Trim()
-                $candidate = $candidate.TrimEnd('-', ' ')
+                $candidate = Get-SoftwareFamilyCandidateFromCollectionName -CollectionName $originalName
 
                 if (
                     -not [string]::IsNullOrWhiteSpace($candidate) -and
-                    $candidate -match "[A-Za-z]" -and
-                    $candidate.Length -ge 3 -and
-                    ($candidate -split "\s+").Count -ge 2
+                    (Test-SoftwareNameCandidate -Candidate $candidate)
                 ) {
 
                     $softwareNameCandidatesRaw += $candidate
@@ -5234,7 +5750,7 @@ try {
 
             # Final cleanup: ensure no empty or invalid candidates remain
             $softwareNameCandidates = @($softwareNameCandidates |
-                Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -match "[A-Za-z]" })
+                Where-Object { Test-SoftwareNameCandidate -Candidate $_ })
 
             # Debug logging
             if ($debugFiltered.Count -gt 0) {
@@ -5252,11 +5768,20 @@ try {
             # ------------------------------------------------------------
 
             $skipPrompt = $false
+            $requestedSoftwareNameNormalized = ($requestedSoftwareName -as [string]).Trim().ToLowerInvariant()
+            $requestedSoftwareCandidate = @($softwareNameCandidates | Where-Object {
+                $_.Trim().ToLowerInvariant() -eq $requestedSoftwareNameNormalized
+            } | Select-Object -First 1)
 
-            if ($softwareNameCandidates.Count -eq 1) {
+            if ($requestedSoftwareCandidate.Count -gt 0) {
+                $SoftwareName = $requestedSoftwareCandidate[0].Trim()
+                Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'Auto-selected software name' -Detail ("Requested software name matched discovered candidate '{0}'." -f $SoftwareName)
+                $skipPrompt = $true
+            }
+            elseif ($softwareNameCandidates.Count -eq 1) {
                 # Only one valid candidate -> auto-select.
                 $candidate = [string]($softwareNameCandidates | Select-Object -First 1)
-                if (-not [string]::IsNullOrWhiteSpace($candidate) -and $candidate.Trim().Length -ge 3) {
+                if (Test-SoftwareNameCandidate -Candidate $candidate) {
                     $SoftwareName = $candidate.Trim()
                 }
                 else {
@@ -5270,7 +5795,16 @@ try {
                 # AutoApprove -> pick the most common candidate.
                 $SoftwareName = ($softwareNameCandidatesRaw |
                     Group-Object |
-                    Sort-Object Count -Descending |
+                    Sort-Object -Property @(
+                        @{ Expression = {
+                                if ($requestedSoftwareNameNormalized -and $_.Name.Trim().ToLowerInvariant() -eq $requestedSoftwareNameNormalized) { 1 } else { 0 }
+                            }; Descending = $true },
+                        @{ Expression = {
+                                if ($requestedSoftwareNameNormalized -and $_.Name.Trim().ToLowerInvariant().Contains($requestedSoftwareNameNormalized)) { 1 } else { 0 }
+                            }; Descending = $true },
+                        @{ Expression = { $_.Count }; Descending = $true },
+                        @{ Expression = { $_.Name.Length }; Descending = $false }
+                    ) |
                     Select-Object -First 1).Name
 
                 Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'Auto-selected software name' -Detail ("Multiple candidates detected; selected '{0}'." -f $SoftwareName)
@@ -5278,6 +5812,11 @@ try {
             }
 
             if (-not $skipPrompt -and $softwareNameCandidates.Count -gt 1) {
+
+                if ($NonInteractive) {
+                    Write-LogEvent -Level 'ERROR' -Scope 'Discovery' -Action 'Ambiguous software name' -Detail ("Multiple candidates require input, but NonInteractive is set. Candidates: {0}" -f ($softwareNameCandidates -join ', '))
+                    return
+                }
 
                 Write-Host ""
                 Write-Host "Multiple software name candidates found:" -ForegroundColor Yellow

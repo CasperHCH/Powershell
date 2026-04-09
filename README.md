@@ -29,6 +29,8 @@
 - `tests/` – Unit and integration tests
 - `data/` – Configs, logs, reports
 
+For SCCM consolidation naming, keep the private local inventory in `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1` and start from the tracked generic template in `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.template.psd1`. The private file is ignored by git so environment-specific software names stay local.
+
 ## API Reference
 See `docs/api-references/` for PowerShell examples and authentication patterns.
 
