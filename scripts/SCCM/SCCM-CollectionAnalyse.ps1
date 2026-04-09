@@ -686,7 +686,7 @@ function Extract-SoftwareName {
 
     # Remove residual deployment markers commonly used in SCCM collection names.
     $name = $name -replace '(?i)\(\s*(device|user)\s*\)', ' '
-    $name = $name -replace '(?i)\b(install|uninstall|repair|cleanup)\b', ' '
+    $name = $name -replace '(?i)\b(required|available|install|uninstall|repair|cleanup)\b', ' '
 
     $name = $name -replace '[\(\)
 
@@ -698,6 +698,24 @@ function Extract-SoftwareName {
     $name = ($name -replace '\s+', ' ').Trim()
 
     return $name
+}
+
+function Normalize-SoftwareKey {
+    param([string]$SoftwareName)
+
+    if ([string]::IsNullOrWhiteSpace($SoftwareName)) {
+        return $null
+    }
+
+    $normalizedName = [string]$SoftwareName
+    $normalizedName = $normalizedName -replace '(?i)\b(required|available|install|uninstall|repair|cleanup)\b', ' '
+    $normalizedName = ($normalizedName -replace '\s+', ' ').Trim().ToLowerInvariant()
+
+    if ([string]::IsNullOrWhiteSpace($normalizedName)) {
+        return $null
+    }
+
+    return $normalizedName
 }
 
 # ---------------------------------------------------------
@@ -766,7 +784,8 @@ foreach ($containerItem in @($items)) {
     $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
 
     if ([string]$analysisIdentity.Suffix -ieq 'install' -and -not [string]::IsNullOrWhiteSpace([string]$analysisIdentity.Software)) {
-        $softwareKey = ([string]$analysisIdentity.Software).Trim().ToLowerInvariant()
+        $softwareKey = Normalize-SoftwareKey -SoftwareName ([string]$analysisIdentity.Software)
+        if ([string]::IsNullOrWhiteSpace($softwareKey)) { continue }
         if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
             $analysisInstallCollectionIdsBySoftware[$softwareKey] = New-Object System.Collections.Generic.List[string]
         }
@@ -1186,7 +1205,10 @@ function Get-PairedImplicitInstallCoverage {
         return $null
     }
 
-    $softwareKey = $SoftwareName.Trim().ToLowerInvariant()
+    $softwareKey = Normalize-SoftwareKey -SoftwareName $SoftwareName
+    if ([string]::IsNullOrWhiteSpace($softwareKey)) {
+        return $null
+    }
     if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
         return $null
     }

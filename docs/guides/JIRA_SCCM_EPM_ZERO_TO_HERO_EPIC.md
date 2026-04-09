@@ -81,6 +81,7 @@ This task matters because new Endpoint Managers often know the tools only in fra
 - Produce a Visio, PowerPoint, or Markdown architecture diagram
 - Add a one-page terminology sheet to the team knowledge base
 - Include examples of where each concept appears in the console
+- Use [docs/guides/SCCM_SERVICE_MAP_AND_TERMINOLOGY.md](docs/guides/SCCM_SERVICE_MAP_AND_TERMINOLOGY.md) as the first-pass Markdown deliverable and validation checklist
 
 **Acceptance criteria:**
 - Service map exists and is understandable to a new team member
@@ -194,6 +195,7 @@ This task matters because poor collection design creates deployment risk, inaccu
 - Export collections with member counts, refresh schedules, and limiting collections
 - Create a report showing unused, overlapping, or stale collections
 - Categorize collections as pilot, production, staging, or obsolete
+- Use [docs/guides/SCCM_COLLECTION_DESIGN_AND_NAMING_REVIEW.md](docs/guides/SCCM_COLLECTION_DESIGN_AND_NAMING_REVIEW.md) as the first-pass review and cleanup backlog
 
 **Acceptance criteria:**
 - Collection naming and design issues are documented
@@ -466,6 +468,7 @@ This task matters because patching often spans multiple teams, and unclear owner
 - Produce a flowchart of the patching lifecycle
 - Record collection and ring structure for monthly patching
 - Document approval and exception handling paths
+- Use [docs/guides/SCCM_SOFTWARE_UPDATE_SERVICING_MODEL.md](docs/guides/SCCM_SOFTWARE_UPDATE_SERVICING_MODEL.md) as the first-pass servicing model and validation checklist
 
 **Acceptance criteria:**
 - Update lifecycle is documented end to end
