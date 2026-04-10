@@ -4,6 +4,35 @@ All notable changes to this **enterprise-grade PowerShell library** are document
 
 ## 🔐 **Security Classification**: All changes documented for audit trail compliance
 
+## [3.3.0] - 2026-04-10 - Infrastructure Automation Roadmap and Scaffold
+
+### Added
+- Added `docs/guides/INFRASTRUCTURE_AUTOMATION_ROADMAP.md` to define a phased delivery plan for Active Directory, PKI, SCCM, validation, and CI expansion.
+- Added `scripts/infrastructure/` with a manifest-driven scaffold for future day-0 and day-1 automation.
+- Added `scripts/infrastructure/Infrastructure-Common.ps1` for shared logging, manifest loading, and preflight helper functions.
+- Added `scripts/infrastructure/Invoke-InfrastructureBootstrap.ps1` as a phased orchestration entry point for Active Directory, PKI, and SCCM scaffolds.
+- Added `scripts/infrastructure/config/Environment.Baseline.template.psd1` as the tracked baseline manifest template.
+- Added `scripts/infrastructure/config/Environment.lab.psd1` as a fuller lab manifest covering Active Directory, PKI, SCCM, networking, and service-account placeholders.
+- Added initial scaffold scripts for Active Directory, PKI, and SCCM validation and build-preview workflows.
+- Added `scripts/infrastructure/active-directory/New-ADBaselineOUs.ps1` for manifest-driven baseline OU creation.
+- Added `scripts/infrastructure/active-directory/New-ADBaselineGroups.ps1` for manifest-driven baseline group creation.
+- Added `scripts/infrastructure/active-directory/New-ADBaselineGpos.ps1` for manifest-driven baseline GPO creation and linking.
+- Added `scripts/infrastructure/config/Environment.SCCM.template.ps1` as a variable-driven SCCM-focused manifest template.
+- Added `scripts/infrastructure/sccm/New-SccmBoundaryModel.ps1` for manifest-driven SCCM boundary and boundary-group creation.
+- Added `scripts/infrastructure/sccm/New-SccmBaselineCollections.ps1` for manifest-driven SCCM baseline device collection creation.
+
+### Changed
+- Expanded `scripts/infrastructure/active-directory/Test-ADDomainHealth.ps1` from a placeholder into a working validator with domain, forest, domain-controller, SYSVOL, and optional diagnostic command checks.
+- Expanded `scripts/infrastructure/active-directory/Test-ADDomainHealth.ps1` further with DNS, FSMO, time-service, and SYSVOL replication signal checks.
+- Implemented `scripts/infrastructure/active-directory/Install-FirstDomainController.ps1` as a manifest-driven preflight and promotion workflow with optional feature installation and `Install-ADDSForest` execution support.
+- Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` with SQL reachability, management point, software update point, distribution-point, boundary, and boundary-group validation driven by the manifest.
+- Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` further with standard-collection and source-path validation driven by the manifest.
+- Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` to validate boundary-group boundary references from the manifest.
+- Expanded `scripts/infrastructure/Infrastructure-Common.ps1` to support both `.psd1` and `.ps1` manifest files.
+
+### Documentation
+- Updated `README.md` to index the new infrastructure automation area and roadmap guide.
+
 ## [3.2.0] - 2026-04-10 - Script Hardening, Cleanup, and PKI Workflow Expansion
 
 ### Added

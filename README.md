@@ -8,6 +8,7 @@ Enterprise-oriented PowerShell scripts for administration, endpoint management, 
 This repository is organized around reusable PowerShell automation for:
 
 - Active Directory and Exchange administration
+- Infrastructure provisioning and baseline validation
 - SCCM and endpoint-management operations
 - Jira, Confluence, and other Atlassian workflows
 - Certificate request and response handling
@@ -35,6 +36,14 @@ The certificate area now includes companion PKI workflow scripts for offline req
 
 - `scripts/Certificates/Install-PKICertificateServer.ps1`
 - `scripts/Certificates/Install-PKICertificateResponse.ps1`
+
+### Infrastructure
+
+The infrastructure area provides a new manifest-driven scaffold for day-0 and day-1 automation covering Active Directory, PKI, and SCCM bootstrap patterns.
+
+- `scripts/infrastructure/README.md`
+- `scripts/infrastructure/Invoke-InfrastructureBootstrap.ps1`
+- `scripts/infrastructure/config/Environment.Baseline.template.psd1`
 
 ### SCCM
 
@@ -73,6 +82,7 @@ For SCCM software collection consolidation, keep environment-specific mappings i
 
 - `CHANGELOG.md` for notable repository changes
 - `docs/api-references/ATLASSIAN_API_REFERENCE.md` for Atlassian API notes
+- `docs/guides/INFRASTRUCTURE_AUTOMATION_ROADMAP.md` for the phased infrastructure automation plan
 - `.github/Copilot-Instructions.md` for repository-specific coding constraints
 
 For details, use the documentation closest to the scripts you are changing or running.
