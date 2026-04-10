@@ -8,3 +8,6 @@ scripts/SCCM/SCCM-SoftwareExport-*.csv
 scripts/SCCM/programScripts/
 # Local/private SCCM canonical inventory override - do not publish.
 data/SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1
+# as it may contain info not suited for the public
+docs/guides/*
+!docs/guides/DEVELOPMENT_STANDARDS.md
