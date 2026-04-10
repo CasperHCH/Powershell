@@ -1,227 +1,133 @@
 # Secure PowerShell Library Quick Start Guide
 
-## � **Security Notice**
-This is an **enterprise-grade PowerShell library** with security hardening. All scripts follow **zero hardcoded credentials** policy and require proper parameterization.
+This guide is a practical starting point for working in this repository without assuming an idealized project structure that does not exist in the current tree.
 
-## �🚀 Getting Started
+## Security Notice
+
+This repository expects:
+
+- no hardcoded credentials, API keys, or environment-specific secrets
+- validated parameters instead of edited-in-place script constants
+- audit-friendly logging for sensitive or state-changing operations
+
+## Getting Started
 
 ### Prerequisites
-- **PowerShell 5.1** or **PowerShell 7+**
-- **Execution Policy**: Set to `RemoteSigned` or `Unrestricted`
-- **Git** (for cloning and version control)
-- **Security Awareness**: Understanding of credential management and parameterization requirements
+
+- PowerShell 5.1 or PowerShell 7+
+- Git
+- rights appropriate to the platforms you are automating
+- understanding of secure credential handling
 
 ### Initial Setup
 
-1. **Clone the Repository**
+1. Clone the repository.
+
 ```powershell
 git clone https://github.com/CasperHCH/Powershell.git C:\PS
-cd C:\PS
+Set-Location C:\PS
 ```
 
-2. **Set Execution Policy** (if needed)
+2. Set execution policy if needed.
+
 ```powershell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-3. **Load PowerShell Profile**
-The profile will automatically load core modules when you open PowerShell in the C:\PS directory.
+3. Review the script area you plan to use before running anything.
 
-## 📁 Navigating the Structure
+## Repository Navigation
 
-### **Core Modules** (`core/`)
-Essential functions loaded automatically:
-- **Authentication**: `Connect-Office365Services.ps1`, `Test-ADCredential.ps1`
-- **Utilities**: System monitoring, file operations, general helpers
-- **Reporting**: Hardware specs, system reports
+### Core Areas
 
-### **Scripts by Domain** (`scripts/`)
-- **Exchange**: `scripts/exchange/` - Mailbox management, permissions
-- **Active Directory**: `scripts/active-directory/` - User lifecycle, groups
-- **Communication**: `scripts/communication/` - Teams, email automation
-- **System Admin**: `scripts/system-administration/` - IIS, monitoring, security
-- **Network**: `scripts/network/` - Connectivity testing, validation
-- **Atlassian**: `scripts/atlassian/` - Jira, Confluence, OpsGenie
+- `core/` - shared authentication, utility, and reporting helpers
+- `scripts/` - main automation library grouped by domain or platform
+- `docs/` - guides, templates, and API references
+- `autoload/` - helper scripts intended for profile-style loading
+- `data/` - tracked templates and configuration data
 
-## 🔧 Common Tasks
+### Common Script Areas
 
-### **Secure Office 365 Connection**
-```powershell
-# ✅ SECURE: Parameterized connection with credential options
-param(
-    [Parameter(Mandatory=$false, HelpMessage="Tenant domain (e.g., contoso.onmicrosoft.com)")]
-    [ValidatePattern('\.onmicrosoft\.com$')]
-    [string]$TenantDomain,
+- `scripts/active-directory/`
+- `scripts/exchange/`
+- `scripts/atlassian/`
+- `scripts/SCCM/`
+- `scripts/epm-automation/`
+- `scripts/system-administration/`
+- `scripts/Certificates/`
 
-    [Parameter(Mandatory=$false, HelpMessage="Use stored credentials")]
-    [switch]$UseStoredCredentials
-)
+## Typical Workflow
 
-# Load authentication module (auto-loaded in profile)
-if ($UseStoredCredentials) {
-    $creds = Import-Clixml -Path "$env:USERPROFILE\.credentials\o365.xml"
-    Connect-ExchangeOnline -Credential $creds -Organization $TenantDomain
-} else {
-    Connect-ExchangeOnline -Organization $TenantDomain
-}
+1. Find the relevant script folder.
+2. Read the nearest README or guide if one exists.
+3. Review the script help block with `Get-Help`.
+4. Prefer `-WhatIf`, `-DryRun`, or validation-only modes first.
+5. Run with explicit parameters rather than editing the script body.
 
-# ❌ NEVER DO: Connect-ExchangeOnline -UserPrincipalName "admin@hardcoded-company.com"
-```
+## Example Tasks
 
-### **Active Directory Operations**
-```powershell
-# Find locked out users
-. "C:\PS\scripts\active-directory\Get-LockedOutLocation.ps1"
-Get-LockedOutLocation -Username "john.doe"
-
-# Test AD credentials
-. "C:\PS\core\authentication\Test-ADCredential.ps1"
-Test-ADCredential -Username "domain\user" -Password "password"
-```
-
-### **Exchange Management**
-```powershell
-# Check mailbox automapping
-. "C:\PS\scripts\exchange\Get-MailboxAutomapping.ps1"
-Get-MailboxAutomapping -Mailbox "shared.mailbox@company.com"
-
-# Get mailbox permissions
-. "C:\PS\scripts\exchange\Get-MailboxPermissions.ps1"
-Get-MailboxPermissions -Identity "user@company.com"
-```
-
-### **System Administration**
-```powershell
-# Check system uptime
-. "C:\PS\core\utilities\Get-Uptime.ps1"
-Get-Uptime
-
-# Get hardware specifications
-. "C:\PS\core\reporting\Get-ComputerHardwareSpecification.ps1"
-Get-ComputerHardwareSpecification -ComputerName "SERVER01"
-```
-
-### **Atlassian Operations**
-```powershell
-# Disable Jira user (Cloud)
-. "C:\PS\scripts\atlassian\cloud\DisableUser.ps1"
-# Follow prompts for API token and user details
-
-# Bulk operations
-. "C:\PS\scripts\atlassian\cloud\Atlassian_Cloud_Delete_Users.ps1"
-# Includes WhatIf support for safe testing
-```
-
-## 🛡️ Security Best Practices
-
-### **Credential Management**
-Never hardcode credentials. Use secure methods:
+### Active Directory
 
 ```powershell
-# Store credentials securely
-$cred = Get-Credential
-$cred | Export-Clixml -Path "C:\PS\data\config\mycreds.xml"
-
-# Load stored credentials
-$cred = Import-Clixml -Path "C:\PS\data\config\mycreds.xml"
+.\scripts\active-directory\Get-LockedOutLocation.ps1
 ```
 
-### **API Token Storage**
-For API integrations:
+### SCCM
 
 ```powershell
-# Store API tokens securely
-$apiToken = Read-Host "Enter API Token" -AsSecureString
-$apiToken | ConvertFrom-SecureString | Out-File "C:\PS\data\config\api-token.txt"
-
-# Load API tokens
-$encToken = Get-Content "C:\PS\data\config\api-token.txt"
-$secToken = ConvertTo-SecureString $encToken
-$apiToken = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secToken))
+Get-Content .\scripts\SCCM\README.md
 ```
 
-## 📝 Creating New Scripts
+### EPM Automation
 
-### **Use the Template**
 ```powershell
-# Copy template to your category
-Copy-Item "C:\PS\docs\templates\Template.ps1" "C:\PS\scripts\[category]\MyNewScript.ps1"
+Get-Content .\scripts\epm-automation\README.md
 ```
 
-### **Follow Naming Convention**
-- Use PowerShell **Verb-Noun** format: `Get-UserData.ps1`, `Set-MailboxPermission.ps1`
-- Place in appropriate domain folder
-- Include comprehensive help documentation
+### Certificates
 
-### **Standard Script Structure**
 ```powershell
-<#
-.SYNOPSIS
-    Brief description of what the script does
-.DESCRIPTION
-    Detailed description of functionality
-.PARAMETER ParameterName
-    Description of each parameter
-.EXAMPLE
-    Example usage with expected output
-.NOTES
-    Additional information, requirements, dependencies
-#>
-
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$RequiredParameter,
-
-    [Parameter(Mandatory=$false)]
-    [switch]$OptionalSwitch
-)
-
-# Your script logic here
-try {
-    # Main functionality
-    Write-Output "Script completed successfully"
-}
-catch {
-    Write-Error "Script failed: $($_.Exception.Message)"
-}
+Get-Help .\scripts\Certificates\Install-PKICertificateServer.ps1 -Full
+Get-Help .\scripts\Certificates\Install-PKICertificateResponse.ps1 -Full
 ```
 
-## 🧪 Testing Your Scripts
+## Credential Handling
 
-### **Use WhatIf When Available**
+Never store live credentials in script files.
+
 ```powershell
-# Test without making changes
-.\MyScript.ps1 -WhatIf
+$credential = Get-Credential
+$credential | Export-Clixml -Path "$env:USERPROFILE\.credentials\example.xml"
+
+$credential = Import-Clixml -Path "$env:USERPROFILE\.credentials\example.xml"
 ```
 
-### **Validation Scripts**
-```powershell
-# Run validation tests
-. "C:\PS\tests\validation-scripts\Test-ScriptSyntax.ps1"
-Test-ScriptSyntax -Path "C:\PS\scripts\[category]\MyScript.ps1"
-```
+For API tokens, prefer a secure prompt or approved secret store.
 
-## 📚 Additional Resources
+## Creating or Updating Scripts
 
-- **API Documentation**: `docs/api-references/` for complete API guides
-- **Changelog**: `CHANGELOG.md` for version history and breaking changes
-- **Copilot Instructions**: `copilot-instructions.md` for AI-assisted development
-- **Examples**: Browse existing scripts in `scripts/` directories for patterns
+Use `docs/templates/Template.ps1` as the baseline when creating a new script.
 
-## 🆘 Troubleshooting
+Keep these rules in mind:
 
-### **Common Issues**
-1. **Module Import Errors**: Ensure PowerShell profile loaded correctly
-2. **Credential Issues**: Check secure storage and retrieval methods
-3. **API Errors**: Verify tokens, endpoints, and network connectivity
-4. **Path Issues**: Use absolute paths and verify folder structure
+- use `Verb-Noun.ps1` naming
+- place scripts in the closest matching domain folder
+- include comment-based help
+- add parameter validation
+- use secure logging and avoid leaking sensitive values
 
-### **Getting Help**
-- Review script help: `Get-Help .\ScriptName.ps1 -Full`
-- Check examples: `Get-Help .\ScriptName.ps1 -Examples`
-- Examine source: Scripts include comprehensive inline documentation
+## Validation Guidance
 
----
+- Use `-WhatIf` when available.
+- Use validation-only modes when the script supports them.
+- If there is no active repository test structure for the script family, document the manual validation you performed.
 
-*For additional questions or contributions, refer to individual script documentation or repository maintainer.*
+## Additional Resources
+
+- `README.md`
+- `CHANGELOG.md`
+- `.github/Copilot-Instructions.md`
+- `docs/guides/DEVELOPMENT_STANDARDS.md`
+- `docs/api-references/ATLASSIAN_API_REFERENCE.md`
+
+For platform-specific work, prefer the documentation closest to the actual scripts you are running.
