@@ -1,14 +1,11 @@
-s : The term 's' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is co
-rrect and try again.
-At C:\PS\test_syntax.ps1:38 char:66
-+ ...        Write-Host "  â?O $($parseErrors.Count) syntax error(s) found: ...
-+                                                                 ~
-    + CategoryInfo          : ObjectNotFound: (s:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-= * 80
-Total files checked: 
-Files with syntax errors: 
-Total syntax errors: 
-âs ï¸?   file(s) need attention
-= * 80
+Archived syntax test output
+
+Purpose
+- Historical output captured from a legacy syntax-check experiment in archive/backups.
+
+Status
+- Not current.
+- Encoding and command formatting were already broken when archived.
+- Do not treat this file as a maintained report or a reliable parser example.
+
+If syntax validation is needed again, generate a fresh report from a current script run instead of reusing this file.

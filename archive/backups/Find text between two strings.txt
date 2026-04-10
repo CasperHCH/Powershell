@@ -1,12 +1,17 @@
-Find text between two strings
-There is a method, it involves using “regular expressions”, or regex for short.
+Archived editor snippet
 
-So once the file is opened in Notepad++, use the Find function. Set search mode to regular expression and use the following.
-Find What:(?s)(?<=SomeText>)(.+?)(?=</SomeText>)
-click on the Find Next button. The text you want is highlighted.
+Purpose
+- Retained as a scratch reference from an older text-extraction note.
 
-If you need an explanation of the syntax of the regex:
-(?s) … Identifies any DOT character as also containing the line feed characters (\r and \n)
-(?<=SomeText>) … This positions the cursor so the preceding characters are SomeText>
-(.+?) … This means grab characters lazily until … (The DOT character means any character)
-(?=</SomeText>) … we see immediately ahead of us the </SomeText> sequence.
+Example regex
+- `(?s)(?<=SomeText>)(.+?)(?=</SomeText>)`
+
+Meaning
+- `(?s)` lets `.` span line breaks.
+- `(?<=SomeText>)` starts after the opening marker.
+- `(.+?)` captures lazily until the closing marker.
+- `(?=</SomeText>)` stops before the closing marker.
+
+Status
+- This is a generic editor note, not repository-specific guidance.
+- Keep it in archive/backups if it remains useful; otherwise it can be removed later without affecting active scripts.

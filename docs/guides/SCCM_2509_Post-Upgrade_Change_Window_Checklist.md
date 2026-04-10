@@ -1,414 +1,164 @@
-# SCCM 2509 Post-Upgrade Change Window Checklist (Detailed Beginner Runbook)
+# SCCM 2509 Post-Upgrade Change Window Checklist
 
-Purpose: Step-by-step, beginner-friendly runbook for post-upgrade validation after moving Configuration Manager from 2403 to 2509.
+Purpose: Step-by-step runbook for validating a Configuration Manager 2509 upgrade during the change window and immediate hypercare period.
 
-Audience: Administrators who may not perform ConfigMgr upgrades often and need exact instructions.
+Audience: Administrators running or validating an in-console upgrade who need an evidence-driven checklist.
 
 How to use this document:
-1. Follow sections in order.
-2. Do not skip decision gates.
-3. If a check fails, stop and run the listed corrective action before continuing.
-4. Record evidence and timestamps as you go.
+1. Fill the environment fields before the change starts.
+2. Follow the decision gates in order.
+3. Stop progression when a gate fails.
+4. Record evidence paths and timestamps as you go.
+
+Repository validation aids:
+
+- scripts/SCCM/SCCM-TestClientHealth.ps1
+- scripts/SCCM/SCCM-ValidateContentDistribution.ps1
+- scripts/SCCM/SCCM-SoftwareUpdateComplianceReport.ps1
 
 ---
 
-## 0) Change Setup (Do This Before Starting T+0 Clock)
+## 0) Change Setup
 
 ### A. Confirm people and communication
 
-- [ ] Change ticket approved and visible to all participants.
-- [ ] Bridge/chat channel open and tested.
-- [ ] Escalation contacts ready:
-	- [ ] SCCM owner
-	- [ ] SQL DBA
-	- [ ] Server/VM team
-	- [ ] Microsoft support contact path
+- [ ] Change ticket approved and visible.
+- [ ] Bridge or chat channel open and tested.
+- [ ] Escalation contacts identified for SCCM, SQL, server, and support owners.
 
 ### B. Confirm rollback readiness
 
-- [ ] Latest known-good backup timestamp is documented.
-- [ ] Restore owner and restore method are confirmed.
-- [ ] Business owner agrees to rollback trigger conditions in this document.
+- [ ] Latest known-good backup timestamp documented.
+- [ ] Restore owner and restore method confirmed.
+- [ ] Rollback trigger conditions agreed.
 
 ### C. Fill environment details
 
-- [ ] Hierarchy type (standalone primary or CAS + child primary): ____________________
-- [ ] Top-level site code: ____________________
-- [ ] Top-level site server name: ____________________
-- [ ] SQL server / instance: ____________________
-- [ ] AG enabled? (Yes/No): ____________________
-- [ ] Primary sites: ____________________
-- [ ] Secondary sites: ____________________
-- [ ] Number of remote consoles in use: ____________________
+- [ ] Hierarchy type: ____________________
+- [ ] Site code: ____________________
+- [ ] Top-level site server: ____________________
+- [ ] SQL server and instance: ____________________
+- [ ] Secondary sites, if any: ____________________
+- [ ] Number of active admin consoles: ____________________
 
 ### D. Start execution log
 
 - Change start time: ____________________
 - Operator name: ____________________
-- Notes:
-	- ______________________________________________________________
-	- ______________________________________________________________
+- Evidence path: ____________________
 
 ---
 
-## 1) T+0 to T+30: Immediate Post-Upgrade Health
+## 1) Immediate Post-Upgrade Health
 
-Goal: Confirm the site upgrade actually finished correctly before touching clients or OSD.
+Goal: Prove the upgrade completed correctly before broad client impact is accepted.
 
-### 1.1 Verify update status in console
+### 1.1 Update state
 
-Steps:
-1. Open Configuration Manager console.
-2. Go to Monitoring > Overview > Updates and Servicing Status.
-3. Select the 2509 update item.
-4. Confirm top-level state is Complete.
-5. Expand details and review all phases (Replication, Prerequisites, Installation, Post Installation).
+- [ ] Updates and Servicing Status shows the 2509 update as complete.
+- [ ] Post-install tasks show no blocking failures.
+- [ ] Relevant logs reviewed for persistent errors.
 
-What success looks like:
-- [ ] No phase shows Failed.
-- [ ] Post Installation is completed.
+### 1.2 Site and role versions
 
-If not successful:
-- [ ] Capture exact error text.
-- [ ] Note phase where it failed.
-- [ ] Open relevant logs on site server:
-	- [ ] CMUpdate.log
-	- [ ] ConfigMgrPrereq.log (if prereq-related)
-- [ ] Decide whether to Retry from Updates and Servicing per Microsoft guidance.
+- [ ] Sites node shows expected version.
+- [ ] Key site roles are online and healthy.
+- [ ] Distribution points and remote roles show expected status.
 
-Evidence:
-- [ ] Screenshot of final status and phases saved.
-- File name/location: ____________________
+### 1.3 Replication sanity check
 
-### 1.2 Verify critical post-install tasks
+- [ ] Site hierarchy status is healthy.
+- [ ] Database replication backlog is acceptable.
 
-Steps:
-1. In the same status view, click Post Installation task details.
-2. Confirm critical items complete, including:
-	 - SMS_EXECUTIVE service reinstall
-	 - SMS_DATABASE_NOTIFICATION_MONITOR
-	 - SMS_HIERARCHY_MANAGER
-	 - SMS_REPLICATION_CONFIGURATION_MONITOR
-	 - SMS_POLICY_PROVIDER (primary)
+Decision gate:
 
-What success looks like:
-- [ ] All critical post-install tasks completed or not applicable.
-
-If not successful:
-- [ ] Wait 10-15 minutes and refresh.
-- [ ] If still stuck, collect log details and escalate.
-
-### 1.3 Verify versions on sites and site systems
-
-Steps:
-1. Go to Administration > Site Configuration > Sites.
-2. Right-click column header, choose column selector, add Version if not shown.
-3. Confirm top-level and child site versions are at 2509.
-4. Go to Administration > Site Configuration > Servers and Site System Roles.
-5. Verify key role servers are online and normal.
-6. Go to Administration > Site Configuration > Servers and Site System Roles > Distribution Points (or Distribution Points node if used in your console layout), check version/status.
-
-What success looks like:
-- [ ] Top-level site is 2509.
-- [ ] Child primary sites are upgraded (if hierarchy includes CAS).
-- [ ] No critical site role remains failed.
-
-If not successful:
-- [ ] Restart affected remote role server if pending reboot or stale state suspected.
-- [ ] Recheck component status.
-
-### 1.4 Upgrade secondary sites manually (if any)
-
-Steps:
-1. Go to Administration > Site Configuration > Sites.
-2. Select secondary site.
-3. Click Upgrade in ribbon.
-4. Confirm prompt.
-5. Use Show Install Status and monitor until complete.
-
-What success looks like:
-- [ ] All secondary sites show expected 2509 version.
-
-### 1.5 Update admin consoles
-
-Steps:
-1. On each admin workstation, open ConfigMgr console.
-2. Accept update prompt immediately.
-3. After update, go to About Configuration Manager.
-4. Record console version.
-
-What success looks like:
-- [ ] All active admin consoles updated.
-
-### 1.6 Replication sanity check
-
-Steps:
-1. Go to Monitoring > Site Hierarchy.
-2. Confirm links are healthy.
-3. Go to Monitoring > Database Replication.
-4. Confirm replication groups are active and no growing backlog.
-
-What success looks like:
-- [ ] Link state healthy.
-- [ ] No sustained increase in backlog.
-
-If not successful:
-- [ ] Do not continue to client rollout.
-- [ ] Run Replication Link Analyzer workflow and escalate.
-
-### Decision Gate at T+30
-
-Proceed only if all are true:
-- [ ] Update phases complete with no blocking errors.
-- [ ] Site and role versions are correct.
-- [ ] Replication is healthy.
-
-If GO:
-- [ ] Continue to Section 2.
-
-If NO-GO:
-- [ ] Freeze all non-remediation changes.
-- [ ] Start targeted remediation.
-- [ ] Open high-severity incident and prepare rollback briefing.
+- [ ] Go to stabilization only if update, role, and replication checks are healthy.
 
 ---
 
-## 2) T+30 to T+60: Stabilization and Baseline Services
+## 2) Stabilization and Core Service Validation
 
-Goal: Restore temporarily changed settings and prove core ConfigMgr functions work.
+Goal: Restore temporary settings and prove the platform can still perform basic management tasks.
 
-### 2.1 Restore pre-upgrade temporary settings
+### 2.1 Restore temporary pre-upgrade changes
 
-Perform only what applies in your environment:
+- [ ] Maintenance tasks restored.
+- [ ] SQL or AG settings restored where applicable.
+- [ ] Temporary security or antivirus exceptions removed.
 
-- [ ] Re-enable MP database replicas if previously disabled.
-	- Steps performed by: ____________________
-	- Time completed: ____________________
-- [ ] Set SQL AG failover back to Automatic if set to Manual for upgrade.
-	- Verified by DBA: ____________________
-	- Time completed: ____________________
-- [ ] Re-enable maintenance tasks that were disabled.
-	- Backup Site Server restored schedule: [ ]
-	- Delete Aged Client Operations restored schedule: [ ]
-	- Delete Aged Discovery Data restored schedule: [ ]
-- [ ] Restore antivirus real-time controls/policies to standard state.
+### 2.2 Platform smoke tests
 
-What success looks like:
-- [ ] No temporary upgrade-only settings left behind.
+- [ ] One client retrieves policy successfully.
+- [ ] One application deployment succeeds.
+- [ ] One software update synchronization and visibility check succeeds.
+- [ ] One new or reinstalled client registers successfully.
 
-### 2.2 Validate inventory/customization/extension state
+Useful evidence sources:
 
-Steps:
-1. Open Client Settings where hardware inventory classes were previously customized.
-2. Confirm custom class states did not revert unexpectedly.
-3. Check partner extension/add-on status and compatibility with 2509.
-4. Run one smoke test for any custom automation script your team depends on.
+- client-health output from scripts/SCCM/SCCM-TestClientHealth.ps1
+- content-validation output from scripts/SCCM/SCCM-ValidateContentDistribution.ps1
 
-What success looks like:
-- [ ] Hardware inventory custom states match pre-upgrade baseline.
-- [ ] Extensions are functional.
-- [ ] Critical custom automations complete successfully.
+Decision gate:
 
-### 2.3 Run platform smoke tests (minimum)
-
-Test 1: Client policy retrieval
-1. Pick one known healthy test client.
-2. Trigger Machine Policy Retrieval and Evaluation Cycle.
-3. Confirm policy arrival without errors.
-
-Test 2: Application deployment
-1. Deploy a small test app to pilot collection.
-2. Confirm deployment policy received and install succeeds.
-
-Test 3: Software update path
-1. Run software updates synchronization.
-2. Confirm sync completes.
-3. Validate one test update deployment appears correctly.
-
-Test 4: New client registration
-1. Install ConfigMgr client on one test device.
-2. Confirm it registers and appears Active in console.
-
-What success looks like:
-- [ ] All 4 tests pass.
-
-If any test fails:
-- [ ] Capture exact error text, target device, and time.
-- [ ] Stop progression to next stage until failure is understood.
-
-### Decision Gate at T+60
-
-Proceed only if all are true:
-- [ ] Core management workflows are working.
-- [ ] No major replication/component deterioration.
-- [ ] Restored dependencies remain stable.
-
-If GO:
-- [ ] Continue to Section 3.
-
-If NO-GO:
-- [ ] Pause broad rollout.
-- [ ] Stay in remediation mode.
-- [ ] Escalate to rollback decision board if service impact rises.
+- [ ] Go to pilot validation only if core management workflows work normally.
 
 ---
 
-## 3) T+60 to T+120: Client and OSD Service Validation
+## 3) Pilot and OSD Validation
 
-Goal: Validate user-impacting paths before declaring stable.
+Goal: Validate user-impacting paths before declaring the upgrade stable.
 
-### 3.1 Client upgrade pilot validation
+### 3.1 Pilot client validation
 
-Steps:
-1. Confirm pre-production collection is configured (if used).
-2. Deploy/allow 2509 client in pilot flow.
-3. Validate pilot devices for:
-	 - Policy retrieval
-	 - App install
-	 - Hardware/software inventory
-	 - Software updates scan/install
-4. Track failures by percentage and symptom.
+- [ ] Pilot devices receive policy.
+- [ ] Pilot devices install a test application.
+- [ ] Pilot devices complete inventory and update scan.
+- [ ] No systemic regression is visible in the pilot sample.
 
-What success looks like:
-- [ ] Pilot success rate meets your change criteria.
-- [ ] No systemic client regression found.
+### 3.2 OSD readiness
 
-Decision:
-- [ ] Record whether to promote to production now or defer to phased rollout.
+- [ ] Boot images redistributed where required.
+- [ ] PXE or media test succeeds.
+- [ ] One test task sequence completes expected stages.
 
-### 3.2 OSD readiness validation
+### 3.3 Automation validation
 
-Steps:
-1. Go to Software Library > Operating Systems > Boot Images.
-2. For each boot image (default and custom), run Update Distribution Points.
-3. Wait for content distribution completion to required DPs.
-4. Validate PXE boot on one test machine.
-5. If bootable media is used, regenerate media from current boot image.
-6. Run one full test task sequence deployment.
+- [ ] Critical SCCM automation scripts still run.
+- [ ] Reporting and monitoring integrations still function.
 
-What success looks like:
-- [ ] PXE test passes.
-- [ ] Task sequence test completes expected stages.
-- [ ] No missing content errors.
+Decision gate:
 
-If not successful:
-- [ ] Check DP content status and boundary assignments.
-- [ ] Re-run boot image update and redistribute.
-
-### 3.3 PowerShell operations validation
-
-Steps:
-1. On each admin host with ConfigMgr console/module, open elevated PowerShell.
-2. Run Update-Help for ConfigurationManager module.
-3. Run one or two commonly used SCCM automation scripts.
-
-What success looks like:
-- [ ] Help updates successfully.
-- [ ] No breaking changes in critical operations scripts.
-
-### Decision Gate at T+120
-
-Declare stable only if all are true:
-- [ ] Client pilot is healthy.
-- [ ] OSD path is validated end-to-end.
-- [ ] No high-severity incidents caused by upgrade.
-
-If GO:
-- [ ] Declare change successful.
-- [ ] Hand over to operations.
-- [ ] Schedule phased broad client rollout if not already started.
-
-If NO-GO:
-- [ ] Compare remediation ETA versus rollback risk.
-- [ ] Execute approved rollback plan if thresholds are met.
-- [ ] If rollback is deferred, continue controlled operations with incident command.
+- [ ] Declare stable only if pilot, OSD, and automation checks pass.
 
 ---
 
-## 4) Evidence Pack (CAB/Audit)
+## 4) Evidence Pack
 
 Collect and attach all of the following:
 
-- [ ] Updates and Servicing Status final screenshot/export.
-- [ ] Site Hierarchy and Database Replication screenshots/exports.
-- [ ] Site version evidence (Sites node) and role status evidence.
-- [ ] Console version evidence from About dialog.
-- [ ] Smoke test records (policy/app/update/new client).
-- [ ] OSD test records (boot image redistribution, PXE, TS result).
-- [ ] List of restored temporary settings (AG, replicas, maintenance tasks, AV).
-- [ ] Incident log with timeline and owner per action.
-
-Evidence location (share/path/ticket): ____________________
+- [ ] final Updates and Servicing status evidence
+- [ ] site and replication evidence
+- [ ] console-version evidence
+- [ ] smoke test records
+- [ ] pilot validation records
+- [ ] OSD test records, if OSD is used
+- [ ] note of restored temporary settings
+- [ ] incident timeline or remediation notes
 
 ---
 
-## 5) Rollback Trigger Matrix
+## 5) Rollback Trigger Review
 
-Start rollback review immediately if any condition is true:
+Start rollback review immediately if any of these are true:
 
-- [ ] Upgrade remains failed/stuck and cannot be remediated in maintenance window.
-- [ ] Replication health degrades and trend worsens.
-- [ ] Core endpoint management is broken for pilot or broader scope.
-- [ ] OSD business-critical process cannot be restored quickly.
-- [ ] Security/compliance posture is negatively impacted by upgrade side effects.
+- [ ] the upgrade is failed or stuck beyond the change window
+- [ ] replication health worsens materially
+- [ ] core endpoint-management workflows are broken
+- [ ] OSD or patching cannot be restored quickly enough
+- [ ] security or compliance posture is negatively affected
 
-Before executing rollback, confirm:
+Before rollback execution:
 
-- [ ] Backup currency and integrity are validated.
-- [ ] Data drift/business impact assessment is completed.
-- [ ] Stakeholder approval captured in ticket/bridge notes.
-
-Rollback decision time: ____________________
-Rollback approved by: ____________________
-
----
-
-## 6) Beginner Quick Commands and Where to Look
-
-Use this section if you are not sure where to verify.
-
-### A. Most important console paths
-
-- Monitoring > Updates and Servicing Status
-- Monitoring > Site Hierarchy
-- Monitoring > Database Replication
-- Administration > Site Configuration > Sites
-- Administration > Site Configuration > Servers and Site System Roles
-- Software Library > Operating Systems > Boot Images
-
-### B. Most important upgrade logs on site server
-
-- CMUpdate.log
-- ConfigMgrPrereq.log
-
-Default location pattern:
-- <ConfigMgrInstallDir>\Logs
-
-### C. Common beginner mistakes to avoid
-
-- [ ] Do not start broad client rollout before replication health is confirmed.
-- [ ] Do not forget manual upgrade of secondary sites.
-- [ ] Do not assume default boot image update means DP content is already redistributed.
-- [ ] Do not close the change without evidence artifacts.
-
----
-
-## 7) Execution Notes (Freeform)
-
-- [ ] Notes captured during execution:
-
-
-
-
-
-
-
-
----
-
-## References
-
-- https://go.microsoft.com/fwlink/p/?LinkId=626562
-- https://learn.microsoft.com/en-us/intune/configmgr/core/servers/manage/checklist-for-installing-update-2509
-- https://learn.microsoft.com/en-us/intune/configmgr/core/servers/manage/post-in-console-updates
-- https://learn.microsoft.com/en-us/intune/configmgr/core/servers/manage/post-in-console-updates
+- [ ] backup integrity is reconfirmed
+- [ ] business-impact assessment is captured
+- [ ] rollback approval is recorded

@@ -1,3 +1,10 @@
+THIRD-PARTY REFERENCE NOTE
+
+This file is retained as a bundled OpenSSL GOST engine reference.
+Treat upstream OpenSSL and engine documentation as authoritative.
+This repository does not maintain or validate the technical content below.
+
+---
 
 OPENSSL GOST ENGINE
 
@@ -43,9 +50,9 @@ GOST 28147-89 MAC mode. Message authentication code. While a lot of MAC
 	(while HMAC has same key size and value size). 
 	It is implemented as combination of EVP_PKEY type and EVP_MD type.
 
-GOST R 34.12–2015 - Symmetric cypher Magma (Updated version of GOST 28147-89)
+GOST R 34.12ï¿½2015 - Symmetric cypher Magma (Updated version of GOST 28147-89)
 
-GOST R 34.13–2015 - Symmetric cypher Grasshopper ("Kuznechik")
+GOST R 34.13ï¿½2015 - Symmetric cypher Grasshopper ("Kuznechik")
 
 USAGE OF GOST ALGORITHMS
 
