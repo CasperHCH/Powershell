@@ -6,11 +6,13 @@ This index summarizes SCCM automation scripts in this folder.
 - Run site-level scripts from a host with the Configuration Manager console module installed.
 - Most report scripts are read-only.
 - Remediation scripts support safety features such as `-WhatIf` where applicable.
+- `output/` stores generated report artifacts from several SCCM workflows.
+- `ProgramScripts/` contains supporting content used by some SCCM packaging and deployment workflows.
 
 ## WhatIf Support (Quick Reference)
-- All SCCM scripts in this folder now expose `-WhatIf` via `SupportsShouldProcess`.
-- Scripts that perform changes (`remove`, `update`, `redistribute`, `trigger`, `repair`) honor `-WhatIf` as an execution preview.
-- Read-only/report scripts also accept `-WhatIf` for consistency; because they do not perform state changes, behavior is generally unchanged.
+- Most change-oriented SCCM scripts in this folder expose `-WhatIf` via `SupportsShouldProcess`.
+- Scripts that perform changes (`remove`, `update`, `redistribute`, `trigger`, `repair`) are intended to honor `-WhatIf` as an execution preview.
+- Read-only/report scripts may also accept `-WhatIf` for consistency, although behavior is generally unchanged.
 - `-DryRun` note: legacy `-DryRun` parameters are retained only where already present (`SCCM-EnrichSoftwareMetadata.ps1` and `SCCMSoftwareCollectionConsolidation.ps1`) for backward compatibility; `-WhatIf` is the standard going forward.
 
 ## Dependency Requirement (Important)
@@ -194,6 +196,14 @@ $ctx = Initialize-SccmScript -ScriptName 'Example.ps1'
 .\SCCM-DeleteWinFolderIfSoftwareIsntPresent.ps1 -SCCMSiteServer sccm-01.contoso.com -SCCMSiteCode P01 -WhatIf
 ```
 
+### Update-CollectionAnalysisCanonicalReport.ps1
+- Purpose: Updates or rebuilds collection-analysis canonical reporting output from existing SCCM collection-analysis data.
+- Key inputs: Review script help in the file for the exact report-path and source-data parameters.
+- Example:
+```powershell
+.\Update-CollectionAnalysisCanonicalReport.ps1
+```
+
 ## Software Metadata and Version Intelligence
 
 ### SCCM-EnrichSoftwareMetadata.ps1
@@ -210,6 +220,40 @@ $ctx = Initialize-SccmScript -ScriptName 'Example.ps1'
 - Example:
 ```powershell
 .\SCCM-SoftwareVersionAudit.ps1 -SiteCode P01 -IncludeAllApplications -ExportOnly
+```
+
+### SCCM-DiscoverImplicitUninstallProperty.ps1
+- Purpose: Detects or reports the implicit-uninstall related application property needed for uninstall-governance workflows.
+- Key inputs: Review script help for the exact discovery parameters supported in your environment.
+- Example:
+```powershell
+.\SCCM-DiscoverImplicitUninstallProperty.ps1 -SiteCode P01
+```
+
+### SCCM-AuditImplicitUninstallReadiness.ps1
+- Purpose: Audits whether install deployments and application objects are ready for implicit uninstall governance.
+- Key inputs: `-SiteCode`, plus reporting and scope parameters defined in the script.
+- Example:
+```powershell
+.\SCCM-AuditImplicitUninstallReadiness.ps1 -SiteCode P01
+```
+
+### SCCM-EnableImplicitUninstallForInstallDeployments.ps1
+- Purpose: Enables implicit uninstall behavior for targeted install deployments where the environment and deployment type support it.
+- Key inputs: `-SiteCode` and deployment-selection parameters defined in the script.
+- Example:
+```powershell
+.\SCCM-EnableImplicitUninstallForInstallDeployments.ps1 -SiteCode P01 -WhatIf
+```
+
+## Upgrade and Specialized Workflows
+
+### sccm-UpgradeInjection.ps1
+- Purpose: Supports SCCM upgrade-related injection or maintenance workflow steps used by the repository owner.
+- Key inputs: Review the script directly before use because this is a specialized operational script.
+- Example:
+```powershell
+.\sccm-UpgradeInjection.ps1
 ```
 
 ## Legacy / Specialized

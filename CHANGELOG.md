@@ -4,6 +4,26 @@ All notable changes to this **enterprise-grade PowerShell library** are document
 
 ## 🔐 **Security Classification**: All changes documented for audit trail compliance
 
+## [3.2.0] - 2026-04-10 - Script Hardening, Cleanup, and PKI Workflow Expansion
+
+### Added
+- Added `scripts/Certificates/Install-PKICertificateServer.ps1` for offline PKI server preparation and CSR generation workflows.
+- Added `scripts/Certificates/Install-PKICertificateResponse.ps1` for certificate response retrieval, packaging, and installation workflows.
+
+### Changed
+- Refactored multiple certificate, SCCM, Active Directory, EPM automation, IIS, Citrix, Excel, and system-administration scripts for improved parameter handling and safer execution patterns.
+- Updated several Jira and endpoint-management automation scripts to use clearer script-scoped configuration values and more consistent logging function names.
+- Expanded enterprise-style handling in key system-administration scripts such as Windows feature review, file lock analysis, weather reporting, malware inspection, file transfer, and server inventory collection.
+- Simplified or modernized older scripts including date parsing, communication, and reporting helpers.
+- Renamed the Zabbix patch-check script from `pet_check_windows_patch.ps1` to `check_windows_patch.ps1`.
+
+### Removed
+- Removed older analysis-report Markdown files under `docs/analysis-reports/` that no longer matched the active repository state.
+- Removed obsolete duplicate or superseded scripts including `Ask_For_a_date_and_convert_it_to_datetime.ps1` and `Client_Nuke_Malware.ps1`.
+
+### Documentation
+- Updated repository and script-area Markdown files to better match the current folder layout and maintained script set.
+
 ## [3.1.0] - 2025-10-12 - Security Hardening & Compliance Enhancement
 
 ### 🔐 **CRITICAL SECURITY UPDATES**

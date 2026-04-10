@@ -1,160 +1,99 @@
-# JIRA External Directory User Anonymization Issue
+# Jira User Anonymization Troubleshooting Notes
 
-> **Date:** October 10, 2025
-> **Issue:** External directory users report successful anonymization but remain unanonymized
-> **Root Cause:** JIRA API limitation with external directory users
-> **Status:** RESOLVED with enhanced detection and verification
+This note documents anonymization edge cases seen when using `Manage-JiraUserLifecycle.ps1` against Jira on-prem environments.
 
-## Problem Description
+## Main Finding
 
-### Symptoms
-- User `aspa05` (Pathak, Ashutosh /External) shows successful anonymization in logs:
-  - Task 401459 completes with status "COMPLETED" and 100% progress
-  - Script reports "Successfully anonymized user"
-  - API returns success response
-- However, user remains visible in JIRA interface with:
-  - Original username: `aspa05`
-  - Original display name: `Pathak, Ashutosh /External`
-  - Original email: `ashutosh.pathak@teliacompany.com`
+Display-name conventions are not a reliable way to decide whether a user is internal or externally sourced.
 
-### Root Cause Analysis
+Use `directoryId` as the primary source of truth.
 
-**External Directory Users Cannot Be Anonymized Through API**
+## Important Rule
 
-**CORRECTION**: Initial analysis was incorrect. The user `Pathak, Ashutosh /External` is actually in "Jira Internal Directory" (Directory ID: 1), not an external directory. The "/External" suffix in the display name is just a naming convention and does not indicate directory source.
+Only treat a user as externally sourced when the Jira user record indicates a non-internal `directoryId`.
 
-The real issue with anonymization failures for internal directory users can be caused by:
-1. **JIRA Service Issues**: Anonymization service may be experiencing problems
-2. **Active Sessions**: User may have active sessions preventing anonymization
-3. **Content Locks**: User content may be locked or referenced in ways that block anonymization
-4. **API Bug**: JIRA API may report success while the background process failsThis is a known JIRA limitation where:
-- The anonymization API accepts external user requests
-- Progress monitoring reports successful completion
-- But the actual anonymization is silently skipped
-- User data remains unchanged in the interface
+Do not infer directory source from values such as:
 
-## Solution Implemented
+- `/External` suffixes in display names
+- email naming patterns
+- username conventions
 
-### 1. Corrected External Directory Detection
+## Failure Pattern
 
-**IMPORTANT**: Only `directoryId` is a reliable indicator of external directory users. Display name suffixes like "/External" are naming conventions and do not indicate directory source.
+An anonymization request may appear to succeed when:
 
-Corrected detection in `Test-UserAnonymizationEligibility`:
+- the API returns a successful response
+- Jira background task progress reaches completion
+- the script logs success
+
+but the user record still appears unchanged afterward.
+
+This can happen for more than one reason:
+
+1. The user is sourced from an external directory and Jira does not fully anonymize that user through the API path being used.
+2. The Jira anonymization service completes the task request but the background operation does not apply the expected data changes.
+3. The user still has active sessions, locks, or content dependencies that interfere with completion.
+
+## Recommended Detection Logic
+
+Use logic like this in eligibility checks:
 
 ```powershell
-# Check if user is from external directory (only reliable indicator is directoryId)
-if ($User.directoryId -and $User.directoryId -ne "1") {
-    Write-Log "🚫 User $($User.name) is from EXTERNAL DIRECTORY (ID: $($User.directoryId))" "WARNING"
+if ($User.directoryId -and $User.directoryId -ne '1') {
     return @{
-        Eligible = $false;
-        Reason = "External directory user (Directory ID: $($User.directoryId))";
-        Action = "Remove from external directory and sync before anonymizing"
+        Eligible = $false
+        Reason   = "External directory user (Directory ID: $($User.directoryId))"
+        Action   = 'Remove from external directory and sync before anonymizing'
     }
 }
-
-# Note: Display name suffixes like "/External" are NOT reliable indicators
 ```
 
-### 2. Post-Anonymization Verification
+## Recommended Verification Step
 
-Added verification step in `Set-JiraUserAnonymized`:
+After Jira reports anonymization success, re-query the user and confirm the expected anonymized values are actually present.
+
+Example verification pattern:
 
 ```powershell
-# Verify anonymization actually occurred by re-querying the user
-Write-Log "Verifying anonymization completion by re-querying user..." "INFO"
-
-# Try to get the user again to verify anonymization
 $verifyUri = "$BaseUrl/rest/api/2/user?$identifierType=$([System.Web.HttpUtility]::UrlEncode($userIdentifier))"
 $verifyUser = Invoke-RestMethod -Uri $verifyUri -Method Get -Headers $Headers -UseBasicParsing
 
-# Check if user data has been anonymized
-if ($verifyUser.name -match "^jirauser\d+$") {
-    Write-Log "✅ VERIFICATION SUCCESS: User anonymized successfully"
+if ($verifyUser.name -match '^jirauser\d+$') {
+    Write-Log 'Verification success: user anonymized successfully' 'INFO'
 } else {
-    Write-Log "❌ VERIFICATION FAILED: User data not anonymized despite API success"
-    # Check for external directory indicators and provide solution
+    Write-Log 'Verification failed: user data not anonymized despite reported success' 'WARNING'
 }
 ```
 
-### 3. Clear Error Messages and Solutions
+## Operational Guidance
 
-When actual external users are detected (directoryId ≠ "1"):
+### If the user is externally sourced
 
-```
-🚫 User username is from EXTERNAL DIRECTORY (ID: 12345)
-❌ External directory users CANNOT be anonymized through API
-✅ SOLUTION: Remove user from external directory, sync JIRA, then re-run anonymization
-```
+1. Remove or disable the user in the external directory.
+2. Synchronize Jira user directories.
+3. Confirm the Jira record now reflects the expected internal state or is otherwise eligible for anonymization.
+4. Re-run the anonymization workflow.
 
-For internal directory users experiencing anonymization failures:
+### If the user is internal but anonymization still does not apply
 
-```
-❌ VERIFICATION FAILED: User data not anonymized despite API success
-🔍 POSSIBLE CAUSES:
-- JIRA anonymization service may be experiencing issues
-- User may have active sessions or content locks preventing anonymization
-- Manual anonymization through JIRA admin interface may be required
-```
+1. Review Jira logs for anonymization-task failures.
+2. Clear user sessions if appropriate.
+3. Check for content or workflow locks.
+4. Try manual anonymization through the Jira administration interface.
+5. Escalate to platform support if the API reports success but repeated verification fails.
 
-## Resolution Steps
+## Why This Note Exists
 
-### For External Directory Users (directoryId ≠ "1"):
+This file exists to capture the distinction between:
 
-1. **Remove from External Directory**:
-   - Access LDAP/AD system
-   - Remove or disable the user account
-   - Ensure user is no longer synchronized to JIRA
+- apparent success reported by the Jira API or task system
+- actual anonymization confirmed by a follow-up read of the user object
 
-2. **Sync JIRA Directories**:
-   - Go to JIRA Administration → User Management → User Directories
-   - Click "Synchronize" on the external directory
-   - Wait for sync to complete
+That distinction is important in `Manage-JiraUserLifecycle.ps1`, where the safe behavior is to verify outcomes rather than trust the first success signal.
 
-3. **Verify User Status**:
-   - User should now appear as internal JIRA user
-   - Directory ID should be "1" (internal)
+## Related Files
 
-4. **Re-run Anonymization**:
-   - User can now be successfully anonymized through API
-
-### For Internal Directory Users with Anonymization Issues:
-
-**Case**: User like `aspa05` in "Jira Internal Directory" where API reports success but anonymization fails
-
-1. **Check JIRA Anonymization Service**:
-   - Review JIRA system logs for anonymization errors
-   - Check if anonymization service is running properly
-   - Look for background task failures
-
-2. **Clear User Sessions**:
-   - Force logout all user sessions
-   - Clear any active user tokens or sessions
-
-3. **Check Content Dependencies**:
-   - Verify user has no locked content or active workflows
-   - Check for content references that might block anonymization
-
-4. **Manual Anonymization**:
-   - Use JIRA Admin interface: User Management → Select User → Actions → Anonymize
-   - This often works when API fails
-
-5. **Alternative Workarounds**:
-   - Disable user and wait 24-48 hours before attempting anonymization
-   - Contact Atlassian support if issue persists
-
-## Script Enhancements Summary
-
-1. **Proactive Detection**: Identifies external users before attempting anonymization
-2. **Post-Process Verification**: Confirms anonymization actually occurred
-3. **Clear Guidance**: Provides specific solution steps for external user issues
-4. **Enhanced Logging**: Better visibility into the anonymization process
-
-## Testing Verification
-
-The enhanced script now:
-- ✅ Detects external users and warns before attempting anonymization
-- ✅ Verifies anonymization completion by re-querying user data
-- ✅ Provides clear error messages and resolution steps
-- ✅ Prevents false success reporting for external directory users
-
-This ensures administrators get accurate feedback about anonymization status and clear guidance on resolving external directory limitations.
+- `Manage-JiraUserLifecycle.ps1`
+- `Test-AnonymizationPayload.ps1`
+- `Test-AnonymizationTaskID.ps1`
+- `Test-UserResolution.ps1`

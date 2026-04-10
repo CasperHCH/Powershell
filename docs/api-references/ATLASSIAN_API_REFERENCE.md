@@ -1,6 +1,6 @@
 # Secure Atlassian API Reference Documentation
 
-> **Last Updated:** October 12, 2025
+> **Last Updated:** April 10, 2026
 > **Security Status:** 🔒 Hardened for enterprise deployment with zero hardcoded credentials
 > **Classification:** INTERNAL - Contains secure integration patterns
 
@@ -162,6 +162,16 @@ if ($UseStoredApiKey) {
 
 ## Script-Specific API Usage
 
+### Manage-JiraUserLifecycle.ps1
+- **Primary API**: Jira On-Prem REST API v2
+- **Key Operations**: User discovery, disable operations, anonymization task handling, project-lead conflict checks
+- **Authentication**: Personal access token, basic auth, or stored credentials depending on runtime parameters
+
+### ChangeFilterOwner.ps1
+- **Primary API**: Jira On-Prem REST API v2
+- **Key Operations**: Filter lookup, owner reassignment, optional user validation
+- **Authentication**: Basic auth with secure password prompt or supplied `SecureString`
+
 ### bulkChange.ps1
 - **Primary APIs**: Jira Cloud REST API v3, v2 (mixed)
 - **Key Operations**: Issue search, assignee updates, watcher management
@@ -218,6 +228,10 @@ try {
 ### Logging
 ```powershell
 Write-Log -Level INFO -Message "Making API call to: $uri"
+
+## Maintenance Note
+
+This reference is intended as a repository-level API quick guide, not a complete contract of every Atlassian script in the tree. When script behavior and this file diverge, treat the script implementation as the source of truth and update this reference accordingly.
 Write-Log -Level DEBUG -Message "Request headers: $($headers | ConvertTo-Json)"
 ```
 

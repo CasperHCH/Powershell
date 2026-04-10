@@ -23,34 +23,41 @@ This is a comprehensive PowerShell automation library containing enterprise-grad
 - Implement proper error handling without exposing sensitive information
 - Follow principle of least privilege for all operations
 
-## 📁 **Reorganized Folder Structure**
+## 📁 **Current Repository Structure**
 - **`core/`** - Reusable modules and functions
-  - `authentication/` - Credential management, AD authentication
-  - `utilities/` - General utility functions
-  - `reporting/` - System reporting and monitoring functions
-- **`scripts/`** - Main script collection organized by domain
-  - `exchange/` - Exchange & Office 365 operations
-  - `active-directory/` - AD user/group management
-  - `communication/` - Lync/Teams/Email automation
-  - `atlassian/` - Jira, Confluence, OpsGenie integration
-  - `system-administration/` - General system tasks
-  - `network/` - Network operations and testing
-- **`tools/`** - Development and utility tools
-  - `development/` - Script signing, optimization
-  - `installation/` - Module installation scripts
-  - `legacy/` - Archived tools and configurations
+    - `authentication/` - Credential management and connection helpers
+    - `utilities/` - General utility functions
+    - `reporting/` - Reporting and system information helpers
+- **`scripts/`** - Main script collection organized by domain or platform
+    - `exchange/` - Exchange and mailbox operations
+    - `active-directory/` - AD user, OU, and group management
+    - `communication/` - Collaboration and telephony-related automation
+    - `atlassian/` - Jira, Confluence, and OpsGenie-related automation
+    - `Certificates/` - certificate request and response workflows
+    - `epm-automation/` - Jira reporting and endpoint-management automation
+    - `SCCM/` - SCCM reporting, client health, content, and governance tooling
+    - `system-administration/` - general system tasks, diagnostics, and remediation
+    - plus additional folders such as `DB/`, `IIS/`, `Citrix/`, `Ivanti/`, `Restore/`, `Task Scheduler/`, `Teamviewer/`, `VMWare/`, and `zabbix/`
 - **`docs/`** - Documentation and references
-  - `api-references/` - API documentation and guides
-  - `guides/` - How-to guides and procedures
-  - `templates/` - Script templates and examples
-- **`data/`** - Data files and configurations
-- **`tests/`** - Test scripts and validation
-- **`archive/`** - Historical content (PowerShell-Master, deprecated scripts)
+    - `api-references/` - API documentation and guides
+    - `guides/` - How-to guides and standards
+    - `templates/` - script templates and examples
+    - `analysis-reports/` - may exist but should not be assumed to contain active maintained guidance
+- **`data/`** - data files and tracked templates
+- **`autoload/`** - profile-loaded helper scripts
+- **`Tools/`** - utility assets and supporting files
+- **`WindowsPowershell/`** - profile/bootstrap content for Windows PowerShell
+- **`archive/`** - historical content and older retained material
 
 ## Key Scripts
 - **Jira User Management**: Scripts for bulk deleting and anonymizing Jira users, replacing usernames and emails, and integrating with Azure AD or on-prem Active Directory.
 - **System Monitoring**: Scripts for checking system uptime, listing running services, and fetching weather data.
 - **Automation Tasks**: Scripts for installing Jenkins agents, creating event logs, and managing user accounts.
+
+## Documentation Guidance
+- Prefer the Markdown files closest to the maintained scripts when updating documentation.
+- Treat vendored third-party READMEs as upstream content unless the repository adds an explicit local wrapper note.
+- Do not assume a `tests/` directory exists; check the current tree before documenting test paths.
 
 ## 📋 **PowerShell Best Practices to Follow**
 

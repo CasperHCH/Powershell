@@ -1,42 +1,78 @@
 
 # PowerShell Enterprise Automation Library
 
-**Enterprise-grade PowerShell scripts for automation, user management, system monitoring, and secure API integrations.**
+Enterprise-oriented PowerShell scripts for administration, endpoint management, certificate operations, Atlassian automation, reporting, and secure service integrations.
 
-## Key Features
-- **Security & Compliance:** No hardcoded credentials, secure parameterization, audit logging, GDPR/SOX/HIPAA compliance.
-- **User Management:** Bulk operations for Active Directory, Exchange, Jira, Confluence.
-- **System Administration:** Monitoring, maintenance, backup, and security.
-- **API Integrations:** Atlassian, Office 365, OpsGenie, and more.
-- **Modern Structure:** Domain-organized folders for scripts, modules, docs, and tests.
+## Repository Focus
 
-## Usage
-1. **Clone:** `git clone [repository-url]`
-2. **Browse:** Scripts organized by domain in `scripts/`
-3. **Run:** Use parameterized scripts, never hardcode credentials.
-4. **Test:** Use `tests/` and `WhatIf` for safe validation.
+This repository is organized around reusable PowerShell automation for:
 
-## Security Guidelines
-- Use `Get-Credential` or secure files for authentication.
-- Validate all parameters.
-- Log all operations for audit/compliance.
-- Sanitize error messages.
+- Active Directory and Exchange administration
+- SCCM and endpoint-management operations
+- Jira, Confluence, and other Atlassian workflows
+- Certificate request and response handling
+- System administration, monitoring, and remediation
+- Reporting and export utilities
 
-## Folder Overview
-- `core/` – Shared modules/functions
-- `scripts/` – Main automation scripts by domain
-- `docs/` – API references, guides, templates
-- `tests/` – Unit and integration tests
-- `data/` – Configs, logs, reports
+Most scripts are written as standalone tools with parameter validation, safer logging patterns, and reduced reliance on hardcoded environment values.
 
-For SCCM consolidation naming, keep the private local inventory in `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1` and start from the tracked generic template in `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.template.psd1`. The private file is ignored by git so environment-specific software names stay local.
+## Current Layout
 
-## API Reference
-See `docs/api-references/` for PowerShell examples and authentication patterns.
+- `autoload/` - profile-style helper scripts that can be loaded into an interactive shell
+- `core/` - shared authentication, reporting, and utility functions
+- `data/` - configuration data and tracked templates
+- `docs/` - API references, templates, and development guidance
+- `scripts/` - primary script library grouped by platform or function
+- `Tools/` - utility assets and supporting files
+- `WindowsPowershell/` - profile/bootstrap scripts for Windows PowerShell environments
+- `archive/` - older or retained historical content
 
-## Change Management
-All updates tracked in `CHANGELOG.md` with semantic versioning.
+## Notable Script Areas
 
----
+### Certificates
 
-*For details, see individual script documentation or contact the maintainer.*
+The certificate area now includes companion PKI workflow scripts for offline request and response handling:
+
+- `scripts/Certificates/Install-PKICertificateServer.ps1`
+- `scripts/Certificates/Install-PKICertificateResponse.ps1`
+
+### SCCM
+
+The SCCM folder contains reporting, validation, client-health, collection-analysis, supersedence, and cleanup tooling. Start with `scripts/SCCM/README.md` for the current index.
+
+### EPM Automation
+
+The EPM automation area contains Jira-focused reporting and endpoint-management scripts, including:
+
+- portfolio health reporting
+- resource capacity reporting
+- risk and issue analysis
+- automated status reporting
+- CMDB versus SCCM reconciliation
+
+See `scripts/epm-automation/README.md` and `scripts/epm-automation/endpoint-management/README.md`.
+
+## Usage Guidance
+
+1. Clone the repository.
+2. Open the script area relevant to the platform you are working on.
+3. Read the local README in that folder when one exists.
+4. Run scripts with explicit parameters instead of editing values inline.
+5. Prefer `-WhatIf` or equivalent dry-run behavior where destructive operations are involved.
+
+## Security and Documentation
+
+- Use `Get-Credential`, `SecureString`, or approved secure storage for secrets.
+- Avoid hardcoded domains, hosts, usernames, API keys, and file paths.
+- Keep audit logs next to the script when the script performs sensitive or state-changing work.
+- Follow `docs/guides/DEVELOPMENT_STANDARDS.md` for the current repository standards.
+
+For SCCM software collection consolidation, keep environment-specific mappings in `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.psd1` and use `data/SCCMSoftwareCollectionConsolidation.CanonicalMap.template.psd1` as the tracked baseline template.
+
+## Additional References
+
+- `CHANGELOG.md` for notable repository changes
+- `docs/api-references/ATLASSIAN_API_REFERENCE.md` for Atlassian API notes
+- `.github/Copilot-Instructions.md` for repository-specific coding constraints
+
+For details, use the documentation closest to the scripts you are changing or running.

@@ -1,130 +1,127 @@
 # ChangeFilterOwner.ps1 - Quick Reference
 
-## 🔧 **Fixed Issues**
+Quick operational reference for `ChangeFilterOwner.ps1`.
 
-### **v1.1 - November 20, 2025**
-- ✅ Fixed PowerShell 5.1 compatibility (removed `??` operator)
-- ✅ Fixed parameter binding error with `-Sensitive` switch
-- ✅ Added `-SkipUserValidation` parameter for restricted permissions
-- ✅ Fixed foreach loop syntax (changed to `for` loop)
+## Current Script Purpose
 
-## 🚀 **Usage**
+The script scans `.log` files for messages like `Filter {ID} has no owner`, extracts the filter IDs, and attempts to assign a new owner through the Jira REST API.
 
-### **Basic Usage (With User Validation)**
+It supports:
+
+- secure password prompting
+- validation-only checks
+- optional user validation skip for restricted Jira environments
+- `-WhatIf` preview support through `SupportsShouldProcess`
+- per-run audit logging to `FilterOwnerChange_[SessionId].log`
+
+## Usage
+
+### Basic Usage
+
 ```powershell
 .\ChangeFilterOwner.ps1 `
-    -LogFolder "C:\Users\a1-chcasp\Downloads\export-error-logs" `
-    -JiraUrl "https://jira.norlys.dk" `
-    -JiraUser "chcasp" `
-    -NewOwner "nicste"
+    -LogFolder "C:\Logs\JiraFilters" `
+    -JiraUrl "https://jira.example.org" `
+    -JiraUser "jira-admin" `
+    -NewOwner "service-owner"
 ```
 
-### **Skip User Validation (Recommended if you get 403 errors)**
+### Skip User Validation
+
+Use this when the account can update filter ownership but cannot query the Jira user endpoint.
+
 ```powershell
 .\ChangeFilterOwner.ps1 `
-    -LogFolder "C:\Users\a1-chcasp\Downloads\export-error-logs" `
-    -JiraUrl "https://jira.norlys.dk" `
-    -JiraUser "chcasp" `
-    -NewOwner "nicste" `
+    -LogFolder "C:\Logs\JiraFilters" `
+    -JiraUrl "https://jira.example.org" `
+    -JiraUser "jira-admin" `
+    -NewOwner "service-owner" `
     -SkipUserValidation
 ```
 
-### **Preview Mode (Validate Only)**
+### Validate Without Updating
+
 ```powershell
 .\ChangeFilterOwner.ps1 `
-    -LogFolder "C:\Users\a1-chcasp\Downloads\export-error-logs" `
-    -JiraUrl "https://jira.norlys.dk" `
-    -JiraUser "chcasp" `
-    -NewOwner "nicste" `
-    -SkipUserValidation `
+    -LogFolder "C:\Logs\JiraFilters" `
+    -JiraUrl "https://jira.example.org" `
+    -JiraUser "jira-admin" `
+    -NewOwner "service-owner" `
     -ValidateOnly
 ```
 
-### **With Pre-Stored Password**
+### Supply Password as SecureString
+
 ```powershell
 $securePassword = Read-Host "Enter password" -AsSecureString
 
 .\ChangeFilterOwner.ps1 `
-    -LogFolder "C:\Users\a1-chcasp\Downloads\export-error-logs" `
-    -JiraUrl "https://jira.norlys.dk" `
-    -JiraUser "chcasp" `
+    -LogFolder "C:\Logs\JiraFilters" `
+    -JiraUrl "https://jira.example.org" `
+    -JiraUser "jira-admin" `
     -JiraPassword $securePassword `
-    -NewOwner "nicste" `
-    -SkipUserValidation
+    -NewOwner "service-owner"
 ```
 
-## 📋 **Parameters**
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `-LogFolder` | Yes | Path to folder containing .log files with filter IDs |
-| `-JiraUrl` | Yes | Base URL of Jira instance (e.g., https://jira.norlys.dk) |
-| `-JiraUser` | Yes | Username for authentication |
-| `-JiraPassword` | No | SecureString password (will prompt if omitted) |
-| `-NewOwner` | Yes | Username of the new filter owner |
-| `-ValidateOnly` | No | Preview changes without executing |
-| `-SkipUserValidation` | No | Skip user validation (use if 403 errors occur) |
+| `-LogFolder` | Yes | Folder containing `.log` files with missing-owner entries |
+| `-JiraUrl` | Yes | Jira base URL, for example `https://jira.example.org` |
+| `-JiraUser` | Yes | Jira account used for authentication |
+| `-JiraPassword` | No | `SecureString` password; prompts if omitted |
+| `-NewOwner` | Yes | Username of the target filter owner |
+| `-ValidateOnly` | No | Run checks without changing ownership |
+| `-SkipUserValidation` | No | Skip Jira user lookup before processing |
 
-## ⚠️ **Common Issues & Solutions**
+## Common Failure Modes
 
-### **403 Forbidden on User Validation**
-**Error**: `User validation failed for 'nicste': [403] The remote server returned an error: (403) Forbidden`
+### 403 on User Validation
 
-**Solution**: Add `-SkipUserValidation` parameter
+Cause: the authenticated account can access filters but cannot call the Jira user lookup API.
+
+Use:
+
 ```powershell
 -SkipUserValidation
 ```
 
-### **403 Forbidden on Filter Update**
-**Possible Causes**:
-1. You don't own the filter
-2. The filter is private
-3. You lack "Administer Jira" permissions
-4. The new owner doesn't have required permissions
+### 403 on Filter Update
 
-**Solutions**:
-- Request admin permissions from Jira administrators
-- Contact the current filter owner to transfer ownership manually
-- Verify the new owner account has appropriate permissions
+Common causes:
 
-### **401 Unauthorized**
-**Cause**: Authentication failed
+1. The account lacks filter-administration rights.
+2. The filter is private or otherwise inaccessible.
+3. The target owner cannot be assigned in the current Jira permission model.
 
-**Solution**: Verify your username and password are correct
+### 401 Unauthorized
 
-## 📊 **Output**
+Cause: authentication failed. Re-check the Jira username, password, and base URL.
 
-The script provides:
-- ✅ Real-time progress with color-coded status
-- ✅ Detailed error messages with troubleshooting tips
-- ✅ Summary report with success/failure counts
-- ✅ Audit log file: `FilterOwnerChange_[SessionID].log`
+## Output and Logging
 
-## 🔍 **Log File Format**
+The script writes:
 
-Log files are automatically created in the same directory as the script:
-```
-FilterOwnerChange_0e8d7762.log
+- real-time progress to the console
+- detailed execution and audit events to a log file next to the script
+- a per-run log in the format `FilterOwnerChange_[SessionId].log`
+
+Example:
+
+```text
+FilterOwnerChange_a67791d6.log
 ```
 
-Contains:
-- Timestamp for every action
-- Session ID for tracking
-- User and computer information
-- Full audit trail of all operations
+## Recommended Workflow
 
-## 💡 **Tips**
+1. Start with `-ValidateOnly`.
+2. If user validation fails due to Jira restrictions, rerun with `-SkipUserValidation`.
+3. Review the generated log for per-filter failures.
+4. Re-run against a smaller log subset if troubleshooting is needed.
 
-1. **Always test first**: Use `-ValidateOnly` to preview changes
-2. **Check permissions**: Ensure your account has filter admin rights
-3. **Verify usernames**: Double-check the new owner username spelling
-4. **Review logs**: Check audit logs after execution for detailed results
-5. **Use SkipUserValidation**: If you get 403 errors during user validation
+## Related Files
 
-## 📞 **Need Help?**
-
-If you continue to experience issues:
-1. Check the audit log file for detailed error messages
-2. Verify your Jira permissions with your administrator
-3. Confirm the filter IDs exist in your Jira instance
-4. Test with a single filter ID first before batch processing
+- `ChangeFilterOwner.ps1`
+- `Manage-JiraUserLifecycle.ps1`
+- `EXTERNAL_USER_ANONYMIZATION_FIX.md`

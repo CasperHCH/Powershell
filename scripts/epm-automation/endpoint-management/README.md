@@ -12,16 +12,19 @@ Build a practical workflow that starts with data consistency, then enables targe
 ## MVP Flow
 
 1. Build unified inventory:
-   - Run `Get-EpmUnifiedInventory.ps1`
+  - Run `Get-EpmUnifiedInventory.ps1`
    - Combine Ivanti CMDB, SCCM, and Zabbix data into one normalized dataset
 2. Run reconciliation:
-   - Run `Compare-EpmCmdbVsSccm.ps1`
+  - Run `Compare-EpmCmdbVsSccm.ps1`
    - Generate drift/gap reports for operations and governance
 
-## Script Backlog (Suggested Build Order)
+## Scripts Currently Included
 
 1. `Get-EpmUnifiedInventory.ps1` (included)
 2. `Compare-EpmCmdbVsSccm.ps1` (included)
+
+## Planned Backlog Ideas
+
 3. `Compare-EpmMonitoringCoverage.ps1`
 4. `Get-EpmStaleDeviceReport.ps1`
 5. `Get-EpmPatchCompliance.ps1`
@@ -48,15 +51,15 @@ Build a practical workflow that starts with data consistency, then enables targe
 
 ```powershell
 # 1) Build unified inventory from CSV exports
-.\Get-EpmUnifiedInventory.ps1 \
-  -Mode Csv \
-  -IvantiCmdbCsvPath "C:\Data\ivanti_cmdb_export.csv" \
-  -SccmCsvPath "C:\Data\sccm_devices.csv" \
-  -ZabbixCsvPath "C:\Data\zabbix_hosts.csv" \
+.\Get-EpmUnifiedInventory.ps1 `
+  -Mode Csv `
+  -IvantiCmdbCsvPath "C:\Data\ivanti_cmdb_export.csv" `
+  -SccmCsvPath "C:\Data\sccm_devices.csv" `
+  -ZabbixCsvPath "C:\Data\zabbix_hosts.csv" `
   -OrganizationDomain "example.org"
 
 # 2) Compare Ivanti CMDB vs SCCM using the produced inventory CSV
-.\Compare-EpmCmdbVsSccm.ps1 \
+.\Compare-EpmCmdbVsSccm.ps1 `
   -UnifiedInventoryPath ".\output\UnifiedInventory_20260325_080000.csv"
 ```
 
@@ -66,3 +69,9 @@ Build a practical workflow that starts with data consistency, then enables targe
 - Devices in CMDB but not in SCCM
 - Devices missing Zabbix monitoring coverage
 - Stale devices by age threshold
+
+## Current Scope Notes
+
+- The folder currently contains inventory normalization and CMDB-versus-SCCM reconciliation only.
+- Monitoring coverage, stale-device, patching, and remediation scripts listed above are roadmap items, not current files.
+- Both current scripts are intended to support reporting and reconciliation rather than broad state-changing operations.

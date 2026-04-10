@@ -367,10 +367,10 @@ if ($PSCmdlet.ShouldProcess($target, $operation)) {
 ```
 
 ### **Pester Tests**
-Create corresponding test files in `tests/unit-tests/`:
+When this repository contains an active test area for the script family you are working in, create or update corresponding Pester tests there. If no test area exists yet, document the missing coverage in your change notes rather than inventing a disconnected layout.
 
 ```powershell
-# Tests\unit-tests\Get-UserInformation.Tests.ps1
+# tests\unit-tests\Get-UserInformation.Tests.ps1
 Describe "Get-UserInformation Tests" {
     BeforeAll {
         # Setup test data
@@ -405,7 +405,7 @@ Describe "Get-UserInformation Tests" {
 - **Domain-specific scripts**: `scripts\[domain]\[category]\ScriptName.ps1`
 - **Reusable functions**: `core\[category]\FunctionName.ps1`
 - **Templates**: `docs\templates\`
-- **Tests**: `tests\unit-tests\` or `tests\integration-tests\`
+- **Tests**: place under the repository's active test structure when one exists; otherwise note the gap and avoid creating an unrelated parallel convention
 
 ### **Naming Conventions**
 - **Scripts**: `Verb-Noun.ps1` (e.g., `Get-MailboxPermissions.ps1`)

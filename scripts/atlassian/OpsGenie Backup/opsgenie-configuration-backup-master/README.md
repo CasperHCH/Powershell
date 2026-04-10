@@ -1,5 +1,13 @@
 # OpsGenie Configuration Backup
 
+## Repository Note
+
+This folder is vendored third-party project content retained in the repository for backup and reference workflows.
+
+- The README below primarily documents the upstream Java backup/import utility.
+- It is not written to the same style or security conventions as the PowerShell-first repository documentation.
+- If you wrap this utility from PowerShell, keep credentials and API keys out of command history and script files.
+
 OpsGenie customers can back up their account configuration and restore it later using this script.
 
 You can download the executable jars from [releases]( https://github.com/opsgenie/opsgenie-configuration-backup/releases).
@@ -11,7 +19,7 @@ You can download the executable jars from [releases]( https://github.com/opsgeni
        + Access Rights: [Read and Configuration Access](https://docs.opsgenie.com/docs/api-key-management#section-access-rights-)
   *  --backupPath
        Backup directory
-       + Default: /Users/baris/git/client-configuration-backup
+       + Example default: /path/to/client-configuration-backup
   *  --opsgenieHost
        OpsGenie host to use
        + Default: https://api.opsgenie.com
