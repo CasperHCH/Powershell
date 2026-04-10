@@ -1,4 +1,4 @@
-####################################################################
+﻿####################################################################
 # 🏢 ENTERPRISE WINDOWS FEATURE MANAGEMENT SYSTEM
 ####################################################################
 #
@@ -124,7 +124,12 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FeatureManagement", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Host "[$Level] [$Category] $Message$propertySummary" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
     }
 } catch {
@@ -132,7 +137,7 @@ try {
 }
 
 # 📊 ENTERPRISE METRICS: Feature management tracking
-$Global:EnterpriseFeatureMetrics = @{
+$script:EnterpriseFeatureMetrics = @{
     StartTime = Get-Date
     TotalFeatures = 0
     EnabledFeatures = 0
@@ -145,7 +150,7 @@ $Global:EnterpriseFeatureMetrics = @{
 }
 
 # 🌐 FEATURE CATEGORIES: Enterprise classification system
-$Global:EnterpriseFeatureCategories = @{
+$script:EnterpriseFeatureCategories = @{
     Security = @("Windows-Defender-ApplicationGuard", "VirtualMachinePlatform", "HypervisorPlatform")
     WebServer = @("IIS-WebServer", "IIS-ASPNET45", "IIS-NetFxExtensibility45")
     RemoteAccess = @("TelnetClient", "TFTP", "SimpleTCP", "RAS-Routing")
@@ -234,7 +239,7 @@ function Test-EnterpriseFeatureSecurity {
         # Overall security assessment
         if ($securityResults.SecurityRisk -eq "High" -and $ProposedAction -eq "Enable") {
             $securityResults.OverallSecure = $false
-            $Global:EnterpriseFeatureMetrics.SecurityViolations++
+            $script:EnterpriseFeatureMetrics.SecurityViolations++
         }
 
         # Display security analysis
@@ -300,19 +305,19 @@ function Test-EnterpriseSystemCompliance {
         $complianceResults.WindowsVersion = ($osVersion.Major -ge 10) -or ($osVersion.Major -eq 6 -and $osVersion.Minor -ge 1)
 
         # Check DISM availability
-        $complianceResults.DISMAvailable = (Get-Command "DISM" -ErrorAction SilentlyContinue) -ne $null
+        $complianceResults.DISMAvailable = $null -ne (Get-Command "DISM" -ErrorAction SilentlyContinue)
 
         # Check system health
         try {
             $systemHealth = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-            $complianceResults.SystemHealthy = $systemHealth -ne $null
+            $complianceResults.SystemHealthy = $null -ne $systemHealth
         } catch {
             $complianceResults.SystemHealthy = $false
         }
 
         # Check for pending reboot
         try {
-            $pendingReboot = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -ErrorAction SilentlyContinue) -ne $null
+            $pendingReboot = Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired"
             $complianceResults.PendingReboot = $pendingReboot
         } catch {
             $complianceResults.PendingReboot = $false
@@ -350,6 +355,196 @@ function Test-EnterpriseSystemCompliance {
 # 🚀 ENTERPRISE FEATURE MANAGEMENT FUNCTIONS
 ####################################################################
 
+function Get-DirectEnterpriseFeatureDependency {
+    <#
+    .SYNOPSIS
+        Collect direct feature dependencies from available providers
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FeatureName,
+
+        [Parameter(Mandatory = $false)]
+        $Feature,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DiscoveryMethod = ""
+    )
+
+    $dependencyNames = @()
+
+    if ($null -ne $Feature) {
+        if (-not [string]::IsNullOrWhiteSpace($Feature.ParentFeatureName)) {
+            $dependencyNames += $Feature.ParentFeatureName
+        }
+
+        foreach ($dependency in @($Feature.DependsOn)) {
+            if ($dependency -is [string]) {
+                $dependencyNames += $dependency
+            } elseif ($null -ne $dependency.Name) {
+                $dependencyNames += $dependency.Name
+            } elseif ($null -ne $dependency.FeatureName) {
+                $dependencyNames += $dependency.FeatureName
+            }
+        }
+    }
+
+    if (Get-Command DISM -ErrorAction SilentlyContinue) {
+        try {
+            $dismOutput = & DISM /Online /Get-FeatureInfo /FeatureName:$FeatureName 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                foreach ($line in @($dismOutput)) {
+                    if ($line -match '^\s*(Parent|Requires|Dependency)\s*:\s*(.+?)\s*$') {
+                        foreach ($dependencyName in ($matches[2] -split ',')) {
+                            $dependencyNames += $dependencyName.Trim()
+                        }
+                    }
+                }
+            }
+        } catch {
+            Write-EnterpriseLog -Level "Debug" -Message "DISM dependency discovery skipped" -Category "Discovery" -Properties @{
+                FeatureName = $FeatureName
+                DiscoveryMethod = $DiscoveryMethod
+            }
+        }
+    }
+
+    return @(
+        $dependencyNames |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_) -and
+                $_ -ne $FeatureName -and
+                $_ -notin @('None', 'N/A', 'Not Present', 'No dependencies')
+            } |
+            Select-Object -Unique
+    )
+}
+
+function Resolve-EnterpriseFeatureDependency {
+    <#
+    .SYNOPSIS
+        Resolve the full dependency graph for a Windows feature
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FeatureName,
+
+        [Parameter(Mandatory = $false)]
+        $Feature,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DiscoveryMethod = ""
+    )
+
+    $resolvedDependencies = @{}
+    $pendingDependencies = New-Object System.Collections.Queue
+
+    foreach ($dependencyName in @(Get-DirectEnterpriseFeatureDependency -FeatureName $FeatureName -Feature $Feature -DiscoveryMethod $DiscoveryMethod)) {
+        $pendingDependencies.Enqueue($dependencyName)
+    }
+
+    while ($pendingDependencies.Count -gt 0) {
+        $dependencyName = [string]$pendingDependencies.Dequeue()
+
+        if ([string]::IsNullOrWhiteSpace($dependencyName) -or $dependencyName -eq $FeatureName -or $resolvedDependencies.ContainsKey($dependencyName)) {
+            continue
+        }
+
+        $resolvedDependencies[$dependencyName] = $true
+
+        try {
+            $dependencyFeature = Get-EnterpriseWindowsFeature -FeatureName $dependencyName -ResolveDependencies:$false
+            foreach ($nestedDependencyName in @(Get-DirectEnterpriseFeatureDependency -FeatureName $dependencyName -Feature $dependencyFeature -DiscoveryMethod $dependencyFeature.DiscoveryMethod)) {
+                if (-not $resolvedDependencies.ContainsKey($nestedDependencyName) -and $nestedDependencyName -ne $FeatureName) {
+                    $pendingDependencies.Enqueue($nestedDependencyName)
+                }
+            }
+        } catch {
+            Write-EnterpriseLog -Level "Warning" -Message "Failed to resolve nested dependency" -Category "Discovery" -Properties @{
+                FeatureName = $FeatureName
+                DependencyName = $dependencyName
+            }
+        }
+    }
+
+    return @($resolvedDependencies.Keys | Sort-Object)
+}
+
+function Invoke-EnterpriseBulkFeatureOperation {
+    <#
+    .SYNOPSIS
+        Process feature operations in batches with progress reporting
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$FeatureNames,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Operation
+    )
+
+    $results = @()
+    $uniqueFeatureNames = @(
+        $FeatureNames |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Unique
+    )
+
+    if (@($uniqueFeatureNames).Count -eq 0) {
+        return @()
+    }
+
+    $batchSize = if ($uniqueFeatureNames.Count -ge 20) {
+        10
+    } elseif ($uniqueFeatureNames.Count -ge 10) {
+        5
+    } else {
+        $uniqueFeatureNames.Count
+    }
+
+    $batchCount = [int][math]::Ceiling($uniqueFeatureNames.Count / $batchSize)
+    $processedCount = 0
+
+    Write-Host "📦 Bulk mode enabled for $($uniqueFeatureNames.Count) features" -ForegroundColor Cyan
+    Write-EnterpriseLog -Level "Info" -Message "Bulk feature operation started" -Category "BulkOperation" -Properties @{
+        Operation = $Operation
+        FeatureCount = $uniqueFeatureNames.Count
+        BatchSize = $batchSize
+        BatchCount = $batchCount
+    }
+
+    for ($batchIndex = 0; $batchIndex -lt $batchCount; $batchIndex++) {
+        $startIndex = $batchIndex * $batchSize
+        $endIndex = [Math]::Min(($startIndex + $batchSize - 1), ($uniqueFeatureNames.Count - 1))
+        $currentBatch = @($uniqueFeatureNames[$startIndex..$endIndex])
+
+        Write-Host "   📦 Processing batch $($batchIndex + 1) of $batchCount" -ForegroundColor White
+
+        foreach ($featureName in $currentBatch) {
+            $processedCount++
+            $percentComplete = [int][math]::Round(($processedCount / $uniqueFeatureNames.Count) * 100, 0)
+
+            Write-Progress -Activity "Enterprise feature bulk operation" -Status "Processing $featureName ($processedCount of $($uniqueFeatureNames.Count))" -PercentComplete $percentComplete
+
+            $results += Invoke-EnterpriseFeatureOperation -FeatureName $featureName -Operation $Operation
+        }
+    }
+
+    Write-Progress -Activity "Enterprise feature bulk operation" -Completed
+
+    Write-EnterpriseLog -Level "Success" -Message "Bulk feature operation completed" -Category "BulkOperation" -Properties @{
+        Operation = $Operation
+        FeatureCount = $uniqueFeatureNames.Count
+        SuccessCount = @($results | Where-Object { $_.Success }).Count
+        FailureCount = @($results | Where-Object { -not $_.Success }).Count
+    }
+
+    return @($results)
+}
+
 function Get-EnterpriseWindowsFeature {
     <#
     .SYNOPSIS
@@ -358,7 +553,10 @@ function Get-EnterpriseWindowsFeature {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$FeatureName
+        [string]$FeatureName,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ResolveDependencies
     )
 
     try {
@@ -415,6 +613,12 @@ function Get-EnterpriseWindowsFeature {
             throw "Feature '$FeatureName' not found on this system"
         }
 
+        $shouldResolveDependencies = if ($PSBoundParameters.ContainsKey('ResolveDependencies')) {
+            $ResolveDependencies.IsPresent
+        } else {
+            $IncludeDependencies.IsPresent
+        }
+
         # Enhance feature information
         $enhancedFeature = @{
             FeatureName = $FeatureName
@@ -427,14 +631,10 @@ function Get-EnterpriseWindowsFeature {
         }
 
         # Get dependencies if available and requested
-        if ($IncludeDependencies) {
+        if ($shouldResolveDependencies) {
             try {
-                if ($feature.ParentFeatureName) {
-                    $enhancedFeature.Dependencies = @($feature.ParentFeatureName)
-                } elseif ($feature.DependsOn) {
-                    $enhancedFeature.Dependencies = $feature.DependsOn
-                }
-                $Global:EnterpriseFeatureMetrics.DependenciesAnalyzed++
+                $enhancedFeature.Dependencies = @(Resolve-EnterpriseFeatureDependency -FeatureName $FeatureName -Feature $feature -DiscoveryMethod $discoveryMethod)
+                $script:EnterpriseFeatureMetrics.DependenciesAnalyzed += @($enhancedFeature.Dependencies).Count
             } catch {
                 Write-EnterpriseLog -Level "Warning" -Message "Failed to get dependencies" -Category "Discovery"
             }
@@ -460,8 +660,8 @@ function Get-FeatureCategory {
     [CmdletBinding()]
     param([string]$FeatureName)
 
-    foreach ($category in $Global:EnterpriseFeatureCategories.Keys) {
-        if ($Global:EnterpriseFeatureCategories[$category] -contains $FeatureName) {
+    foreach ($category in $script:EnterpriseFeatureCategories.Keys) {
+        if ($script:EnterpriseFeatureCategories[$category] -contains $FeatureName) {
             return $category
         }
     }
@@ -513,7 +713,7 @@ function Invoke-EnterpriseFeatureOperation {
             $operationResult.PreviousState = $currentFeature.State
         } catch {
             $operationResult.Error = "Feature not found: $($_.Exception.Message)"
-            $Global:EnterpriseFeatureMetrics.FailedOperations++
+            $script:EnterpriseFeatureMetrics.FailedOperations++
             return $operationResult
         }
 
@@ -571,21 +771,21 @@ function Invoke-EnterpriseFeatureOperation {
 
                         # Method 3: DISM fallback
                         if (-not $enableSuccess) {
-                            $dismResult = & DISM /Online /Enable-Feature /FeatureName:$FeatureName /All /NoRestart 2>$null
+                            $null = & DISM /Online /Enable-Feature /FeatureName:$FeatureName /All /NoRestart 2>$null
                             $enableSuccess = ($LASTEXITCODE -eq 0)
                         }
 
                         if ($enableSuccess) {
                             $operationResult.Success = $true
                             $operationResult.NewState = "Enabled"
-                            $Global:EnterpriseFeatureMetrics.EnabledFeatures++
+                            $script:EnterpriseFeatureMetrics.EnabledFeatures++
                             Write-Host "   ✅ Successfully enabled feature '$FeatureName'" -ForegroundColor Green
                         } else {
                             throw "All enable methods failed"
                         }
                     } catch {
                         $operationResult.Error = "Enable failed: $($_.Exception.Message)"
-                        $Global:EnterpriseFeatureMetrics.FailedOperations++
+                        $script:EnterpriseFeatureMetrics.FailedOperations++
                         Write-Host "   ❌ Failed to enable feature: $($_.Exception.Message)" -ForegroundColor Red
                     }
                 }
@@ -621,21 +821,21 @@ function Invoke-EnterpriseFeatureOperation {
 
                         # Method 3: DISM fallback
                         if (-not $disableSuccess) {
-                            $dismResult = & DISM /Online /Disable-Feature /FeatureName:$FeatureName /NoRestart 2>$null
+                            $null = & DISM /Online /Disable-Feature /FeatureName:$FeatureName /NoRestart 2>$null
                             $disableSuccess = ($LASTEXITCODE -eq 0)
                         }
 
                         if ($disableSuccess) {
                             $operationResult.Success = $true
                             $operationResult.NewState = "Disabled"
-                            $Global:EnterpriseFeatureMetrics.DisabledFeatures++
+                            $script:EnterpriseFeatureMetrics.DisabledFeatures++
                             Write-Host "   ✅ Successfully disabled feature '$FeatureName'" -ForegroundColor Green
                         } else {
                             throw "All disable methods failed"
                         }
                     } catch {
                         $operationResult.Error = "Disable failed: $($_.Exception.Message)"
-                        $Global:EnterpriseFeatureMetrics.FailedOperations++
+                        $script:EnterpriseFeatureMetrics.FailedOperations++
                         Write-Host "   ❌ Failed to disable feature: $($_.Exception.Message)" -ForegroundColor Red
                     }
                 }
@@ -643,7 +843,7 @@ function Invoke-EnterpriseFeatureOperation {
         }
 
         # Add to processed features
-        $Global:EnterpriseFeatureMetrics.ProcessedFeatures += $operationResult
+        $script:EnterpriseFeatureMetrics.ProcessedFeatures += $operationResult
 
         Write-EnterpriseLog -Level "Info" -Message "Feature operation completed" -Category "Operation" -Properties $operationResult
 
@@ -651,7 +851,7 @@ function Invoke-EnterpriseFeatureOperation {
 
     } catch {
         $operationResult.Error = "Unexpected error: $($_.Exception.Message)"
-        $Global:EnterpriseFeatureMetrics.FailedOperations++
+        $script:EnterpriseFeatureMetrics.FailedOperations++
 
         Write-EnterpriseLog -Level "Error" -Message "Feature operation failed" -Category "Operation" -Exception $_ -Properties @{
             FeatureName = $FeatureName
@@ -662,7 +862,7 @@ function Invoke-EnterpriseFeatureOperation {
     }
 }
 
-function Get-AllEnterpriseWindowsFeatures {
+function Get-AllEnterpriseWindowsFeature {
     <#
     .SYNOPSIS
         Discover all available Windows features with comprehensive analysis
@@ -719,7 +919,7 @@ function Get-AllEnterpriseWindowsFeatures {
             Write-Host "   ⚠️  Server features not available on this system" -ForegroundColor Yellow
         }
 
-        $Global:EnterpriseFeatureMetrics.TotalFeatures = $allFeatures.Count
+        $script:EnterpriseFeatureMetrics.TotalFeatures = $allFeatures.Count
 
         Write-EnterpriseLog -Level "Success" -Message "Feature discovery completed" -Category "Discovery" -Properties @{
             TotalFeatures = $allFeatures.Count
@@ -756,8 +956,8 @@ function Export-EnterpriseFeatureReport {
             WindowsVersion = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
             Parameters = $PSBoundParameters
             Features = $Features
-            Metrics = $Global:EnterpriseFeatureMetrics
-            Duration = [math]::Round(((Get-Date) - $Global:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
+            Metrics = $script:EnterpriseFeatureMetrics
+            Duration = [math]::Round(((Get-Date) - $script:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($ExportFormat) {
@@ -837,9 +1037,14 @@ try {
     $featuresToProcess = @()
     if ($FeatureName) { $featuresToProcess += $FeatureName }
     if ($FeatureList.Count -gt 0) { $featuresToProcess += $FeatureList }
+    $featuresToProcess = @(
+        $featuresToProcess |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Unique
+    )
 
     # Interactive confirmation for non-check operations
-    if ($Action -notin @("Check", "List", "Discover") -and -not $Force) {
+    if ($Action -notin @("Check", "Analyze", "List", "Discover") -and -not $Force) {
         Write-Host "⚠️  ENTERPRISE FEATURE MANAGEMENT NOTICE" -ForegroundColor Yellow
         Write-Host "This operation will modify Windows features with comprehensive validation." -ForegroundColor White
         Write-Host "Action: $Action" -ForegroundColor Cyan
@@ -855,7 +1060,7 @@ try {
     }
 
     # Enterprise compliance validation
-    if ($Action -notin @("Check", "List", "Discover")) {
+    if ($Action -notin @("Check", "Analyze", "List", "Discover")) {
         Write-Host "`n🛡️  ENTERPRISE COMPLIANCE VALIDATION" -ForegroundColor Cyan
         if (-not (Test-EnterpriseSystemCompliance)) {
             throw "Enterprise compliance validation failed. Cannot proceed with feature operations."
@@ -869,7 +1074,7 @@ try {
     switch ($Action) {
         "List" {
             Write-Host "Discovering all Windows features..." -ForegroundColor White
-            $allFeatures = Get-AllEnterpriseWindowsFeatures
+            $allFeatures = Get-AllEnterpriseWindowsFeature
 
             Write-Host "`n📋 Windows Feature Summary:" -ForegroundColor Cyan
             $groupedFeatures = $allFeatures | Group-Object State
@@ -889,16 +1094,24 @@ try {
 
         "Discover" {
             Write-Host "Analyzing Windows feature ecosystem..." -ForegroundColor White
-            $allFeatures = Get-AllEnterpriseWindowsFeatures
+            $allFeatures = Get-AllEnterpriseWindowsFeature
 
             # Advanced analytics
             $enabledFeatures = $allFeatures | Where-Object { $_.State -eq "Enabled" }
             $disabledFeatures = $allFeatures | Where-Object { $_.State -eq "Disabled" }
+            $featureCount = @($allFeatures).Count
+            $enabledPercentage = 0
+            $disabledPercentage = 0
+
+            if ($featureCount -gt 0) {
+                $enabledPercentage = [math]::Round((@($enabledFeatures).Count / $featureCount) * 100, 1)
+                $disabledPercentage = [math]::Round((@($disabledFeatures).Count / $featureCount) * 100, 1)
+            }
 
             Write-Host "`n🔬 Enterprise Feature Analytics:" -ForegroundColor Cyan
-            Write-Host "   Total Features: $($allFeatures.Count)" -ForegroundColor White
-            Write-Host "   Enabled: $($enabledFeatures.Count) ($([math]::Round($enabledFeatures.Count / $allFeatures.Count * 100, 1))%)" -ForegroundColor Green
-            Write-Host "   Disabled: $($disabledFeatures.Count) ($([math]::Round($disabledFeatures.Count / $allFeatures.Count * 100, 1))%)" -ForegroundColor Red
+            Write-Host "   Total Features: $featureCount" -ForegroundColor White
+            Write-Host "   Enabled: $(@($enabledFeatures).Count) ($enabledPercentage%)" -ForegroundColor Green
+            Write-Host "   Disabled: $(@($disabledFeatures).Count) ($disabledPercentage%)" -ForegroundColor Red
 
             # Security analysis
             $securityFeatures = $allFeatures | Where-Object { $_.Category -eq "Security" }
@@ -911,44 +1124,127 @@ try {
             Export-EnterpriseFeatureReport -Features $allFeatures
         }
 
-        default {
-            # Process individual features
-            foreach ($feature in $featuresToProcess) {
-                $result = Invoke-EnterpriseFeatureOperation -FeatureName $feature -Operation $Action
+        "Analyze" {
+            $analysisResults = @()
 
-                if ($result.RequiresReboot) {
-                    Write-Host "   ⚠️  System reboot recommended after this operation" -ForegroundColor Yellow
+            if ($BulkMode -and @($featuresToProcess).Count -gt 1) {
+                Write-Host "📦 Bulk analysis mode enabled for $(@($featuresToProcess).Count) features" -ForegroundColor Cyan
+            }
+
+            $analysisIndex = 0
+            foreach ($feature in $featuresToProcess) {
+                $analysisIndex++
+                if ($BulkMode -and @($featuresToProcess).Count -gt 1) {
+                    $analysisPercent = [int][math]::Round(($analysisIndex / @($featuresToProcess).Count) * 100, 0)
+                    Write-Progress -Activity "Enterprise feature analysis" -Status "Analyzing $feature ($analysisIndex of $(@($featuresToProcess).Count))" -PercentComplete $analysisPercent
+                }
+
+                $featureDetails = Get-EnterpriseWindowsFeature -FeatureName $feature
+                $securityResults = Test-EnterpriseFeatureSecurity -FeatureName $feature -ProposedAction "Analyze"
+
+                $analysisResult = @{
+                    FeatureName = $featureDetails.FeatureName
+                    DisplayName = $featureDetails.DisplayName
+                    State = $featureDetails.State
+                    Category = $featureDetails.Category
+                    DiscoveryMethod = $featureDetails.DiscoveryMethod
+                    Dependencies = @($featureDetails.Dependencies)
+                    SecurityRisk = $securityResults.SecurityRisk
+                    RequiresReboot = $securityResults.RequiresReboot
+                    NetworkExposure = $securityResults.NetworkExposure
+                    PrivilegeEscalation = $securityResults.PrivilegeEscalation
+                    Recommendations = @($securityResults.Recommendations)
+                }
+
+                $analysisResults += $analysisResult
+                $script:EnterpriseFeatureMetrics.ProcessedFeatures += $analysisResult
+
+                $dependencyDisplay = if (@($featureDetails.Dependencies).Count -gt 0) {
+                    @($featureDetails.Dependencies) -join ', '
+                } else {
+                    'None detected'
+                }
+
+                $securityRiskColor = if ($securityResults.SecurityRisk -eq 'High') {
+                    'Red'
+                } elseif ($securityResults.SecurityRisk -eq 'Medium') {
+                    'Yellow'
+                } else {
+                    'Green'
+                }
+
+                Write-Host "`n🔎 Feature Analysis: $($featureDetails.FeatureName)" -ForegroundColor Cyan
+                Write-Host "   State: $($featureDetails.State)" -ForegroundColor White
+                Write-Host "   Category: $($featureDetails.Category)" -ForegroundColor White
+                Write-Host "   Discovery Method: $($featureDetails.DiscoveryMethod)" -ForegroundColor White
+                Write-Host "   Dependencies: $dependencyDisplay" -ForegroundColor White
+                Write-Host "   Security Risk: $($securityResults.SecurityRisk)" -ForegroundColor $securityRiskColor
+
+                if (@($securityResults.Recommendations).Count -gt 0) {
+                    Write-Host "   Recommendations:" -ForegroundColor Yellow
+                    $securityResults.Recommendations | ForEach-Object {
+                        Write-Host "      • $_" -ForegroundColor White
+                    }
+                }
+            }
+
+            if ($BulkMode -and @($featuresToProcess).Count -gt 1) {
+                Write-Progress -Activity "Enterprise feature analysis" -Completed
+            }
+
+            if (@($analysisResults).Count -gt 1) {
+                Export-EnterpriseFeatureReport -Features $analysisResults
+            }
+        }
+
+        default {
+            if ($BulkMode -and @($featuresToProcess).Count -gt 1) {
+                $bulkResults = @(Invoke-EnterpriseBulkFeatureOperation -FeatureNames $featuresToProcess -Operation $Action)
+
+                foreach ($result in $bulkResults) {
+                    if ($result.RequiresReboot) {
+                        Write-Host "   ⚠️  System reboot recommended after processing feature '$($result.FeatureName)'" -ForegroundColor Yellow
+                    }
+                }
+            } else {
+                # Process individual features
+                foreach ($feature in $featuresToProcess) {
+                    $result = Invoke-EnterpriseFeatureOperation -FeatureName $feature -Operation $Action
+
+                    if ($result.RequiresReboot) {
+                        Write-Host "   ⚠️  System reboot recommended after this operation" -ForegroundColor Yellow
+                    }
                 }
             }
 
             if ($featuresToProcess.Count -gt 1) {
-                Export-EnterpriseFeatureReport -Features $Global:EnterpriseFeatureMetrics.ProcessedFeatures
+                Export-EnterpriseFeatureReport -Features $script:EnterpriseFeatureMetrics.ProcessedFeatures
             }
         }
     }
 
     # Final summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseFeatureMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
     Write-Host "🎉 ENTERPRISE FEATURE MANAGEMENT COMPLETE" -ForegroundColor Green
     Write-Host ("═" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Total Features Processed: $($Global:EnterpriseFeatureMetrics.ProcessedFeatures.Count)" -ForegroundColor White
-    Write-Host "   Enabled Features: $($Global:EnterpriseFeatureMetrics.EnabledFeatures)" -ForegroundColor Green
-    Write-Host "   Disabled Features: $($Global:EnterpriseFeatureMetrics.DisabledFeatures)" -ForegroundColor Red
-    Write-Host "   Failed Operations: $($Global:EnterpriseFeatureMetrics.FailedOperations)" -ForegroundColor Yellow
-    Write-Host "   Security Violations: $($Global:EnterpriseFeatureMetrics.SecurityViolations)" -ForegroundColor Yellow
+    Write-Host "   Total Features Processed: $($script:EnterpriseFeatureMetrics.ProcessedFeatures.Count)" -ForegroundColor White
+    Write-Host "   Enabled Features: $($script:EnterpriseFeatureMetrics.EnabledFeatures)" -ForegroundColor Green
+    Write-Host "   Disabled Features: $($script:EnterpriseFeatureMetrics.DisabledFeatures)" -ForegroundColor Red
+    Write-Host "   Failed Operations: $($script:EnterpriseFeatureMetrics.FailedOperations)" -ForegroundColor Yellow
+    Write-Host "   Security Violations: $($script:EnterpriseFeatureMetrics.SecurityViolations)" -ForegroundColor Yellow
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise feature management completed successfully" -Category "System" -Properties $Global:EnterpriseFeatureMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise feature management completed successfully" -Category "System" -Properties $script:EnterpriseFeatureMetrics
 
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise feature management failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE FEATURE MANAGEMENT FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseFeatureMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseFeatureMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseFeatureMetrics.Errors | ForEach-Object {
+        $script:EnterpriseFeatureMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
@@ -956,7 +1252,7 @@ try {
     exit 1
 } finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseFeatureMetrics) {
-        $Global:EnterpriseFeatureMetrics.EndTime = Get-Date
+    if ($script:EnterpriseFeatureMetrics) {
+        $script:EnterpriseFeatureMetrics.EndTime = Get-Date
     }
 }

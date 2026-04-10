@@ -112,7 +112,7 @@ try {
     $summaryPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-BoundaryGroupAuditSummary-{0}.csv" -f $timestamp)
     $detailPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-BoundaryGroupAuditDetail-{0}.csv" -f $timestamp)
 
-    $null = Export-SccmData -InputObject ($summaryRows | Sort-Object IssueCount -Descending, BoundaryGroupName) -Path $summaryPath -Format 'Csv'
+    $null = Export-SccmData -InputObject ($summaryRows | Sort-Object -Property @('IssueCount', 'BoundaryGroupName') -Descending) -Path $summaryPath -Format 'Csv'
     if (@($detailRows).Count -gt 0) {
         $null = Export-SccmData -InputObject ($detailRows | Sort-Object BoundaryGroupName, SiteSystem) -Path $detailPath -Format 'Csv'
     }

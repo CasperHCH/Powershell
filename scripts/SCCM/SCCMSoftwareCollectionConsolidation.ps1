@@ -154,6 +154,31 @@ if ($DryRun -and -not $WhatIfPreference) {
     $WhatIfPreference = $true
 }
 
+$script:DebugLoggingEnabled = $EnableDebugLog.IsPresent
+$script:CleanupMembershipDependenciesEnabled = [bool]$CleanupCollectionMembershipDependencies
+$script:ReassignLimitingDependencyEnabled = $ReassignLimitingCollectionDependencies.IsPresent
+$script:FallbackLimitingCollection = $FallbackLimitingCollectionName
+$script:ExecutionBuildId = $ScriptBuildId
+
+function Write-SectionHeader {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information '' -InformationAction Continue
+    Write-Information $Message -InformationAction Continue
+}
+
+function Write-ResultLine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information $Message -InformationAction Continue
+}
+
 # ------------------------------------------------------------
 # GLOBAL STATE
 # ------------------------------------------------------------
@@ -189,7 +214,7 @@ $script:CanonicalMappingInventoryCache = $null
     Central logging helper used by all workflows. DEBUG messages are emitted only
     when EnableDebugLog is specified, which keeps normal runs readable.
 #>
-function Write-Log {
+function Write-ScriptLog {
     param(
         [Parameter(Mandatory = $true)]
         [ValidateSet('INFO','WARN','ERROR','SUCCESS', 'DEBUG')]
@@ -199,12 +224,12 @@ function Write-Log {
         [string]$Message
     )
 
-    if ($Level -eq 'DEBUG' -and -not $EnableDebugLog) {
+    if ($Level -eq 'DEBUG' -and -not $script:DebugLoggingEnabled) {
         return
     }
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host ("{0} [{1}] {2}" -f $timestamp, $Level, $Message)
+    Write-Information ("{0} [{1}] {2}" -f $timestamp, $Level, $Message) -InformationAction Continue
 }
 
 <#
@@ -245,6 +270,7 @@ function Write-LogEvent {
         }
     }
     catch {
+        $normalizedScope = 'GENERAL'
     }
 
     try {
@@ -254,6 +280,7 @@ function Write-LogEvent {
         }
     }
     catch {
+        $normalizedAction = 'Event'
     }
 
     try {
@@ -267,16 +294,16 @@ function Write-LogEvent {
 
     try {
         if ([string]::IsNullOrWhiteSpace($detailText)) {
-            Write-Log -Level $Level -Message $prefix
+            Write-ScriptLog -Level $Level -Message $prefix
         }
         else {
-            Write-Log -Level $Level -Message ("{0}: {1}" -f $prefix, $detailText)
+            Write-ScriptLog -Level $Level -Message ("{0}: {1}" -f $prefix, $detailText)
         }
     }
     catch {
         # Last-resort logging path; never let logging failures crash the workflow.
         $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-        Write-Host ("{0} [ERROR] [LOGGING] Write-LogEvent fallback | Level={1}; Scope={2}; Action={3}; Detail={4}; Error={5}" -f $timestamp, $Level, $normalizedScope, $normalizedAction, $detailText, $_.Exception.Message)
+        Write-Information ("{0} [ERROR] [LOGGING] Write-LogEvent fallback | Level={1}; Scope={2}; Action={3}; Detail={4}; Error={5}" -f $timestamp, $Level, $normalizedScope, $normalizedAction, $detailText, $_.Exception.Message) -InformationAction Continue
     }
 }
 
@@ -320,6 +347,46 @@ function Get-ScriptIdentity {
         ScriptPath = $scriptPath
         LastWrite  = $lastWrite
         Sha256     = $hash
+    }
+}
+
+function Get-SmsProviderInstance {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Namespace,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ClassName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Filter = ''
+    )
+
+    $cimParams = @{
+        Namespace   = $Namespace
+        ClassName   = $ClassName
+        ErrorAction = 'Stop'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $cimParams.Filter = $Filter
+    }
+
+    return @(Get-CimInstance @cimParams)
+}
+
+function Invoke-SmsProviderDelete {
+    param(
+        [Parameter(Mandatory = $true)]
+        $InputObject
+    )
+
+    try {
+        [void](Invoke-CimMethod -InputObject $InputObject -MethodName Delete -ErrorAction Stop)
+        return
+    }
+    catch {
+        Remove-CimInstance -InputObject $InputObject -ErrorAction Stop
     }
 }
 
@@ -409,6 +476,7 @@ function Get-ObjectPropertyValue {
             }
         }
         catch {
+            Write-Verbose ("Failed to inspect property [{0}] on input object." -f $propertyName)
         }
     }
 
@@ -837,6 +905,7 @@ function Reset-SccmRuntimeCaches {
         Retries run after delete attempts and should not rely on stale snapshots.
         This function resets cached command/data lookups to force fresh reads.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal cache reset helper. Confirmation and DryRun behavior are coordinated by the top-level script workflow.')]
     param(
         [Parameter(Mandatory = $false)]
         [switch]$IncludeAppCaches,
@@ -1408,6 +1477,7 @@ function Get-DeploymentIntent {
     replacement deployment when needed (or logs planned action in DryRun mode).
 #>
 function Set-LatestDeploymentForCollection {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal deployment migration helper. Confirmation is controlled by the script entry point and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         $Deployment,
@@ -1525,6 +1595,7 @@ function Set-LatestDeploymentForCollection {
     when multiple SCCM objects share a visible name.
 #>
 function Remove-Application-Robust {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal delete helper. Confirmation is controlled by the script entry point and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         $Application
@@ -1593,6 +1664,7 @@ function Remove-Application-Robust {
         $applicationDisplayName = [string](Get-ApplicationDisplayName -App $resolvedApplication)
     }
     catch {
+        $applicationDisplayName = $applicationName
     }
 
     $removeApplicationCommand = Get-CachedCommand -Name 'Remove-CMApplication'
@@ -1601,11 +1673,11 @@ function Remove-Application-Robust {
     }
 
     $commandParameters = $null
-    try { $commandParameters = $removeApplicationCommand.Parameters } catch {}
+    try { $commandParameters = $removeApplicationCommand.Parameters } catch { $commandParameters = $null }
     if ($null -eq $commandParameters) {
         $removeApplicationCommand = Get-Command 'Remove-CMApplication' -ErrorAction SilentlyContinue
         $script:CommandMetadataCache['Remove-CMApplication'] = $removeApplicationCommand
-        try { $commandParameters = $removeApplicationCommand.Parameters } catch {}
+        try { $commandParameters = $removeApplicationCommand.Parameters } catch { $commandParameters = $null }
     }
 
     $commandParameterNames = if ($null -ne $commandParameters) { @($commandParameters.Keys) } else { @() }
@@ -1875,6 +1947,7 @@ function Get-TargetFolderPath {
     environment-specific SCCM cmdlet differences.
 #>
 function Set-CollectionFolder {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal folder helper. Mutating calls are gated by the script entry point and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$SiteCode,
@@ -1913,6 +1986,7 @@ function Set-CollectionFolder {
                     }
                 }
                 catch {
+                    Write-Verbose 'Failed to resolve collection folder via one provider query attempt.'
                 }
             }
         }
@@ -1974,6 +2048,10 @@ function Move-CollectionToFolder {
         [Parameter(Mandatory = $true)]
         [string]$FolderPath
     )
+
+    if (-not $Collection -or [string]::IsNullOrWhiteSpace($FolderPath)) {
+        return $false
+    }
 
     $attempts = @(
         { Move-CMObject -ObjectId $Collection.CollectionID -FolderPath $FolderPath -ErrorAction Stop },
@@ -2209,6 +2287,7 @@ function Invoke-CmCommandSafe {
     and executes single deployment creation.
 #>
 function Set-MasterCollectionDeployment {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal deployment helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory = $true)]
         $Application,
@@ -2698,12 +2777,20 @@ function Get-CanonicalName {
     the created object when successful.
 #>
 function New-MasterDeviceCollection {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal collection creation helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory=$true)][string]$Name,
         [Parameter(Mandatory=$true)][string]$Comment,
         [Parameter(Mandatory=$true)][string]$LimitingCollectionName,
         [Parameter(Mandatory=$true)][string]$FolderPath
     )
+
+    if ([string]::IsNullOrWhiteSpace($Name) -or
+        [string]::IsNullOrWhiteSpace($Comment) -or
+        [string]::IsNullOrWhiteSpace($LimitingCollectionName) -or
+        [string]::IsNullOrWhiteSpace($FolderPath)) {
+        return $null
+    }
 
     $cmd = Get-CachedCommand -Name 'New-CMDeviceCollection'
     if (-not $cmd) {
@@ -2738,6 +2825,7 @@ function New-MasterDeviceCollection {
     when missing, and moves them into the configured target folder.
 #>
 function Set-MasterCollections {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal orchestration helper. Confirmation is controlled by the top-level script and DryRun behavior.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$CanonicalName,
@@ -2907,6 +2995,7 @@ function Add-DirectMembershipRulesIfMissing {
             }
             catch {
                 # Relationship may already exist from concurrent operations; ignore duplicate errors.
+                Write-Verbose ("Direct membership rule may already exist for resource [{0}] in collection [{1}]." -f $id, $Collection.CollectionID)
             }
         } -Description "add device ($id) to collection $($Collection.CollectionID)"
     }
@@ -3043,6 +3132,7 @@ function Get-DeviceMembersFromCollections {
     applies set logic, and ensures deployment coverage for each master collection.
 #>
 function Update-MasterCollections {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal orchestration helper. State changes remain gated by underlying DryRun-aware operations.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$CanonicalName,
@@ -3366,7 +3456,9 @@ function Find-TaskSequencesReferencingApp {
                             }
                         }
                     }
-                    catch { }
+                    catch {
+                        Write-Verbose 'Failed to parse task sequence XML while building application reference cache.'
+                    }
                 }
             }
 
@@ -3428,6 +3520,7 @@ function Find-TaskSequencesReferencingApp {
     Set-CMApplicationSupersedence parameter combinations until one succeeds.
 #>
 function Set-ApplicationSupersedenceLink {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal supersedence helper. Confirmation is coordinated by the script entry point.')]
     param(
         [Parameter(Mandatory=$true)]
         $OlderApp,
@@ -3457,6 +3550,10 @@ function Set-ApplicationSupersedenceLink {
         $resolveDt = {
             param($App)
 
+            if (-not $App) {
+                return $null
+            }
+
             if (-not $getDeploymentTypeCommand) {
                 return $null
             }
@@ -3475,6 +3572,7 @@ function Set-ApplicationSupersedenceLink {
                     }
                 }
                 catch {
+                    Write-Verbose 'A deployment type resolution attempt failed; continuing with fallback parameter sets.'
                 }
             }
 
@@ -3577,6 +3675,7 @@ function Set-ApplicationSupersedenceLink {
     pair to form a deterministic supersedence chain.
 #>
 function Set-SupersedenceAndDeployments {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal orchestration helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$SoftwareName,
@@ -3633,7 +3732,7 @@ function Set-SupersedenceAndDeployments {
 
         $entryVersion = [version]'0.0.0'
         if (-not [string]::IsNullOrWhiteSpace($entryVersionRaw)) {
-            try { $entryVersion = [version]$entryVersionRaw } catch {}
+            try { $entryVersion = [version]$entryVersionRaw } catch { $entryVersion = $null }
         }
 
         $chainEntries += [pscustomobject]@{
@@ -3694,6 +3793,7 @@ function Set-SupersedenceAndDeployments {
     on environment support, and records failures for retry/reporting.
 #>
 function Remove-Deployment-Robust {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal delete helper. Confirmation is controlled by the script entry point and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         $Deployment
@@ -3743,11 +3843,11 @@ function Remove-Deployment-Robust {
         # finishes loading its metadata. Detect this and force a fresh lookup so
         # the metadata is resolved before building the attempt list.
         $commandParameters = $null
-        try { $commandParameters = $removeDeploymentCommand.Parameters } catch {}
+        try { $commandParameters = $removeDeploymentCommand.Parameters } catch { $commandParameters = $null }
         if ($null -eq $commandParameters) {
             $removeDeploymentCommand = Get-Command 'Remove-CMDeployment' -ErrorAction SilentlyContinue
             $script:CommandMetadataCache['Remove-CMDeployment'] = $removeDeploymentCommand
-            try { $commandParameters = $removeDeploymentCommand.Parameters } catch {}
+            try { $commandParameters = $removeDeploymentCommand.Parameters } catch { $commandParameters = $null }
         }
         $commandParameterNames = if ($null -ne $commandParameters) { @($commandParameters.Keys) } else { @() }
 
@@ -4012,6 +4112,7 @@ function Write-CollectionDependencyLog {
     dependent collections to the target collection.
 #>
 function Remove-CollectionIncludeDependencyRule {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal dependency cleanup helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory = $true)]
         $DependentCollection,
@@ -4084,6 +4185,7 @@ function Remove-CollectionIncludeDependencyRule {
     dependent collections to the target collection.
 #>
 function Remove-CollectionExcludeDependencyRule {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal dependency cleanup helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory = $true)]
         $DependentCollection,
@@ -4156,6 +4258,7 @@ function Remove-CollectionExcludeDependencyRule {
     collections. Reassignment removes structural blockers before delete.
 #>
 function Set-CollectionLimitingDependency {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal dependency reassignment helper. Confirmation is coordinated by the top-level workflow.')]
     param(
         [Parameter(Mandatory = $true)]
         $DependentCollection,
@@ -4336,6 +4439,7 @@ function Remove-Collection-Robust {
         several delete cmdlet variants, and finally attempts WMI provider delete.
         This design improves resilience across SCCM module/version differences.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal delete helper. Confirmation is controlled by the script entry point and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         $Collection
@@ -4369,11 +4473,10 @@ function Remove-Collection-Robust {
                 try {
                     $collectionObj = Get-CachedDeviceCollectionById -CollectionId $collectionId
                     if ($collectionObj) {
-                        # Get the collection's own rules via WMI query (safer than cmdlet)
-                        $wmiCollection = Get-WmiObject -Namespace "root\SMS\site_$SiteCode" -Class SMS_Collection -Filter "CollectionID='$collectionId'" -ErrorAction SilentlyContinue
-                        if ($wmiCollection) {
-                            # Try to refresh/clear collection rules if WMI interface supports it
-                            Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Found WMI collection object for '{0}' ({1}), attempting rule enumeration." -f ($collectionName -as [string]), ($collectionId -as [string]))
+                        # Get the collection's own rules via provider query without relying on the problematic cmdlet.
+                        $providerCollection = @(Get-SmsProviderInstance -Namespace ("root\SMS\site_{0}" -f $SiteCode) -ClassName 'SMS_Collection' -Filter ("CollectionID='{0}'" -f $collectionId) | Select-Object -First 1)
+                        if ($providerCollection.Count -gt 0) {
+                            Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Found provider collection object for '{0}' ({1}), attempting rule enumeration." -f ($collectionName -as [string]), ($collectionId -as [string]))
                         }
                     }
                 }
@@ -4529,33 +4632,27 @@ function Remove-Collection-Robust {
                     $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
                     $collectionIdStr = [string]$collectionId
 
-                    $wmiCollection = Get-WmiObject -Namespace $siteNamespace -Class SMS_DeviceCollection -Filter ("CollectionID='{0}'" -f $collectionIdStr) -ErrorAction SilentlyContinue
-                    if (-not $wmiCollection) {
-                        $wmiCollection = Get-WmiObject -Namespace $siteNamespace -Class SMS_Collection -Filter ("CollectionID='{0}'" -f $collectionIdStr) -ErrorAction SilentlyContinue
+                    $providerCollection = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_DeviceCollection' -Filter ("CollectionID='{0}'" -f $collectionIdStr) | Select-Object -First 1)
+                    if ($providerCollection.Count -eq 0) {
+                        $providerCollection = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_Collection' -Filter ("CollectionID='{0}'" -f $collectionIdStr) | Select-Object -First 1)
                     }
 
-                    if ($wmiCollection) {
-                        $wmiTarget = @($wmiCollection) | Select-Object -First 1
+                    if ($providerCollection.Count -gt 0) {
+                        $providerTarget = $providerCollection[0]
                         try {
-                            [void]($wmiTarget.Delete())
+                            Invoke-SmsProviderDelete -InputObject $providerTarget
                             $removed = $true
                         }
                         catch {
-                            try {
-                                [void](Invoke-WmiMethod -InputObject $wmiTarget -Name Delete -ErrorAction Stop)
-                                $removed = $true
-                            }
-                            catch {
-                                [void]$attemptErrors.Add(("WMI direct delete failed: {0}" -f $_.Exception.Message))
-                            }
+                            [void]$attemptErrors.Add(("Provider direct delete failed: {0}" -f $_.Exception.Message))
                         }
                     }
                     else {
-                        [void]$attemptErrors.Add('WMI lookup returned no collection object (tried both DeviceCollection and Collection classes).')
+                        [void]$attemptErrors.Add('Provider lookup returned no collection object (tried both DeviceCollection and Collection classes).')
                     }
                 }
                 catch {
-                    [void]$attemptErrors.Add(("WMI provider attempt failed: {0}" -f $_.Exception.Message))
+                    [void]$attemptErrors.Add(("Provider delete attempt failed: {0}" -f $_.Exception.Message))
                 }
             }
 
@@ -4575,44 +4672,35 @@ function Remove-Collection-Robust {
                 }
             }
 
-            # Final fallback for stubborn collections: call provider WMI delete directly by CollectionID.
+            # Final fallback for stubborn collections: call provider delete directly by CollectionID.
             if (-not $removed -and -not [string]::IsNullOrWhiteSpace($collectionId)) {
                 try {
                     $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
                     $collectionIdStr = [string]$collectionId
                     
-                    # Try SMS_DeviceCollection first
-                    $wmiCollection = Get-WmiObject -Namespace $siteNamespace -Class SMS_DeviceCollection -Filter ("CollectionID='{0}'" -f $collectionIdStr) -ErrorAction SilentlyContinue
+                    $providerCollection = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_DeviceCollection' -Filter ("CollectionID='{0}'" -f $collectionIdStr) | Select-Object -First 1)
 
-                    # Fallback to generic SMS_Collection if DeviceCollection not found
-                    if (-not $wmiCollection) {
-                        $wmiCollection = Get-WmiObject -Namespace $siteNamespace -Class SMS_Collection -Filter ("CollectionID='{0}'" -f $collectionIdStr) -ErrorAction SilentlyContinue
+                    if ($providerCollection.Count -eq 0) {
+                        $providerCollection = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_Collection' -Filter ("CollectionID='{0}'" -f $collectionIdStr) | Select-Object -First 1)
                     }
 
-                    if ($wmiCollection) {
-                        $wmiTarget = @($wmiCollection) | Select-Object -First 1
+                    if ($providerCollection.Count -gt 0) {
+                        $providerTarget = $providerCollection[0]
 
                         try {
-                            [void]($wmiTarget.Delete())
+                            Invoke-SmsProviderDelete -InputObject $providerTarget
                             $removed = $true
                         }
                         catch {
-                            try {
-                                [void](Invoke-WmiMethod -InputObject $wmiTarget -Name Delete -ErrorAction Stop)
-                                $removed = $true
-                            }
-                            catch {
-                                Remove-WmiObject -InputObject $wmiTarget -ErrorAction Stop
-                                $removed = $true
-                            }
+                            [void]$attemptErrors.Add(("Provider fallback delete failed: {0}" -f $_.Exception.Message))
                         }
                     }
                     else {
-                        [void]$attemptErrors.Add('WMI lookup returned no collection object (tried both DeviceCollection and Collection classes).')
+                        [void]$attemptErrors.Add('Provider lookup returned no collection object (tried both DeviceCollection and Collection classes).')
                     }
                 }
                 catch {
-                    [void]$attemptErrors.Add(("WMI fallback failed: {0}" -f $_.Exception.Message))
+                    [void]$attemptErrors.Add(("Provider fallback failed: {0}" -f $_.Exception.Message))
                 }
             }
 
@@ -4698,6 +4786,7 @@ function Test-PermanentAppDeletionError {
     child folders before parent folders.
 #>
 function Remove-EmptyApplicationDeploymentFolders {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal cleanup helper. Confirmation is coordinated by the top-level workflow and DryRun wrapper.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$SiteCode,
@@ -4895,7 +4984,7 @@ function Remove-EmptyApplicationDeploymentFolders {
         $wmiCandidates = @()
 
         try {
-            $allContainerNodes = @(Get-WmiObject -Namespace $siteNamespace -Class SMS_ObjectContainerNode -ErrorAction Stop)
+            $allContainerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode')
             $emptyContainerNodes = @($allContainerNodes | Where-Object { [int]($_.IsEmpty) -eq 1 })
 
             if ($emptyContainerNodes.Count -gt 0) {
@@ -4999,7 +5088,7 @@ function Remove-EmptyApplicationDeploymentFolders {
             }
         }
         catch {
-            Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("WMI fallback query for SMS_ObjectContainerNode failed: {0}" -f $_.Exception.Message)
+            Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Provider fallback query for SMS_ObjectContainerNode failed: {0}" -f $_.Exception.Message)
         }
 
         if ($wmiCandidates.Count -gt 0) {
@@ -5034,6 +5123,7 @@ function Remove-EmptyApplicationDeploymentFolders {
                     }
                 }
                 catch {
+                    Write-Verbose ("Failed to sample folder object property [{0}]." -f $propName)
                 }
             }
 
@@ -5065,8 +5155,8 @@ function Remove-EmptyApplicationDeploymentFolders {
         try {
             if ($folderEntry.PSObject.Properties['Node']) {
                 Invoke-DryRunAction -Action {
-                    $folderEntry.Node | Remove-WmiObject -ErrorAction Stop
-                } -Description "delete empty folder '$folderPath' via WMI"
+                    Invoke-SmsProviderDelete -InputObject $folderEntry.Node
+                } -Description "delete empty folder '$folderPath' via provider"
             }
             else {
                 Invoke-DryRunAction -Action {
@@ -5245,7 +5335,7 @@ function Invoke-CleanupPlan {
                 $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
                 if (-not $entryApp) { continue }
                 $displayName = ''
-                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch {}
+                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch { $displayName = [string]$entryAppName }
                 if (-not [string]::IsNullOrWhiteSpace($displayName)) { $displayName }
             }
         )
@@ -5256,7 +5346,7 @@ function Invoke-CleanupPlan {
                 $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
                 if (-not $entryApp) { continue }
                 $displayName = ''
-                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch {}
+                try { $displayName = [string](Get-ApplicationDisplayName -App $entryApp) } catch { $displayName = [string]$entryAppName }
                 if (-not [string]::IsNullOrWhiteSpace($displayName)) { $displayName }
             }
         )
@@ -5271,8 +5361,8 @@ function Invoke-CleanupPlan {
             $deleteDetail = [string]::Join(', ', @($oldAppNames | Where-Object { -not [string]::IsNullOrWhiteSpace(($_ -as [string])) }))
         }
 
-        try { Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Applications to keep' -Detail $keepDetail } catch { Write-Log -Level 'INFO' -Message ("[CLEANUP] Applications to keep: {0}" -f $keepDetail) }
-        try { Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Applications to delete' -Detail $deleteDetail } catch { Write-Log -Level 'INFO' -Message ("[CLEANUP] Applications to delete: {0}" -f $deleteDetail) }
+        try { Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Applications to keep' -Detail $keepDetail } catch { Write-ScriptLog -Level 'INFO' -Message ("[CLEANUP] Applications to keep: {0}" -f $keepDetail) }
+        try { Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Applications to delete' -Detail $deleteDetail } catch { Write-ScriptLog -Level 'INFO' -Message ("[CLEANUP] Applications to delete: {0}" -f $deleteDetail) }
 
         # Determine which non-master collections are eligible for deletion.
         $cleanupStage = 'build collection delete plan'
@@ -5334,12 +5424,11 @@ function Invoke-CleanupPlan {
                 Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Aborted' -Detail 'Cleanup confirmation is required, but NonInteractive is set. Re-run with -AutoApprove to proceed without prompts.'
                 return
             }
-            Write-Host ""
-            Write-Host "Planned cleanup actions:" -ForegroundColor Cyan
-            Write-Host (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
-            Write-Host (" - Applications to delete: {0}" -f $oldApps.Count)
-            Write-Host (" - Collections to delete:  {0}" -f $oldCollections.Count)
-            Write-Host ""
+            Write-SectionHeader -Message 'Planned cleanup actions:'
+            Write-ResultLine -Message (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
+            Write-ResultLine -Message (" - Applications to delete: {0}" -f $oldApps.Count)
+            Write-ResultLine -Message (" - Collections to delete:  {0}" -f $oldCollections.Count)
+            Write-ResultLine -Message ''
             $answer = Read-Host "Proceed with cleanup? (Y/N)"
             if ($answer -notin @('Y','y','Yes','yes')) {
                 Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Aborted' -Detail 'User declined confirmation prompt.'
@@ -5395,7 +5484,7 @@ function Invoke-CleanupPlan {
             Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete skipped' -Detail (("'{0}' (CI_ID: {1}) is referenced by {2} task sequence(s).") -f $appDisplayName, $appId, $tsRefs.Count)
 
             foreach ($r in $tsRefs) {
-                Write-Host (" - Task Sequence: {0} (PackageId: {1})" -f $r.TaskSequenceName, $r.PackageId)
+                Write-ResultLine -Message (" - Task Sequence: {0} (PackageId: {1})" -f $r.TaskSequenceName, $r.PackageId)
             }
 
             continue
@@ -5460,9 +5549,9 @@ function Invoke-CleanupPlan {
             $cleanupErrorMessage = '[No exception message available]'
         }
 
-        Write-Log -Level 'ERROR' -Message ("[CLEANUP] Failed: Invoke-CleanupPlan failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
+        Write-ScriptLog -Level 'ERROR' -Message ("[CLEANUP] Failed: Invoke-CleanupPlan failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
         if ($_.ScriptStackTrace) {
-            Write-Log -Level 'DEBUG' -Message ("[CLEANUP] Debug: Stack: {0}" -f $_.ScriptStackTrace)
+            Write-ScriptLog -Level 'DEBUG' -Message ("[CLEANUP] Debug: Stack: {0}" -f $_.ScriptStackTrace)
         }
 
         # Also emit the structured event when possible for consistency.
@@ -5818,8 +5907,7 @@ try {
                     return
                 }
 
-                Write-Host ""
-                Write-Host "Multiple software name candidates found:" -ForegroundColor Yellow
+                Write-SectionHeader -Message 'Multiple software name candidates found:'
 
                 # Build stats for display
                 $candidateStats = foreach ($candidate in $softwareNameCandidates) {
@@ -5830,8 +5918,8 @@ try {
                 }
 
                 for ($i = 0; $i -lt $candidateStats.Count; $i++) {
-                    Write-Host ("[{0}] {1}  (matches: {2})" `
-                        -f ($i+1), $candidateStats[$i].Name, $candidateStats[$i].Count)
+                    Write-ResultLine -Message (("[{0}] {1}  (matches: {2})" `
+                        -f ($i+1), $candidateStats[$i].Name, $candidateStats[$i].Count))
                 }
 
                 $selection = Read-Host "Enter the number of the correct software name"
@@ -5938,5 +6026,5 @@ finally {
     $ConfirmPreference  = $__OldConfirmPreference
     $ProgressPreference = $__OldProgressPreference
 
-    try { Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Restored session preferences' -Detail 'ConfirmPreference and ProgressPreference.' } catch {}
+    try { Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Restored session preferences' -Detail 'ConfirmPreference and ProgressPreference.' } catch { Write-Verbose 'Failed to record session preference restoration.' }
 }

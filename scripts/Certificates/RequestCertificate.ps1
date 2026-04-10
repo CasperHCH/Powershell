@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Requests a certificate using a .inf configuration file with support for domain controller or self-signed certificates.
 
@@ -13,7 +13,7 @@
     Path to the certificate request configuration file (.inf format).
 
 .PARAMETER CertificatePassword
-    Password to protect the exported certificate. If not provided, a secure password will be auto-generated.
+    Secure password to protect the exported certificate. If not provided, a secure password will be auto-generated.
 
 .PARAMETER UseDomainController
     Use domain controller for certificate request. Requires a valid domain environment.
@@ -34,7 +34,8 @@
     .\RequestCertificate.ps1 -InfFilePath "C:\certs\request.inf" -UseDomainController -DomainControllerName "dc01.example.org"
 
 .EXAMPLE
-    .\RequestCertificate.ps1 -InfFilePath "C:\certs\request.inf" -CertificatePassword "SecureP@ssw0rd!" -ExportPath "C:\certificates"
+    $password = Read-Host -AsSecureString -Prompt "Enter certificate password"
+    .\RequestCertificate.ps1 -InfFilePath "C:\certs\request.inf" -CertificatePassword $password -ExportPath "C:\certificates"
 
 .NOTES
     Author: PowerShell Automation Team
@@ -56,7 +57,7 @@ param(
         Mandatory=$false,
         HelpMessage="Certificate password (auto-generated if not provided)"
     )]
-    [string]$CertificatePassword,
+    [securestring]$CertificatePassword,
 
     [Parameter(
         Mandatory=$false,
@@ -99,8 +100,15 @@ param(
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "CertificateRequest_Audit.log"
 $script:PasswordLogFile = Join-Path $PSScriptRoot "CertificatePasswords_Secure.log"
+$script:InfFilePath = $InfFilePath
+$script:CertificatePassword = $CertificatePassword
+$script:UseDomainController = $UseDomainController
+$script:DomainControllerName = $DomainControllerName
+$script:TemplateId = $TemplateId
+$script:ExportPath = $ExportPath
+$script:TimeoutSeconds = $TimeoutSeconds
 
-function Write-Log {
+function Write-CertificateLog {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
@@ -163,14 +171,14 @@ function Write-AuditLog {
     }
 
     $auditJson = $auditEntry | ConvertTo-Json -Compress
-    Write-Log -Message $auditJson -Level "AUDIT" -Sensitive $true
+    Write-CertificateLog -Message $auditJson -Level "AUDIT" -Sensitive $true
 }
 
 # ============================================================================
 # VALIDATION & PREREQUISITES
 # ============================================================================
 
-function Test-Prerequisites {
+function Test-Prerequisite {
     Write-Host "🔍 Validating prerequisites..." -ForegroundColor Cyan
 
     # Check administrator privileges
@@ -224,7 +232,8 @@ function Test-Prerequisites {
 # PASSWORD MANAGEMENT
 # ============================================================================
 
-function New-SecurePassword {
+function Get-SecurePassword {
+    [OutputType([securestring])]
     param(
         [Parameter(Mandatory=$false)]
         [ValidateRange(12, 32)]
@@ -249,26 +258,32 @@ function New-SecurePassword {
     }
 
     $randomPassword = -join ($password | Get-Random -Count $password.Count | ForEach-Object { $_ })
-    return $randomPassword
+    $securePassword = New-Object System.Security.SecureString
+    foreach ($character in $randomPassword.ToCharArray()) {
+        $securePassword.AppendChar($character)
+    }
+    $securePassword.MakeReadOnly()
+    return $securePassword
 }
 
-function Store-PasswordSecurely {
+function Save-CertificatePasswordSecurely {
     param(
         [Parameter(Mandatory=$true)]
         [string]$CertificateName,
 
         [Parameter(Mandatory=$true)]
-        [string]$Password
+        [securestring]$Password
     )
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $passwordEntry = "[$timestamp] [$script:SessionId] Certificate: $CertificateName | Password: $Password"
+    $encryptedPassword = ConvertFrom-SecureString -SecureString $Password
+    $passwordEntry = "[$timestamp] [$script:SessionId] Certificate: $CertificateName | EncryptedPassword: $encryptedPassword"
 
     try {
         Add-Content -Path $script:PasswordLogFile -Value $passwordEntry -ErrorAction Stop
-        Write-Log "Certificate password stored securely" -Level "AUDIT" -Sensitive $true
+        Write-CertificateLog "Certificate password stored securely" -Level "AUDIT" -Sensitive $true
     } catch {
-        Write-Log "Failed to store password securely: $_" -Level "ERROR" -Sensitive $true
+        Write-CertificateLog "Failed to store password securely: $_" -Level "ERROR" -Sensitive $true
     }
 }
 
@@ -277,6 +292,7 @@ function Store-PasswordSecurely {
 # ============================================================================
 
 function New-CertificateRequest {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory=$true)]
         [string]$InfPath,
@@ -289,17 +305,21 @@ function New-CertificateRequest {
 
     try {
         $requestPath = Join-Path $OutputPath "cert_request.req"
-        
+
+        if (-not $PSCmdlet.ShouldProcess($requestPath, "Create certificate request from INF file")) {
+            return $requestPath
+        }
+
         # Use certreq to process the .inf file
         $certReqOutput = & certreq -new $InfPath $requestPath 2>&1
-        
+
         if ($LASTEXITCODE -ne 0) {
             throw "Certificate request creation failed: $certReqOutput"
         }
 
         Write-Host "✅ Certificate request created successfully" -ForegroundColor Green
         Write-AuditLog -Action "CERT_REQUEST_CREATED" -Target $requestPath
-        
+
         return $requestPath
     } catch {
         Write-Host "❌ Certificate request creation failed: $_" -ForegroundColor Red
@@ -327,17 +347,17 @@ function Submit-CertificateRequest {
 
     try {
         $responsePath = Join-Path $OutputPath "cert_response.cer"
-        
+
         # Submit to domain controller
         $certReqOutput = & certreq -submit -config "$DomainController\$Template" $RequestPath $responsePath 2>&1
-        
+
         if ($LASTEXITCODE -ne 0) {
             throw "Certificate submission failed: $certReqOutput"
         }
 
         Write-Host "✅ Certificate received from domain controller" -ForegroundColor Green
         Write-AuditLog -Action "CERT_SUBMITTED_TO_DC" -Target "$DomainController\$Template"
-        
+
         return $responsePath
     } catch {
         Write-Host "❌ Certificate submission failed: $_" -ForegroundColor Red
@@ -349,17 +369,14 @@ function Submit-CertificateRequest {
 function Approve-CertificateRequest {
     param(
         [Parameter(Mandatory=$true)]
-        [string]$ResponePath,
-
-        [Parameter(Mandatory=$true)]
-        [string]$OutputPath
+        [string]$ResponePath
     )
 
     Write-Host "✔️  Installing certificate response..." -ForegroundColor Cyan
 
     try {
         $certInstallOutput = & certreq -accept $ResponePath 2>&1
-        
+
         if ($LASTEXITCODE -ne 0) {
             throw "Certificate installation failed: $certInstallOutput"
         }
@@ -373,7 +390,9 @@ function Approve-CertificateRequest {
     }
 }
 
-function New-SelfSignedCertificate {
+function New-LocalSelfSignedCertificate {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([hashtable])]
     param(
         [Parameter(Mandatory=$true)]
         [string]$Subject,
@@ -392,7 +411,11 @@ function New-SelfSignedCertificate {
 
     try {
         $certPath = Join-Path $OutputPath "$FriendlyName.pfx"
-        
+
+        if (-not $PSCmdlet.ShouldProcess($certPath, "Create and export self-signed certificate")) {
+            return @{ Path = $certPath; Thumbprint = $null; Subject = $Subject }
+        }
+
         $cert = New-SelfSignedCertificate -Subject $Subject `
                                           -FriendlyName $FriendlyName `
                                           -CertStoreLocation "Cert:\CurrentUser\My" `
@@ -404,7 +427,7 @@ function New-SelfSignedCertificate {
 
         Write-Host "✅ Self-signed certificate created: $certPath" -ForegroundColor Green
         Write-AuditLog -Action "SELF_SIGNED_CERT_CREATED" -Target $certPath -AdditionalData @{Thumbprint=$cert.Thumbprint; Subject=$Subject}
-        
+
         return @{
             Path = $certPath
             Thumbprint = $cert.Thumbprint
@@ -422,55 +445,60 @@ function New-SelfSignedCertificate {
 # ============================================================================
 
 function Main {
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
     Write-Host "🚀 Starting certificate request process..." -ForegroundColor Cyan
-    Write-Log "Certificate request process initiated" -Level "AUDIT"
+    Write-CertificateLog "Certificate request process initiated" -Level "AUDIT"
 
     try {
         # Run prerequisites
-        Test-Prerequisites
+        Test-Prerequisite
 
         # Handle password
-        if ([string]::IsNullOrWhiteSpace($CertificatePassword)) {
+        if ($null -eq $script:CertificatePassword) {
             Write-Host "🔑 Generating secure password..." -ForegroundColor Cyan
-            $certPassword = New-SecurePassword
+            $securePassword = Get-SecurePassword
             Write-Host "✅ Password generated (see secure log)" -ForegroundColor Green
         } else {
-            $certPassword = $CertificatePassword
+            $securePassword = $script:CertificatePassword
         }
 
-        $securePassword = ConvertTo-SecureString -String $certPassword -AsPlainText -Force
-
         # Extract subject from .inf file
-        $infContent = Get-Content $InfFilePath -Raw
+        $infContent = Get-Content $script:InfFilePath -Raw
         $subjectMatch = $infContent | Select-String -Pattern 'Subject\s*=\s*"?([^"]+)"?' | Select-Object -First 1
         $subject = if ($subjectMatch) { $subjectMatch.Matches[0].Groups[1].Value } else { "CN=GeneratedCertificate" }
         $friendlyName = $subject -replace 'CN=', '' -replace ',O=.*', ''
+        $outputCertificatePath = $script:ExportPath
 
         if ($PSCmdlet.ShouldProcess($subject, "Generate Certificate")) {
-            if ($UseDomainController) {
+            if ($script:UseDomainController) {
                 # Domain Controller-based flow
-                $requestPath = New-CertificateRequest -InfPath $InfFilePath -OutputPath $ExportPath
+                $requestPath = New-CertificateRequest -InfPath $script:InfFilePath -OutputPath $script:ExportPath
                 $responsePath = Submit-CertificateRequest -RequestPath $requestPath `
-                                                         -DomainController $DomainControllerName `
-                                                         -Template $TemplateId `
-                                                         -OutputPath $ExportPath
-                Approve-CertificateRequest -ResponePath $responsePath -OutputPath $ExportPath
+                                                         -DomainController $script:DomainControllerName `
+                                                         -Template $script:TemplateId `
+                                                         -OutputPath $script:ExportPath
+                Approve-CertificateRequest -ResponePath $responsePath
+                $outputCertificatePath = $responsePath
             } else {
                 # Self-signed flow
-                $certResult = New-SelfSignedCertificate -Subject $subject `
-                                                       -FriendlyName $friendlyName `
-                                                       -Password $securePassword `
-                                                       -OutputPath $ExportPath
+                $certResult = New-LocalSelfSignedCertificate -Subject $subject `
+                                                             -FriendlyName $friendlyName `
+                                                             -Password $securePassword `
+                                                             -OutputPath $script:ExportPath
+                $outputCertificatePath = $certResult.Path
             }
 
             # Store password securely
-            Store-PasswordSecurely -CertificateName $friendlyName -Password $certPassword
+            Save-CertificatePasswordSecurely -CertificateName $friendlyName -Password $securePassword
 
             Write-Host ""
             Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
             Write-Host "✅ Certificate request completed successfully!" -ForegroundColor Green
             Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
-            Write-Host "📁 Export Path: $ExportPath" -ForegroundColor White
+            Write-Host "📁 Export Path: $script:ExportPath" -ForegroundColor White
+            Write-Host "📄 Certificate Output: $outputCertificatePath" -ForegroundColor White
             Write-Host "🔒 Certificate Protected: Yes (check password log)" -ForegroundColor White
             Write-Host "📋 Audit Log: $script:LogFile" -ForegroundColor White
             Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan

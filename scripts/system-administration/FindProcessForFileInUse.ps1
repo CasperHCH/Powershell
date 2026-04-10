@@ -1,4 +1,4 @@
-####################################################################
+﻿####################################################################
 # 🏢 ENTERPRISE FILE LOCK DETECTION AND RESOLUTION SYSTEM
 ####################################################################
 #
@@ -126,7 +126,12 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FileLockDetection", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Host "[$Level] [$Category] $Message$propertySummary" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
     }
 } catch {
@@ -134,7 +139,7 @@ try {
 }
 
 # 📊 ENTERPRISE METRICS: File lock analysis tracking
-$Global:EnterpriseFileLockMetrics = @{
+$script:EnterpriseFileLockMetrics = @{
     StartTime = Get-Date
     FilesAnalyzed = 0
     LockedFiles = 0
@@ -241,7 +246,7 @@ function Test-EnterpriseFileLockSecurity {
         # Overall security assessment
         if ($securityResults.SecurityRisk -eq "High" -and $ProposedAction -eq "Resolve" -and -not $Force) {
             $securityResults.OverallSecure = $false
-            $Global:EnterpriseFileLockMetrics.SecurityViolations++
+            $script:EnterpriseFileLockMetrics.SecurityViolations++
         }
 
         # Display security analysis
@@ -311,7 +316,7 @@ function Test-EnterpriseSystemCompliance {
         # Test Windows API access
         try {
             $processes = Get-Process -ErrorAction Stop | Select-Object -First 1
-            $complianceResults.APIAccess = $processes -ne $null
+            $complianceResults.APIAccess = [bool]$processes
         } catch {
             $complianceResults.APIAccess = $false
         }
@@ -353,7 +358,7 @@ function Test-EnterpriseSystemCompliance {
 # 🚀 ENTERPRISE FILE LOCK DETECTION FUNCTIONS
 ####################################################################
 
-function Get-EnterpriseFileLockingProcesses {
+function Get-EnterpriseFileLockingProcess {
     <#
     .SYNOPSIS
         Advanced file locking process detection with multiple methods
@@ -382,7 +387,7 @@ function Get-EnterpriseFileLockingProcesses {
             foreach ($process in $allProcesses) {
                 try {
                     # Get process handles and check for file access
-                    $processHandles = Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($process.Id)" -ErrorAction SilentlyContinue
+                    $processHandles = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($process.Id)" -ErrorAction SilentlyContinue
 
                     if ($processHandles) {
                         # Check if process is likely accessing the file
@@ -449,7 +454,7 @@ function Get-EnterpriseFileLockingProcesses {
                                     WindowTitle = $processInfo.MainWindowTitle
                                     StartTime = $processInfo.StartTime
                                     DetectionMethod = "Handle.exe"
-                                    CommandLine = (Get-WmiObject Win32_Process -Filter "ProcessId = $processId").CommandLine
+                                    CommandLine = (Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue).CommandLine
                                     SecurityRisk = "Medium"
                                 }
                             } catch {
@@ -509,9 +514,9 @@ function Get-EnterpriseFileLockingProcesses {
             $_.Group | Select-Object -First 1
         }
 
-        $Global:EnterpriseFileLockMetrics.ProcessesFound += $uniqueProcesses.Count
+        $script:EnterpriseFileLockMetrics.ProcessesFound += $uniqueProcesses.Count
         if ($uniqueProcesses.Count -gt 0) {
-            $Global:EnterpriseFileLockMetrics.LockedFiles++
+            $script:EnterpriseFileLockMetrics.LockedFiles++
         }
 
         Write-EnterpriseLog -Level "Success" -Message "File lock analysis completed" -Category "Analysis" -Properties @{
@@ -621,7 +626,7 @@ function Invoke-EnterpriseFileLockResolution {
                 Start-Sleep -Seconds 1
                 if (-not (Get-Process -Id $lockingProcess.ProcessId -ErrorAction SilentlyContinue)) {
                     $resolutionResults.ProcessesResolved++
-                    $Global:EnterpriseFileLockMetrics.ResolvedLocks++
+                    $script:EnterpriseFileLockMetrics.ResolvedLocks++
                     Write-Host "      ✅ Process terminated successfully" -ForegroundColor Green
                 } else {
                     $resolutionResults.ProcessesFailed++
@@ -632,7 +637,7 @@ function Invoke-EnterpriseFileLockResolution {
             } catch {
                 $resolutionResults.ProcessesFailed++
                 $resolutionResults.Errors += "Exception terminating process $($lockingProcess.ProcessId): $($_.Exception.Message)"
-                $Global:EnterpriseFileLockMetrics.FailedResolutions++
+                $script:EnterpriseFileLockMetrics.FailedResolutions++
                 Write-Host "      ❌ Exception: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
@@ -697,7 +702,7 @@ function Invoke-EnterpriseFileMonitoring {
             Write-Host "   🔍 Check #$($monitoringResults.TotalChecks) - $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor White
 
             try {
-                $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $TargetFilePath
+                $lockingProcesses = Get-EnterpriseFileLockingProcess -TargetFilePath $TargetFilePath
 
                 if ($lockingProcesses.Count -gt 0) {
                     $monitoringResults.LockedInstances++
@@ -761,8 +766,8 @@ function Export-EnterpriseFileLockReport {
             UserName = $env:USERNAME
             Parameters = $PSBoundParameters
             FileLockResults = $FileLockResults
-            Metrics = $Global:EnterpriseFileLockMetrics
-            Duration = [math]::Round(((Get-Date) - $Global:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
+            Metrics = $script:EnterpriseFileLockMetrics
+            Duration = [math]::Round(((Get-Date) - $script:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($ExportFormat) {
@@ -883,7 +888,7 @@ try {
     foreach ($file in $validFiles) {
         try {
             Write-Host "`n📁 Processing file: $(Split-Path $file -Leaf)" -ForegroundColor White
-            $Global:EnterpriseFileLockMetrics.FilesAnalyzed++
+            $script:EnterpriseFileLockMetrics.FilesAnalyzed++
 
             # Security validation
             if ($Action -eq "Resolve") {
@@ -897,7 +902,7 @@ try {
             # Execute action based on type
             switch ($Action) {
                 "Analyze" {
-                    $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $file
+                    $lockingProcesses = Get-EnterpriseFileLockingProcess -TargetFilePath $file
 
                     $result = @{
                         FilePath = $file
@@ -920,7 +925,7 @@ try {
                 }
 
                 "Resolve" {
-                    $lockingProcesses = Get-EnterpriseFileLockingProcesses -TargetFilePath $file
+                    $lockingProcesses = Get-EnterpriseFileLockingProcess -TargetFilePath $file
                     $resolutionResult = Invoke-EnterpriseFileLockResolution -TargetFilePath $file -LockingProcesses $lockingProcesses
 
                     $result = @{
@@ -951,7 +956,7 @@ try {
 
         } catch {
             Write-Host "   ❌ Processing failed: $($_.Exception.Message)" -ForegroundColor Red
-            $Global:EnterpriseFileLockMetrics.Errors += "Failed to process $file: $($_.Exception.Message)"
+            $script:EnterpriseFileLockMetrics.Errors += "Failed to process ${$file}: $($_.Exception.Message)"
         }
     }
 
@@ -962,28 +967,28 @@ try {
     }
 
     # Final summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseFileLockMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
     Write-Host "🎉 ENTERPRISE FILE LOCK ANALYSIS COMPLETE" -ForegroundColor Green
     Write-Host ("═" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Files Analyzed: $($Global:EnterpriseFileLockMetrics.FilesAnalyzed)" -ForegroundColor White
-    Write-Host "   Locked Files Found: $($Global:EnterpriseFileLockMetrics.LockedFiles)" -ForegroundColor Yellow
-    Write-Host "   Processes Detected: $($Global:EnterpriseFileLockMetrics.ProcessesFound)" -ForegroundColor Cyan
-    Write-Host "   Locks Resolved: $($Global:EnterpriseFileLockMetrics.ResolvedLocks)" -ForegroundColor Green
-    Write-Host "   Failed Resolutions: $($Global:EnterpriseFileLockMetrics.FailedResolutions)" -ForegroundColor Red
-    Write-Host "   Security Violations: $($Global:EnterpriseFileLockMetrics.SecurityViolations)" -ForegroundColor Yellow
+    Write-Host "   Files Analyzed: $($script:EnterpriseFileLockMetrics.FilesAnalyzed)" -ForegroundColor White
+    Write-Host "   Locked Files Found: $($script:EnterpriseFileLockMetrics.LockedFiles)" -ForegroundColor Yellow
+    Write-Host "   Processes Detected: $($script:EnterpriseFileLockMetrics.ProcessesFound)" -ForegroundColor Cyan
+    Write-Host "   Locks Resolved: $($script:EnterpriseFileLockMetrics.ResolvedLocks)" -ForegroundColor Green
+    Write-Host "   Failed Resolutions: $($script:EnterpriseFileLockMetrics.FailedResolutions)" -ForegroundColor Red
+    Write-Host "   Security Violations: $($script:EnterpriseFileLockMetrics.SecurityViolations)" -ForegroundColor Yellow
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise file lock analysis completed successfully" -Category "System" -Properties $Global:EnterpriseFileLockMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise file lock analysis completed successfully" -Category "System" -Properties $script:EnterpriseFileLockMetrics
 
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise file lock analysis failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE FILE LOCK ANALYSIS FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseFileLockMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseFileLockMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseFileLockMetrics.Errors | ForEach-Object {
+        $script:EnterpriseFileLockMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
@@ -991,8 +996,8 @@ try {
     exit 1
 } finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseFileLockMetrics) {
-        $Global:EnterpriseFileLockMetrics.EndTime = Get-Date
+    if ($script:EnterpriseFileLockMetrics) {
+        $script:EnterpriseFileLockMetrics.EndTime = Get-Date
     }
 }
 

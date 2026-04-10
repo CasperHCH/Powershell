@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Changes the alias of a certificate in a PFX file using OpenSSL or Keytool.
@@ -67,7 +67,7 @@ param(
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "ScriptAudit.log"
 
-function Write-Log {
+function Write-CertificateLog {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
@@ -82,14 +82,14 @@ function Write-Log {
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $displayMessage = $Message
-    
+
     # Sanitize sensitive paths in display output
     if ($displayMessage -like "*$env:USERNAME*") {
         $displayMessage = $displayMessage -replace [regex]::Escape($env:USERNAME), "[USER]"
     }
 
     $logEntry = "[$timestamp] [$script:SessionId] [$Level] $displayMessage"
-    
+
     if (-not $Sensitive) {
         $color = switch ($Level) {
             "ERROR" { "Red" }
@@ -106,72 +106,77 @@ function Write-Log {
 
 function Test-ToolAvailability {
     param([string]$ToolName)
-    
-    Write-Log "Checking availability of $ToolName..." -Level "DEBUG"
-    
+
+    Write-CertificateLog "Checking availability of $ToolName..." -Level "DEBUG"
+
     $tool = if ($ToolName -eq "OpenSSL") {
         Get-Command openssl.exe -ErrorAction SilentlyContinue
     } else {
         Get-Command keytool.exe -ErrorAction SilentlyContinue
     }
-    
+
     if ($null -eq $tool) {
-        Write-Log "❌ $ToolName not found in system PATH" -Level "ERROR"
+        Write-CertificateLog "❌ $ToolName not found in system PATH" -Level "ERROR"
         return $false
     }
-    
-    Write-Log "✅ $ToolName found" -Level "DEBUG"
+
+    Write-CertificateLog "✅ $ToolName found" -Level "DEBUG"
     return $true
 }
 
-function Change-AliasOpenSSL {
+function Set-CertificateAliasOpenSsl {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$PfxPath,
         [securestring]$Password,
         [string]$Alias,
         [string]$OutputDir
     )
-    
+
     $tempDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "cert_$script:SessionId") -Force
     $keyFile = Join-Path $tempDir "key.pem"
     $certFile = Join-Path $tempDir "cert.pem"
     $outputPfx = Join-Path $OutputDir "$(Get-Item $PfxPath).BaseName)_$Alias.pfx"
-    
+
     try {
         $plainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
             [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
         )
-        
-        Write-Log "Extracting private key from PFX..." -Level "INFO"
+
+        if (-not $PSCmdlet.ShouldProcess($outputPfx, "Create PFX with alias '$Alias'")) {
+            return $outputPfx
+        }
+
+        Write-CertificateLog "Extracting private key from PFX..." -Level "INFO"
         & openssl pkcs12 -in $PfxPath -nocerts -out $keyFile -password "pass:$plainPassword" -nodes 2>$null
-        
+
         if (-not (Test-Path $keyFile)) {
             throw "Failed to extract private key"
         }
-        
-        Write-Log "Extracting certificate from PFX..." -Level "INFO"
+
+        Write-CertificateLog "Extracting certificate from PFX..." -Level "INFO"
         & openssl pkcs12 -in $PfxPath -nokeys -out $certFile -password "pass:$plainPassword" 2>$null
-        
+
         if (-not (Test-Path $certFile)) {
             throw "Failed to extract certificate"
         }
-        
-        Write-Log "Creating new PFX with alias: $Alias" -Level "INFO"
+
+        Write-CertificateLog "Creating new PFX with alias: $Alias" -Level "INFO"
         & openssl pkcs12 -export -in $certFile -inkey $keyFile -out $outputPfx `
             -name $Alias -password "pass:$plainPassword" 2>$null
-        
+
         if (-not (Test-Path $outputPfx)) {
             throw "Failed to create output PFX"
         }
-        
-        Write-Log "✅ Certificate alias changed successfully" -Level "INFO"
-        Write-Log "Output file: $outputPfx" -Level "INFO"
+
+        Write-CertificateLog "✅ Certificate alias changed successfully" -Level "INFO"
+        Write-CertificateLog "Output file: $outputPfx" -Level "INFO"
         Write-AuditLog -Action "ALIAS_CHANGED" -Target $outputPfx -User $env:USERNAME -AdditionalData @{Tool="OpenSSL"; NewAlias=$Alias}
-        
+
         return $outputPfx
-        
+
     } catch {
-        Write-Log "❌ OpenSSL operation failed: $($_.Exception.Message)" -Level "ERROR"
+        Write-CertificateLog "❌ OpenSSL operation failed: $($_.Exception.Message)" -Level "ERROR"
         throw
     } finally {
         $plainPassword = $null
@@ -179,16 +184,23 @@ function Change-AliasOpenSSL {
     }
 }
 
-function Change-AliasKeytool {
+function Set-CertificateAliasKeytool {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$PfxPath,
         [securestring]$Password,
         [string]$NewAlias,
         [string]$OutputDir
     )
-    
-    Write-Log "⚠️  Keytool requires JRE/JDK installation" -Level "WARNING"
-    Write-Log "Keytool support not yet fully implemented. Use OpenSSL tool instead." -Level "ERROR"
+
+    $passwordProvided = $null -ne $Password
+
+    if (-not $PSCmdlet.ShouldProcess($PfxPath, "Change certificate alias to '$NewAlias' with keytool")) {
+        return (Join-Path $OutputDir "$(Get-Item $PfxPath).BaseName)_$NewAlias.pfx")
+    }
+
+    Write-CertificateLog "⚠️  Keytool requires JRE/JDK installation" -Level "WARNING"
+    Write-CertificateLog "Keytool request for alias '$NewAlias' on '$(Split-Path -Leaf $PfxPath)' was received but support is not implemented. Output directory: $OutputDir. Password supplied: $passwordProvided" -Level "ERROR"
     throw "Keytool implementation pending"
 }
 
@@ -219,12 +231,12 @@ function Write-AuditLog {
     }
 
     $auditJson = $auditEntry | ConvertTo-Json -Compress
-    Write-Log -Message $auditJson -Level "AUDIT" -Sensitive $true
+    Write-CertificateLog -Message $auditJson -Level "AUDIT" -Sensitive $true
 }
 
 # Main execution
-Write-Log "🚀 Starting Certificate Alias Change Process" -Level "INFO"
-Write-Log "Tool: $Tool | PFX: $(Split-Path -Leaf $PfxFilePath) | New Alias: $NewAlias" -Level "INFO"
+Write-CertificateLog "🚀 Starting Certificate Alias Change Process" -Level "INFO"
+Write-CertificateLog "Tool: $Tool | PFX: $(Split-Path -Leaf $PfxFilePath) | New Alias: $NewAlias" -Level "INFO"
 
 if (-not (Test-ToolAvailability $Tool)) {
     Write-AuditLog -Action "TOOL_NOT_FOUND" -Target $Tool -User $env:USERNAME
@@ -234,15 +246,16 @@ if (-not (Test-ToolAvailability $Tool)) {
 if ($PSCmdlet.ShouldProcess($PfxFilePath, "Change certificate alias to '$NewAlias'")) {
     try {
         if ($Tool -eq "OpenSSL") {
-            $result = Change-AliasOpenSSL -PfxPath $PfxFilePath -Password $PfxPassword `
+            $result = Set-CertificateAliasOpenSsl -PfxPath $PfxFilePath -Password $PfxPassword `
                 -Alias $NewAlias -OutputDir $OutputPath
         } else {
-            $result = Change-AliasKeytool -PfxPath $PfxFilePath -Password $PfxPassword `
+            $result = Set-CertificateAliasKeytool -PfxPath $PfxFilePath -Password $PfxPassword `
                 -NewAlias $NewAlias -OutputDir $OutputPath
         }
-        
+
+        Write-CertificateLog "Alias change output: $result" -Level "INFO"
         Write-Host "✅ Success: Certificate alias changed to '$NewAlias'" -ForegroundColor Green
-        
+
     } catch {
         Write-AuditLog -Action "ALIAS_CHANGE_FAILED" -Target $PfxFilePath -User $env:USERNAME -AdditionalData @{Error=$_.Exception.Message}
         Write-Host "❌ Failed to change certificate alias" -ForegroundColor Red

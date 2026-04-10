@@ -1,16 +1,29 @@
-#Check AD users for a Mobile number.
-#If it exist - copy it to the Pager field.
-#Unless Pagerfield is already filled or not the same as the mobile number.
+<#
+.SYNOPSIS
+Copies Active Directory mobile values into the pager attribute.
+
+.DESCRIPTION
+Finds users with a mobile number under the specified search base and updates the
+pager attribute when it is empty or out of sync with the mobile value.
+#>
+
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$SearchBase,
-    [switch]$WhatIf
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SearchBase
 )
 
-Write-Host "Starting Mobile to Pager copy process..." -ForegroundColor Green
-$users = Get-ADUser -SearchBase $SearchBase -Filter 'Mobile -like "*"' -ResultSetSize 5000 -Properties displayname, sAMAccountName, Mobile, Pager | Where-Object {$_.Pager -eq $null -or $_.Pager -ne $_.mobile} | Select-Object pager, mobile, sAMAccountName, displayname
-foreach ($user in $Users) {
-    Set-ADUser $user.sAMAccountName -Clear pager
-    Set-ADUser $user.sAMAccountName -Add @{pager = $User.mobile}
-    write-host $user.displayname -ForegroundColor Yellow
-   }
+Import-Module ActiveDirectory -ErrorAction Stop
+
+$users = Get-ADUser -SearchBase $SearchBase -Filter 'Mobile -like "*"' -ResultSetSize 5000 -Properties DisplayName, SamAccountName, Mobile, Pager |
+    Where-Object { $_.Mobile -and ($_.Pager -ne $_.Mobile) }
+
+foreach ($user in $users) {
+    if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Set pager to '$($user.Mobile)'")) {
+        Set-ADUser -Identity $user.SamAccountName -Replace @{ Pager = $user.Mobile }
+        Write-Verbose "Updated pager for $($user.DisplayName)"
+    }
+}
+
+Write-Output "Processed $($users.Count) user(s)."

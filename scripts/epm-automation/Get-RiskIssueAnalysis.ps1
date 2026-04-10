@@ -51,8 +51,13 @@ param(
 
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "RiskAnalysis_$(Get-Date -Format 'yyyyMMdd').log"
+$script:JiraBaseUrl = $JiraBaseUrl
+$script:CloudId = $CloudId
+$script:ServiceAccountEmail = $ServiceAccountEmail
+$script:ProjectKeys = $ProjectKeys
+$script:TimeoutSeconds = $TimeoutSeconds
 
-function Write-Log {
+function Write-EpmLog {
     param([string]$Message, [string]$Level = "INFO")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$script:SessionId] [$Level] $Message"
@@ -73,10 +78,10 @@ function Get-ApiToken {
     )
 }
 
-function Get-ApiHeaders {
+function Get-ApiHeader {
     param([string]$Token)
-    if ($ServiceAccountEmail -and $CloudId) {
-        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ServiceAccountEmail}:${Token}"))
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($script:ServiceAccountEmail):${Token}"))
         return @{'Authorization' = "Basic $base64Auth"; 'Accept' = 'application/json'; 'Content-Type' = 'application/json' }
     }
     else {
@@ -86,18 +91,18 @@ function Get-ApiHeaders {
 
 function Get-ApiUrl {
     param([string]$Endpoint)
-    if ($ServiceAccountEmail -and $CloudId) {
-        return "https://api.atlassian.com/ex/jira/$CloudId/$Endpoint"
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        return "https://api.atlassian.com/ex/jira/$($script:CloudId)/$Endpoint"
     }
     else {
-        return "$JiraBaseUrl/$Endpoint"
+        return "$($script:JiraBaseUrl)/$Endpoint"
     }
 }
 
 function Get-RiskData {
     param([hashtable]$Headers)
 
-    $projectList = $ProjectKeys -join ", "
+    $projectList = $script:ProjectKeys -join ", "
 
     # High priority unresolved issues (acting as risks)
     $riskJql = "project in ($projectList) AND priority in (Highest, High) AND status != Done"
@@ -110,12 +115,12 @@ function Get-RiskData {
     } | ConvertTo-Json
 
     try {
-        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $TimeoutSeconds
-        Write-Log "Retrieved $($response.total) high-priority issues" -Level "INFO"
+        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $script:TimeoutSeconds
+        Write-EpmLog "Retrieved $($response.total) high-priority issues" -Level "INFO"
         return $response.issues
     }
     catch {
-        Write-Log "Failed to retrieve risk data: $($_.Exception.Message)" -Level "ERROR"
+        Write-EpmLog "Failed to retrieve risk data: $($_.Exception.Message)" -Level "ERROR"
         return @()
     }
 }
@@ -271,26 +276,26 @@ function Export-RiskReport {
 "@
 
     $html | Out-File -FilePath $OutputPath -Encoding UTF8
-    Write-Log "Risk analysis report generated: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "Risk analysis report generated: $OutputPath" -Level "SUCCESS"
 }
 
 try {
-    Write-Log "🚀 Starting Risk & Issue Analysis..." -Level "INFO"
+    Write-EpmLog "🚀 Starting Risk & Issue Analysis..." -Level "INFO"
 
     $apiToken = Get-ApiToken
-    $headers = Get-ApiHeaders -Token $apiToken
+    $headers = Get-ApiHeader -Token $apiToken
 
     $issues = Get-RiskData -Headers $headers
     $riskAnalysis = Get-AgingAnalysis -Issues $issues
 
     Export-RiskReport -RiskData $riskAnalysis
 
-    Write-Log "✅ Risk Analysis completed successfully!" -Level "SUCCESS"
-    Write-Log "Report saved to: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "✅ Risk Analysis completed successfully!" -Level "SUCCESS"
+    Write-EpmLog "Report saved to: $OutputPath" -Level "SUCCESS"
 
 }
 catch {
-    Write-Log "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
+    Write-EpmLog "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
     exit 1
 }
 finally {

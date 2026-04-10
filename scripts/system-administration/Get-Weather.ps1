@@ -1,4 +1,4 @@
-####################################################################
+﻿####################################################################
 # 🏢 ENTERPRISE ENVIRONMENTAL MONITORING SYSTEM
 ####################################################################
 #
@@ -140,7 +140,12 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "EnvironmentalMonitoring", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Host "[$Level] [$Category] $Message$propertySummary" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
     }
 } catch {
@@ -148,7 +153,7 @@ try {
 }
 
 # 📊 ENTERPRISE METRICS: Environmental monitoring tracking
-$Global:EnterpriseWeatherMetrics = @{
+$script:EnterpriseWeatherMetrics = @{
     StartTime = Get-Date
     LocationsMonitored = 0
     APICallsMade = 0
@@ -373,8 +378,8 @@ function Get-EnterpriseWeatherData {
         # Make API call with comprehensive error handling
         try {
             $response = Invoke-RestMethod -Uri $weatherUrl -Method Get -ErrorAction Stop
-            $Global:EnterpriseWeatherMetrics.APICallsMade++
-            $Global:EnterpriseWeatherMetrics.DataPointsCollected++
+            $script:EnterpriseWeatherMetrics.APICallsMade++
+            $script:EnterpriseWeatherMetrics.DataPointsCollected++
         } catch {
             if ($_.Exception.Response.StatusCode -eq 404) {
                 throw "Location '$Location' not found. Please verify the location name or coordinates."
@@ -425,7 +430,7 @@ function Get-EnterpriseWeatherData {
 
         # Check for alert thresholds
         if ($EnableAlerts) {
-            $weatherData.AlertsTriggered = Test-WeatherThresholds -WeatherData $weatherData -Thresholds $AlertThresholds
+            $weatherData.AlertsTriggered = Test-WeatherThreshold -WeatherData $weatherData -Thresholds $AlertThresholds
         }
 
         Write-EnterpriseLog -Level "Success" -Message "Weather data retrieved successfully" -Category "DataRetrieval" -Properties @{
@@ -437,7 +442,7 @@ function Get-EnterpriseWeatherData {
         return $weatherData
 
     } catch {
-        $Global:EnterpriseWeatherMetrics.MonitoringErrors++
+        $script:EnterpriseWeatherMetrics.MonitoringErrors++
         Write-EnterpriseLog -Level "Error" -Message "Weather data retrieval failed" -Category "DataRetrieval" -Exception $_ -Properties @{
             Location = $Location
         }
@@ -486,7 +491,7 @@ function Get-EnterpriseWeatherForecast {
 
         # Make forecast API call
         $forecastResponse = Invoke-RestMethod -Uri $forecastUrl -Method Get -ErrorAction Stop
-        $Global:EnterpriseWeatherMetrics.APICallsMade++
+        $script:EnterpriseWeatherMetrics.APICallsMade++
 
         # Process forecast data
         $forecastData = @{
@@ -537,7 +542,7 @@ function Get-EnterpriseWeatherForecast {
     }
 }
 
-function Test-WeatherThresholds {
+function Test-WeatherThreshold {
     <#
     .SYNOPSIS
         Test weather data against enterprise alert thresholds
@@ -628,8 +633,8 @@ function Test-WeatherThresholds {
         }
 
         # Update global metrics
-        $Global:EnterpriseWeatherMetrics.AlertsTriggered += $alerts.Count
-        $Global:EnterpriseWeatherMetrics.ThresholdViolations += $alerts
+        $script:EnterpriseWeatherMetrics.AlertsTriggered += $alerts.Count
+        $script:EnterpriseWeatherMetrics.ThresholdViolations += $alerts
 
         return $alerts
 
@@ -758,12 +763,12 @@ function Export-EnterpriseWeatherReport {
                 Units = $Units
             }
             WeatherData = $WeatherResults
-            Metrics = $Global:EnterpriseWeatherMetrics
+            Metrics = $script:EnterpriseWeatherMetrics
             AlertSummary = @{
-                TotalAlerts = $Global:EnterpriseWeatherMetrics.AlertsTriggered
-                ThresholdViolations = $Global:EnterpriseWeatherMetrics.ThresholdViolations
+                TotalAlerts = $script:EnterpriseWeatherMetrics.AlertsTriggered
+                ThresholdViolations = $script:EnterpriseWeatherMetrics.ThresholdViolations
             }
-            Duration = [math]::Round(((Get-Date) - $Global:EnterpriseWeatherMetrics.StartTime).TotalMinutes, 2)
+            Duration = [math]::Round(((Get-Date) - $script:EnterpriseWeatherMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($ExportFormat) {
@@ -799,10 +804,10 @@ function Export-EnterpriseWeatherReport {
 <p><strong>Duration:</strong> $($report.Duration) minutes</p>
 <h2>Summary Statistics</h2>
 <ul>
-<li><strong>Locations Monitored:</strong> $($Global:EnterpriseWeatherMetrics.LocationsMonitored)</li>
-<li><strong>API Calls Made:</strong> $($Global:EnterpriseWeatherMetrics.APICallsMade)</li>
-<li><strong>Alerts Triggered:</strong> $($Global:EnterpriseWeatherMetrics.AlertsTriggered)</li>
-<li><strong>Data Points Collected:</strong> $($Global:EnterpriseWeatherMetrics.DataPointsCollected)</li>
+<li><strong>Locations Monitored:</strong> $($script:EnterpriseWeatherMetrics.LocationsMonitored)</li>
+<li><strong>API Calls Made:</strong> $($script:EnterpriseWeatherMetrics.APICallsMade)</li>
+<li><strong>Alerts Triggered:</strong> $($script:EnterpriseWeatherMetrics.AlertsTriggered)</li>
+<li><strong>Data Points Collected:</strong> $($script:EnterpriseWeatherMetrics.DataPointsCollected)</li>
 </ul>
 <h2>Weather Data</h2>
 <table border="1">
@@ -888,7 +893,7 @@ try {
     foreach ($location in $Locations) {
         try {
             Write-Host "`n📍 Processing location: $location" -ForegroundColor White
-            $Global:EnterpriseWeatherMetrics.LocationsMonitored++
+            $script:EnterpriseWeatherMetrics.LocationsMonitored++
 
             # Get current weather data
             $weatherData = Get-EnterpriseWeatherData -Location $location -APIKey $secureAPIKey -Units $Units
@@ -919,7 +924,7 @@ try {
             Write-EnterpriseLog -Level "Error" -Message "Location processing failed" -Category "Monitoring" -Exception $_ -Properties @{
                 Location = $location
             }
-            $Global:EnterpriseWeatherMetrics.Errors += "Location $location`: $($_.Exception.Message)"
+            $script:EnterpriseWeatherMetrics.Errors += "Location $location`: $($_.Exception.Message)"
         }
     }
 
@@ -931,27 +936,27 @@ try {
     }
 
     # Final monitoring summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseWeatherMetrics.StartTime).TotalMinutes, 2)
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseWeatherMetrics.StartTime).TotalMinutes, 2)
     Write-Host "`n" + ("═" * 50) -ForegroundColor Green
     Write-Host "🎉 ENTERPRISE WEATHER MONITORING COMPLETE" -ForegroundColor Green
     Write-Host ("═" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Locations Monitored: $($Global:EnterpriseWeatherMetrics.LocationsMonitored)" -ForegroundColor White
-    Write-Host "   API Calls Made: $($Global:EnterpriseWeatherMetrics.APICallsMade)" -ForegroundColor White
-    Write-Host "   Data Points Collected: $($Global:EnterpriseWeatherMetrics.DataPointsCollected)" -ForegroundColor White
-    Write-Host "   Alerts Triggered: $($Global:EnterpriseWeatherMetrics.AlertsTriggered)" -ForegroundColor $(if($Global:EnterpriseWeatherMetrics.AlertsTriggered -gt 0){"Yellow"}else{"Green"})
-    Write-Host "   Monitoring Errors: $($Global:EnterpriseWeatherMetrics.MonitoringErrors)" -ForegroundColor $(if($Global:EnterpriseWeatherMetrics.MonitoringErrors -gt 0){"Red"}else{"Green"})
+    Write-Host "   Locations Monitored: $($script:EnterpriseWeatherMetrics.LocationsMonitored)" -ForegroundColor White
+    Write-Host "   API Calls Made: $($script:EnterpriseWeatherMetrics.APICallsMade)" -ForegroundColor White
+    Write-Host "   Data Points Collected: $($script:EnterpriseWeatherMetrics.DataPointsCollected)" -ForegroundColor White
+    Write-Host "   Alerts Triggered: $($script:EnterpriseWeatherMetrics.AlertsTriggered)" -ForegroundColor $(if($script:EnterpriseWeatherMetrics.AlertsTriggered -gt 0){"Yellow"}else{"Green"})
+    Write-Host "   Monitoring Errors: $($script:EnterpriseWeatherMetrics.MonitoringErrors)" -ForegroundColor $(if($script:EnterpriseWeatherMetrics.MonitoringErrors -gt 0){"Red"}else{"Green"})
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise weather monitoring completed successfully" -Category "System" -Properties $Global:EnterpriseWeatherMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise weather monitoring completed successfully" -Category "System" -Properties $script:EnterpriseWeatherMetrics
 
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise weather monitoring failed" -Category "System" -Exception $_
     Write-Host "`n❌ ENTERPRISE WEATHER MONITORING FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseWeatherMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseWeatherMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseWeatherMetrics.Errors | ForEach-Object {
+        $script:EnterpriseWeatherMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
@@ -959,190 +964,8 @@ try {
     exit 1
 } finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseWeatherMetrics) {
-        $Global:EnterpriseWeatherMetrics.EndTime = Get-Date
+    if ($script:EnterpriseWeatherMetrics) {
+        $script:EnterpriseWeatherMetrics.EndTime = Get-Date
     }
-}
-    Write-Host "Update the " -NoNewline; Write-Host "`$API" -ForegroundColor Yellow -NoNewline; Write-Host " variable in this script with your key."
-    exit
-  }
-
-  if (-not $City) {
-      $City = Read-Host "Enter city name"
-  }
-  if (-not $Country) {
-      $Country = Read-Host "Enter country code (e.g., US, CA, UK)"
-  }
-
-  $Location = "$City,$Country"
-  $Url = "https://api.openweathermap.org/data/2.5/weather?q=$Location&appid=$API&units=metric"
-
-  Write-Host "Getting weather for $Location..." -ForegroundColor Cyan
-
-  try {
-      # JSON request for current weather
-      $JSONResults = Invoke-WebRequest -Uri $Url -ErrorAction Stop
-      $JSON = $JSONResults.Content
-      $JSONData = ConvertFrom-Json $JSON
-
-      if ($JSONData.cod -ne 200) {
-          throw "API Error: $($JSONData.message)"
-      }
-  } catch {
-      Write-Error "Failed to get weather data: $($_.Exception.Message)"
-      return
-  }
-  $JSONSunrise = $JSONData.sys.sunrise
-  $JSONSunset = $JSONData.sys.sunset
-  $JSONLastUpdate = $JSONData.dt
-
-  <# Convert UNIX UTC time to (human) readable format #>
-  $Sunrise = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONSunrise))
-  $Sunset = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONSunset))
-  $LastUpdate = [TimeZone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($JSONLastUpdate))
-  $Sunrise = (Get-Date $Sunrise -Format "HH:mm:ss")
-  $Sunset = (Get-Date $Sunset -Format "HH:mm:ss")
-  $LastUpdate = (Get-Date $LastUpdate -Format "yyyy-MM-dd HH:mm:ss")
-
-  <# XML request for everything else #>
-  [xml]$XMLResults = Invoke-WebRequest -Uri $Url -ErrorAction Stop
-  $XMLData = $XMLResults.current
-
-  <# Get current weather value. Needed to convert case of characters. #>
-  $CurrentValue = $XMLData.weather.value
-
-  <# Get precipitation mode (type of precipitation). Needed to convert case of characters. #>
-  $PrecipitationValue = $XMLData.precipitation.mode
-
-  <# Get precipitation amount (in mm). Needed to convert case of characters. #>
-  $PrecipitationMM = $XMLData.precipitation.value
-
-  <# Get precipitation unit (mm in last x hours). Needed to convert case of characters. #>
-  if ($XMLData.precipitation.unit) {
-    $PrecipitationHRS = $XMLData.precipitation.unit
-  } else {
-    $PrecipitationHRS = ""
-  }
-
-  <# Get wind speed value. Needed to convert case of characters. #>
-  $WindValue = $XMLData.wind.speed.name
-
-  <# Get the current time. This is for clear conditions at night time. #>
-  $Time = Get-Date -DisplayHint Time
-
-  <# Define the numbers for various weather conditions #>
-  $Thunder = @(200, 201, 202, 210, 211, 212, 221, 230, 231, 232)
-  $Drizzle = @(300, 301, 302, 310, 311, 312, 313, 314, 321)
-  $Rain = @(500, 501, 502, 503, 504, 511, 520, 521, 522, 531)
-  $LightSnow = @(600, 620)
-  $HeavySnow = @(601, 602, 622)
-  $SnowAndRain = @(611, 612, 613, 615, 616)
-  $Atmosphere = @(701, 711, 721, 731, 741, 751, 761, 762, 771, 781)
-  $Clear = @(800)
-  $PartlyCloudy = @(801, 802)
-  $Cloudy = @(803, 804)
-  $Windy = @(905, 957, 958, 959, 960, 961, 962)
-
-  <# Create the variables we will use to display weather information #>
-  $Weather = (Get-Culture).textinfo.totitlecase($CurrentValue.tolower())
-  $CurrentTemp = [Math]::Round($XMLData.temperature.value, 0) + "°C"
-  $High = [Math]::Round($XMLData.temperature.max, 0) + "°C"
-  $Low = [Math]::Round($XMLData.temperature.min, 0) + "°C"
-  $Humidity = $XMLData.humidity.value + $XMLData.humidity.unit
-  $Precipitation = (Get-Culture).textinfo.totitlecase($PrecipitationValue.tolower())
-
-  <# Checking if there is precipitation and if so, display the values in $precipitationMM and $precipitationHRS #>
-  if ([string]::IsNullOrEmpty($Precipitation)) {
-    $PrecipitationData = ""
-  } else {
-    $PrecipitationData = "$Precipitation $PrecipitationMM $PrecipitationHRS"
-  }
-
-  $script:WindSpeed = ([math]::Round(([decimal]$XMLData.wind.speed.value * 1.609344), 1)).ToString() + " km/h " + $XMLData.wind.direction.code
-  $WindCondition = (Get-Culture).TextInfo.ToTitleCase($WindValue.tolower())
-  $Sunrise = $Sunrise
-  $Sunset = $Sunset
-
-  <# END VARIABLES #>
-
-  Write-Host  $XMLData.city.name -nonewline; Write-Host  $Weather -ForegroundColor yellow;
-  Write-Host  -nonewline; Write-Host  $LastUpdate -ForegroundColor yellow;
-  Write-Host
-
-  Show-WeatherImage
-
-
-function Show-WeatherImage {
-  if ($Thunder.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-  } elseif ($Drizzle.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor cyan -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-  } elseif ($Rain.Contains($XMLData.weather.number)) {
-    # Weather display section - needs restoration
-    Write-Host "Rain conditions detected" -ForegroundColor cyan
-  } elseif ($LightSnow.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-    Write-Host
-  } elseif ($HeavySnow.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-    Write-Host
-  } elseif ($SnowAndRain.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-    Write-Host
-  } elseif ($Atmosphere.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor gray -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-  }
-    <#
-      The following will be displayed on clear evening conditions
-      It is set to 18:00:00 (6:00PM). Change this to any value you want.
-    #> elseif ($Clear.Contains($XMLData.weather.number) -and $Time -gt 18) {
-    Write-Host
-    Write-Host
-    Write-Host
-    Write-Host
-  } elseif ($Clear.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-  } elseif ($PartlyCloudy.Contains($XMLData.weather.number)) {
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host  -ForegroundColor Yellow -nonewline; Write-Host  -ForegroundColor white;
-    Write-Host
-    Write-Host
-  } elseif ($Cloudy.Contains($XMLData.weather.number)) {
-    Write-Host
-    Write-Host
-    Write-Host
-  } elseif ($Windy.Contains($XMLData.weather.number)) {
-    Write-Host
-    Write-Host
-    Write-Host
-  }
 }
 

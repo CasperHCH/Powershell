@@ -1,4 +1,4 @@
-function Get-ADGroupMembers {
+function Get-ADGroupMemberList {
     <#
     .SYNOPSIS
         Gets all members of an Active Directory group with detailed information.
@@ -11,10 +11,10 @@ function Get-ADGroupMembers {
         The name or distinguished name of the AD group to query.
 
     .EXAMPLE
-        Get-ADGroupMembers -Identity "Domain Admins"
+        Get-ADGroupMemberList -Identity "Domain Admins"
 
     .EXAMPLE
-        Get-ADGroupMembers -Identity "CN=IT Support,OU=Groups,DC=domain,DC=com"
+        Get-ADGroupMemberList -Identity "CN=IT Support,OU=Groups,DC=domain,DC=com"
     #>
 
     [CmdletBinding()]
@@ -62,5 +62,5 @@ function Get-ADGroupMembers {
 
 # If running as script (not dot-sourced)
 if ($MyInvocation.InvocationName -ne '.') {
-    Get-ADGroupMembers @PSBoundParameters
+    Get-ADGroupMemberList @PSBoundParameters
 }

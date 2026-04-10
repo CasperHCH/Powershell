@@ -159,6 +159,29 @@ param(
 
 )
 
+$script:IsQuietMode = $Quiet.IsPresent
+$script:ParallelRuleScanEnabled = $EnableParallelRuleScan.IsPresent
+$script:ParallelRuleScanThrottleLimit = $ParallelThrottleLimit
+
+function Write-SectionHeader {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information '' -InformationAction Continue
+    Write-Information $Message -InformationAction Continue
+}
+
+function Write-ResultLine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information $Message -InformationAction Continue
+}
+
 <#
 .SYNOPSIS
 Writes timestamped phase logs with optional INFO suppression.
@@ -183,12 +206,12 @@ function Write-PhaseLog {
         [string]$Level = 'INFO'
     )
 
-    if ($Quiet -and $Level -eq 'INFO') {
+    if ($script:IsQuietMode -and $Level -eq 'INFO') {
         return
     }
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    Write-Host ("{0} [{1}] {2}" -f $timestamp, $Level, $Message)
+    Write-Information ("{0} [{1}] {2}" -f $timestamp, $Level, $Message) -InformationAction Continue
 }
 
 <#
@@ -204,7 +227,7 @@ Current processed item count.
 .OUTPUTS
 System.Boolean
 #>
-function Should-EmitProgress {
+function Test-ProgressEmission {
     param(
         [Parameter(Mandatory = $true)]
         [int]$ProcessedCount
@@ -297,9 +320,8 @@ $script:AnalysisWarningCounts = @{
 # ---------------------------------------------------------
 
 if (-not $AnalyzeConsolidation -and -not $AnalyzeSafeToDelete -and -not $AnalyzeAll) {
-    Write-Host "No analysis mode selected. Defaulting to AnalyzeConsolidation." -ForegroundColor Yellow
+    Write-PhaseLog -Message 'No analysis mode selected. Defaulting to AnalyzeConsolidation.' -Level 'WARN'
     $AnalyzeConsolidation = $true
-    
 }
 
 if ($AnalyzeAll) {
@@ -320,7 +342,7 @@ if (-not $SiteCode) {
     }
 }
 
-Write-Host "=== SCCM Collection Analyse (SiteCode: $SiteCode, Mode: $Mode) ===" -ForegroundColor Cyan
+Write-SectionHeader -Message ("=== SCCM Collection Analyse (SiteCode: {0}, Mode: {1}) ===" -f $SiteCode, $Mode)
 Write-PhaseLog -Message ("Analysis start: SiteCode={0}; Mode={1}; Consolidation={2}; SafeToDelete={3}; DeepMode={4}; IncludeMasterCollections={5}" -f $SiteCode, $Mode, $AnalyzeConsolidation.IsPresent, $AnalyzeSafeToDelete.IsPresent, ($Mode -eq 'Deep'), $IncludeMasterCollections.IsPresent)
 Write-PhaseLog -Message ("Filters: SoftwareNameContains='{0}', FolderPathContains='{1}', ExcludeCollectionNamePattern='{2}', ExcludeFolderPathPattern='{3}', MaxCollectionsToAnalyze={4}, ProgressInterval={5}" -f $SoftwareNameContains, $FolderPathContains, $ExcludeCollectionNamePattern, $ExcludeFolderPathPattern, $MaxCollectionsToAnalyze, $ProgressInterval)
 
@@ -554,8 +576,7 @@ if (-not $IncludeMasterCollections) {
 
 if ($scopedItems.Count -eq 0) {
     Write-PhaseLog -Message 'No collections match current scope filters. Exiting.' -Level 'WARN'
-    Write-Host ""
-    Write-Host "=== Analysis complete - no SCCM changes were made ===" -ForegroundColor Cyan
+    Write-SectionHeader -Message '=== Analysis complete - no SCCM changes were made ==='
     return
 }
 
@@ -739,7 +760,7 @@ Leaf folder name where the collection resides.
 .OUTPUTS
 PSCustomObject
 #>
-function Parse-CollectionIdentity {
+function ConvertTo-CollectionIdentity {
     param(
         [string]$CollectionName,
         [string]$FolderName
@@ -779,7 +800,7 @@ foreach ($containerItem in @($items)) {
     $analysisCollectionName = [string]$analysisCollection.Name
     $analysisFolderPath = Get-FolderPath -ContainerNodeID $containerItem.ContainerNodeID
     $analysisFolderLeaf = Split-Path -Path $analysisFolderPath -Leaf
-    $analysisIdentity = Parse-CollectionIdentity -CollectionName $analysisCollectionName -FolderName $analysisFolderLeaf
+    $analysisIdentity = ConvertTo-CollectionIdentity -CollectionName $analysisCollectionName -FolderName $analysisFolderLeaf
 
     $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
 
@@ -865,8 +886,7 @@ $results = @()
 
 if ($AnalyzeConsolidation) {
 
-    Write-Host ""
-    Write-Host "=== Consolidation analysis (global, version + suffix based) ===" -ForegroundColor Cyan
+    Write-SectionHeader -Message '=== Consolidation analysis (global, version + suffix based) ==='
     Write-PhaseLog -Message 'Consolidation analysis started.'
     if ($ConsolidationCanonicalPerVersion) {
         Write-PhaseLog -Message 'Canonical consolidation mode enabled: one representative row per software-version.'
@@ -877,7 +897,7 @@ if ($AnalyzeConsolidation) {
 
     foreach ($entry in $scopedItems) {
         $processedConsolidationItems++
-        if (Should-EmitProgress -ProcessedCount $processedConsolidationItems) {
+        if (Test-ProgressEmission -ProcessedCount $processedConsolidationItems) {
             Write-PhaseLog -Message ("Consolidation scan progress: {0}/{1} scoped collections processed." -f $processedConsolidationItems, $scopedItems.Count)
         }
 
@@ -888,7 +908,7 @@ if ($AnalyzeConsolidation) {
         $folderPath = [string]$entry.FolderPath
         $folderName = Split-Path $folderPath -Leaf
 
-        $parsed = Parse-CollectionIdentity -CollectionName $colObj.Name -FolderName $folderName
+        $parsed = ConvertTo-CollectionIdentity -CollectionName $colObj.Name -FolderName $folderName
 
         $parsedList += [PSCustomObject]@{
             CollectionID   = $colObj.CollectionID
@@ -977,8 +997,8 @@ if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
 
         if ($versions.Count -le 1) { continue }
 
-        Write-Host ""
-        Write-Host ("Software: {0}" -f $software) -ForegroundColor Magenta
+        Write-ResultLine -Message ''
+        Write-ResultLine -Message ("Software: {0}" -f $software)
 
         $displaySuffix = if ($ConsolidationCanonicalPerVersion) {
             '<canonical>'
@@ -989,12 +1009,11 @@ if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
         else {
             "<none>"
         }
-        Write-Host ("Suffix:   {0}" -f $displaySuffix) -ForegroundColor DarkGray
-
-        Write-Host ("Found versions: {0}" -f ($versions.Version -join ", ")) -ForegroundColor Cyan
+        Write-ResultLine -Message ("Suffix:   {0}" -f $displaySuffix)
+        Write-ResultLine -Message ("Found versions: {0}" -f ($versions.Version -join ", "))
 
         foreach ($item in $versions) {
-            Write-Host ("  - {0} (ID: {1}) [{2}]" -f $item.CollectionName, $item.CollectionID, $item.FolderPath)
+            Write-ResultLine -Message ("  - {0} (ID: {1}) [{2}]" -f $item.CollectionName, $item.CollectionID, $item.FolderPath)
 
             $results += [PSCustomObject]@{
                 Type           = 'Consolidation'
@@ -1033,7 +1052,7 @@ Collection identifier to query.
 .OUTPUTS
 System.Object[]
 #>
-function Get-CollectionDeployments {
+function Get-CollectionDeployment {
     param([string]$CollectionID)
 
     $cacheKey = [string]$CollectionID
@@ -1057,7 +1076,7 @@ function Get-CollectionDeployments {
     }
 }
 
-function Get-CollectionApplicationAssignments {
+function Get-CollectionApplicationAssignment {
     param([string]$CollectionID)
 
     $cacheKey = [string]$CollectionID
@@ -1141,6 +1160,7 @@ function Test-ImplicitUninstallEnabled {
             }
         }
         catch {
+            Write-Verbose ("Failed to interpret OfferFlags value [{0}] as UInt32." -f $offerFlags)
         }
     }
 
@@ -1158,6 +1178,7 @@ function Test-ImplicitUninstallEnabled {
         }
     }
     catch {
+        Write-Verbose 'Failed to parse AdditionalProperties XML while checking implicit uninstall state.'
     }
 
     return $false
@@ -1166,8 +1187,8 @@ function Test-ImplicitUninstallEnabled {
 function Get-CollectionDeploymentSignal {
     param([string]$CollectionID)
 
-    $deployments = @(Get-CollectionDeployments -CollectionID $CollectionID)
-    $assignments = @(Get-CollectionApplicationAssignments -CollectionID $CollectionID)
+    $deployments = @(Get-CollectionDeployment -CollectionID $CollectionID)
+    $assignments = @(Get-CollectionApplicationAssignment -CollectionID $CollectionID)
 
     $requiredInstallAssignments = @($assignments | Where-Object {
         (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Install' -and
@@ -1260,7 +1281,7 @@ Collection identifier to query.
 .OUTPUTS
 PSCustomObject
 #>
-function Get-CollectionMembershipRules {
+function Get-CollectionMembershipRule {
     param([string]$CollectionID)
 
     $cacheKey = [string]$CollectionID
@@ -1310,7 +1331,7 @@ function Get-CollectionMembershipRules {
     return $result
 }
 
-function Get-CachedQueryMembershipRules {
+function Get-CachedQueryMembershipRule {
     param([string]$CollectionID)
 
     $cacheKey = [string]$CollectionID
@@ -1347,7 +1368,7 @@ Collection identifier potentially used as a limiting collection.
 .OUTPUTS
 System.Object[]
 #>
-function Get-LimitingCollectionDependents {
+function Get-LimitingCollectionDependent {
     param([string]$CollectionID)
     return @($allCollections | Where-Object { $_.LimitingCollectionID -eq $CollectionID })
 }
@@ -1412,8 +1433,8 @@ function Get-CollectionDependencyIndex {
         ExcludeByTargetId = @{}
     }
 
-    $canUseParallelRuleScan = $EnableParallelRuleScan -and (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue)
-    if ($EnableParallelRuleScan -and -not $canUseParallelRuleScan) {
+    $canUseParallelRuleScan = $script:ParallelRuleScanEnabled -and (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue)
+    if ($script:ParallelRuleScanEnabled -and -not $canUseParallelRuleScan) {
         Write-PhaseLog -Level 'WARN' -Message 'Parallel rule scan requested but Start-ThreadJob is unavailable. Falling back to sequential scan.'
     }
 
@@ -1427,33 +1448,31 @@ function Get-CollectionDependencyIndex {
             $dependentCollectionName = [string]$candidate.Name
             if ([string]::IsNullOrWhiteSpace($dependentCollectionId)) { continue }
 
-            while (@($jobs | Where-Object { $_.State -eq 'Running' }).Count -ge $ParallelThrottleLimit) {
+            while (@($jobs | Where-Object { $_.State -eq 'Running' }).Count -ge $script:ParallelRuleScanThrottleLimit) {
                 Start-Sleep -Milliseconds 100
             }
 
-            $jobs += Start-ThreadJob -ArgumentList $dependentCollectionId, $dependentCollectionName -ScriptBlock {
-                param($CollectionId, $CollectionName)
-
+            $jobs += Start-ThreadJob -ScriptBlock {
                 $includeRows = @()
                 $excludeRows = @()
                 $errorText = $null
 
                 try {
-                    $includeRules = @(Get-CMDeviceCollectionIncludeMembershipRule -CollectionId $CollectionId -ErrorAction SilentlyContinue)
+                    $includeRules = @(Get-CMDeviceCollectionIncludeMembershipRule -CollectionId $using:dependentCollectionId -ErrorAction SilentlyContinue)
                     foreach ($rule in $includeRules) {
                         $targetId = [string]$rule.IncludeCollectionID
                         if ([string]::IsNullOrWhiteSpace($targetId)) { $targetId = [string]$rule.IncludeCollectionId }
                         if (-not [string]::IsNullOrWhiteSpace($targetId)) {
-                            $includeRows += [pscustomobject]@{ TargetId = $targetId; DependentId = $CollectionId; DependentName = $CollectionName }
+                            $includeRows += [pscustomobject]@{ TargetId = $targetId; DependentId = $using:dependentCollectionId; DependentName = $using:dependentCollectionName }
                         }
                     }
 
-                    $excludeRules = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionId $CollectionId -ErrorAction SilentlyContinue)
+                    $excludeRules = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionId $using:dependentCollectionId -ErrorAction SilentlyContinue)
                     foreach ($rule in $excludeRules) {
                         $targetId = [string]$rule.ExcludeCollectionID
                         if ([string]::IsNullOrWhiteSpace($targetId)) { $targetId = [string]$rule.ExcludeCollectionId }
                         if (-not [string]::IsNullOrWhiteSpace($targetId)) {
-                            $excludeRows += [pscustomobject]@{ TargetId = $targetId; DependentId = $CollectionId; DependentName = $CollectionName }
+                            $excludeRows += [pscustomobject]@{ TargetId = $targetId; DependentId = $using:dependentCollectionId; DependentName = $using:dependentCollectionName }
                         }
                     }
                 }
@@ -1514,7 +1533,7 @@ function Get-CollectionDependencyIndex {
             CollectionName = $dependentCollectionName
         }
 
-        $rules = Get-CollectionMembershipRules -CollectionID $dependentCollectionId
+        $rules = Get-CollectionMembershipRule -CollectionID $dependentCollectionId
         $includeRules = @($rules.Include)
         $excludeRules = @($rules.Exclude)
 
@@ -1557,7 +1576,7 @@ Collections to inspect for query-expression references.
 .OUTPUTS
 System.Object[]
 #>
-function Get-DeepReferences {
+function Get-DeepReference {
     param(
         [string]$CollectionID,
         [array]$Collections
@@ -1589,7 +1608,7 @@ function Get-DeepReferences {
             continue
         }
 
-        $queryRules = @(Get-CachedQueryMembershipRules -CollectionID $candidateId)
+        $queryRules = @(Get-CachedQueryMembershipRule -CollectionID $candidateId)
 
         foreach ($rule in $queryRules) {
             if (-not $rule) { continue }
@@ -1641,8 +1660,7 @@ function Get-DeepReferences {
 
 if ($AnalyzeSafeToDelete) {
 
-    Write-Host ""
-    Write-Host "=== Safe-to-delete analysis ===" -ForegroundColor Cyan
+    Write-SectionHeader -Message '=== Safe-to-delete analysis ==='
     Write-PhaseLog -Message 'Safe-to-delete analysis started.'
 
     Write-PhaseLog -Message 'Building dependency index for incoming include/exclude references...'
@@ -1653,7 +1671,7 @@ if ($AnalyzeSafeToDelete) {
 
     foreach ($entry in $scopedItems) {
         $processedSafeItems++
-        if (Should-EmitProgress -ProcessedCount $processedSafeItems) {
+        if (Test-ProgressEmission -ProcessedCount $processedSafeItems) {
             Write-PhaseLog -Message ("Safe-to-delete progress: {0}/{1} scoped collections processed." -f $processedSafeItems, $scopedItems.Count)
         }
 
@@ -1664,7 +1682,7 @@ if ($AnalyzeSafeToDelete) {
         $colName = [string]$entry.CollectionName
         $folderPath = [string]$entry.FolderPath
         $folderLeaf = Split-Path -Path $folderPath -Leaf
-        $safeIdentity = Parse-CollectionIdentity -CollectionName $colName -FolderName $folderLeaf
+        $safeIdentity = ConvertTo-CollectionIdentity -CollectionName $colName -FolderName $folderLeaf
         $safeSoftwareName = [string]$safeIdentity.Software
 
         $reasons = @()
@@ -1682,7 +1700,7 @@ if ($AnalyzeSafeToDelete) {
             [void]$blockingCategories.Add('Deployments')
         }
 
-        $rules = Get-CollectionMembershipRules -CollectionID $colId
+        $rules = Get-CollectionMembershipRule -CollectionID $colId
         if ($rules.DataQuality -ne 'Complete') {
             $dataQuality = 'PartialRuleData'
             $analysisConfidence = 'Medium'
@@ -1724,7 +1742,7 @@ if ($AnalyzeSafeToDelete) {
             }
         }
 
-        $limitingUsedBy = @(Get-LimitingCollectionDependents -CollectionID $colId)
+        $limitingUsedBy = @(Get-LimitingCollectionDependent -CollectionID $colId)
         if ($limitingUsedBy.Count -gt 0) {
             $status = 'NotSafe'
             [void]$blockingCategories.Add('LimitingCollection')
@@ -1732,7 +1750,7 @@ if ($AnalyzeSafeToDelete) {
         }
 
         if ($Mode -eq 'Deep') {
-            $deepRefs = @(Get-DeepReferences -CollectionID $colId -Collections $allCollections)
+            $deepRefs = @(Get-DeepReference -CollectionID $colId -Collections $allCollections)
             if ($deepRefs.Count -gt 0) {
                 $status = 'NotSafe'
                 [void]$blockingCategories.Add('DeepReferences')
@@ -1781,7 +1799,7 @@ if ($AnalyzeSafeToDelete) {
 
         if ($Mode -eq 'Standard') {
             if ($status -eq 'Safe') {
-                Write-Host ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath) -ForegroundColor Green
+                Write-ResultLine -Message ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
 
                 $results += [PSCustomObject]@{
                     Type           = 'SafeToDelete'
@@ -1801,11 +1819,11 @@ if ($AnalyzeSafeToDelete) {
         }
         else {
             if ($status -eq 'Safe') {
-                Write-Host ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath) -ForegroundColor Green
+                Write-ResultLine -Message ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
             }
             else {
-                Write-Host ("[NOT SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath) -ForegroundColor Yellow
-                Write-Host ("  Reasons: {0}" -f ($reasons -join '; ')) -ForegroundColor DarkYellow
+                Write-ResultLine -Message ("[NOT SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
+                Write-ResultLine -Message ("  Reasons: {0}" -f ($reasons -join '; '))
             }
 
             $results += [PSCustomObject]@{
@@ -1860,13 +1878,11 @@ if (-not [string]::IsNullOrWhiteSpace($OutputCsv)) {
             Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence, LifecycleSignal, PairedImplicitInstallCollection |
             Export-Csv -Path $OutputCsv -NoTypeInformation -Encoding UTF8
 
-        Write-Host ""
-        Write-Host ("CSV report saved as: {0}" -f $OutputCsv) -ForegroundColor Green
+        Write-SectionHeader -Message ("CSV report saved as: {0}" -f $OutputCsv)
         Write-PhaseLog -Message ("CSV export completed: {0}" -f $OutputCsv) -Level 'SUCCESS'
     }
     else {
-        Write-Host ""
-        Write-Host "No results to save to CSV." -ForegroundColor Yellow
+        Write-SectionHeader -Message 'No results to save to CSV.'
         Write-PhaseLog -Message 'CSV export skipped because there are no result rows.' -Level 'WARN'
     }
 }
@@ -1921,7 +1937,6 @@ else {
     Write-PhaseLog -Message 'JSON summary export skipped because JsonSummaryPath is empty.'
 }
 
-Write-Host ""
-Write-Host "=== Analysis complete - no SCCM changes were made ===" -ForegroundColor Cyan
+Write-SectionHeader -Message '=== Analysis complete - no SCCM changes were made ==='
 $duration = New-TimeSpan -Start $scriptStart -End (Get-Date)
 Write-PhaseLog -Message ("Analysis completed in {0:hh\:mm\:ss}. Total rows={1}" -f $duration, $results.Count) -Level 'SUCCESS'

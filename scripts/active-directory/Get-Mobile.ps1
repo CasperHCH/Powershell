@@ -1,72 +1,84 @@
 <#
-Prerequisites Needed – 
-1)	Either run this on an Exchange Server with an Admin account or use New-PSSession to an Exchange Server running with an Admin Account.
-2)	You must be able to use - Import-Module ActiveDirectory.
+.SYNOPSIS
+Sends a mobile device statistics report for a mailbox user.
 
-Example Enter the UserID of the Requester & of the person you want the Mobile Report for.
-
-PS C:\> Get-Mobile
-
-cmdlet Get-Mobile at command pipeline position 1
-Supply values for the following parameters:
-Requester: tbolton
-UserID: tbolton
-
+.DESCRIPTION
+Queries Active Directory for requester and target user metadata, collects mobile device
+statistics from Exchange, and sends the results as an HTML email.
 #>
 
-Function Get-Mobile {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
-        [string]$Requester,
-        [Parameter(Mandatory=$True)]
-        [string]$UserID
-    )
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Requester,
 
-    PROCESS {
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$UserId,
 
-# Date
-$Date = (get-date).ToString()
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SmtpServer,
 
-# Get Requester Info via their UserID
-$RequesterEmail=(Get-ADUser $Requester -Properties mail).Mail
-$RequesterFirstName=(Get-ADUser $Requester -Properties GivenName).GivenName
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+    [string]$MailFrom,
 
-# Get Tech who is running this script information to CC Email to.
-#$MyName = $env:username
-#$MyEmail = (Get-ADUSer $MyName -Properties mail).mail
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+    [string[]]$MailTo,
 
-# Get DisplayName of User via their UserID
-$TheUserName=(Get-ADUser $UserID -Properties DisplayName).DisplayName
-$TheUserEmail=(Get-ADUser $UserID -Properties mail).Mail
-#$TheUserName=$TheUser.DisplayName
+    [Parameter(Mandatory = $false)]
+    [ValidatePattern('^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+    [string[]]$MailCc,
 
-# Email Settings
-$SmtpServer = 
-$SmtpFrom = 
-$SmtpTo = 
-#$SmtpBcc = New-Object System.Net.Mail.MailAddress 
-$MessageSubject = 
+    [Parameter(Mandatory = $false)]
+    [switch]$PassThru
+)
 
-$Message = New-Object System.Net.Mail.MailMessage $Smtpfrom, $Smtpto
-# Add BCC
-#$Message.Bcc.Add($SmtpBcc)
+Import-Module ActiveDirectory -ErrorAction Stop
 
-$Message.Subject = $MessageSubject
-$Message.IsBodyHTML = $true
+$requesterUser = Get-ADUser -Identity $Requester -Properties GivenName, Mail -ErrorAction Stop
+$targetUser = Get-ADUser -Identity $UserId -Properties DisplayName, Mail -ErrorAction Stop
 
-#### HTML Output Formatting #######
- 
-$a = @@
+$deviceStats = @(Get-MobileDeviceStatistics -Mailbox $targetUser.Mail -ErrorAction Stop |
+    Select-Object DeviceType, DeviceModel, DeviceFriendlyName, DeviceOS, DeviceUserAgent,
+        LastSyncAttemptTime, LastSuccessSync, NumberOfFoldersSynced)
 
-# This is what will pull the information on the Mobile Devices being used by $UserID and will create the message body.
-$Message.Body = Get-MobileDeviceStatistics -Mailbox $TheUserEmail | 
-select DeviceType,DeviceModel,DeviceFriendlyName,DeviceOS,DeviceUserAgent,LastSyncAttemptTime,Lastsuccesssync,NumberOfFoldersSynced | ConvertTo-HTML -PreContent , -Head $a
+$style = @'
+<style>
+body { font-family: Segoe UI, Tahoma, sans-serif; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; }
+th { background-color: #f3f6f9; }
+</style>
+'@
 
-$smtp = New-Object Net.Mail.SmtpClient($smtpServer)
-$smtp.Send($message)
-
+$preContent = "<h2>Mobile Device Report</h2><p>Requester: $($requesterUser.GivenName)</p><p>User: $($targetUser.DisplayName) ($($targetUser.Mail))</p><p>Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</p>"
+$body = if ($deviceStats.Count -gt 0) {
+    $deviceStats | ConvertTo-Html -Head $style -PreContent $preContent
 }
+else {
+    "$style$preContent<p>No mobile device statistics were found for this mailbox.</p>"
 }
 
-###############################################################
+$message = [System.Net.Mail.MailMessage]::new()
+$message.From = $MailFrom
+foreach ($address in $MailTo) {
+    [void]$message.To.Add($address)
+}
+foreach ($address in $MailCc) {
+    [void]$message.CC.Add($address)
+}
+
+$message.Subject = "Mobile device report for $($targetUser.DisplayName)"
+$message.IsBodyHtml = $true
+$message.Body = $body
+
+$smtpClient = [System.Net.Mail.SmtpClient]::new($SmtpServer)
+$smtpClient.Send($message)
+
+if ($PassThru) {
+    $deviceStats
+}

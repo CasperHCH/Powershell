@@ -1,108 +1,176 @@
-# Send email to JIRA Project Lead, based on projects with no issues in them
+<#
+.SYNOPSIS
+Creates or sends low-issue Jira project review notifications from Excel data.
 
-# Import needed modules, and install if needed
-If(-not(Get-InstalledModule ImportExcel -ErrorAction silentlycontinue)){
-    Install-Module ImportExcel -Confirm:$False -Force
+.DESCRIPTION
+Imports project ownership data from an Excel workbook, filters projects with a
+low issue count, builds a review email for each project lead, and either
+previews the notification or sends it using a supplied SMTP server.
+#>
+
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory = $false)]
+    [string]$ExcelPath,
+
+    [Parameter(Mandatory = $false)]
+    [string]$WorksheetName,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(0, 100000)]
+    [int]$MaximumIssueCount = 9,
+
+    [Parameter(Mandatory = $false)]
+    [datetime]$ResponseDeadline = (Get-Date).Date.AddDays(14),
+
+    [Parameter(Mandatory = $false)]
+    [string]$SmtpServer,
+
+    [Parameter(Mandatory = $false)]
+    [ValidatePattern('^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+    [string]$FromAddress,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$PreviewOnly
+)
+
+function Initialize-ImportExcelModule {
+    if (-not (Get-Module -ListAvailable -Name ImportExcel)) {
+        Install-Module -Name ImportExcel -Scope CurrentUser -Force -Confirm:$false
+    }
+
+    Import-Module ImportExcel -ErrorAction Stop
 }
 
-# What Excel file should users and project name be drawn from?
-$XLSXFileLocation = Read-Host "Enter path to Excel file with project data"
-if (-not $XLSXFileLocation) {
-    $XLSXFileLocation = "C:\temp\projectTest.xlsx"
-    Write-Host "Using default file: $XLSXFileLocation" -ForegroundColor Yellow
-}
-
-if (-not (Test-Path $XLSXFileLocation)) {
-    Write-Error "Excel file not found: $XLSXFileLocation"
-    exit 1
-}
-
-# Send email function
-function Send-ProjectLeadEmail {
+function Get-NotificationBody {
     param(
-        [string]$ToAddress,
+        [Parameter(Mandatory = $true)]
         [string]$LeadDisplayName,
+
+        [Parameter(Mandatory = $true)]
         [string]$ProjectName,
-        [int]$IssueCount
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectKey,
+
+        [Parameter(Mandatory = $true)]
+        [int]$IssueCount,
+
+        [Parameter(Mandatory = $true)]
+        [datetime]$Deadline
     )
 
-    # Email configuration would go here - implement Send-MailMessage or similar
-    Write-Host "Would send email to $LeadDisplayName ($ToAddress) about project $ProjectName with $IssueCount issues" -ForegroundColor Cyan
+    @"
+<p>Dear $LeadDisplayName,</p>
+<p>
+The Jira administration team is reviewing projects with low activity. Project
+<strong>$ProjectName</strong> currently has <strong>$IssueCount</strong> issues and appears to be a candidate for cleanup.
+</p>
+<p>Please confirm whether the project should remain active.</p>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><td>Project Lead</td><td>$LeadDisplayName</td></tr>
+<tr><td>Project Name</td><td>$ProjectName</td></tr>
+<tr><td>Project Key</td><td>$ProjectKey</td></tr>
+<tr><td>Issue Count</td><td>$IssueCount</td></tr>
+<tr><td>Response Deadline</td><td>$($Deadline.ToString('yyyy-MM-dd'))</td></tr>
+</table>
+<p>If we do not hear back before the deadline, the project may be scheduled for follow-up review.</p>
+<p>Regards,<br />Jira Administration Team</p>
+"@
 }
 
-# Import user list and information from Excel file
-# Excel File Location is drawn from Read-Host above
-# Defining what columns to draw data from
-Write-Host "Importing data from: $XLSXFileLocation" -ForegroundColor Cyan
-$XLSXFile = Import-Excel -path $XLSXFileLocation
-if($XLSXFile){
-    Write-Host "Successfully imported $($XLSXFile.Count) records from Excel file" -ForegroundColor Green
-} else {
-    Write-Error "Failed to import data from Excel file"
-    exit 1
+function Send-ProjectLeadNotification {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ToAddress,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FromAddress,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SmtpServer,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Subject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Body
+    )
+
+    $message = [System.Net.Mail.MailMessage]::new($FromAddress, $ToAddress)
+    $message.Subject = $Subject
+    $message.Body = $Body
+    $message.IsBodyHtml = $true
+
+    $smtpClient = [System.Net.Mail.SmtpClient]::new($SmtpServer)
+    $smtpClient.Send($message)
 }
 
+if (-not $ExcelPath) {
+    $ExcelPath = Read-Host "Enter path to Excel file with project data"
+}
 
-# Send Email to each Project Lead in the list
-foreach ($x in $XLSXFile){#Start foreach
+if (-not $ExcelPath) {
+    $ExcelPath = "C:\temp\projectTest.xlsx"
+    Write-Information "Using default file: $ExcelPath" -InformationAction Continue
+}
 
-if($x.'issue count' -lt 10){#Start IF
+if (-not (Test-Path $ExcelPath -PathType Leaf)) {
+    throw "Excel file not found: $ExcelPath"
+}
 
-    $ToAddress = $x.'Lead Email'
+Initialize-ImportExcelModule
 
-    $LeadDisplayName = $x.'Lead display name'
+$importParameters = @{ Path = $ExcelPath }
+if ($WorksheetName) {
+    $importParameters.WorksheetName = $WorksheetName
+}
 
-    $ProjectName = $x.Name
+$projectRows = @(Import-Excel @importParameters)
+if ($projectRows.Count -eq 0) {
+    throw "No records were imported from $ExcelPath"
+}
 
-    $ProjectKey = $x.Key
+$results = foreach ($project in $projectRows) {
+    $issueCount = [int]$project.'Issue count'
+    if ($issueCount -gt $MaximumIssueCount) {
+        continue
+    }
 
-    $IssueCount = $x.'Issue count'
+    $toAddress = [string]$project.'Lead Email'
+    if ([string]::IsNullOrWhiteSpace($toAddress)) {
+        continue
+    }
 
-# Add Email body @@ = End of Body
-# There can be no  infront of
-<p>Dear $LeadDisplayName,<br />The Atlassian team is in the process of cleaning up our JIRA environment.<br />In this process, we have found that the project $ProjectName have less than 10 issues within it, <br />and therefore doesn't seem to be in use.</p>
-<p>May we delete this project:</p>
-<table>
-<tbody>
-<tr>
-<td>Project Lead:</td>
-<td>$LeadDisplayName</td>
-</tr>
-<tr>
-<td>Project Name:</td>
-<td>$ProjectName</td>
-</tr>
-<tr>
-<td>Project Key:</td>
-<td>$ProjectKey</td>
-</tr>
-<tr>
-<td>Issue Count:</td>
-<td>$IssueCount</td>
-</tr>
-</tbody>
-</table>
-<p><br />If we haven't heard from you by the 15th of November, we will proceed to delete the project.</p>
-<p>Please advise us on email by replying to this email.</p>
-<table border= width= cellspacing= cellpadding=>
-<tbody>
-<tr>
-<td>Med venlig hilsen - Best Regards<br /><br />
-<table border= width= cellspacing= cellpadding=>
-<tbody>
-<tr>
-<td width=><strong><span style=>The Miracle&nbsp;Atlassian Team</span></strong><br /><br />E-mail:&nbsp;atlassian_support@miracle.dk<br /><a href= target= rel=><img src= width= height= /></a>&nbsp;<a href= target= rel=><img src= width= height= /></a>&nbsp;<a href= target= rel=><img src= width= height= /></a></td>
-</tr>
-</tbody>
-</table>
-</td>
-</tr>
-<tr>
-<td><img src= width= /><br /><a href= target= rel=>info@miracle.dk</a>&nbsp;-&nbsp;<a href= target= rel=>www.miracle.dk</a>&nbsp;&nbsp;</td>
-</tr>
-</tbody>
-</table>
-Sending email to ($ProjectName) ($ToAddress)" -ForegroundColor Yellow
-SendNotification
-    }#End IF
-}#End Foreach
+    $leadDisplayName = [string]$project.'Lead display name'
+    $projectName = [string]$project.Name
+    $projectKey = [string]$project.Key
+    $subject = "Project review required: $projectName ($projectKey)"
+    $body = Get-NotificationBody -LeadDisplayName $leadDisplayName -ProjectName $projectName -ProjectKey $projectKey -IssueCount $issueCount -Deadline $ResponseDeadline
+
+    if ($PreviewOnly -or [string]::IsNullOrWhiteSpace($SmtpServer) -or [string]::IsNullOrWhiteSpace($FromAddress)) {
+        Write-Information "Preview only: $projectName -> $toAddress" -InformationAction Continue
+        [pscustomobject]@{
+            ProjectName = $projectName
+            ProjectKey = $projectKey
+            LeadEmail = $toAddress
+            IssueCount = $issueCount
+            DeliveryMode = 'Preview'
+        }
+        continue
+    }
+
+    if ($PSCmdlet.ShouldProcess($toAddress, "Send project review notification for $projectName")) {
+        Send-ProjectLeadNotification -ToAddress $toAddress -FromAddress $FromAddress -SmtpServer $SmtpServer -Subject $subject -Body $body
+    }
+
+    [pscustomobject]@{
+        ProjectName = $projectName
+        ProjectKey = $projectKey
+        LeadEmail = $toAddress
+        IssueCount = $issueCount
+        DeliveryMode = 'Sent'
+    }
+}
+
+$results

@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+Lists users from a specified Active Directory OU.
+
+.DESCRIPTION
+Returns basic user information from the given OU and optionally exports the list
+to CSV when an output path is supplied.
+#>
+
 param(
     [string]$DistinguishedName,
     [string]$OutputPath
@@ -10,18 +19,18 @@ if (!$DistinguishedName) {
 }
 
 try {
-    Write-Host "Retrieving users from OU: $DistinguishedName" -ForegroundColor Cyan
+    Write-Information "Retrieving users from OU: $DistinguishedName" -InformationAction Continue
 
     $users = Get-ADUser -SearchBase $DistinguishedName -Filter * | Select-Object Name,SamAccountName,UserPrincipalName
 
     if ($OutputPath) {
         $users | Export-CSV -NoTypeInformation -Path $OutputPath
-        Write-Host "User list exported to: $OutputPath" -ForegroundColor Green
+        Write-Information "User list exported to: $OutputPath" -InformationAction Continue
     } else {
         $users | Format-Table -AutoSize
     }
 
-    Write-Host "Total users found: $($users.Count)" -ForegroundColor Green
+    Write-Information "Total users found: $($users.Count)" -InformationAction Continue
 } catch {
     Write-Error "Error: $($_.Exception.Message)"
 }

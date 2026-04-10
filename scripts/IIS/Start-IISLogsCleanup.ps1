@@ -136,6 +136,12 @@ param(
     [string]$ConfigPath = (Join-Path $PSScriptRoot "enterprise-iis-config.json"),
 
     [Parameter(Mandatory = $false)]
+    [string]$NotificationEmail,
+
+    [Parameter(Mandatory = $false)]
+    [string]$SmtpServer = "smtp.company.local",
+
+    [Parameter(Mandatory = $false)]
     [switch]$Force,
 
     [Parameter(Mandatory = $false)]
@@ -146,6 +152,22 @@ param(
     [switch]$EnableCompliance
 )
 
+$script:LogPaths = $LogPaths
+$script:ArchivePath = $ArchivePath
+$script:RetentionDays = $RetentionDays
+$script:ArchiveRetentionDays = $ArchiveRetentionDays
+$script:CompressionLevel = $CompressionLevel
+$script:EnableAnalytics = $EnableAnalytics
+$script:EnableThreatDetection = $EnableThreatDetection
+$script:MaxConcurrentJobs = $MaxConcurrentJobs
+$script:ReportPath = $ReportPath
+$script:ConfigPath = $ConfigPath
+$script:NotificationEmail = $NotificationEmail
+$script:SmtpServer = $SmtpServer
+$script:Force = $Force
+$script:ExportFormat = $ExportFormat
+$script:EnableCompliance = $EnableCompliance
+
 # 🔧 ENTERPRISE INITIALIZATION: Load enterprise framework
 try {
     $enterpriseLoggingPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "Enterprise-Logging-Framework.ps1"
@@ -155,16 +177,27 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "IISLogManagement", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySuffix = if ($Properties.Count -gt 0) { " | Properties: $($Properties.Count)" } else { "" }
+            Write-Information "[$Level] [$Category] $Message$propertySuffix" -InformationAction Continue
         }
     }
 } catch {
     Write-Warning "Enterprise logging not available: $($_.Exception.Message)"
 }
 
+function Write-IISStatus {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information $Message -InformationAction Continue
+}
+
 # 📊 ENTERPRISE METRICS: IIS log management tracking
-$Global:EnterpriseIISMetrics = @{
+$script:EnterpriseIISMetrics = @{
     StartTime = Get-Date
+    ServersProcessed = 0
     LogPathsProcessed = 0
     FilesProcessed = 0
     FilesCompressed = 0
@@ -173,12 +206,12 @@ $Global:EnterpriseIISMetrics = @{
     BytesCompressed = 0
     StorageSaved = 0
     ThreatDetections = 0
-    ComplianceIssues = 0
+    ComplianceChecks = 0
     Errors = @()
 }
 
 # 🎯 IIS LOG PATTERNS: Enterprise threat detection patterns
-$Global:IISLogPatterns = @{
+$script:IISLogPatterns = @{
     ThreatSignatures = @(
         "sqlmap", "nikto", "nessus", "burp", "acunetix", "w3af", "skipfish",
         "union.*select", "drop.*table", "insert.*into", "delete.*from",
@@ -212,7 +245,7 @@ $EnterpriseThresholds = @{
 # 🔒 ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
 ####################################################################
 
-function Test-EnterpriseIISPermissions {
+function Test-EnterpriseIISPermission {
     <#
     .SYNOPSIS
         Comprehensive IIS permissions and security validation
@@ -224,10 +257,11 @@ function Test-EnterpriseIISPermissions {
     )
 
     try {
-        Write-Host "🛡️  Validating IIS management permissions and security context..." -ForegroundColor Cyan
+        Write-IISStatus "🛡️  Validating IIS management permissions and security context..."
         Write-EnterpriseLog -Level "Info" -Message "Starting IIS security validation" -Category "Security"
 
         $securityResults = @{
+            IsValid = $false
             AdminPrivileges = $false
             IISManagementAvailable = $false
             LogPathsAccessible = @()
@@ -243,9 +277,9 @@ function Test-EnterpriseIISPermissions {
         try {
             Import-Module WebAdministration -ErrorAction Stop
             $securityResults.IISManagementAvailable = $true
-            Write-Host "   ✅ IIS Management module available" -ForegroundColor Green
+            Write-IISStatus "   ✅ IIS Management module available"
         } catch {
-            Write-Host "   ⚠️  IIS Management module not available" -ForegroundColor Yellow
+            Write-IISStatus "   ⚠️  IIS Management module not available"
             $securityResults.Recommendations += "Install IIS Management Tools or Web Server (IIS) role"
         }
 
@@ -264,9 +298,9 @@ function Test-EnterpriseIISPermissions {
 
                 if ($accessible) {
                     $securityResults.LogPathsAccessible += $logPath
-                    Write-Host "   ✅ Log path accessible: $logPath" -ForegroundColor Green
+                    Write-IISStatus "   ✅ Log path accessible: $logPath"
                 } else {
-                    Write-Host "   ❌ Log path not accessible: $logPath" -ForegroundColor Red
+                    Write-IISStatus "   ❌ Log path not accessible: $logPath"
                     $securityResults.SecurityWarnings += "Cannot access log path: $logPath"
                 }
             } catch {
@@ -279,11 +313,10 @@ function Test-EnterpriseIISPermissions {
             $securityResults.Recommendations += "Run with Administrator privileges for full functionality"
         }
 
-        Write-Host "   🔍 Admin Privileges: " -NoNewline -ForegroundColor White
-        Write-Host $securityResults.AdminPrivileges -ForegroundColor $(if($securityResults.AdminPrivileges){"Green"}else{"Red"})
+        Write-IISStatus "   🔍 Admin Privileges: $($securityResults.AdminPrivileges)"
+        Write-IISStatus "   📊 Accessible Paths: $($securityResults.LogPathsAccessible.Count) of $($LogPaths.Count)"
 
-        Write-Host "   📊 Accessible Paths: " -NoNewline -ForegroundColor White
-        Write-Host "$($securityResults.LogPathsAccessible.Count) of $($LogPaths.Count)" -ForegroundColor $(if($securityResults.LogPathsAccessible.Count -eq $LogPaths.Count){"Green"}else{"Yellow"})
+        $securityResults.IsValid = $securityResults.AdminPrivileges -and ($securityResults.LogPathsAccessible.Count -gt 0)
 
         Write-EnterpriseLog -Level "Success" -Message "IIS security validation completed" -Category "Security" -Properties $securityResults
 
@@ -311,7 +344,7 @@ function Get-EnterpriseIISLogAnalysis {
     )
 
     try {
-        Write-Host "🔍 Analyzing IIS logs: $LogPath" -ForegroundColor Cyan
+        Write-IISStatus "🔍 Analyzing IIS logs: $LogPath"
         Write-EnterpriseLog -Level "Info" -Message "Starting log analysis" -Category "LogAnalysis" -Properties @{
             LogPath = $LogPath
             ThreatDetection = $EnableThreatDetection.IsPresent
@@ -336,7 +369,7 @@ function Get-EnterpriseIISLogAnalysis {
         $analysisResults.TotalLogSize = ($logFiles | Measure-Object Length -Sum).Sum
 
         if ($logFiles.Count -eq 0) {
-            Write-Host "   ⚠️  No log files found in $LogPath" -ForegroundColor Yellow
+            Write-IISStatus "   ⚠️  No log files found in $LogPath"
             return $analysisResults
         }
 
@@ -349,7 +382,7 @@ function Get-EnterpriseIISLogAnalysis {
 
         foreach ($logFile in $recentFiles) {
             try {
-                Write-Host "      📄 Analyzing: $($logFile.Name)" -ForegroundColor Gray
+                Write-IISStatus "      📄 Analyzing: $($logFile.Name)"
 
                 # Read log entries (limit to recent entries for performance)
                 $logEntries = Get-Content $logFile.FullName | Select-Object -First 1000
@@ -357,7 +390,7 @@ function Get-EnterpriseIISLogAnalysis {
                 if ($EnableThreatDetection) {
                     # Threat detection analysis
                     foreach ($entry in $logEntries) {
-                        foreach ($pattern in $Global:IISLogPatterns.ThreatSignatures) {
+                        foreach ($pattern in $script:IISLogPatterns.ThreatSignatures) {
                             if ($entry -match $pattern) {
                                 $analysisResults.ThreatDetections += @{
                                     File = $logFile.Name
@@ -366,7 +399,7 @@ function Get-EnterpriseIISLogAnalysis {
                                     Severity = "High"
                                     Timestamp = Get-Date
                                 }
-                                $Global:EnterpriseIISMetrics.ThreatDetections++
+                                $script:EnterpriseIISMetrics.ThreatDetections++
                             }
                         }
                     }
@@ -375,7 +408,7 @@ function Get-EnterpriseIISLogAnalysis {
                 if ($EnableCompliance) {
                     # Compliance pattern analysis
                     foreach ($entry in $logEntries) {
-                        foreach ($pattern in $Global:IISLogPatterns.CompliancePatterns) {
+                        foreach ($pattern in $script:IISLogPatterns.CompliancePatterns) {
                             if ($entry -match $pattern) {
                                 $analysisResults.ComplianceFindings += @{
                                     File = $logFile.Name
@@ -384,14 +417,15 @@ function Get-EnterpriseIISLogAnalysis {
                                     RequiresRetention = $true
                                     Timestamp = Get-Date
                                 }
+                                $script:EnterpriseIISMetrics.ComplianceChecks++
                             }
                         }
                     }
                 }
 
             } catch {
-                Write-Host "      ⚠️  Error analyzing $($logFile.Name): $($_.Exception.Message)" -ForegroundColor Yellow
-                $Global:EnterpriseIISMetrics.Errors += "Analysis error for $($logFile.Name): $($_.Exception.Message)"
+                Write-IISStatus "      ⚠️  Error analyzing $($logFile.Name): $($_.Exception.Message)"
+                $script:EnterpriseIISMetrics.Errors += "Analysis error for $($logFile.Name): $($_.Exception.Message)"
             }
         }
 
@@ -404,11 +438,11 @@ function Get-EnterpriseIISLogAnalysis {
             $analysisResults.RecommendedActions += "Security threats detected - immediate security review required"
         }
 
-        Write-Host "   📊 Analysis Summary:" -ForegroundColor White
-        Write-Host "      Files: $($analysisResults.TotalLogFiles)" -ForegroundColor White
-        Write-Host "      Size: $([math]::Round($analysisResults.TotalLogSize / 1GB, 2)) GB" -ForegroundColor White
-        Write-Host "      Threats: $($analysisResults.ThreatDetections.Count)" -ForegroundColor $(if($analysisResults.ThreatDetections.Count -gt 0){"Red"}else{"Green"})
-        Write-Host "      Compliance Items: $($analysisResults.ComplianceFindings.Count)" -ForegroundColor White
+        Write-IISStatus "   📊 Analysis Summary:"
+        Write-IISStatus "      Files: $($analysisResults.TotalLogFiles)"
+        Write-IISStatus "      Size: $([math]::Round($analysisResults.TotalLogSize / 1GB, 2)) GB"
+        Write-IISStatus "      Threats: $($analysisResults.ThreatDetections.Count)"
+        Write-IISStatus "      Compliance Items: $($analysisResults.ComplianceFindings.Count)"
 
         Write-EnterpriseLog -Level "Success" -Message "Log analysis completed" -Category "LogAnalysis" -Properties @{
             LogFiles = $analysisResults.TotalLogFiles
@@ -445,7 +479,7 @@ function Invoke-EnterpriseLogCompression {
     )
 
     try {
-        Write-Host "🗜️  Starting enterprise log compression for: $LogPath" -ForegroundColor Cyan
+        Write-IISStatus "🗜️  Starting enterprise log compression for: $LogPath"
         Write-EnterpriseLog -Level "Info" -Message "Starting log compression" -Category "Compression" -Properties @{
             LogPath = $LogPath
             RetentionDays = $RetentionDays
@@ -464,17 +498,17 @@ function Invoke-EnterpriseLogCompression {
 
         # Calculate cutoff date for compression
         $cutoffDate = (Get-Date).AddDays(-$RetentionDays)
-        Write-Host "   📅 Compression cutoff date: $($cutoffDate.ToString('yyyy-MM-dd'))" -ForegroundColor White
+        Write-IISStatus "   📅 Compression cutoff date: $($cutoffDate.ToString('yyyy-MM-dd'))"
 
         # Get log files older than retention period
         $logFiles = Get-ChildItem -Path $LogPath -Filter "*.log" | Where-Object { $_.LastWriteTime -lt $cutoffDate }
 
         if ($logFiles.Count -eq 0) {
-            Write-Host "   ℹ️  No files require compression (all files within retention period)" -ForegroundColor Green
+            Write-IISStatus "   ℹ️  No files require compression (all files within retention period)"
             return $compressionResults
         }
 
-        Write-Host "   📄 Found $($logFiles.Count) files for compression" -ForegroundColor White
+        Write-IISStatus "   📄 Found $($logFiles.Count) files for compression"
 
         # Group files by month for efficient compression
         $monthlyGroups = $logFiles | Group-Object { $_.LastWriteTime.ToString("yyyy-MM") }
@@ -486,7 +520,7 @@ function Invoke-EnterpriseLogCompression {
                 $archiveFileName = "IIS-Logs-$monthName.zip"
                 $archiveFullPath = Join-Path $LogPath $archiveFileName
 
-                Write-Host "      🗜️  Compressing $($monthFiles.Count) files from $monthName..." -ForegroundColor Yellow
+                Write-IISStatus "      🗜️  Compressing $($monthFiles.Count) files from $monthName..."
 
                 # Calculate original size
                 $originalSize = ($monthFiles | Measure-Object Length -Sum).Sum
@@ -516,11 +550,11 @@ function Invoke-EnterpriseLogCompression {
                         $entryStream.Close()
 
                         $compressionResults.FilesProcessed++
-                        $Global:EnterpriseIISMetrics.FilesProcessed++
+                        $script:EnterpriseIISMetrics.FilesProcessed++
 
                     } catch {
                         $compressionResults.Errors += "Failed to compress $($file.Name): $($_.Exception.Message)"
-                        Write-Host "         ⚠️  Error compressing $($file.Name)" -ForegroundColor Yellow
+                        Write-IISStatus "         ⚠️  Error compressing $($file.Name)"
                     }
                 }
 
@@ -531,18 +565,18 @@ function Invoke-EnterpriseLogCompression {
                     $compressedSize = (Get-Item $archiveFullPath).Length
                     $compressionResults.BytesCompressed += $compressedSize
                     $compressionResults.FilesCompressed++
-                    $Global:EnterpriseIISMetrics.FilesCompressed++
+                    $script:EnterpriseIISMetrics.FilesCompressed++
 
                     $compressionRatio = [math]::Round((($originalSize - $compressedSize) / $originalSize) * 100, 1)
-                    Write-Host "         ✅ Compressed to $archiveFileName (${compressionRatio}% reduction)" -ForegroundColor Green
+                    Write-IISStatus "         ✅ Compressed to $archiveFileName (${compressionRatio}% reduction)"
 
                     # Move to archive path if specified
                     if ($ArchivePath -and (Test-Path $ArchivePath)) {
                         $archiveDestination = Join-Path $ArchivePath $archiveFileName
                         Move-Item $archiveFullPath $archiveDestination
                         $compressionResults.ArchiveFiles += $archiveDestination
-                        $Global:EnterpriseIISMetrics.FilesArchived++
-                        Write-Host "         📁 Moved to archive: $archiveDestination" -ForegroundColor Green
+                        $script:EnterpriseIISMetrics.FilesArchived++
+                        Write-IISStatus "         📁 Moved to archive: $archiveDestination"
                     } else {
                         $compressionResults.ArchiveFiles += $archiveFullPath
                     }
@@ -551,7 +585,7 @@ function Invoke-EnterpriseLogCompression {
                     foreach ($file in $monthFiles) {
                         try {
                             Remove-Item $file.FullName -Force
-                            Write-Host "         🗑️  Deleted: $($file.Name)" -ForegroundColor Gray
+                            Write-IISStatus "         🗑️  Deleted: $($file.Name)"
                         } catch {
                             $compressionResults.Errors += "Failed to delete $($file.Name): $($_.Exception.Message)"
                         }
@@ -563,21 +597,21 @@ function Invoke-EnterpriseLogCompression {
 
             } catch {
                 $compressionResults.Errors += "Failed to process month $monthName`: $($_.Exception.Message)"
-                Write-Host "      ❌ Error processing $monthName`: $($_.Exception.Message)" -ForegroundColor Red
+                Write-IISStatus "      ❌ Error processing $monthName`: $($_.Exception.Message)"
             }
         }
 
         # Calculate overall compression ratio
         if ($compressionResults.BytesOriginal -gt 0) {
             $compressionResults.CompressionRatio = [math]::Round((($compressionResults.BytesOriginal - $compressionResults.BytesCompressed) / $compressionResults.BytesOriginal) * 100, 1)
-            $Global:EnterpriseIISMetrics.StorageSaved = $compressionResults.BytesOriginal - $compressionResults.BytesCompressed
+            $script:EnterpriseIISMetrics.StorageSaved = $compressionResults.BytesOriginal - $compressionResults.BytesCompressed
         }
 
-        Write-Host "   🎉 Compression Summary:" -ForegroundColor Green
-        Write-Host "      Files Processed: $($compressionResults.FilesProcessed)" -ForegroundColor White
-        Write-Host "      Archives Created: $($compressionResults.FilesCompressed)" -ForegroundColor White
-        Write-Host "      Storage Saved: $([math]::Round($Global:EnterpriseIISMetrics.StorageSaved / 1MB, 1)) MB" -ForegroundColor White
-        Write-Host "      Compression Ratio: $($compressionResults.CompressionRatio)%" -ForegroundColor White
+        Write-IISStatus "   🎉 Compression Summary:"
+        Write-IISStatus "      Files Processed: $($compressionResults.FilesProcessed)"
+        Write-IISStatus "      Archives Created: $($compressionResults.FilesCompressed)"
+        Write-IISStatus "      Storage Saved: $([math]::Round($script:EnterpriseIISMetrics.StorageSaved / 1MB, 1)) MB"
+        Write-IISStatus "      Compression Ratio: $($compressionResults.CompressionRatio)%"
 
         Write-EnterpriseLog -Level "Success" -Message "Log compression completed" -Category "Compression" -Properties $compressionResults
 
@@ -596,7 +630,7 @@ function New-EnterpriseIISReport {
     .SYNOPSIS
         Generate comprehensive enterprise IIS log management report
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory = $false)]
         [hashtable]$AnalysisResults,
@@ -607,21 +641,31 @@ function New-EnterpriseIISReport {
     )
 
     try {
-        Write-Host "📊 Generating enterprise IIS log management report..." -ForegroundColor Cyan
+        Write-IISStatus "📊 Generating enterprise IIS log management report..."
 
         $reportData = @{
             ExecutionSummary = @{
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                ExecutionTime = if($Global:EnterpriseIISMetrics.StartTime) {
-                    ((Get-Date) - $Global:EnterpriseIISMetrics.StartTime).TotalSeconds
+                ExecutionTime = if($script:EnterpriseIISMetrics.StartTime) {
+                    ((Get-Date) - $script:EnterpriseIISMetrics.StartTime).TotalSeconds
                 } else { 0 }
-                TotalServersProcessed = $Global:EnterpriseIISMetrics.ServersProcessed
-                TotalFilesProcessed = $Global:EnterpriseIISMetrics.FilesProcessed
-                TotalFilesCompressed = $Global:EnterpriseIISMetrics.FilesCompressed
-                TotalStorageSaved = [math]::Round($Global:EnterpriseIISMetrics.StorageSaved / 1MB, 2)
-                ThreatDetections = $Global:EnterpriseIISMetrics.ThreatDetections
-                ComplianceChecks = $Global:EnterpriseIISMetrics.ComplianceChecks
-                ErrorCount = $Global:EnterpriseIISMetrics.Errors.Count
+                TotalServersProcessed = $script:EnterpriseIISMetrics.ServersProcessed
+                TotalFilesProcessed = $script:EnterpriseIISMetrics.FilesProcessed
+                TotalFilesCompressed = $script:EnterpriseIISMetrics.FilesCompressed
+                TotalStorageSaved = [math]::Round($script:EnterpriseIISMetrics.StorageSaved / 1MB, 2)
+                ThreatDetections = $script:EnterpriseIISMetrics.ThreatDetections
+                ComplianceChecks = $script:EnterpriseIISMetrics.ComplianceChecks
+                ErrorCount = $script:EnterpriseIISMetrics.Errors.Count
+            }
+            Configuration = @{
+                ArchiveRetentionDays = $script:ArchiveRetentionDays
+                MaxConcurrentJobs = $script:MaxConcurrentJobs
+                ReportPath = $script:ReportPath
+                ConfigPath = $script:ConfigPath
+                ExportFormat = $script:ExportFormat
+                AnalyticsEnabled = $script:EnableAnalytics.IsPresent
+                ComplianceEnabled = $script:EnableCompliance.IsPresent
+                Force = $script:Force.IsPresent
             }
             AnalysisResults = $AnalysisResults
             CompressionResults = $CompressionResults
@@ -651,8 +695,8 @@ function New-EnterpriseIISReport {
             $reportData.Recommendations += "✅ STORAGE OPTIMIZATION: Successfully saved $($reportData.ExecutionSummary.TotalStorageSaved) MB of storage space."
         }
 
-        if ($Global:EnterpriseIISMetrics.Errors.Count -gt 0) {
-            $reportData.Recommendations += "⚠️ OPERATION ERRORS: $($Global:EnterpriseIISMetrics.Errors.Count) errors encountered during execution. Review logs for details."
+        if ($script:EnterpriseIISMetrics.Errors.Count -gt 0) {
+            $reportData.Recommendations += "⚠️ OPERATION ERRORS: $($script:EnterpriseIISMetrics.Errors.Count) errors encountered during execution. Review logs for details."
         }
 
         # Generate formatted report
@@ -689,10 +733,10 @@ $($reportData.Recommendations | ForEach-Object { "   $_`n" })
 ╚═══════════════════════════════════════════════════════════════╝
 "@
 
-        Write-Host $reportText -ForegroundColor White
+        Write-IISStatus $reportText
 
         # Save report if output path specified
-        if ($OutputPath) {
+        if ($OutputPath -and $PSCmdlet.ShouldProcess($OutputPath, "Write IIS management report files")) {
             $reportFile = Join-Path $OutputPath "IIS-LogManagement-Report-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
             $reportText | Out-File -FilePath $reportFile -Encoding UTF8
 
@@ -700,9 +744,9 @@ $($reportData.Recommendations | ForEach-Object { "   $_`n" })
             $jsonFile = $reportFile -replace '\.txt$', '.json'
             $reportData | ConvertTo-Json -Depth 10 | Out-File -FilePath $jsonFile -Encoding UTF8
 
-            Write-Host "📄 Reports saved to:" -ForegroundColor Green
-            Write-Host "   Text: $reportFile" -ForegroundColor White
-            Write-Host "   JSON: $jsonFile" -ForegroundColor White
+            Write-IISStatus "📄 Reports saved to:"
+            Write-IISStatus "   Text: $reportFile"
+            Write-IISStatus "   JSON: $jsonFile"
         }
 
         Write-EnterpriseLog -Level "Success" -Message "Enterprise report generated" -Category "Reporting" -Properties @{
@@ -723,442 +767,95 @@ $($reportData.Recommendations | ForEach-Object { "   $_`n" })
 # ====================================================================
 
 # Main Enterprise Execution
-if ($UseEnterpriseMode) {
-    try {
-        Write-Host "🚀 Starting Enterprise IIS Log Management System..." -ForegroundColor Green
-        Write-Host "   Version: $($MyInvocation.MyCommand.Version)" -ForegroundColor White
-        Write-Host "   Mode: Enterprise" -ForegroundColor White
-        Write-Host "   User: $env:USERNAME@$env:USERDOMAIN" -ForegroundColor White
-        Write-Host "   Computer: $env:COMPUTERNAME" -ForegroundColor White
-        Write-Host "" -ForegroundColor White
+try {
+        if (-not (Test-Path -Path $script:ReportPath)) {
+            New-Item -Path $script:ReportPath -ItemType Directory -Force | Out-Null
+        }
+
+        Write-IISStatus "🚀 Starting Enterprise IIS Log Management System..."
+        Write-IISStatus "   Version: $($MyInvocation.MyCommand.Version)"
+        Write-IISStatus "   Mode: Enterprise"
+        Write-IISStatus "   User: $env:USERNAME@$env:USERDOMAIN"
+        Write-IISStatus "   Computer: $env:COMPUTERNAME"
+        Write-IISStatus ""
 
         # Initialize enterprise framework
-        Initialize-EnterpriseIISFramework
-        $Global:EnterpriseIISMetrics.StartTime = Get-Date
+        if (Get-Command Initialize-EnterpriseIISFramework -ErrorAction SilentlyContinue) {
+            Initialize-EnterpriseIISFramework
+        }
+        $script:EnterpriseIISMetrics.StartTime = Get-Date
 
         # Security validation
-        if ($EnableSecurityValidation) {
-            Write-Host "🔒 Performing security validation..." -ForegroundColor Yellow
-            $securityResults = Test-EnterpriseIISPermissions -LogPath $LogPath
+        if ($script:LogPaths.Count -gt 0) {
+            Write-IISStatus "🔒 Performing security validation..."
+            $securityResults = Test-EnterpriseIISPermission -LogPaths $script:LogPaths
 
             if (-not $securityResults.IsValid) {
-                Write-Host "❌ Security validation failed. See recommendations above." -ForegroundColor Red
+                Write-IISStatus "❌ Security validation failed. See recommendations above."
                 Write-EnterpriseLog -Level "Critical" -Message "Security validation failed" -Category "Security"
                 return
             }
-            Write-Host "✅ Security validation passed" -ForegroundColor Green
+            Write-IISStatus "✅ Security validation passed"
         }
 
         # Process each server/log path
-        $logPaths = if ($LogPath.Contains(",")) { $LogPath.Split(",").Trim() } else { @($LogPath) }
+        $logPaths = $script:LogPaths
+        if (-not $logPaths -or $logPaths.Count -eq 0) {
+            throw "At least one log path must be supplied via -LogPaths."
+        }
 
         foreach ($currentLogPath in $logPaths) {
-            Write-Host "🖥️  Processing server log path: $currentLogPath" -ForegroundColor Cyan
-            $Global:EnterpriseIISMetrics.ServersProcessed++
+            Write-IISStatus "🖥️  Processing server log path: $currentLogPath"
+            $script:EnterpriseIISMetrics.ServersProcessed++
 
             # Validate log path exists
             if (-not (Test-Path $currentLogPath)) {
-                Write-Host "   ⚠️  Log path not found: $currentLogPath" -ForegroundColor Yellow
-                $Global:EnterpriseIISMetrics.Errors += "Log path not found: $currentLogPath"
+                Write-IISStatus "   ⚠️  Log path not found: $currentLogPath"
+                $script:EnterpriseIISMetrics.Errors += "Log path not found: $currentLogPath"
                 continue
             }
 
             # Advanced log analysis
             $analysisResults = $null
-            if ($EnableThreatDetection -or $EnableComplianceMode) {
-                $analysisResults = Get-EnterpriseIISLogAnalysis -LogPath $currentLogPath -EnableThreatDetection:$EnableThreatDetection -EnableCompliance:$EnableComplianceMode
+            if ($script:EnableAnalytics -or $script:EnableThreatDetection -or $script:EnableCompliance) {
+                $analysisResults = Get-EnterpriseIISLogAnalysis -LogPath $currentLogPath -EnableThreatDetection:$script:EnableThreatDetection -EnableCompliance:$script:EnableCompliance
             }
 
             # Log compression
-            $compressionResults = $null
-            if ($EnableCompression) {
-                $compressionResults = Invoke-EnterpriseLogCompression -LogPath $currentLogPath -ArchivePath $ArchivePath -RetentionDays $RetentionDays -CompressionLevel $CompressionLevel
-            }
+            $compressionResults = Invoke-EnterpriseLogCompression -LogPath $currentLogPath -ArchivePath $script:ArchivePath -RetentionDays $script:RetentionDays -CompressionLevel $script:CompressionLevel
 
-            Write-Host "   ✅ Completed processing: $currentLogPath" -ForegroundColor Green
+            Write-IISStatus "   ✅ Completed processing: $currentLogPath"
         }
 
         # Generate comprehensive report
-        $finalReport = New-EnterpriseIISReport -AnalysisResults $analysisResults -CompressionResults $compressionResults -OutputPath $ReportOutputPath
+        $null = New-EnterpriseIISReport -AnalysisResults $analysisResults -CompressionResults $compressionResults -OutputPath $script:ReportPath
 
         # Send notifications if configured
-        if ($NotificationEmail) {
+        if ($script:NotificationEmail) {
             try {
                 $mailParams = @{
-                    To = $NotificationEmail
+                    To = $script:NotificationEmail
                     Subject = "Enterprise IIS Log Management Report - $env:COMPUTERNAME"
                     Body = "Enterprise IIS log management completed. See attached report for details."
-                    SmtpServer = "smtp.company.local"  # Customize as needed
+                    SmtpServer = $script:SmtpServer
                 }
                 Send-MailMessage @mailParams
-                Write-Host "📧 Notification sent to: $NotificationEmail" -ForegroundColor Green
+                Write-IISStatus "📧 Notification sent to: $($script:NotificationEmail)"
             } catch {
-                Write-Host "⚠️  Failed to send notification: $($_.Exception.Message)" -ForegroundColor Yellow
+                Write-IISStatus "⚠️  Failed to send notification: $($_.Exception.Message)"
             }
         }
 
-        Write-Host "" -ForegroundColor White
-        Write-Host "🎉 Enterprise IIS Log Management completed successfully!" -ForegroundColor Green
-        Write-Host "   Total execution time: $([math]::Round(((Get-Date) - $Global:EnterpriseIISMetrics.StartTime).TotalSeconds, 2)) seconds" -ForegroundColor White
+        Write-IISStatus ""
+        Write-IISStatus "🎉 Enterprise IIS Log Management completed successfully!"
+        Write-IISStatus "   Total execution time: $([math]::Round(((Get-Date) - $script:EnterpriseIISMetrics.StartTime).TotalSeconds, 2)) seconds"
         Write-EnterpriseLog -Level "Success" -Message "Enterprise IIS log management completed successfully" -Category "Execution"
 
     } catch {
-        Write-Host "" -ForegroundColor White
-        Write-Host "❌ Enterprise execution failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-IISStatus ""
+        Write-IISStatus "❌ Enterprise execution failed: $($_.Exception.Message)"
         Write-EnterpriseLog -Level "Critical" -Message "Enterprise execution failed" -Category "Execution" -Exception $_
         throw
     }
 
-    return  # Exit enterprise mode execution
-}
-
-# ====================================================================
-# LEGACY EXECUTION MODE (Original Script Logic)
-# ====================================================================
-
-Write-Host "ℹ️  Running in Legacy Mode (original script functionality)" -ForegroundColor Yellow
-
-Copyright (c) 2015 Paul Cunningham
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Change Log
-V1.00, 7/04/2014, Initial version
-V1.01, 8/08/2015, Fix for regional date format issues, Zip file locking issues.
-V1.02, 25/08/2015, Fixed typo in a variable
-#>
-
-
-[CmdletBinding()]
-param (
-	[Parameter( Mandatory=$true)]
-	[string]$Logpath,
-
-    [Parameter( Mandatory=$false)]
-    [string]$ArchivePath
-	)
-
-
-#-------------------------------------------------
-#  Variables
-#-------------------------------------------------
-
-$sleepinterval = 5
-
-$computername = $env:computername
-
-$now = Get-Date
-$currentmonth = ($now).Month
-$currentyear = ($now).Year
-$previousmonth = ((Get-Date).AddMonths(-1)).Month
-$firstdayofpreviousmonth = (Get-Date -Year $currentyear -Month $currentmonth -Day 1).AddMonths(-1)
-
-$myDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$output = "$myDir\IISLogsCleanup.log"
-$logpathfoldername = $logpath.Split("\")[-1]
-
-#...................................
-# Logfile Strings
-#...................................
-
-$logstring0 = "====================================="
-$logstring1 = " IIS Log File Cleanup Script"
-
-
-#-------------------------------------------------
-#  Functions
-#-------------------------------------------------
-
-#This function is used to write the log file for the script
-Function Write-Logfile()
-{
-	param( $logentry )
-	$timestamp = Get-Date -DisplayHint Time
-	"$timestamp $logentry" | Out-File $output -Append
-}
-
-# This function is to test the completion of the async CopyHere method
-# Function provided by Alain Arnould
-function IsFileLocked( [string]$path)
-{
-    If ([string]::IsNullOrEmpty($path) -eq $true) {
-        Throw “The path must be specified.”
-    }
-
-    [bool] $fileExists = Test-Path $path
-
-    If ($fileExists -eq $false) {
-        Throw “File does not exist (” + $path + “)”
-    }
-
-    [bool] $isFileLocked = $true
-
-    $file = $null
-
-    Try
-    {
-        $file = [IO.File]::Open($path,
-                        [IO.FileMode]::Open,
-                        [IO.FileAccess]::Read,
-                        [IO.FileShare]::None)
-
-        $isFileLocked = $false
-    }
-    Catch [IO.IOException]
-    {
-        If ($_.Exception.Message.EndsWith(“it is being used by another process.”) -eq $false)
-        {
-            # Throw $_.Exception
-            [bool] $isFileLocked = $true
-        }
-    }
-    Finally
-    {
-        If ($file -ne $null)
-        {
-            $file.Close()
-        }
-    }
-
-    return $isFileLocked
-}
-
-
-#-------------------------------------------------
-#  Script
-#-------------------------------------------------
-
-#Log file is overwritten each time the script is run to avoid
-#very large log files from growing over time
-
-$timestamp = Get-Date -DisplayHint Time
-"$timestamp $logstring0" | Out-File $output
-Write-Logfile $logstring1
-Write-Logfile "  $now"
-Write-Logfile $logstring0w
-
-
-#Check whether IIS Logs path exists, exit if it does not
-if ((Test-Path $Logpath) -ne $true)
-{
-    $tmpstring = "Log path $logpath not found"
-    Write-Warning $tmpstring
-    Write-Logfile $tmpstring
-    EXIT
-}
-
-
-$tmpstring = "Current Month: $currentmonth"
-Write-Host $tmpstring
-Write-Logfile $tmpstring
-
-$tmpstring = "Previous Month: $previousmonth"
-Write-Host $tmpstring
-Write-Logfile $tmpstring
-
-$tmpstring = "First Day of Previous Month: $firstdayofpreviousmonth"
-Write-Host $tmpstring
-Write-Logfile $tmpstring
-
-#Fetch list of log files older than 1st day of previous month
-$logstoremove = Get-ChildItem -Path "$($Logpath)\*.*" -Include *.log | Where {$_.CreationTime -lt $firstdayofpreviousmonth -and $_.PSIsContainer -eq $false}
-
-if ($($logstoremove.Count) -eq $null)
-{
-    $logcount = 0
-}
-else
-{
-    $logcount = $($logstoremove.Count)
-}
-
-$tmpstring = "Found $logcount logs earlier than $firstdayofpreviousmonth"
-Write-Host $tmpstring
-Write-Logfile $tmpstring
-
-#Init a hashtable to store list of log files
-$hashtable = @{}
-
-#Add each logfile to hashtable
-foreach ($logfile in $logstoremove)
-{
-    $zipdate = $logfile.LastWriteTime.ToString("yyyy-MM")
-    $hashtable.Add($($logfile.FullName),"$zipdate")
-}
-
-#Calculate unique yyyy-MM dates from logfiles in hashtable
-$hashtable = $hashtable.GetEnumerator() | Sort-Object Value
-$dates = @($hashtable | Group-Object -Property:Value | Select-Object Name)
-
-#For each yyyy-MM date add those logfiles to a zip file
-foreach ($date in $dates)
-{
-    $zipfilename = "$Logpath\$computername-$logpathfoldername-$($date.Name).zip"
-
-    if(-not (test-path($zipfilename)))
-    {
-        set-content $zipfilename ("PK" + [char]5 + [char]6 + ("$([char]0)" * 18))
-        (Get-ChildItem $zipfilename).IsReadOnly = $false
-    }
-
-    $shellApplication = new-object -com shell.application
-    $zipPackage = $shellApplication.NameSpace($zipfilename)
-
-    $zipfiles = $hashtable | Where {$_.Value -eq "$($date.Name)"}
-
-    $tmpstring = "Zip file name is $zipfilename and will contain $($zipfiles.Count) files"
-    Write-Host $tmpstring
-    Write-Logfile $tmpstring
-
-    foreach($file in $zipfiles)
-    {
-        $fn = $file.key.ToString()
-
-        $tmpstring = "Adding $fn to $zipfilename"
-        Write-Host $tmpstring
-        Write-Logfile $tmpstring
-
-        $zipPackage.CopyHere($fn,16)
-
-        #This sleep interval helps avoids file lock/conflict issues. May need to increase if larger
-        #log files are taking longer to add to the zip file.
-        do
-        {
-            Start-sleep -s $sleepinterval
-        }
-        while (IsFileLocked($zipfilename))
-    }
-
-    #Compare count of log files on disk to count of log files in zip file
-    $zippedcount = ($zipPackage.Items()).Count
-
-    $tmpstring = "Zipped count: $zippedcount"
-    Write-Host $tmpstring
-    Write-Logfile $tmpstring
-
-    $tmpstring = "Files: $($zipfiles.Count)"
-    Write-Host $tmpstring
-    Write-Logfile $tmpstring
-
-    #If counts match it is safe to delete the log files from disk
-    if ($zippedcount -eq $($zipfiles.Count))
-    {
-        $tmpstring = "Zipped file count matches log file count, safe to delete log files"
-        Write-Host $tmpstring
-        Write-Logfile $tmpstring
-        foreach($file in $zipfiles)
-        {
-            $fn = $file.key.ToString()
-            Remove-Item $fn
-        }
-
-        #If archive path was specified move zip file to archive path
-        if ($ArchivePath)
-        {
-            #Check whether archive path is accessible
-            if ((Test-Path $ArchivePath) -ne $true)
-            {
-                $tmpstring = "Log path $archivepath not found or inaccessible"
-                Write-Warning $tmpstring
-                Write-Logfile $tmpstring
-            }
-            else
-            {
-                #Check if subfolder of archive path exists
-                if ((Test-Path $ArchivePath\$computername) -ne $true)
-                {
-                    try
-                    {
-                        #Create subfolder based on server name
-                        New-Item -Path $ArchivePath\$computername -ItemType Directory -ErrorAction STOP
-                    }
-                    catch
-                    {
-                        #Subfolder creation failed
-                        $tmpstring = "Unable to create $computername subfolder in $archivepath"
-                        Write-Host $tmpstring
-                        Write-Logfile $tmpstring
-
-                        $tmpstring = $_.Exception.Message
-                        Write-Warning $tmpstring
-                        Write-Logfile $tmpstring
-                    }
-                }
-
-                if ((Test-Path $ArchivePath\$computername\$logpathfoldername) -ne $true)
-                {
-                    try
-                    {
-                        #create subfolder based on log path folder name
-                        New-Item -Path $ArchivePath\$computername\$logpathfoldername -ItemType Directory -ErrorAction STOP
-                    }
-                    catch
-                    {
-                        #Subfolder creation failed
-                        $tmpstring = "Unable to create $logpathfoldername subfolder in $archivepath\$computername"
-                        Write-Host $tmpstring
-                        Write-Logfile $tmpstring
-
-                        $tmpstring = $_.Exception.Message
-                        Write-Warning $tmpstring
-                        Write-Logfile $tmpstring
-                    }
-                }
-
-                #Now move the zip file to the archive path
-                try
-                {
-                    #Move the zip file
-                    Move-Item $zipfilename -Destination $ArchivePath\$computername\$logpathfoldername -ErrorAction STOP
-                    $tmpstring = "$zipfilename was moved to $archivepath\$computername\$logpathfoldername"
-                    Write-Host $tmpstring
-                    Write-Logfile $tmpstring
-                }
-                catch
-                {
-                    #Move failed, log the error
-                    $tmpstring = "Unable to move $zipfilename to $ArchivePath\$computername\$logpathfoldername"
-                    Write-Host $tmpstring
-                    Write-Logfile $tmpstring
-                    Write-Warning $_.Exception.Message
-                    Write-Logfile $_.Exception.Message
-                }
-            }
-        }
-
-    }
-    else
-    {
-        $tmpstring = "Zipped file count does not match log file count, not safe to delete log files"
-        Write-Host $tmpstring
-        Write-Logfile $tmpstring
-    }
-
-}
-
-
-#Finished
-$tmpstring = "Finished"
-Write-Host $tmpstring
-Write-Logfile $tmpstring
-
-
-#...................................
-# Finished
-#...................................
+return

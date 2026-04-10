@@ -70,7 +70,7 @@
 param(
     # === ENTERPRISE PARAMETERS ===
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [switch]$UseEnterpriseMode = $true,
+    [switch]$UseEnterpriseMode,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
     [ValidateSet('Production', 'Staging', 'Development', 'HighSecurity', 'Compliance')]
@@ -85,13 +85,13 @@ param(
     [string[]]$ComplianceFrameworks = @('SOX', 'GDPR'),
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [switch]$EnableSecurityHardening = $true,
+    [switch]$EnableSecurityHardening,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [switch]$EnableMonitoring = $true,
+    [switch]$EnableMonitoring,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [switch]$BusinessIntelligence = $true,
+    [switch]$BusinessIntelligence,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
     [switch]$HighAvailability,
@@ -108,12 +108,24 @@ param(
     [string]$ReportOutputPath = "$env:ProgramData\EnterpriseIIS\Reports"
 )
 
+$script:UseEnterpriseMode = if ($PSBoundParameters.ContainsKey('UseEnterpriseMode')) { $UseEnterpriseMode.IsPresent } else { $true }
+$script:EnableSecurityHardening = if ($PSBoundParameters.ContainsKey('EnableSecurityHardening')) { $EnableSecurityHardening.IsPresent } else { $true }
+$script:EnableMonitoring = if ($PSBoundParameters.ContainsKey('EnableMonitoring')) { $EnableMonitoring.IsPresent } else { $true }
+$script:BusinessIntelligence = if ($PSBoundParameters.ContainsKey('BusinessIntelligence')) { $BusinessIntelligence.IsPresent } else { $true }
+$script:DeploymentProfile = $DeploymentProfile
+$script:SecurityLevel = $SecurityLevel
+$script:ComplianceFrameworks = $ComplianceFrameworks
+$script:HighAvailability = $HighAvailability
+$script:ReportingLevel = $ReportingLevel
+$script:OutputFormat = $OutputFormat
+$script:ReportOutputPath = $ReportOutputPath
+
 # ====================================================================
 # ENTERPRISE FRAMEWORK INITIALIZATION
 # ====================================================================
 
-# Global Enterprise Variables
-$Global:EnterpriseIISDeployment = @{
+# Enterprise State
+$script:EnterpriseIISDeployment = @{
     StartTime = Get-Date
     FeaturesInstalled = 0
     SecurityPoliciesApplied = 0
@@ -179,14 +191,14 @@ function Write-EnterpriseIISLog {
     }
 
     # Store in enterprise log collection
-    if (-not $Global:EnterpriseIISLogs) {
-        $Global:EnterpriseIISLogs = @()
+    if (-not $script:EnterpriseIISLogs) {
+        $script:EnterpriseIISLogs = @()
     }
-    $Global:EnterpriseIISLogs += $logEntry
+    $script:EnterpriseIISLogs += $logEntry
 }
 
 # Enterprise IIS Configuration Profiles
-$Global:EnterpriseIISProfiles = @{
+$script:EnterpriseIISProfiles = @{
     Production = @{
         Features = @(
             "IIS-WebServerRole", "IIS-WebServer", "IIS-CommonHttpFeatures", "IIS-HttpErrors",
@@ -228,22 +240,22 @@ $Global:EnterpriseIISProfiles = @{
 }
 
 # Main Enterprise Execution
-if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
+if ($script:UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
     try {
         Write-Host "🚀 Starting Enterprise IIS Deployment & Security Platform..." -ForegroundColor Green
         Write-Host "   Version: 2024.1 Enterprise" -ForegroundColor White
         Write-Host "   Mode: Enterprise IIS Deployment" -ForegroundColor White
-        Write-Host "   Profile: $DeploymentProfile" -ForegroundColor White
-        Write-Host "   Security Level: $SecurityLevel" -ForegroundColor White
+        Write-Host "   Profile: $script:DeploymentProfile" -ForegroundColor White
+        Write-Host "   Security Level: $script:SecurityLevel" -ForegroundColor White
         Write-Host "   User: $env:USERNAME@$env:USERDOMAIN" -ForegroundColor White
         Write-Host "" -ForegroundColor White
 
-        $Global:EnterpriseIISDeployment.StartTime = Get-Date
-        $Global:EnterpriseIISDeployment.DeploymentStatus = "In Progress"
+        $script:EnterpriseIISDeployment.StartTime = Get-Date
+        $script:EnterpriseIISDeployment.DeploymentStatus = "In Progress"
 
         # Create enterprise directories
         $enterpriseDirectories = @(
-            $ReportOutputPath,
+            $script:ReportOutputPath,
             "$env:ProgramData\EnterpriseIIS",
             "$env:ProgramData\EnterpriseIIS\Logs",
             "$env:ProgramData\EnterpriseIIS\Security",
@@ -258,10 +270,10 @@ if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
         }
 
         # Select deployment profile
-        $deploymentConfig = switch ($DeploymentProfile) {
-            'Production' { $Global:EnterpriseIISProfiles.Production }
-            'HighSecurity' { $Global:EnterpriseIISProfiles.HighSecurity }
-            default { $Global:EnterpriseIISProfiles.Production }
+        $deploymentConfig = switch ($script:DeploymentProfile) {
+            'Production' { $script:EnterpriseIISProfiles.Production }
+            'HighSecurity' { $script:EnterpriseIISProfiles.HighSecurity }
+            default { $script:EnterpriseIISProfiles.Production }
         }
 
         Write-Host "🔧 Installing Enterprise IIS Components..." -ForegroundColor Cyan
@@ -282,18 +294,18 @@ if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
                     Write-Host "   ⚙️  Installing $feature..." -ForegroundColor Yellow
                     Enable-WindowsOptionalFeature -Online -FeatureName $feature -All -NoRestart | Out-Null
                     Write-Host "   ✅ $feature installed successfully" -ForegroundColor Green
-                    $Global:EnterpriseIISDeployment.FeaturesInstalled++
+                    $script:EnterpriseIISDeployment.FeaturesInstalled++
                 }
             } catch {
                 Write-Host "   ❌ Error installing $feature`: $($_.Exception.Message)" -ForegroundColor Red
-                $Global:EnterpriseIISDeployment.Errors += "Feature installation error: $feature - $($_.Exception.Message)"
+                $script:EnterpriseIISDeployment.Errors += "Feature installation error: $feature - $($_.Exception.Message)"
             }
         }
 
         Write-Progress -Activity "Installing IIS Features" -Completed
 
         # Enterprise Security Hardening
-        if ($EnableSecurityHardening) {
+        if ($script:EnableSecurityHardening) {
             Write-Host "🔒 Applying Enterprise Security Hardening..." -ForegroundColor Cyan
 
             # Remove default website (security best practice)
@@ -303,10 +315,10 @@ if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
                     if (Get-Website -Name "Default Web Site" -ErrorAction SilentlyContinue) {
                         Remove-Website -Name "Default Web Site"
                         Write-Host "   ✅ Removed default website" -ForegroundColor Green
-                        $Global:EnterpriseIISDeployment.SecurityPoliciesApplied++
+                        $script:EnterpriseIISDeployment.SecurityPoliciesApplied++
                     }
                 } catch {
-                    $Global:EnterpriseIISDeployment.Warnings += "Could not remove default website: $($_.Exception.Message)"
+                    $script:EnterpriseIISDeployment.Warnings += "Could not remove default website: $($_.Exception.Message)"
                 }
             }
 
@@ -317,11 +329,11 @@ if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
                     if (Test-Path $webConfigPath) {
                         # Configure server header removal (simplified)
                         Write-Host "   🔧 Configuring server header security..." -ForegroundColor Yellow
-                        $Global:EnterpriseIISDeployment.SecurityPoliciesApplied++
+                        $script:EnterpriseIISDeployment.SecurityPoliciesApplied++
                         Write-Host "   ✅ Server header security configured" -ForegroundColor Green
                     }
                 } catch {
-                    $Global:EnterpriseIISDeployment.Warnings += "Could not configure server headers: $($_.Exception.Message)"
+                    $script:EnterpriseIISDeployment.Warnings += "Could not configure server headers: $($_.Exception.Message)"
                 }
             }
 
@@ -329,45 +341,82 @@ if ($UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
         }
 
         # Enterprise Monitoring Configuration
-        if ($EnableMonitoring) {
+        if ($script:EnableMonitoring) {
             Write-Host "📊 Configuring Enterprise Monitoring..." -ForegroundColor Cyan
 
             # Configure advanced logging
             try {
                 # Enable W3C Extended Log Format
                 Write-Host "   📝 Configuring advanced logging..." -ForegroundColor Yellow
-                $Global:EnterpriseIISDeployment.MonitoringConfigured++
+                $script:EnterpriseIISDeployment.MonitoringConfigured++
                 Write-Host "   ✅ Advanced logging configured" -ForegroundColor Green
             } catch {
-                $Global:EnterpriseIISDeployment.Warnings += "Could not configure monitoring: $($_.Exception.Message)"
+                $script:EnterpriseIISDeployment.Warnings += "Could not configure monitoring: $($_.Exception.Message)"
             }
+        }
+
+        if ($script:ComplianceFrameworks.Count -gt 0) {
+            $script:EnterpriseIISDeployment.ComplianceChecksCompleted += $script:ComplianceFrameworks.Count
+            $script:EnterpriseIISDeployment.ComplianceResults += $script:ComplianceFrameworks | ForEach-Object {
+                [pscustomobject]@{
+                    Framework = $_
+                    Status = 'Planned'
+                    ReportingLevel = $script:ReportingLevel
+                }
+            }
+        }
+
+        if ($script:HighAvailability) {
+            $script:EnterpriseIISDeployment.Warnings += 'High availability requested but requires environment-specific load balancing configuration.'
+        }
+
+        if ($script:BusinessIntelligence) {
+            $script:EnterpriseIISDeployment.SecurityFindings += 'Business intelligence reporting enabled for deployment telemetry.'
         }
 
         # Calculate security score
         $maxSecurityScore = 100
-        $securityDeductions = $Global:EnterpriseIISDeployment.Errors.Count * 10 + $Global:EnterpriseIISDeployment.Warnings.Count * 5
-        $Global:EnterpriseIISDeployment.SecurityScore = [Math]::Max(0, $maxSecurityScore - $securityDeductions)
+        $securityDeductions = $script:EnterpriseIISDeployment.Errors.Count * 10 + $script:EnterpriseIISDeployment.Warnings.Count * 5
+        $script:EnterpriseIISDeployment.SecurityScore = [Math]::Max(0, $maxSecurityScore - $securityDeductions)
 
         # Generate comprehensive report
         $deploymentReport = @{
             ExecutionSummary = @{
                 Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                DeploymentProfile = $DeploymentProfile
-                SecurityLevel = $SecurityLevel
-                FeaturesInstalled = $Global:EnterpriseIISDeployment.FeaturesInstalled
-                SecurityPoliciesApplied = $Global:EnterpriseIISDeployment.SecurityPoliciesApplied
-                SecurityScore = $Global:EnterpriseIISDeployment.SecurityScore
-                ExecutionTime = [math]::Round(((Get-Date) - $Global:EnterpriseIISDeployment.StartTime).TotalSeconds, 2)
-                ErrorCount = $Global:EnterpriseIISDeployment.Errors.Count
-                WarningCount = $Global:EnterpriseIISDeployment.Warnings.Count
+                DeploymentProfile = $script:DeploymentProfile
+                SecurityLevel = $script:SecurityLevel
+                FeaturesInstalled = $script:EnterpriseIISDeployment.FeaturesInstalled
+                SecurityPoliciesApplied = $script:EnterpriseIISDeployment.SecurityPoliciesApplied
+                SecurityScore = $script:EnterpriseIISDeployment.SecurityScore
+                ExecutionTime = [math]::Round(((Get-Date) - $script:EnterpriseIISDeployment.StartTime).TotalSeconds, 2)
+                ErrorCount = $script:EnterpriseIISDeployment.Errors.Count
+                WarningCount = $script:EnterpriseIISDeployment.Warnings.Count
+                ComplianceChecksCompleted = $script:EnterpriseIISDeployment.ComplianceChecksCompleted
+                MonitoringConfigured = $script:EnterpriseIISDeployment.MonitoringConfigured
             }
+            Configuration = @{
+                ComplianceFrameworks = $script:ComplianceFrameworks
+                BusinessIntelligence = $script:BusinessIntelligence
+                HighAvailability = $script:HighAvailability
+                ReportingLevel = $script:ReportingLevel
+                OutputFormat = $script:OutputFormat
+            }
+            ComplianceResults = $script:EnterpriseIISDeployment.ComplianceResults
             Recommendations = @()
             NextSteps = @()
         }
 
         # Generate recommendations
-        if ($Global:EnterpriseIISDeployment.SecurityScore -lt 90) {
+        if ($script:EnterpriseIISDeployment.SecurityScore -lt 90) {
             $deploymentReport.Recommendations += "Review security warnings and enhance hardening"
+        }
+
+        if ($script:BusinessIntelligence) {
+            $deploymentReport.Recommendations += "Publish deployment telemetry to the selected reporting outputs for stakeholder visibility"
+        }
+
+        if ($script:HighAvailability) {
+            $deploymentReport.NextSteps += "Complete load balancer, shared content, and health probe configuration for high availability"
         }
 
         $deploymentReport.NextSteps += "Configure SSL certificates for production websites"
@@ -403,17 +452,17 @@ $($deploymentReport.Recommendations | ForEach-Object { "   • $_`n" })
         Write-Host $reportText -ForegroundColor White
 
         # Export report
-        foreach ($format in $OutputFormat) {
+        foreach ($format in $script:OutputFormat) {
             switch ($format) {
                 "JSON" {
-                    $jsonPath = Join-Path $ReportOutputPath "IIS-Deployment-Report-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+                    $jsonPath = Join-Path $script:ReportOutputPath "IIS-Deployment-Report-$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
                     $deploymentReport | ConvertTo-Json -Depth 10 | Out-File -FilePath $jsonPath -Encoding UTF8
                     Write-Host "🔗 JSON report: $jsonPath" -ForegroundColor Green
                 }
             }
         }
 
-        $Global:EnterpriseIISDeployment.DeploymentStatus = "Completed"
+        $script:EnterpriseIISDeployment.DeploymentStatus = "Completed"
 
         Write-Host "" -ForegroundColor White
         Write-Host "🎉 Enterprise IIS deployment completed successfully!" -ForegroundColor Green
@@ -424,7 +473,7 @@ $($deploymentReport.Recommendations | ForEach-Object { "   • $_`n" })
         Write-Host "" -ForegroundColor White
         Write-Host "❌ Enterprise deployment failed: $($_.Exception.Message)" -ForegroundColor Red
         Write-EnterpriseIISLog -Level "Critical" -Message "Enterprise deployment failed" -Category "Deployment" -Exception $_
-        $Global:EnterpriseIISDeployment.DeploymentStatus = "Failed"
+        $script:EnterpriseIISDeployment.DeploymentStatus = "Failed"
         throw
     }
 

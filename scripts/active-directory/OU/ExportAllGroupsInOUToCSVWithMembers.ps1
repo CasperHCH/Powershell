@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+Exports groups in an OU along with their members.
+
+.DESCRIPTION
+Creates an output folder structure for each group in the specified OU and writes
+group metadata and member display names to text files for review.
+#>
+
 # Exports all groups in an OU to separate files for each group with the group name and description.
 param(
     [string]$DistinguishedName,
@@ -12,16 +21,16 @@ if (!$DistinguishedName) {
 
 try {
     $groups = Get-ADGroup -filter * -SearchBase $DistinguishedName
-    Write-Host "Found $($groups.Count) groups in OU" -ForegroundColor Green
+    Write-Information "Found $($groups.Count) groups in OU" -InformationAction Continue
 
     $PathExist = $OutputPath
-    Write-Host "Creating output directory: $PathExist" -ForegroundColor Cyan
+    Write-Information "Creating output directory: $PathExist" -InformationAction Continue
     If(!(Test-Path $PathExist)) {
         New-Item -ItemType Directory -Force -Path $PathExist
     }
 
     ForEach ($g in $groups) {
-        Write-Host "Processing group: $($g.Name)" -ForegroundColor Yellow
+        Write-Information "Processing group: $($g.Name)" -InformationAction Continue
 
         $groupDir = Join-Path $PathExist $g.Name
         New-Item -ItemType Directory -Force -Path $groupDir | Out-Null
@@ -38,14 +47,14 @@ try {
             ForEach ($r in $results) {
                 "$($r.displayname)" | Out-File $path -Append
             }
-            Write-Host "Exported $($results.Count) members for group $($g.Name)" -ForegroundColor Green
+            Write-Information "Exported $($results.Count) members for group $($g.Name)" -InformationAction Continue
         } catch {
             "No members found or error accessing members" | Out-File $path -Append
             Write-Warning "Could not retrieve members for group $($g.Name): $($_.Exception.Message)"
         }
     }
 
-    Write-Host "Export completed. Files saved to: $PathExist" -ForegroundColor Green
+    Write-Information "Export completed. Files saved to: $PathExist" -InformationAction Continue
 } catch {
     Write-Error "Error: $($_.Exception.Message)"
 }

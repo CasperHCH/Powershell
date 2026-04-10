@@ -89,8 +89,9 @@ param(
 
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogPath = Join-Path $PSScriptRoot "Get-EpmUnifiedInventory.log"
+$script:OrganizationDomain = $OrganizationDomain
 
-function Write-Log {
+function Write-EpmLog {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Message,
@@ -106,8 +107,8 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $displayMessage = $Message
 
-    if ($OrganizationDomain) {
-        $displayMessage = $displayMessage -replace [regex]::Escape($OrganizationDomain), "[DOMAIN]"
+    if ($script:OrganizationDomain) {
+        $displayMessage = $displayMessage -replace [regex]::Escape($script:OrganizationDomain), "[DOMAIN]"
     }
 
     $line = "[$timestamp] [$script:SessionId] [$Level] $displayMessage"
@@ -144,7 +145,7 @@ function Write-AuditLog {
         AdditionalData = $AdditionalData
     }
 
-    Write-Log -Message ($entry | ConvertTo-Json -Compress) -Level "AUDIT" -Sensitive
+    Write-EpmLog -Message ($entry | ConvertTo-Json -Compress) -Level "AUDIT" -Sensitive
 }
 
 function ConvertTo-PlainText {
@@ -230,11 +231,11 @@ function Get-RecordsFromCsv {
     }
 
     $rows = Import-Csv -Path $Path
-    Write-Log -Message "Loaded $($rows.Count) records from $Source CSV" -Level "INFO"
+    Write-EpmLog -Message "Loaded $($rows.Count) records from $Source CSV" -Level "INFO"
     return $rows
 }
 
-function Get-IvantiApiRecords {
+function Get-IvantiApiRecord {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ApiBaseUrl,
@@ -260,7 +261,7 @@ function Get-IvantiApiRecords {
     }
 }
 
-function Get-ZabbixApiRecords {
+function Get-ZabbixApiRecord {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ApiBaseUrl,
@@ -294,6 +295,7 @@ function Get-ZabbixApiRecords {
 }
 
 function Update-InventoryRecord {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [hashtable]$Inventory,
         [pscustomobject]$Normalized,
@@ -302,6 +304,10 @@ function Update-InventoryRecord {
 
     $key = Get-IdentityKey -SerialNumber $Normalized.SerialNumber -BiosUuid $Normalized.BiosUuid -HostName $Normalized.HostName
     if (-not $key) {
+        return
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($key, "Update inventory from $SourceName")) {
         return
     }
 
@@ -386,7 +392,7 @@ function ConvertTo-NormalizedRecord {
 }
 
 try {
-    Write-Log -Message "Starting unified inventory build. Mode=$Mode" -Level "INFO"
+    Write-EpmLog -Message "Starting unified inventory build. Mode=$Mode" -Level "INFO"
     Write-AuditLog -Action "UNIFIED_INVENTORY_START" -AdditionalData @{ Mode = $Mode }
 
     if (-not (Test-Path -Path $OutputPath)) {
@@ -411,10 +417,10 @@ try {
             throw "When Mode is Api, IvantiApiBaseUrl, IvantiApiToken, ZabbixApiBaseUrl, and ZabbixAuthToken are required."
         }
 
-        $ivantiRecords = Get-IvantiApiRecords -ApiBaseUrl $IvantiApiBaseUrl -Token $IvantiApiToken
-        $zabbixRecords = Get-ZabbixApiRecords -ApiBaseUrl $ZabbixApiBaseUrl -Token $ZabbixAuthToken
+        $ivantiRecords = Get-IvantiApiRecord -ApiBaseUrl $IvantiApiBaseUrl -Token $IvantiApiToken
+        $zabbixRecords = Get-ZabbixApiRecord -ApiBaseUrl $ZabbixApiBaseUrl -Token $ZabbixAuthToken
 
-        Write-Log -Message "SCCM API mode is not implemented in this MVP. Provide SCCM data by CSV for now." -Level "WARNING"
+        Write-EpmLog -Message "SCCM API mode is not implemented in this MVP. Provide SCCM data by CSV for now." -Level "WARNING"
         $sccmRecords = @()
     }
 
@@ -502,7 +508,7 @@ try {
     }
 }
 catch {
-    Write-Log -Message "Unified inventory failed: $($_.Exception.Message)" -Level "ERROR"
+    Write-EpmLog -Message "Unified inventory failed: $($_.Exception.Message)" -Level "ERROR"
     Write-AuditLog -Action "UNIFIED_INVENTORY_FAILED" -AdditionalData @{ Error = $_.Exception.Message }
     throw
 }

@@ -1,254 +1,152 @@
-#requires -version 4
+#requires -version 5.1
+
 <#
 .SYNOPSIS
-	<Overview of script>
+Resolves Azure AD user principal names from a CSV of email aliases.
+
 .DESCRIPTION
-	<Brief description of script>
-.PARAMETER UserList
-    A full path to a CSV containing the following fields;
-    Name, Mail, SamAccountName
-    An example of how to produce the list could be;
-    get-aduser -Filter {mail -like "*@domain1.com" -or mail -like "*@domain2.com"} -SearchBase "OU=Users,DC=domain,DC=com" -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
-.INPUTS
-	<Inputs if any, otherwise state None>
-.OUTPUTS
-	A log file, and a final CSV export of collected input; Name, Mail, SamAccountName and UPN.
-    Files will be located next to the script
-.NOTES
-  Version:        1.0
-  Author:         Casper Hjorth Christensen
-  Creation Date:  <Date>
-  Purpose/Change: Initial script development
-
-.EXAMPLE
-  <Example goes here. Repeat this attribute for more than one example>
+Imports a CSV containing Name, Mail, and SamAccountName columns, connects to
+Azure AD, resolves matching user principal names, and exports the results to CSV.
 #>
-#---------------------------------------------------------[Script Parameters]------------------------------------------------------
 
-Param (
-    #Script parameters go here
-    $UserList
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true, HelpMessage = 'Path to a CSV containing Mail, Name, and SamAccountName columns.')]
+    [ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+    [string]$UserList,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Optional output CSV path.')]
+    [string]$OutputPath = (Join-Path -Path $PSScriptRoot -ChildPath 'CollectUPNFromAliasEmail.csv'),
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Path to a reusable Azure AD sign-in file created with Export-Clixml.')]
+    [ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+    [string]$AzureAdAuthFilePath
 )
 
-#---------------------------------------------------------[Initialisations]--------------------------------------------------------
-#Enabled Logging with timestamps, error level etc..
-function Write-Log {
+$script:SessionId = [guid]::NewGuid().ToString('N').Substring(0, 8)
+$script:LogPath = Join-Path -Path $PSScriptRoot -ChildPath 'CollectUPNFromAliasEmail.log'
+
+function Write-ScriptLog {
     [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $False)]
-        [ValidateSet(, , , , )]
-        [String]
-        $Level = ,
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
 
-        [Parameter(Mandatory = $True)]
-        [string]
-        $Message,
-
-        [Parameter(Mandatory = $False)]
-        [string]
-        $logfile
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'AUDIT')]
+        [string]$Level = 'INFO'
     )
 
-    $Stamp = (Get-Date).toString()
-    $Line =
-    #If($logfile) {
-    Add-Content $slogfile -Value $Line -PassThru
-    #}
-    #Else {
-    #    Write-Output $Line
-    #}
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $entry = "[$timestamp] [$script:SessionId] [$Level] $Message"
+    Add-Content -Path $script:LogPath -Value $entry
+
+    if ($Level -eq 'ERROR') {
+        Write-Error $Message
+        return
+    }
+
+    if ($Level -eq 'WARNING') {
+        Write-Warning $Message
+        return
+    }
+
+    Write-Verbose $Message
 }
 
-#Set Error Action to Silently Continue
-$ErrorActionPreference = 'SilentlyContinue'
+function Connect-AzureAdIfNeeded {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$AzureAdAuthFilePath
+    )
 
-function Load-Module ($m) {
-    Write-Log -LogPath $sLogFile -TimeStamp -Message 'Import Modules'
-    Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-    # If module is imported say that and do nothing
-    if (Get-Module | Where-Object { $_.Name -eq $m }) {
-        Write-Host
-        Write-Log -LogPath $sLogFile -TimeStamp -Message
-        Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
+    Import-Module AzureAD -ErrorAction Stop
+
+    try {
+        $null = Get-AzureADTenantDetail -ErrorAction Stop
+        Write-ScriptLog -Message 'Reusing existing Azure AD session.'
+        return
+    }
+    catch {
+        Write-ScriptLog -Message 'No active Azure AD session found. Connecting now.'
+    }
+
+    if ($AzureAdAuthFilePath) {
+        $azureAdAuthData = Import-Clixml -Path $AzureAdAuthFilePath
+        Connect-AzureAD -Credential $azureAdAuthData -ErrorAction Stop | Out-Null
     }
     else {
-
-        # If module is not imported, but available on disk then import
-        if (Get-Module -ListAvailable | Where-Object { $_.Name -eq $m }) {
-            Import-Module $m -Verbose
-        }
-        else {
-
-            # If module is not imported, not available on disk, but is in online gallery then install and import
-            if (Find-Module -Name $m | Where-Object { $_.Name -eq $m }) {
-                Install-Module -Name $m -Force -Verbose -Scope CurrentUser
-                Import-Module $m -Verbose
-                Write-Log -LogPath $sLogFile -TimeStamp -Message 'Module not found, install started'
-                Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-            }
-            else {
-
-                # If the module is not imported, not available and not in the online gallery then abort
-                Write-Host
-                Write-Log -LogPath $sLogFile -TimeStamp -Message
-                Write-Log -LogPath $sLogFile -TimeStamp -Message ' '
-                EXIT 1
-            }
-        }
+        Connect-AzureAD -ErrorAction Stop | Out-Null
     }
+
+    Write-ScriptLog -Message 'Azure AD connection established.'
 }
 
-#Import Modules & Snap-ins
-#Load-Module
-Load-Module AzureAD
-Connect-AzureAD
-
-#----------------------------------------------------------[Declarations]----------------------------------------------------------
-
-#Script Version
-$sScriptVersion = '1.0'
-
-#Log File Info
-$sLogName = $MyInvocation.MyCommand.Name
-$sLogPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$sLogName = $sLogName -replace '.ps1', '.log'
-$sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
-$sOutputPath = $MyInvocation.MyCommand.Path | Split-Path -Parent
-$sOutputName = $MyInvocation.MyCommand.Name
-$sOutputName = $sOutputName -replace '.ps1', '.csv'
-$sOutputFile = Join-Path -Path $sOutputPath -ChildPath $sOutputName
-#-----------------------------------------------------------[Functions]------------------------------------------------------------
-
-#Enabled Logging with timestamps, error level etc..
-function Write-Log {
+function Resolve-AzureAdUserPrincipalName {
     [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory = $False)]
-        [ValidateSet(, , , , )]
-        [String]
-        $Level = ,
-
-        [Parameter(Mandatory = $True)]
-        [string]
-        $Message,
-
-        [Parameter(Mandatory = $False)]
-        [string]
-        $logfile
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Mail
     )
 
-    $Stamp = (Get-Date).toString()
-    $Line =
-    #If($logfile) {
-    Add-Content $slogfile -Value $Line -PassThru
-    #}
-    #Else {
-    #    Write-Output $Line
-    #}
+    $escapedMail = $Mail.Replace("'", "''")
+
+    try {
+        $user = Get-AzureADUser -All $true -Filter "mail eq '$escapedMail'" -ErrorAction Stop | Select-Object -First 1
+    }
+    catch {
+        $user = $null
+    }
+
+    if (-not $user) {
+        $user = Get-AzureADUser -All $true | Where-Object {
+            $_.Mail -eq $Mail -or $_.UserPrincipalName -eq $Mail
+        } | Select-Object -First 1
+    }
+
+    return $user
 }
 
-<# USE THIS TEMPLATE FUNCTION FOR ALL
-Function <FunctionName> {
-  Param ()
-  Begin {
-    Write-Log -Message '<description of what is going on>...'
-  }
-  Process {
-    Try {
-      <code goes here>
+try {
+    $inputUsers = Import-Csv -Path $UserList -ErrorAction Stop
+    if (-not $inputUsers) {
+        throw 'The provided CSV file contains no rows.'
     }
-    Catch {
-      Write-Log -Level ERROR -Message $_.Exception
-      Break
+
+    foreach ($requiredColumn in @('Mail', 'Name', 'SamAccountName')) {
+        if ($requiredColumn -notin $inputUsers[0].PSObject.Properties.Name) {
+            throw "The CSV file must contain a '$requiredColumn' column."
+        }
     }
-  }
-  End {
-    If ($?) {
-      Write-Log -Message 'Completed Successfully.'
-      Write-Log -Message ' '
+
+    Connect-AzureAdIfNeeded -AzureAdAuthFilePath $AzureAdAuthFilePath
+
+    $results = foreach ($user in $inputUsers) {
+        if ([string]::IsNullOrWhiteSpace($user.Mail)) {
+            Write-ScriptLog -Level 'WARNING' -Message "Skipping row with empty mail value for '$($user.SamAccountName)'."
+            continue
+        }
+
+        $azureUser = Resolve-AzureAdUserPrincipalName -Mail $user.Mail
+
+        if (-not $azureUser) {
+            Write-ScriptLog -Level 'WARNING' -Message "No Azure AD match found for '$($user.Mail)'."
+        }
+
+        [pscustomobject]@{
+            Name              = $user.Name
+            Mail              = $user.Mail
+            SamAccountName    = $user.SamAccountName
+            UserPrincipalName = $azureUser.UserPrincipalName
+        }
     }
-  }
+
+    $results | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
+    Write-ScriptLog -Level 'AUDIT' -Message "Resolved $($results.Count) records to '$OutputPath'."
+    $results
 }
-#>
-<#
-ALL ACTIVE FUNCTIONS BELOW
-#>
-
-
-    Process {
-        Try {
-            #csv contains a list of users extracted from Miracle Local AD, containing only the properties mail and samaccountname
-            #get-aduser -Filter {mail -like  -or mail -like } -SearchBase  -Properties name, mail, samaccountname | Select-Object name, mail, samaccountname | Export-Csv C:\Temp\script_csv_files\KnowITEmailUsers.csv
-            Write-Log -Message
-            $extn = [IO.Path]::GetExtension($UserList)
-            if ($extn -eq  ) {
-                write-log -Message
-                $script:iul = Import-Csv $UserList
-                Write-Log -Message
-            }
-            else {
-                Write-Log -Message
-            }
-        }
-        Catch {
-            Write-Log -Level ERROR -Message $_.Exception
-            Break
-        }
-    }
-    End {
-        If ($?) {
-            Write-Log -Message 'GetOldADUserObjects Completed Successfully.'
-            Write-Log -Message ' '
-        }
-    }
+catch {
+    Write-ScriptLog -Level 'ERROR' -Message $_.Exception.Message
+    throw
 }
-
-    Process {
-        Try {
-            foreach ($user in $iul) {
-
-                    $name           = $user.name
-                    $mail           = $user.mail
-                    $samaccountname = $user.samaccountname
-                    $filter         =
-                    $KnowITUser     = Get-AzureADUser -Filter $filter | Select-Object UserPrincipalName
-                    $upn            = $KnowITUser.UserPrincipalName
-
-                    New-Object -TypeName PSCustomObject -Property @{
-                        name=$name
-                        mail=$mail
-                        samaccountname = $samaccountname
-                        upn = $upn} | Export-Csv $sOutputFile -NoTypeInformation -Append
-                }
-
-            #Write-Host
-            #Write-Log -Message
-        }
-        Catch {
-            Write-Log -Level ERROR -Message $_.Exception
-            Break
-        }
-    }
-    End {
-        If ($?) {
-            Write-Log -Message 'GetAzureUserObject Completed Successfully.'
-            Write-Log -Message ' '
-        }
-    }
-}
-
-
-<#
-ALL ACTIVE FUNCTIONS ABOVE
-#>
-#-----------------------------------------------------------[Execution]------------------------------------------------------------
-
-Write-Log -message
-
-
-#Script Execution goes here
-GetOldADUserObjects
-GetAzureUserObject
-
-
-Write-Log -message

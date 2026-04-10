@@ -25,7 +25,8 @@
 
     Param(
       [Parameter(Mandatory=$True)]
-      [string]$identity = $(throw )
+      [ValidateNotNullOrEmpty()]
+      [string]$Identity
     )
 
     Begin
@@ -50,6 +51,8 @@
       $PDCEmulator = ($DomainControllers | Where-Object { $_.OperationMasterRoles -and ($_.OperationMasterRoles -contains "PDCEmulator") })
 
       Write-Verbose "Found PDC Emulator: $($PDCEmulator.HostName)"
+      $targetUserSid = $null
+
       Foreach($DC in $DomainControllers)
       {
         $DCCounter++
@@ -63,6 +66,10 @@
           Write-Warning $_
           Continue
         }
+        if (-not $targetUserSid) {
+          $targetUserSid = $UserInfo.SID.Value
+        }
+
         If($UserInfo.LastBadPasswordAttempt)
         {
           $LockedOutStats += New-Object -TypeName PSObject -Property @{
@@ -93,7 +100,7 @@
 
       Foreach($LockedOutEvent in $LockedOutEvents)
       {
-        If($LockedOutEvent | Where-Object {$_.Properties[2].value -match $UserInfo.SID.Value})
+        If($targetUserSid -and ($LockedOutEvent | Where-Object {$_.Properties[2].Value -match $targetUserSid}))
         {
 
           $LockedOutEvent | Select-Object -Property @(

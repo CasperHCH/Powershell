@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+Exports last logon data for users in an Active Directory OU.
+
+.DESCRIPTION
+Retrieves users from the specified OU, converts the lastLogonTimestamp value into
+a readable date, and exports the result set to CSV.
+#>
+
 param(
     [string]$OUSearchBase,
     [string]$OutputPath = "C:\Temp\LastLogonReport.csv"
@@ -13,7 +22,7 @@ if (!$OutputPath) {
 }
 
 try {
-    Write-Host "Gathering last logon data for users in OU: $OUSearchBase" -ForegroundColor Cyan
+    Write-Information "Gathering last logon data for users in OU: $OUSearchBase" -InformationAction Continue
 
     $users = Get-ADUser -Filter * -SearchBase $OUSearchBase -ResultPageSize 0 -Properties CN,samaccountname,lastLogonTimestamp
 
@@ -21,8 +30,8 @@ try {
 
     $results | Export-CSV -NoTypeInformation -Path $OutputPath
 
-    Write-Host "Report exported to: $OutputPath" -ForegroundColor Green
-    Write-Host "Total users processed: $($users.Count)" -ForegroundColor Green
+    Write-Information "Report exported to: $OutputPath" -InformationAction Continue
+    Write-Information "Total users processed: $($users.Count)" -InformationAction Continue
 } catch {
     Write-Error "Error: $($_.Exception.Message)"
 }

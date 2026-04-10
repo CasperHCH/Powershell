@@ -1,3 +1,13 @@
+<#
+.SYNOPSIS
+Seeds SQLSysClrTypes.msi into SCCM update staging locations.
+
+.DESCRIPTION
+Continuously copies a source SQLSysClrTypes MSI into common Configuration Manager
+update staging paths for a detected or supplied update GUID until a stop file is
+created. Includes a monitor loop and log output for troubleshooting.
+#>
+
 param(
     [Parameter(Mandatory = $false)]
     [string]$Guid = "",
@@ -100,9 +110,9 @@ if ([string]::IsNullOrWhiteSpace($Guid) -and -not $DisableAutoDiscoverGuid) {
     $resolved = Resolve-CmUpdateGuid -ConfigMgrRoot $Root
     if ($resolved) {
         $Guid = $resolved.Guid
-        Write-Host "Auto-discovered update GUID: $Guid" -ForegroundColor Green
-        Write-Host "GUID source: $($resolved.Source)" -ForegroundColor Cyan
-        Write-Host "GUID detail: $($resolved.Detail)" -ForegroundColor Gray
+        Write-Information "Auto-discovered update GUID: $Guid" -InformationAction Continue
+        Write-Information "GUID source: $($resolved.Source)" -InformationAction Continue
+        Write-Information "GUID detail: $($resolved.Detail)" -InformationAction Continue
     } else {
         Write-Error "Unable to auto-discover update GUID. Pass -Guid explicitly or verify CMUpdate.log/CMUStaging paths."
         exit 1
@@ -126,25 +136,24 @@ if ($existingJobs) {
 
 "[$(Get-Date -Format s)] Starting SQL CLR seeding. Source: $src" | Out-File -FilePath $logPath -Encoding utf8 -Append
 "[$(Get-Date -Format s)] Using update GUID: $Guid" | Add-Content -Path $logPath
+"[$(Get-Date -Format s)] Copy interval seconds: $CopyIntervalSeconds" | Add-Content -Path $logPath
 
-$job = Start-Job -Name $jobName -ArgumentList $src,$Root,$Guid,$stop,$CopyIntervalSeconds,$logPath -ScriptBlock {
-    param($src,$root,$guid,$stop,$copyIntervalSeconds,$logPath)
-
+$job = Start-Job -Name $jobName -ScriptBlock {
     $cycle = 0
-    while (-not (Test-Path $stop)) {
+    while (-not (Test-Path $using:stop)) {
         $cycle++
         $targets = @(
-            (Join-Path $root "CD.Latest\SMSSETUP\BIN\X64\SQLSysClrTypes.msi"),
-            (Join-Path $root "SMSSetup\Redist\SQLSysClrTypes.msi"),
-            (Join-Path $root "SMSSetup\SQLSysClrTypes.msi"),
-            (Join-Path $root "CMUStaging\$guid\Redist\SQLSysClrTypes.msi"),
-            (Join-Path $root "CMUStaging\$guid\SMSSetup\Redist\SQLSysClrTypes.msi"),
-            (Join-Path $root "CMUStaging\$guid\SMSSetup\BIN\X64\SQLSysClrTypes.msi"),
-            (Join-Path $root "CMUStaging\$guid\SMSSetup\SQLSysClrTypes.msi"),
-            (Join-Path $root "EasySetupPayload\$guid\Redist\SQLSysClrTypes.msi"),
-            (Join-Path $root "EasySetupPayload\$guid\SMSSetup\Redist\SQLSysClrTypes.msi"),
-            (Join-Path $root "EasySetupPayload\$guid\SMSSetup\BIN\X64\SQLSysClrTypes.msi"),
-            (Join-Path $root "EasySetupPayload\$guid\SMSSetup\SQLSysClrTypes.msi")
+            (Join-Path $using:Root "CD.Latest\SMSSETUP\BIN\X64\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "SMSSetup\Redist\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "SMSSetup\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "CMUStaging\$($using:Guid)\Redist\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "CMUStaging\$($using:Guid)\SMSSetup\Redist\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "CMUStaging\$($using:Guid)\SMSSetup\BIN\X64\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "CMUStaging\$($using:Guid)\SMSSetup\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "EasySetupPayload\$($using:Guid)\Redist\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "EasySetupPayload\$($using:Guid)\SMSSetup\Redist\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "EasySetupPayload\$($using:Guid)\SMSSetup\BIN\X64\SQLSysClrTypes.msi"),
+            (Join-Path $using:Root "EasySetupPayload\$($using:Guid)\SMSSetup\SQLSysClrTypes.msi")
         )
 
         $copied = 0
@@ -153,7 +162,7 @@ $job = Start-Job -Name $jobName -ArgumentList $src,$Root,$Guid,$stop,$CopyInterv
         foreach ($t in $targets) {
             try {
                 New-Item -ItemType Directory -Force -Path (Split-Path $t) | Out-Null
-                Copy-Item -Path $src -Destination $t -Force -ErrorAction Stop
+                Copy-Item -Path $using:src -Destination $t -Force -ErrorAction Stop
                 $copied++
             } catch {
                 $failed++
@@ -161,45 +170,46 @@ $job = Start-Job -Name $jobName -ArgumentList $src,$Root,$Guid,$stop,$CopyInterv
         }
 
         $line = "[$(Get-Date -Format s)] cycle=$cycle copied=$copied failed=$failed"
-        $line | Add-Content -Path $logPath
+        $line | Add-Content -Path $using:logPath
         Write-Output $line
 
-        Start-Sleep -Seconds $copyIntervalSeconds
+        Start-Sleep -Seconds $using:CopyIntervalSeconds
     }
 
     $endLine = "[$(Get-Date -Format s)] stop file detected. Seeding job exiting."
-    $endLine | Add-Content -Path $logPath
+    $endLine | Add-Content -Path $using:logPath
     Write-Output $endLine
 }
 
-Write-Host "Seeding job started: $($job.Name) (Id=$($job.Id))" -ForegroundColor Green
-Write-Host "Heartbeat every $HeartbeatSeconds seconds. Press Ctrl+C to stop monitoring (job keeps running)." -ForegroundColor Cyan
-Write-Host "Log file: $logPath" -ForegroundColor Cyan
-Write-Host "When done, create stop file: $stop" -ForegroundColor Yellow
+Write-Information "Seeding job started: $($job.Name) (Id=$($job.Id))" -InformationAction Continue
+Write-Information "Copy interval: $CopyIntervalSeconds seconds." -InformationAction Continue
+Write-Information "Heartbeat every $HeartbeatSeconds seconds. Press Ctrl+C to stop monitoring (job keeps running)." -InformationAction Continue
+Write-Information "Log file: $logPath" -InformationAction Continue
+Write-Information "When done, create stop file: $stop" -InformationAction Continue
 
 while ($true) {
     Start-Sleep -Seconds $HeartbeatSeconds
     $state = (Get-Job -Name $jobName -ErrorAction SilentlyContinue).State
 
     if (-not $state) {
-        Write-Host "Job not found. Exiting monitor." -ForegroundColor Yellow
+        Write-Information "Job not found. Exiting monitor." -InformationAction Continue
         break
     }
 
     $latest = Receive-Job -Name $jobName -Keep -ErrorAction SilentlyContinue | Select-Object -Last 1
     if ($latest) {
-        Write-Host $latest -ForegroundColor Gray
+        Write-Information $latest -InformationAction Continue
     }
 
-    Write-Host "[$(Get-Date -Format HH:mm:ss)] heartbeat: job-state=$state" -ForegroundColor DarkCyan
+    Write-Information "[$(Get-Date -Format HH:mm:ss)] heartbeat: job-state=$state" -InformationAction Continue
 
     if (Test-Path $stop) {
-        Write-Host "Stop file detected. Exiting monitor." -ForegroundColor Yellow
+        Write-Information "Stop file detected. Exiting monitor." -InformationAction Continue
         break
     }
 
     if ($state -ne "Running") {
-        Write-Host "Job state is $state. Exiting monitor." -ForegroundColor Yellow
+        Write-Information "Job state is $state. Exiting monitor." -InformationAction Continue
         break
     }
 }

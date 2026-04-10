@@ -1,5 +1,5 @@
-####################################################################
-# 🖥️ ENTERPRISE SERVER INVENTORY & MONITORING SYSTEM
+﻿####################################################################
+# 🖥️ SERVER INVENTORY & MONITORING SYSTEM
 ####################################################################
 <#
 .SYNOPSIS
@@ -38,8 +38,6 @@
     - Server names/IPs (array or file path)
     - Authentication credentials
     - Configuration parameters
-#>
-
 .OUTPUTS
     - Detailed CSV inventory export
     - Optional HTML report with visualizations
@@ -47,7 +45,7 @@
     - Error logs and processing reports
 
 .NOTES
-    Version:        3.0 Enterprise Edition
+    Version:        3.0
     Original:       Nikolay Petkov (power-shell.com)
     Enterprise:     Enterprise Infrastructure Team
     Security:       CRITICAL - Handles server access and inventory data
@@ -123,11 +121,25 @@ try {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "General", [hashtable]$Properties = @{})
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Write-Host "[$timestamp] [$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Information "[$timestamp] [$Level] [$Category] $Message$propertySummary" -InformationAction Continue
         }
     }
 } catch {
     Write-Warning "Failed to initialize enterprise logging: $($_.Exception.Message)"
+}
+
+function Write-InventoryStatus {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    Write-Information $Message -InformationAction Continue
 }
 
 # 🚀 ENTERPRISE INITIALIZATION: Performance monitoring and resource management
@@ -160,7 +172,7 @@ Write-EnterpriseLog -Level "Info" -Message "Starting enterprise server inventory
 # 🔒 ENTERPRISE SECURITY: Secure credential handling and validation
 if (-not $Credentials) {
     try {
-        Write-Host "🔐 Server credentials required for inventory collection:" -ForegroundColor Cyan
+        Write-InventoryStatus "🔐 Server credentials required for inventory collection:"
         $Credentials = Get-Credential -Message "Enter credentials for server access (domain\username or server\username)"
 
         if (-not $Credentials) {
@@ -178,7 +190,7 @@ if (-not $Credentials) {
 }
 
 # 🔧 ENTERPRISE VALIDATION: Server list processing and validation
-Write-Host "🔍 Validating server list and connectivity..." -ForegroundColor Cyan
+Write-InventoryStatus "🔍 Validating server list and connectivity..."
 
 $validatedServers = @()
 $invalidServers = @()
@@ -186,7 +198,7 @@ $invalidServers = @()
 foreach ($computer in $ComputerNames) {
     # Handle file input if a single parameter looks like a file path
     if ($ComputerNames.Count -eq 1 -and (Test-Path $computer -ErrorAction SilentlyContinue)) {
-        Write-Host "📄 Loading server list from file: $computer" -ForegroundColor Yellow
+        Write-InventoryStatus "📄 Loading server list from file: $computer"
         try {
             $fileServers = Get-Content $computer -ErrorAction Stop | Where-Object { $_.Trim() -and -not $_.StartsWith('#') }
             $ComputerNames = $fileServers
@@ -211,10 +223,10 @@ foreach ($computer in $ComputerNames) {
 }
 
 $inventoryStats.Total = $validatedServers.Count
-Write-Host "📊 Server inventory scope: $($inventoryStats.Total) servers" -ForegroundColor Cyan
+Write-InventoryStatus "📊 Server inventory scope: $($inventoryStats.Total) servers"
 
 if ($ValidateOnly) {
-    Write-Host "🔍 Validation mode - testing connectivity only..." -ForegroundColor Yellow
+    Write-InventoryStatus "🔍 Validation mode - testing connectivity only..."
 }
 
 # 🚀 ENTERPRISE PROCESSING: Intelligent parallel vs sequential processing
@@ -222,7 +234,7 @@ $allResults = [System.Collections.Concurrent.ConcurrentBag[object]]::new()
 $useParallelProcessing = $UseParallel -or ($validatedServers.Count -gt 10)
 
 if ($useParallelProcessing -and -not $ValidateOnly) {
-    Write-Host "⚡ Using parallel processing for $($validatedServers.Count) servers..." -ForegroundColor Green
+    Write-InventoryStatus "⚡ Using parallel processing for $($validatedServers.Count) servers..."
     Write-EnterpriseLog -Level "Info" -Message "Starting parallel server inventory" -Category "Infrastructure"
 
     # 🔧 PARALLEL PROCESSING: Throttled background jobs for scalability
@@ -236,11 +248,15 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
             Get-Job -State Completed | Remove-Job -Force
         }
 
-        $job = Start-Job -ScriptBlock {
-            param($ComputerName, $Creds, $Timeout, $IncludePerf, $IncludeSoft)
+        $jobComputerName = $computer
+        $jobCredentials = $Credentials
+        $jobTimeout = $Timeout
+        $jobIncludePerformance = $IncludePerformance.IsPresent
+        $jobIncludeSoftware = $IncludeSoftware.IsPresent
 
+        $job = Start-Job -ScriptBlock {
             $result = @{
-                ComputerName = $ComputerName
+                ComputerName = $using:jobComputerName
                 Success = $false
                 Data = $null
                 Error = $null
@@ -251,9 +267,11 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
 
             try {
                 # 🔒 ENTERPRISE REMOTE EXECUTION: Secure server data collection
+                $sessionOptions = New-PSSessionOption -OperationTimeout ($using:jobTimeout * 1000)
                 $sessionParams = @{
-                    ComputerName = $ComputerName
-                    Credential = $Creds
+                    ComputerName = $using:jobComputerName
+                    Credential = $using:jobCredentials
+                    SessionOption = $sessionOptions
                     ErrorAction = 'Stop'
                 }
 
@@ -366,7 +384,7 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
                     } catch {
                         throw "Data collection failed: $($_.Exception.Message)"
                     }
-                } -ArgumentList $IncludePerf, $IncludeSoft
+                } -ArgumentList $using:jobIncludePerformance, $using:jobIncludeSoftware
 
                 $result.Success = $true
                 $result.Data = $serverData
@@ -379,13 +397,13 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
             }
 
             return $result
-        } -ArgumentList $computer, $Credentials, $Timeout, $IncludePerformance.IsPresent, $IncludeSoftware.IsPresent
+        }
 
         $jobs += $job
     }
 
     # Wait for all jobs and collect results
-    Write-Host "⏳ Processing $($jobs.Count) servers in parallel..." -ForegroundColor Yellow
+    Write-InventoryStatus "⏳ Processing $($jobs.Count) servers in parallel..."
     $jobs | Wait-Job | Out-Null
 
     foreach ($job in $jobs) {
@@ -395,10 +413,10 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
             if ($jobResult.Success) {
                 $allResults.Add($jobResult.Data)
                 $inventoryStats.Successful++
-                Write-Host "   ✅ $($jobResult.ComputerName) ($($jobResult.ProcessingTime)ms)" -ForegroundColor Green
+                Write-InventoryStatus "   ✅ $($jobResult.ComputerName) ($($jobResult.ProcessingTime)ms)"
             } else {
                 $inventoryStats.Failed++
-                Write-Host "   ❌ $($jobResult.ComputerName): $($jobResult.Error)" -ForegroundColor Red
+                Write-InventoryStatus "   ❌ $($jobResult.ComputerName): $($jobResult.Error)"
 
                 # Log error details
                 $errorDetail = @{
@@ -413,27 +431,27 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
 
         } catch {
             $inventoryStats.Failed++
-            Write-Host "   ❌ Job processing error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-InventoryStatus "   ❌ Job processing error: $($_.Exception.Message)"
         } finally {
             Remove-Job -Job $job -Force
         }
     }
 } else {
     # 🔄 SEQUENTIAL PROCESSING: For smaller inventories or validation mode
-    Write-Host "🔄 Using sequential processing..." -ForegroundColor Cyan
+    Write-InventoryStatus "🔄 Using sequential processing..."
 
     foreach ($computer in $validatedServers) {
         $inventoryStats.Total++
-        Write-Host "🔧 Processing: $computer" -ForegroundColor Yellow
+        Write-InventoryStatus "🔧 Processing: $computer"
 
         if ($ValidateOnly) {
             # Test connectivity only
             try {
-                $testResult = Test-WSMan -ComputerName $computer -Credential $Credentials -ErrorAction Stop
-                Write-Host "   ✅ Connectivity verified" -ForegroundColor Green
+                $null = Test-WSMan -ComputerName $computer -Credential $Credentials -ErrorAction Stop
+                Write-InventoryStatus "   ✅ Connectivity verified"
                 $inventoryStats.Successful++
             } catch {
-                Write-Host "   ❌ Connection failed: $($_.Exception.Message)" -ForegroundColor Red
+                Write-InventoryStatus "   ❌ Connection failed: $($_.Exception.Message)"
                 $inventoryStats.Failed++
             }
             continue
@@ -445,12 +463,12 @@ if ($useParallelProcessing -and -not $ValidateOnly) {
     }
 }
 
-Write-Host "`n📊 Processing completed!" -ForegroundColor Green
+Write-InventoryStatus "`n📊 Processing completed!"
 
 # 📊 ENTERPRISE EXPORT: Comprehensive data export and reporting
 if (-not $ValidateOnly -and $allResults.Count -gt 0) {
     try {
-        Write-Host "📄 Exporting inventory data..." -ForegroundColor Cyan
+        Write-InventoryStatus "📄 Exporting inventory data..."
 
         # Ensure output directory exists
         $outputDir = Split-Path $OutputPath -Parent
@@ -494,38 +512,64 @@ if (-not $ValidateOnly -and $allResults.Count -gt 0) {
 
         $csvData | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
 
-        Write-Host "✅ CSV exported: $OutputPath" -ForegroundColor Green
+        Write-InventoryStatus "✅ CSV exported: $OutputPath"
         Write-EnterpriseLog -Level "Success" -Message "Server inventory exported" -Category "Infrastructure" -Properties @{
             FilePath = $OutputPath
             RecordCount = $csvData.Count
             FileSize = (Get-Item $OutputPath).Length
         }
 
+        if ($GenerateReport) {
+            $htmlRows = foreach ($server in $csvData) {
+                "<tr><td>$($server.ServerName)</td><td>$($server.Domain)</td><td>$($server.OSName)</td><td>$($server.TotalMemoryGB)</td><td>$($server.IPAddresses)</td></tr>"
+            }
+
+            $htmlContent = @"
+<!DOCTYPE html>
+<html><head><title>Enterprise Server Inventory Report</title></head>
+<body><h1>Enterprise Server Inventory Report</h1>
+<p><strong>Generated:</strong> $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</p>
+<p><strong>Successful Servers:</strong> $($inventoryStats.Successful)</p>
+<p><strong>Failed Servers:</strong> $($inventoryStats.Failed)</p>
+<table border="1">
+<tr><th>Server</th><th>Domain</th><th>OS</th><th>Total Memory (GB)</th><th>IP Addresses</th></tr>
+$($htmlRows -join [Environment]::NewLine)
+</table></body></html>
+"@
+
+            $htmlContent | Out-File -Path $reportPath -Encoding UTF8
+            Write-InventoryStatus "✅ HTML report exported: $reportPath"
+            Write-EnterpriseLog -Level "Success" -Message "Server inventory report generated" -Category "Infrastructure" -Properties @{
+                ReportPath = $reportPath
+                RecordCount = $csvData.Count
+            }
+        }
+
     } catch {
         Write-EnterpriseLog -Level "Error" -Message "Failed to export inventory data" -Category "Infrastructure" -Exception $_
-        Write-Host "❌ Export failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-InventoryStatus "❌ Export failed: $($_.Exception.Message)"
     }
 }
 
 # 🏆 ENTERPRISE SUMMARY: Final execution report and statistics
 $executionTime = [math]::Round(((Get-Date) - $scriptStartTime).TotalMinutes, 2)
 
-Write-Host "`n🎯 Server Inventory Complete!" -ForegroundColor Green
-Write-Host "   ⏱️  Execution Time: $executionTime minutes" -ForegroundColor White
-Write-Host "   ✅ Successful: $($inventoryStats.Successful)" -ForegroundColor Green
-Write-Host "   ❌ Failed: $($inventoryStats.Failed)" -ForegroundColor Red
-Write-Host "   📊 Total Processed: $($inventoryStats.Total)" -ForegroundColor White
+Write-InventoryStatus "`n🎯 Server Inventory Complete!"
+Write-InventoryStatus "   ⏱️  Execution Time: $executionTime minutes"
+Write-InventoryStatus "   ✅ Successful: $($inventoryStats.Successful)"
+Write-InventoryStatus "   ❌ Failed: $($inventoryStats.Failed)"
+Write-InventoryStatus "   📊 Total Processed: $($inventoryStats.Total)"
 
 if (-not $ValidateOnly) {
-    Write-Host "   📄 Output File: $OutputPath" -ForegroundColor Cyan
+    Write-InventoryStatus "   📄 Output File: $OutputPath"
     if (Test-Path $OutputPath) {
         $fileSize = [math]::Round((Get-Item $OutputPath).Length / 1KB, 2)
-        Write-Host "   💾 File Size: $fileSize KB" -ForegroundColor White
+        Write-InventoryStatus "   💾 File Size: $fileSize KB"
     }
 }
 
 if ($inventoryStats.Failed -gt 0) {
-    Write-Host "   📋 Error Log: $errorLogPath" -ForegroundColor Yellow
+    Write-InventoryStatus "   📋 Error Log: $errorLogPath"
 }
 
 Write-EnterpriseLog -Level "Success" -Message "Server inventory operation completed" -Category "Infrastructure" -Properties @{

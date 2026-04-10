@@ -70,6 +70,7 @@ $null = Initialize-SccmScript -ScriptName $MyInvocation.MyCommand.Name -EnableDe
 
 function Get-DistributionMetric {
     [CmdletBinding()]
+    [OutputType([int])]
     param(
         [Parameter(Mandatory = $true)]
         [AllowNull()]
@@ -177,7 +178,7 @@ try {
     $summaryPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-ContentDistributionSummary-{0}.csv" -f $timestamp)
     $detailPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-ContentDistributionDetail-{0}.csv" -f $timestamp)
 
-    $null = Export-SccmData -InputObject ($summaryOutput | Sort-Object FailedCount -Descending, ContentName) -Path $summaryPath -Format 'Csv'
+    $null = Export-SccmData -InputObject ($summaryOutput | Sort-Object -Property @('FailedCount', 'ContentName') -Descending) -Path $summaryPath -Format 'Csv'
     Write-SccmLog -Level 'SUCCESS' -Message ("Content distribution summary exported to [{0}]." -f $summaryPath)
 
     if (@($detailRows).Count -gt 0) {

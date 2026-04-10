@@ -1,1005 +1,368 @@
-####################################################################
-# 🔒 ENTERPRISE EMPLOYEE OFFBOARDING AUTOMATION
-####################################################################
-#Requires -RunAsAdministrator
-#
-# PURPOSE: Comprehensive enterprise-grade employee offboarding automation
-# SCOPE: Active Directory, Exchange On-Premises, Office 365, Security Groups
-#
-# ENTERPRISE FEATURES:
-#   🔒 Military-grade security and audit logging
-#   ⚡ Parallel processing for large-scale operations
-#   📊 Real-time progress monitoring and telemetry
-#   🛡️ Rollback capabilities and transaction safety
-#   💾 Backup and recovery procedures
-#   📈 Performance optimization and resource management
-#   🌍 Cross-platform compatibility and modern cmdlets
-#   🎯 Compliance reporting and audit trails
-#
-# SECURITY LEVEL: CRITICAL - Handles sensitive HR and IT operations
-# COMPLIANCE: SOX, GDPR, HIPAA compliant audit trails
-####################################################################
+<#
+.SYNOPSIS
+Performs a controlled Active Directory offboarding workflow for a user.
 
-# 🔧 ENTERPRISE INITIALIZATION: Load enterprise logging framework
+.DESCRIPTION
+Disables or schedules expiration for a user account, optionally moves the user to
+another OU, exports group membership, reassigns direct reports, and performs
+available mailbox cleanup actions with audit logging.
+#>
+
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
+param(
+    [Parameter(Mandatory = $true, HelpMessage = 'SamAccountName, distinguished name, or UPN of the user to offboard.')]
+    [ValidateNotNullOrEmpty()]
+    [string]$Identity,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Date to disable the account. Defaults to today.')]
+    [datetime]$DisableOnDate = (Get-Date).Date,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Move the user to this OU after disablement.')]
+    [string]$DeletionOuPath,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Reassign direct reports to this manager SamAccountName or distinguished name.')]
+    [string]$ChangeManagerTo,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Directory used for exported group membership files.')]
+    [string]$GroupExportDirectory = (Join-Path -Path $PSScriptRoot -ChildPath 'OffboardingData\Groups'),
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Directory used for exported mailbox alias files.')]
+    [string]$AliasExportDirectory = (Join-Path -Path $PSScriptRoot -ChildPath 'OffboardingData\Aliases'),
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Forward mailbox to this SMTP address when mailbox cmdlets are available.')]
+    [ValidatePattern('^[^@\s]+@[^@\s]+\.[^@\s]+$')]
+    [string]$ForwardingAddress,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Grant mailbox access to this user when mailbox cmdlets are available.')]
+    [string]$GrantMailboxAccessTo,
+
+    [Parameter(Mandatory = $false, HelpMessage = 'Automatic reply message to configure when mailbox cmdlets are available.')]
+    [string]$AutoReplyMessage,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$RemoveGroupMemberships,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ExportMailboxAliases
+)
+
+Set-StrictMode -Version Latest
+
+$script:SessionId = [guid]::NewGuid().ToString('N').Substring(0, 8)
+$script:LogPath = Join-Path -Path $PSScriptRoot -ChildPath 'offboarding.log'
+
+function Write-ScriptLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('INFO', 'WARNING', 'ERROR', 'AUDIT')]
+        [string]$Level = 'INFO',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Sensitive
+    )
+
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $entry = "[$timestamp] [$script:SessionId] [$Level] [$env:USERNAME] $Message"
+    Add-Content -Path $script:LogPath -Value $entry
+
+    if ($Sensitive) {
+        return
+    }
+
+    switch ($Level) {
+        'ERROR' { Write-Error $Message }
+        'WARNING' { Write-Warning $Message }
+        default { Write-Verbose $Message }
+    }
+}
+
+function Write-AuditLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Action,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Target,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Error
+    )
+
+    $payload = [pscustomobject]@{
+        Timestamp = Get-Date -Format 'o'
+        SessionId = $script:SessionId
+        Action = $Action
+        User = $env:USERNAME
+        Target = $Target
+        Error = $Error
+        ComputerName = $env:COMPUTERNAME
+        ScriptName = $MyInvocation.ScriptName
+    } | ConvertTo-Json -Compress
+
+    Write-ScriptLog -Level 'AUDIT' -Message $payload -Sensitive
+}
+
+function Initialize-Directory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path -Path $Path)) {
+        $null = New-Item -Path $Path -ItemType Directory -Force
+    }
+}
+
+function Resolve-ExchangeCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Candidates
+    )
+
+    foreach ($candidate in $Candidates) {
+        $command = Get-Command -Name $candidate -ErrorAction SilentlyContinue
+        if ($command) {
+            return $command.Name
+        }
+    }
+
+    return $null
+}
+
+function Get-OffboardingUser {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Identity
+    )
+
+    Get-ADUser -Identity $Identity -Properties DisplayName, DistinguishedName, CanonicalName, EmailAddress,
+        SamAccountName, Company, UserPrincipalName, DirectReports, Manager, Description, MemberOf, PrimaryGroupId
+}
+
+function Export-GroupMembership {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Directory
+    )
+
+    Initialize-Directory -Path $Directory
+    $path = Join-Path -Path $Directory -ChildPath ("{0}-groups.csv" -f $User.SamAccountName)
+
+    $groups = @(Get-ADPrincipalGroupMembership -Identity $User -ErrorAction Stop |
+        Sort-Object Name |
+        Select-Object Name, SamAccountName, DistinguishedName, GroupCategory, GroupScope)
+
+    $groups | Export-Csv -Path $path -NoTypeInformation -Encoding UTF8
+    Write-AuditLog -Action 'GROUP_EXPORT' -Target $path
+    return $groups
+}
+
+function Remove-SecondaryGroupMembership {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [object[]]$Groups
+    )
+
+    foreach ($group in $Groups) {
+        if ($group.Name -eq 'Domain Users') {
+            continue
+        }
+
+        if ($PSCmdlet.ShouldProcess($group.Name, "Remove $($User.SamAccountName) from group")) {
+            Remove-ADGroupMember -Identity $group.DistinguishedName -Members $User.DistinguishedName -Confirm:$false -ErrorAction Stop
+            Write-AuditLog -Action 'GROUP_MEMBERSHIP_REMOVED' -Target $group.DistinguishedName
+        }
+    }
+}
+
+function Set-DirectReportManager {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ManagerIdentity
+    )
+
+    $reports = @($User.DirectReports)
+    if ($reports.Count -eq 0) {
+        return
+    }
+
+    $manager = Get-ADUser -Identity $ManagerIdentity -ErrorAction Stop
+
+    foreach ($report in $reports) {
+        if ($PSCmdlet.ShouldProcess($report, "Set manager to $($manager.SamAccountName)")) {
+            Set-ADUser -Identity $report -Manager $manager.DistinguishedName -ErrorAction Stop
+            Write-AuditLog -Action 'DIRECT_REPORT_REASSIGNED' -Target $report
+        }
+    }
+}
+
+function Export-MailAlias {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Directory
+    )
+
+    $getMailboxCommand = Resolve-ExchangeCommand -Candidates @('Get-CloudMailbox', 'Get-LocalMailbox', 'Get-Mailbox')
+    if (-not $getMailboxCommand) {
+        Write-ScriptLog -Level 'WARNING' -Message 'Mailbox alias export skipped because no mailbox cmdlet is available.'
+        return
+    }
+
+    $mailbox = & $getMailboxCommand -Identity $User.UserPrincipalName -ErrorAction Stop
+    Initialize-Directory -Path $Directory
+    $path = Join-Path -Path $Directory -ChildPath ("{0}-aliases.txt" -f $User.SamAccountName)
+    @($mailbox.EmailAddresses) | Set-Content -Path $path -Encoding UTF8
+    Write-AuditLog -Action 'MAIL_ALIAS_EXPORT' -Target $path
+}
+
+function Set-MailboxForwardingIfRequested {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ForwardingAddress
+    )
+
+    $setMailboxCommand = Resolve-ExchangeCommand -Candidates @('Set-CloudMailbox', 'Set-LocalMailbox', 'Set-Mailbox')
+    if (-not $setMailboxCommand) {
+        Write-ScriptLog -Level 'WARNING' -Message 'Mailbox forwarding skipped because no mailbox cmdlet is available.'
+        return
+    }
+
+    if ($PSCmdlet.ShouldProcess($User.UserPrincipalName, "Configure forwarding to $ForwardingAddress")) {
+        & $setMailboxCommand -Identity $User.UserPrincipalName -ForwardingAddress $ForwardingAddress -DeliverToMailboxAndForward $true -ErrorAction Stop
+        Write-AuditLog -Action 'MAIL_FORWARDING_SET' -Target $User.UserPrincipalName
+    }
+}
+
+function Grant-MailboxAccessIfRequested {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$GrantMailboxAccessTo
+    )
+
+    if (-not (Get-Command -Name Add-MailboxPermission -ErrorAction SilentlyContinue)) {
+        Write-ScriptLog -Level 'WARNING' -Message 'Mailbox access grant skipped because Add-MailboxPermission is unavailable.'
+        return
+    }
+
+    $grantUser = Get-ADUser -Identity $GrantMailboxAccessTo -ErrorAction Stop
+    if ($PSCmdlet.ShouldProcess($User.UserPrincipalName, "Grant mailbox access to $($grantUser.SamAccountName)")) {
+        Add-MailboxPermission -Identity $User.UserPrincipalName -User $grantUser.SamAccountName -AccessRights FullAccess -InheritanceType All -AutoMapping $true -ErrorAction Stop
+        Write-AuditLog -Action 'MAILBOX_PERMISSION_GRANTED' -Target $User.UserPrincipalName
+    }
+}
+
+function Set-AutoReplyIfRequested {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param(
+        [Parameter(Mandatory = $true)]
+        $User,
+
+        [Parameter(Mandatory = $true)]
+        [string]$AutoReplyMessage
+    )
+
+    $command = Resolve-ExchangeCommand -Candidates @('Set-CloudMailboxAutoReplyConfiguration', 'Set-LocalMailboxAutoReplyConfiguration', 'Set-MailboxAutoReplyConfiguration')
+    if (-not $command) {
+        Write-ScriptLog -Level 'WARNING' -Message 'Automatic reply configuration skipped because no mailbox auto-reply cmdlet is available.'
+        return
+    }
+
+    if ($PSCmdlet.ShouldProcess($User.UserPrincipalName, 'Configure automatic replies')) {
+        & $command -Identity $User.UserPrincipalName -AutoReplyState Enabled -ExternalAudience All -InternalMessage $AutoReplyMessage -ExternalMessage $AutoReplyMessage -ErrorAction Stop
+        Write-AuditLog -Action 'AUTO_REPLY_SET' -Target $User.UserPrincipalName
+    }
+}
+
 try {
-    $enterpriseLoggingPath = Join-Path (Split-Path $PSScriptRoot -Parent) "Enterprise-Logging-Framework.ps1"
-    if (Test-Path $enterpriseLoggingPath) {
-        . $enterpriseLoggingPath
-        Initialize-EnterpriseLogging -LogLevel "Info" -EnableTelemetry -EnableAlerting -EnableAuditLogging
-        Write-EnterpriseLog -Level "Info" -Message "Enterprise offboarding system initialized" -Category "Security"
-    } else {
-        Write-Warning "Enterprise logging framework not found. Using basic logging."
-        function Write-EnterpriseLog {
-            param([string]$Level, [string]$Message, [string]$Category = "General", [hashtable]$Properties = @{})
-            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            Write-Host "[$timestamp] [$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+    Import-Module ActiveDirectory -ErrorAction Stop
+
+    $user = Get-OffboardingUser -Identity $Identity
+    Write-AuditLog -Action 'OFFBOARDING_START' -Target $user.DistinguishedName
+
+    if ($ChangeManagerTo) {
+        Set-DirectReportManager -User $user -ManagerIdentity $ChangeManagerTo
+    }
+
+    $groupMembership = Export-GroupMembership -User $user -Directory $GroupExportDirectory
+
+    if ($DisableOnDate.Date -le (Get-Date).Date) {
+        if ($PSCmdlet.ShouldProcess($user.SamAccountName, 'Disable AD account')) {
+            Disable-ADAccount -Identity $user.DistinguishedName -ErrorAction Stop
+            Set-ADUser -Identity $user.DistinguishedName -Replace @{ logonHours = ([byte[]](0..20 | ForEach-Object { 0 })) } -ErrorAction Stop
+            Write-AuditLog -Action 'ACCOUNT_DISABLED' -Target $user.DistinguishedName
         }
     }
-} catch {
-    Write-Warning "Failed to initialize enterprise logging: $($_.Exception.Message)"
-}
-
-# 🚀 ENTERPRISE MODULES: Secure module loading with comprehensive error handling
-$requiredModules = @('ActiveDirectory', 'Microsoft.PowerShell.Security', 'PKI')
-$loadedModules = @()
-$failedModules = @()
-
-Write-Host "🔧 Loading required enterprise modules..." -ForegroundColor Cyan
-foreach ($module in $requiredModules) {
-    try {
-        Import-Module $module -ErrorAction Stop -Force
-        $loadedModules += $module
-        Write-EnterpriseLog -Level "Info" -Message "Module loaded successfully" -Category "Security" -Properties @{ModuleName = $module}
-    } catch {
-        $failedModules += $module
-        Write-EnterpriseLog -Level "Warning" -Message "Failed to load module" -Category "Security" -Properties @{ModuleName = $module; Error = $_.Exception.Message}
-    }
-}
-
-if ($failedModules -contains 'ActiveDirectory') {
-    Write-EnterpriseLog -Level "Error" -Message "Critical module ActiveDirectory failed to load - cannot proceed" -Category "Security"
-    throw "ActiveDirectory module is required for offboarding operations"
-}
-
-Write-Host "✅ Loaded modules: $($loadedModules -join ', ')" -ForegroundColor Green
-if ($failedModules.Count -gt 0) {
-    Write-Host "⚠️  Failed modules: $($failedModules -join ', ')" -ForegroundColor Yellow
-}
-
-### 🏢 ENTERPRISE EXCHANGE MANAGEMENT ###
-
-# 🔒 ENTERPRISE EXCHANGE MANAGEMENT: Secure connection management with comprehensive error handling
-Function Connect-ExchPowershell {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [string]$ExchangeServer = "BQ-MBX-02",
-        [Parameter(Mandatory = $false)]
-        [PSCredential]$Credential,
-        [Parameter(Mandatory = $false)]
-        [int]$RetryAttempts = 3
-    )
-
-    $attempt = 0
-    $connected = $false
-
-    Write-EnterpriseLog -Level "Info" -Message "Attempting Exchange connection" -Category "Exchange" -Properties @{
-        ExchangeServer = $ExchangeServer
-        RetryAttempts = $RetryAttempts
-    }
-
-    while ($attempt -lt $RetryAttempts -and -not $connected) {
-        $attempt++
-        try {
-            Write-Host "🔗 Connecting to Exchange Server (Attempt $attempt/$RetryAttempts)..." -ForegroundColor Cyan
-
-            # 🔒 ENTERPRISE SECURITY: Secure session creation with error handling
-            $sessionParams = @{
-                Name = "ExchangeOffboarding"
-                ConfigurationName = "Microsoft.Exchange"
-                ConnectionURI = "http://$ExchangeServer/Powershell"
-                ErrorAction = "Stop"
-            }
-
-            if ($Credential) {
-                $sessionParams.Credential = $Credential
-            }
-
-            $RPSession = New-PSSession @sessionParams
-
-            # 📊 ENTERPRISE PATTERN: Validate session before importing
-            if ($RPSession.State -eq 'Opened') {
-                Import-PSSession $RPSession -Prefix local -DisableNameChecking -ErrorAction Stop | Out-Null
-
-                # Test connection with a simple command
-                $testResult = Invoke-Command -Session $RPSession -ScriptBlock { Get-ExchangeServer | Select-Object -First 1 } -ErrorAction Stop
-
-                if ($testResult) {
-                    $connected = $true
-                    Write-Host "✅ Connected to Exchange Server: $ExchangeServer" -ForegroundColor Green
-                    Write-EnterpriseLog -Level "Success" -Message "Exchange connection established" -Category "Exchange" -Properties @{
-                        ExchangeServer = $ExchangeServer
-                        SessionId = $RPSession.Id
-                        Attempt = $attempt
-                    }
-                } else {
-                    throw "Exchange server test command failed"
-                }
-            } else {
-                throw "PowerShell session failed to open (State: $($RPSession.State))"
-            }
-
-        } catch {
-            Write-EnterpriseLog -Level "Warning" -Message "Exchange connection attempt failed" -Category "Exchange" -Properties @{
-                Attempt = $attempt
-                ExchangeServer = $ExchangeServer
-                Error = $_.Exception.Message
-            }
-
-            if ($RPSession) {
-                try { Remove-PSSession $RPSession -ErrorAction SilentlyContinue } catch { }
-            }
-
-            if ($attempt -eq $RetryAttempts) {
-                Write-EnterpriseLog -Level "Error" -Message "All Exchange connection attempts failed" -Category "Exchange"
-                throw "Failed to connect to Exchange Server $ExchangeServer after $RetryAttempts attempts: $($_.Exception.Message)"
-            } else {
-                Write-Host "⚠️  Connection failed, retrying in 5 seconds..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 5
-            }
+    else {
+        if ($PSCmdlet.ShouldProcess($user.SamAccountName, "Set AD account expiration to $DisableOnDate")) {
+            Set-ADAccountExpiration -Identity $user.DistinguishedName -DateTime $DisableOnDate -ErrorAction Stop
+            Write-AuditLog -Action 'ACCOUNT_EXPIRATION_SET' -Target $user.DistinguishedName
         }
     }
 
-    return $RPSession
-}
-
-Function Disconnect-ExchPowershell {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [string]$SessionName = "ExchangeOffboarding"
-    )
-
-    try {
-        Write-Host "🔌 Disconnecting from Exchange Server..." -ForegroundColor Yellow
-
-        $exchangeSessions = Get-PSSession -Name $SessionName -ErrorAction SilentlyContinue
-        if ($exchangeSessions) {
-            $sessionCount = $exchangeSessions.Count
-            $exchangeSessions | Remove-PSSession -ErrorAction Stop
-
-            Write-Host "✅ Disconnected from Exchange Server ($sessionCount sessions closed)" -ForegroundColor Green
-            Write-EnterpriseLog -Level "Info" -Message "Exchange sessions disconnected" -Category "Exchange" -Properties @{
-                SessionsRemoved = $sessionCount
-                SessionName = $SessionName
-            }
-        } else {
-            Write-Host "ℹ️  No Exchange sessions found to disconnect" -ForegroundColor Gray
-        }
-
-    } catch {
-        Write-EnterpriseLog -Level "Warning" -Message "Error during Exchange disconnection" -Category "Exchange" -Exception $_
-        Write-Host "⚠️  Warning: Error during Exchange disconnection: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-}
-
-### END EXCHANGE ###
-
-
-###  O365  ###
-
-# 🌐 ENTERPRISE O365 MANAGEMENT: Modern authentication with security hardening
-Function Connect-O365Powershell {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [PSCredential]$Credential,
-        [Parameter(Mandatory = $false)]
-        [switch]$UseModernAuth,
-        [Parameter(Mandatory = $false)]
-        [int]$RetryAttempts = 3
-    )
-
-    $attempt = 0
-    $connected = $false
-
-    Write-EnterpriseLog -Level "Info" -Message "Attempting Office 365 connection" -Category "O365" -Properties @{
-        UseModernAuth = $UseModernAuth.IsPresent
-        RetryAttempts = $RetryAttempts
-    }
-
-    # 🔒 ENTERPRISE SECURITY: Secure credential handling
-    if (-not $Credential -and -not $UseModernAuth) {
-        try {
-            Write-Host "🔐 Enter Office 365 credentials for offboarding operations:" -ForegroundColor Cyan
-            $Credential = Get-Credential -Message "Enter O365 Admin credentials for employee offboarding"
-
-            if (-not $Credential) {
-                throw "Credentials are required for O365 connection"
-            }
-        } catch {
-            Write-EnterpriseLog -Level "Error" -Message "Failed to obtain O365 credentials" -Category "O365"
-            throw "O365 credentials are required for offboarding operations"
+    if ($DeletionOuPath) {
+        if ($PSCmdlet.ShouldProcess($user.DistinguishedName, "Move to $DeletionOuPath")) {
+            Move-ADObject -Identity $user.DistinguishedName -TargetPath $DeletionOuPath -ErrorAction Stop
+            Write-AuditLog -Action 'ACCOUNT_MOVED' -Target $DeletionOuPath
+            $user = Get-OffboardingUser -Identity $Identity
         }
     }
 
-    while ($attempt -lt $RetryAttempts -and -not $connected) {
-        $attempt++
-        try {
-            Write-Host "🌐 Connecting to Office 365 (Attempt $attempt/$RetryAttempts)..." -ForegroundColor Cyan
-
-            if ($UseModernAuth) {
-                # 🚀 MODERN AUTHENTICATION: Use Connect-ExchangeOnline if available
-                if (Get-Command "Connect-ExchangeOnline" -ErrorAction SilentlyContinue) {
-                    Connect-ExchangeOnline -ShowProgress $true -ErrorAction Stop
-                    $connected = $true
-                    Write-Host "✅ Connected to Office 365 using Modern Authentication" -ForegroundColor Green
-                } else {
-                    Write-Host "⚠️  ExchangeOnlineManagement module not available, falling back to basic auth" -ForegroundColor Yellow
-                    $UseModernAuth = $false
-                }
-            }
-
-            if (-not $UseModernAuth) {
-                # 🔒 LEGACY AUTHENTICATION: Secure basic authentication with comprehensive error handling
-                $sessionParams = @{
-                    Name = "O365Offboarding"
-                    ConfigurationName = "Microsoft.Exchange"
-                    ConnectionUri = "https://outlook.office365.com/powershell-liveid/"
-                    Credential = $Credential
-                    Authentication = "Basic"
-                    AllowRedirection = $true
-                    ErrorAction = "Stop"
-                }
-
-                $O365Session = New-PSSession @sessionParams
-
-                # 📊 ENTERPRISE VALIDATION: Test session before importing
-                if ($O365Session.State -eq 'Opened') {
-                    Import-PSSession $O365Session -DisableNameChecking -Prefix cloud -ErrorAction Stop | Out-Null
-
-                    # Test connection with a simple command
-                    $testResult = Invoke-Command -Session $O365Session -ScriptBlock {
-                        Get-OrganizationConfig | Select-Object -First 1
-                    } -ErrorAction Stop
-
-                    if ($testResult) {
-                        $connected = $true
-                        Write-Host "✅ Connected to Office 365 using Basic Authentication" -ForegroundColor Green
-                        Write-EnterpriseLog -Level "Success" -Message "O365 connection established" -Category "O365" -Properties @{
-                            AuthenticationType = "Basic"
-                            SessionId = $O365Session.Id
-                            Attempt = $attempt
-                        }
-                    } else {
-                        throw "O365 test command failed"
-                    }
-                } else {
-                    throw "O365 PowerShell session failed to open (State: $($O365Session.State))"
-                }
-            }
-
-        } catch {
-            Write-EnterpriseLog -Level "Warning" -Message "O365 connection attempt failed" -Category "O365" -Properties @{
-                Attempt = $attempt
-                AuthType = if ($UseModernAuth) { "Modern" } else { "Basic" }
-                Error = $_.Exception.Message
-            }
-
-            if ($O365Session) {
-                try { Remove-PSSession $O365Session -ErrorAction SilentlyContinue } catch { }
-            }
-
-            if ($attempt -eq $RetryAttempts) {
-                Write-EnterpriseLog -Level "Error" -Message "All O365 connection attempts failed" -Category "O365"
-                throw "Failed to connect to Office 365 after $RetryAttempts attempts: $($_.Exception.Message)"
-            } else {
-                Write-Host "⚠️  Connection failed, retrying in 10 seconds..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 10
-            }
-        }
+    if ($RemoveGroupMemberships) {
+        Remove-SecondaryGroupMembership -User $user -Groups $groupMembership
     }
 
-    return if ($UseModernAuth) { "ModernAuth" } else { $O365Session }
+    if ($ExportMailboxAliases) {
+        Export-MailAlias -User $user -Directory $AliasExportDirectory
+    }
+
+    if ($ForwardingAddress) {
+        Set-MailboxForwardingIfRequested -User $user -ForwardingAddress $ForwardingAddress
+    }
+
+    if ($GrantMailboxAccessTo) {
+        Grant-MailboxAccessIfRequested -User $user -GrantMailboxAccessTo $GrantMailboxAccessTo
+    }
+
+    if ($AutoReplyMessage) {
+        Set-AutoReplyIfRequested -User $user -AutoReplyMessage $AutoReplyMessage
+    }
+
+    Write-AuditLog -Action 'OFFBOARDING_COMPLETE' -Target $user.DistinguishedName
 }
-
-Function Disconnect-O365Powershell {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [string]$SessionName = "O365Offboarding"
-    )
-
-    try {
-        Write-Host "🔌 Disconnecting from Office 365..." -ForegroundColor Yellow
-
-        # Handle modern auth disconnection
-        if (Get-Command "Disconnect-ExchangeOnline" -ErrorAction SilentlyContinue) {
-            try {
-                Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue
-                Write-Host "✅ Disconnected from Office 365 (Modern Auth)" -ForegroundColor Green
-                Write-EnterpriseLog -Level "Info" -Message "O365 modern auth session disconnected" -Category "O365"
-            } catch {
-                # Continue to legacy session cleanup
-            }
-        }
-
-        # Handle legacy session disconnection
-        $o365Sessions = Get-PSSession -Name $SessionName -ErrorAction SilentlyContinue
-        if ($o365Sessions) {
-            $sessionCount = $o365Sessions.Count
-            $o365Sessions | Remove-PSSession -ErrorAction Stop
-
-            Write-Host "✅ Disconnected from Office 365 ($sessionCount legacy sessions closed)" -ForegroundColor Green
-            Write-EnterpriseLog -Level "Info" -Message "O365 legacy sessions disconnected" -Category "O365" -Properties @{
-                SessionsRemoved = $sessionCount
-                SessionName = $SessionName
-            }
-        }
-
-    } catch {
-        Write-EnterpriseLog -Level "Warning" -Message "Error during O365 disconnection" -Category "O365" -Exception $_
-        Write-Host "⚠️  Warning: Error during O365 disconnection: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
+catch {
+    Write-AuditLog -Action 'OFFBOARDING_FAILED' -Target $Identity -Error $_.Exception.Message
+    Write-ScriptLog -Level 'ERROR' -Message $_.Exception.Message
+    throw
 }
-
-###  END O365  ###
-
-
-<# --- VARIABLES FOR AD ACCOUNT --- #>
-
-
-
-# read username
-$DisableUserName = read-host
-
-# Get the properties of the account and set variables
-$user = Get-ADuser $DisableUserName -properties *
-$UManagerEmail=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties emailaddress).EmailAddress
-$UManagerSAM=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties SamAccountName).SamAccountName
-$UManagerName=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties Name).Name
-$UserEmail = $user.EmailAddress
-$dn = $user.distinguishedName
-$cn = $user.canonicalName
-$din = $user.displayName
-$UserAlias = $user.mailNickname
-$UCompany = $user.Company
-$sam = $user.SamAccountName
-$DirectReports = $user.directReports
-$Upn = $user.UserPrincipalName
-
-
-<# --- END OF VARIABLES FOR AD ACCOUNT --- #>
-
-
-
-
-# Path for safekeeping User AD Groups
-$pathForADUserGroups1 =
-$pathForADUserGroups2 =
-$pathForADUserGroupsFinal = $pathForADUserGroups1 + $din + $pathForADUserGroups2
-
-# Check if folder exist, if not, create it
-If(!(test-path $pathForADUserGroups1))
-{
-      New-Item -ItemType Directory -Force -Path $pathForADUserGroups1
-}
-
-
-# Path for safekeeping User Email Aliases
-$pathForADUserEmailALias1 =
-$pathForADUserEmailALias2 =
-$pathForADUserEmailALiasFinal = $pathForADUserEmailALias1 + $din + $pathForADUserEmailALias2
-
-
-# Check if file exist, if it does, delete it
-# File contains Custom OoO message
-$file =
-If(test-path $file)
-{
-     Remove-Item -Path $file -Recurse
-}
-
-
-
-
-#Read the desired disable date
-while(1)
-    {
-	$d = read-host
-    	Try{
-
-            # Extract the default Date/Time formatting from the local computer's  settings, and then create the format to use when parsing the date/time information pull from AD.
-            $CultureDateTimeFormat = (Get-Culture).DateTimeFormat
-            $DateFormat = $CultureDateTimeFormat.ShortDatePattern
-            $DisableUserOnDate = [DateTime]::ParseExact($d,$DateFormat,[System.Globalization.DateTimeFormatInfo]::InvariantInfo,[System.Globalization.DateTimeStyles]::None)
-            write-host  -ForegroundColor Yellow
-            break
-            }
-    	Catch{
-    		Write-Host  -ForegroundColor Red
-            }
-    }
-
-
-
-<# --------------------------------- Active Directory account dispensation section --------------------------------- #>
-
-##Check if the user is a manager, if so, move any users within to a different manager
-function ChangeManager(){
-if(!$DirectReports) { Write-Host -ForegroundColor Yellow }
-   else {
-
-
-    Write-Host  -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-
-    $Selection = Read-Host
-    switch ($Selection)
-        {
-            '1' {#Option 1 is selected
-                    'You chose option #1 - Change Manager to next in line'
-
-                    foreach ($DR in $DirectReports)
-                    {
-                       Set-ADUser $DR -Manager $UManagerSAM
-                    }#End Foreach
-                }#End Option 1
-
-
-
-            '2' {#Option 2 is selected
-                'You chose option #2 - Change Manager to Custom User'
-
-                while(1){
-                $NewManager = Read-Host
-                try
-                    {
-                    if(Get-ADUser -Identity $NewManager)
-                        {
-                            Set-ADUser $DR -Manager $NewManager
-                        }#End If
-                    }#End Try
-
-                catch
-                    {
-                        Write-Host "Error setting manager: $($_.Exception.Message)" -ForegroundColor Red
-                    }#End Catch
-
-                }#end option 2
-        Default {Write-Host "Invalid selection." -ForegroundColor Red}
-        }#End Switch
-    }#End Else
-}#End Function
-
-
-
-##Move user account to the previous selected month for deletion
-function MoveUserToWantedDeletionOU($TargetOUMonth)
-{
-   # Move the account to the Disabled Users OU
-    Move-ADObject -Identity $dn -TargetPath $TargetOUMonth
-    Write-Host "User moved to deletion OU: $din" -ForegroundColor Yellow
-
-}
-
-#Show a menu, allowing the user to select a month the user should be deleted etc.
-function Show-Delete-Menu([string]$Title)
-{#Start Function
-    Write-Host "$Title" -ForegroundColor Green
-    Write-Host "========================================" -ForegroundColor Green
-    Write-Host "Select the month for user deletion:" -ForegroundColor Green
-    Write-Host "1. January" -ForegroundColor Green
-    Write-Host "2. February" -ForegroundColor Green
-    Write-Host "3. March" -ForegroundColor Green
-    Write-Host "4. April" -ForegroundColor Green
-    Write-Host "5. May" -ForegroundColor Green
-    Write-Host "6. June" -ForegroundColor Green
-    Write-Host "7. July" -ForegroundColor Green
-    Write-Host "8. August" -ForegroundColor Green
-    Write-Host "9. September" -ForegroundColor Green
-    Write-Host "10. October" -ForegroundColor Green
-    Write-Host "11. November" -ForegroundColor Green
-    Write-Host "12. December" -ForegroundColor Green
-    Write-Host "Enter your choice (1-12):" -ForegroundColor Green
-
-    $TargetOUMonth = Read-Host
-
-    switch ($TargetOUMonth)
-        {
-            '1' {#Option 1 is selected
-                $TargetOUMonth = "OU=January,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #1 - January" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '2' {#Option 2 is selected
-                $TargetOUMonth = "OU=February,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #2 - February" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '3' {#Option 3 is selected
-                $TargetOUMonth = "OU=March,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #3 - March" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '4' {#Option 4 is selected
-                $TargetOUMonth = "OU=April,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #4 - April" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '5' {#Option 5 is selected
-                $TargetOUMonth = "OU=May,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #5 - May" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '6' {#Option 6 is selected
-                $TargetOUMonth = "OU=June,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #6 - June" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '7' {#Option 7 is selected
-                $TargetOUMonth = "OU=July,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #7 - July" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '8' {#Option 8 is selected
-                $TargetOUMonth = "OU=August,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #8 - August" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-            '9' {#Option 9 is selected
-                $TargetOUMonth = "OU=September,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #9 - September" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-           '10' {#Option 10 is selected
-                $TargetOUMonth = "OU=October,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #10 - October" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-           '11' {#Option 11 is selected
-                $TargetOUMonth = "OU=November,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #11 - November" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-
-           '12' {#Option 12 is selected
-                $TargetOUMonth = "OU=December,OU=ToBeDeleted,DC=domain,DC=com"
-                Write-Host "You chose option #12 - December" -ForegroundColor Yellow
-                MoveUserToWantedDeletionOU($TargetOUMonth)
-                }
-                #a none valid option was chosen, thus reverting to Default, and rerunning the menu
-          Default {Write-Host "Invalid selection. Please choose 1-12." -ForegroundColor Red
-          Show-Delete-Menu($Title)
-          }
-     }
-   }#End Function
-
-
-
-## Disable ad user
-## Disable Logon Hours
-## Rest Password
-## Add OU path to User Description
-## Export Group membership to TXT file
-## Strip of all group memberships
-
-    # Assign 21 byte array of all zeros to the logonHours attribute of the user
-    set-aduser -identity  -Replace @{logonHours=$LH}
-
-    #Check if the user is a manager, and if so, change the direct reports to a different manager
-    ChangeManager
-
-    Show-Delete-menu()
-    }
-
-    else{
-    #set account expiration
-        Set-ADAccountExpiration -Identity  -DateTime $DisableUserOnDate
-
-
-    }
-}#End DisableUser
-
-).name}}
-
-    $count = 0
-    $arrlist =  New-Object System.Collections.ArrayList
-    do{
-        $null = $arrlist.add([PSCustomObject]@{
-            # Name = $groupinfo.name
-            GroupMembership = $groupinfo.GroupMembership[$count]
-        })
-        $count++
-    }until($count -eq $groupinfo.GroupMembership.count)
-
-    $arrlist | select groupmembership | convertto-csv -NoTypeInformation | select -Skip 1 |out-file $pathForADUserGroupsFinal
-    Write-Host ($din + " " + $pathForADUserGroupsFinal) -ForegroundColor Yellow
-
-    # Strip the permissions from the account
-    Get-ADUser $User -Properties MemberOf | Select-Object -ExpandProperty MemberOf | ForEach-Object{Remove-ADGroupMember $_ -Member $User -Confirm:$false}
-    Write-Host ($din) -ForegroundColor Yellow
-    }
-<# --------------------------------- Exchange email account section --------------------------------- #>
-
-## Export all Email aliases to an TXT file
-
-            }catch{}
-            try{
-            #Check if the user exist in O365
-        if(get-cloudMailbox -Identity $username)
-           {
-              Get-CloudMailbox -Identity $username | select -ExpandProperty emailaddresses alias |Out-File $pathForADUserEmailALiasFinal
-
-           }
-        }
-
-        catch{}
-
-}
-
-
-function Show-EmailForward-Menu([string]$Title)
-{#Start Function
-    Write-Host  -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-
-    $Selection = Read-Host
-    switch ($Selection)
-        {
-            '1' {#Option 1 is selected
-                'You chose option #1'
-                write-host 'This is the default, No forward will be enabled' -ForegroundColor Yellow
-
-                }
-
-            '2' {#Option 2 is selected
-                'You chose option #2'
-                 write-host 'An forward is about to be enabled' -ForegroundColor Yellow
-
-                    while($ReceiverEmail -ne ){
-                    $ReceiverEmail = Read-Host
-                    try{
-                        if(get-localmailbox $ReceiverEmail)
-                            {
-                                #Check if the disable user exists onprem
-                                if(get-localmailbox $Upn)
-                                    {
-                                        Set-Mailbox $Upn -DeliverToMailboxAndForward $ReceiverEmail
-                                        write-host -ForegroundColor Yellow
-                                        $receiverEmail =
-                                    }
-                            }
-                        if(get-cloudmailbox $ReceiverEmail)
-                           {
-                              #Check if the disabled user exists in Office 365
-                              if(get-cloudmailbox $Upn){
-                              Set-CloudMailbox $Upn -ForwardingAddress $ReceiverEmail -DeliverToMailboxAndForward $true
-                              write-host -ForegroundColor Yellow
-                              $receiverEmail =
-                              }
-                           }
-                        }
-
-                    catch{Write-Host  -fore red}
-
-                    }
-                }
-            '3' {#Open 3 is selected
-                'You chose option #3'
-                Write-Host 'You have chosen to skip this step' -ForegroundColor Yellow
-                }
-
-
-          #a none valid option was chosen, thus reverting to Default, and rerunning the menu
-          Default {Write-Host  -ForegroundColor Red
-          Show-EmailForward-Menu($Title)
-          }
-     }
-}#End Function
-
-#Provide the manager or a custom user with full access to the users mailbox
-function AddFullAccessToMailbox([string]$Title)
-{#Start Function
-    Write-Host  -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host  -ForegroundColor Green
-
-    $Selection = Read-Host
-    switch ($Selection)
-        {
-            '1' {#Option 1 is selected
-                'You chose option #1'
-
-                if(get-LocalMailbox $upn){
-                    Add-MailboxPermission -Identity $upn -User $UManagerSAM -AccessRights FullAccess -InheritanceType All -AutoMapping $true
-                    write-host  -ForegroundColor Yellow
-                    }
-
-                    if(get-cloudmailbox $upn){
-                        Add-MailboxPermission -Identity $upn -User $UManagerSAM -AccessRights FullAccess -InheritanceType All -AutoMapping $true
-                        write-host -ForegroundColor Yellow
-                        }
-
-                }
-
-            '2' {#Option 2 is selected
-                'You chose option #2'
-                    while(1){
-                    $GrantFullAccessTo = Read-Host
-                    Try{
-		                $GrantFullAccessToUser = Get-ADuser $GrantFullAccessTo -properties Name, SamAccountName
-		                break
-                       }
-	                Catch{
-	                	Write-Host 'Invalid entry, unable to locate a user with the provided username' -ForegroundColor red
-                       }
-                    }
-                    try{
-                    if(get-LocalMailbox $upn){
-                        Add-MailboxPermission -Identity $upn -User $GrantFullAccessToUser.SamAccountName -AccessRights FullAccess -InheritanceType All -AutoMapping $true
-                        write-host  -ForegroundColor Yellow
-                    }
-                    }catch{}
-                    try{
-                    if(get-cloudmailbox $upn){
-                        Add-MailboxPermission -Identity $upn -User $GrantFullAccessToUser.SamAccountName -AccessRights FullAccess -InheritanceType All -AutoMapping $true
-                        write-host  -ForegroundColor Yellow
-                    }
-                    }
-                    catch{}
-
-                }
-
-
-            '3' {
-                'You chose option #3'
-                Write-Host  -ForegroundColor Yellow
-
-
-            }
-          #a none valid option was chosen, thus reverting to Default, and rerunning the menu
-          Default {Write-Host  -ForegroundColor Red
-          AddFullAccessToMailbox($Title)
-          }
-     }
-}#End Function
-
-
-
-#Set out of office message, to selected value - either default or custom
-function SetOutOfOfficeMessage()
-{#Start Function
-# Get the properties of the account and set variables
-$user = Get-ADuser $DisableUserName -properties canonicalName, distinguishedName, displayName, mailNickname, Company, EmailAddress, SamAccountName
-$UManagerEmail=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties emailaddress).EmailAddress
-$UManagerSAM=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties SamAccountName).SamAccountName
-$UManagerName=(Get-AdUser (Get-aduser $DisableUserName -properties Manager).manager -properties Name).Name
-$UserEmail = $user.EmailAddress
-$dn = $user.distinguishedName
-$cn = $user.canonicalName
-$din = $user.displayName
-$UserAlias = $user.mailNickname
-$UCompany = $user.Company
-$sam = $user.SamAccountName
-$upn = $user.UserPrincipalName
-
-
-
-
-# Sets the out of office message, to either default or custom message
-    try{
-    if(get-LocalMailbox $upn){
-        Set-LocalMailboxAutoReplyConfiguration -Identity $upn -AutoReplyState Enabled -ExternalAudience All -InternalMessage $OoOMessage -ExternalMessage $OoOMessage
-        AddFullAccessToMailbox()
-    }
-    }catch{}
-
-    try{
-    if(get-cloudmailbox $upn){
-        Set-CloudMailboxAutoReplyConfiguration -Identity $upn -AutoReplyState Enabled -ExternalAudience All -InternalMessage $OoOMessage -ExternalMessage $OoOMessage
-        AddFullAccessToMailbox()
-    }
-
-    }
-    catch{}
-
-
-    #Remove the Out of office text file again if it exists
-    If(test-path $file)
-        {
-            try{
-            Remove-Item -Path $file -Recurse
-            }
-            catch{}
-        }
-}#End Function
-
-#Show a menu, allowing the script runner to select
-#between the default or a custom OoO Message
-function Show-OoOMessage-Menu([string]$Title)
-{#Start Function
-    Write-Host  -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-    Write-Host -ForegroundColor Green
-
-    $Selection = Read-Host
-    switch ($Selection)
-        {
-            '1' {#Option 1 is selected
-            'You chose option #1'
-            $OoOMessage =
-
-
-                SetOutOfOfficeMessage($OoOMessage)
-                Show-EmailForward-Menu()
-                }
-
-            '2' {#Option 2 is selected
-                'You chose option #2'
-                write-host  -ForegroundColor Yellow
-                    #Create a file to contain the custom OoO message
-                    $file =
-
-                    #Read the host to a new line in the file, for each line break
-                    #Exit the while loop when the script runner types done on an empty line
-                    While($i -ne )
-                    {
-	                    If ($i -ne $NULL)
-                            {
-		                        $i | Out-File $file -append
-                            }
-	                    $i = Read-Host
-                    }
-
-                # Replace line breaks from `n (Normal txt breaks) to <br> html breaks
-                $file2 = Get-Content -Path C:\temp\tomail.txt -Raw
-                $file3 = $file2.Replace(,) | out-file -FilePath C:\temp\tomail.txt
-
-                #Read the custom OoO message into a variable
-                $OoOMessage = Get-Content -Path $file
-
-                #Call function to set the OoO Message with variable
-                SetOutOfOfficeMessage($OoOMessage)
-                }
-          #a none valid option was chosen, thus reverting to Default, and rerunning the menu
-          Default {Write-Host  -ForegroundColor Red
-          Show-OoOMessage-Menu($Title)
-          }
-     }
-}#End Function
-
-
-
-<# --------------------------------- !! --- LOAD MODULES --- !! --------------------------------- #>
-
-##Connect to and load required modules##
-Connect-ExchPowershell
-
-Connect-O365Powershell
-
-<# --------------------------------- !! --- EXECUTE SCRIPT --- !! --------------------------------- #>
-#Start AD part of the script
-DisableUser
-Write-Host  -ForegroundColor Green
-Start-Sleep -Seconds 10
-write-host -ForegroundColor Green
-
-#Start Exchange part of the script
-if ($DisableUserOnDate -eq (Get-Date).Date){
-Show-OoOMessage-Menu()
-ExportEmailAliasToCSV
-RemoveADUserGroups
-}
-if($DisableUserOnDate -ne (Get-Date).Date){
-Write-Host "User will be disabled on: $DisableUserOnDate" -ForegroundColor Yellow
-}
-
-Write-Host "Offboarding process completed." -ForegroundColor Cyan
-<# --------------------------------- !! --- REMOVE MODULES --- !! --------------------------------- #>
-
-##disconnect from and remove required modules##
-Disconnect-ExchPowershell
-
-Disconnect-O365Powerhell
-
-
-# SIG # Begin signature block
-# MIIPXgYJKoZIhvcNAQcCoIIPTzCCD0sCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
-# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUGdAMRntbkL7d5//bTAJwHpWm
-# ZPygggzFMIIF5TCCBM2gAwIBAgITJQAAB18pNDQNK9T6twAAAAAHXzANBgkqhkiG
-# 9w0BAQsFADBLMRMwEQYKCZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJ
-# ZWV0bm9yZGljMRkwFwYDVQQDExBFRVQgR3JvdXAgU3ViIENBMB4XDTE5MDYyODA4
-# NTg1MVoXDTIxMDYyNzA4NTg1MVowMjEwMC4GA1UEAxMnQ2FzcGVyIEhqb3J0aCBD
-# aHJpc3RlbnNlbiBBZG1pbmlzdHJhdG9yMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-# MIIBCgKCAQEAvK+8AVxkZIiTKbQFOsyBWVK/0a2Yr864LnbWHy7QFKpZfFcVY6X/
-# ef++CDmg78ZdLarj2hcOfUqOFBlwIbh0BLcmdFAFwU7WCb1Yb1NiyhrIgH16D/l3
-# USl5dIaGbNysrz3fJl8V57pZG6C3hOZjU4kt73jdM7C1BzAyZ8hsH5RxS6HLFtb7
-# Chxh81LqHXAnJWmq6QZbVX2y0ZNLPgwyEyAqfD4yZgT4Xa8BkAaTrwSuYzNOncW9
-# HFjl1vfKcqFUEfhuy9k78PFw0V2aCGF+5jlgtKGL46z4EFEmGVOt2eAKy7e53Gu8
-# XzOT6Ccsh1DLnlu5xp35Ns3FRTx104wiFQIDAQABo4IC2TCCAtUwPAYJKwYBBAGC
-# NxUHBC8wLQYlKwYBBAGCNxUI99Z8h/iMH9mJF4Hgsy6C8IQ5gQ+C9eJzhIzNGQIB
-# aQIBAzATBgNVHSUEDDAKBggrBgEFBQcDAzALBgNVHQ8EBAMCB4AwDAYDVR0TAQH/
-# BAIwADAbBgkrBgEEAYI3FQoEDjAMMAoGCCsGAQUFBwMDMB0GA1UdDgQWBBSGzkbt
-# A2w0ns6vicHpag3PzRLdnjAfBgNVHSMEGDAWgBRBj6B94d5u5ZhabP6oFz+lQsCw
-# aTCB3AYDVR0fBIHUMIHRMIHOoIHLoIHIhoHFbGRhcDovLy9DTj1FRVQlMjBHcm91
-# cCUyMFN1YiUyMENBLENOPVBST0QtU1VCQ0EtMDEsQ049Q0RQLENOPVB1YmxpYyUy
-# MEtleSUyMFNlcnZpY2VzLENOPVNlcnZpY2VzLENOPUNvbmZpZ3VyYXRpb24sREM9
-# ZWV0bm9yZGljLERDPW5ldD9jZXJ0aWZpY2F0ZVJldm9jYXRpb25MaXN0P2Jhc2U/
-# b2JqZWN0Q2xhc3M9Y1JMRGlzdHJpYnV0aW9uUG9pbnQwgfYGCCsGAQUFBwEBBIHp
-# MIHmMIG3BggrBgEFBQcwAoaBqmxkYXA6Ly8vQ049RUVUJTIwR3JvdXAlMjBTdWIl
-# MjBDQSxDTj1BSUEsQ049UHVibGljJTIwS2V5JTIwU2VydmljZXMsQ049U2Vydmlj
-# ZXMsQ049Q29uZmlndXJhdGlvbixEQz1lZXRub3JkaWMsREM9bmV0P2NBQ2VydGlm
-# aWNhdGU/YmFzZT9vYmplY3RDbGFzcz1jZXJ0aWZpY2F0aW9uQXV0aG9yaXR5MCoG
-# CCsGAQUFBzABhh5odHRwOi8vcGtpMS5lZXRub3JkaWMubmV0L29jc3AwMAYDVR0R
-# BCkwJ6AlBgorBgEEAYI3FAIDoBcMFWNoai1hZG1AZWV0bm9yZGljLm5ldDANBgkq
-# hkiG9w0BAQsFAAOCAQEAM7IhCVppWdb4eCHZCZVbMZ+qmsuMVXlfCnccfXwxP/Mc
-# KwFN+oxf1T7oruyEbxYhbG+noSDzx/jyqgWd+kkZFbUCiFZ7SJonSDnqA2Kwq/C0
-# bdIA1spJLXZ0HV3milBjQ2qM5gjMy3nnQYw9a2ngx4Ld18bJpIQzORKyFIso557P
-# 19yRvWohWA5Qg9mBEQWUJ7BjWbLLm/SYwSlnHjr4eqZcKqV4m0vN98m5HdeS6jJc
-# wHoEwPNfUAjyOUACdAb4LSgqIaXSE6qiqspY/J4uqd7UKiTp7qywRBj0P6pXbBnw
-# iKGkN381RTMoTgYQMEkjITcdup7/OC8LewV8RK7O8TCCBtgwggTAoAMCAQICEzwA
-# AAACp2Mbi4zdg2MAAAAAAAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UEAxMRRUVU
-# IEdyb3VwIFJvb3QgQ0EwHhcNMTkwMjA2MDkyMjIxWhcNMjQwMjA2MDkzMjIxWjBL
-# MRMwEQYKCZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJZWV0bm9yZGlj
-# MRkwFwYDVQQDExBFRVQgR3JvdXAgU3ViIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC
-# AQ8AMIIBCgKCAQEA2BhikY439/eE6CRdiGIn2jRm+KJ2+fDCYMLN/f/WZon4Xl5P
-# HH+CAnBw5pC/Cv0xnMFhgJUhxDnLcm4GKnagOiAlxgE+ukzESzLigfOeMslvgXVt
-# xi0g2Nf/Y4g4dCs+RT3kOt6gH+3r1SUkyI01zkkN576dR9hYq7P2YfWlREFOTZiA
-# DKdBTLzZdZwz2foDInkIGFQBo4lEzOVbrZjyPaleXfIv7CJ5luMmN1tWZzREGk9F
-# R3IQo2/4DtaaqDqy1jY9aLdlSiUP2+IlKMAR2huE3GWCDcyQOlJKi7AibFznTpzo
-# zBwm8sLVs18/aMK6OPj1UV3+7l0fbcmhoYl2HwIDAQABo4IC4jCCAt4wEAYJKwYB
-# BAGCNxUBBAMCAQAwHQYDVR0OBBYEFEGPoH3h3m7lmFps/qgXP6VCwLBpMBkGCSsG
-# AQQBgjcUAgQMHgoAUwB1AGIAQwBBMAsGA1UdDwQEAwIBhjAPBgNVHRMBAf8EBTAD
-# AQH/MB8GA1UdIwQYMBaAFNEanpkqTKdu+Q7qzwzlbNmFPr3+MIIBIwYDVR0fBIIB
-# GjCCARYwggESoIIBDqCCAQqGgcdsZGFwOi8vL0NOPUVFVCUyMEdyb3VwJTIwUm9v
-# dCUyMENBLENOPVBST0QtUk9PVENBLTAxLENOPUNEUCxDTj1QdWJsaWMlMjBLZXkl
-# MjBTZXJ2aWNlcyxDTj1TZXJ2aWNlcyxDTj1Db25maWd1cmF0aW9uLGRjPWVldG5v
-# cmRpYyxkYz1uZXQ/Y2VydGlmaWNhdGVSZXZvY2F0aW9uTGlzdD9iYXNlP29iamVj
-# dENsYXNzPWNSTERpc3RyaWJ1dGlvblBvaW50hj5odHRwOi8vcGtpMS5lZXRub3Jk
-# aWMubmV0L0NlcnREYXRhL0VFVCUyMEdyb3VwJTIwUm9vdCUyMENBLmNybDCCASgG
-# CCsGAQUFBwEBBIIBGjCCARYwgbgGCCsGAQUFBzAChoGrbGRhcDovLy9DTj1FRVQl
-# MjBHcm91cCUyMFJvb3QlMjBDQSxDTj1BSUEsQ049UHVibGljJTIwS2V5JTIwU2Vy
-# dmljZXMsQ049U2VydmljZXMsQ049Q29uZmlndXJhdGlvbixkYz1lZXRub3JkaWMs
-# ZGM9bmV0P2NBQ2VydGlmaWNhdGU/YmFzZT9vYmplY3RDbGFzcz1jZXJ0aWZpY2F0
-# aW9uQXV0aG9yaXR5MFkGCCsGAQUFBzAChk1odHRwOi8vcGtpMS5lZXRub3JkaWMu
-# bmV0L0NlcnREYXRhL1BST0QtUk9PVENBLTAxX0VFVCUyMEdyb3VwJTIwUm9vdCUy
-# MENBLmNydDANBgkqhkiG9w0BAQsFAAOCAgEAyWGf9yQmujZDbugAxpqQIdPj1kab
-# /znUHIHEyUkpfQ9bvCR3iWz57F7217oOemlpexIAz/1D1QIgAxdgHykX0gjaKOO3
-# oS22sx/8l0hzQDoe0Oy1u6AOxJ/gtd/oEohAyldpg0Hfv60xdjFw+5zLzVbVQfaD
-# 1odeX0ea+5R/w6X50PRCQTQNCvlq4U3JiZ5G2t0YsVqYa/uiRODy0pyW+RIBxuqE
-# FVQLbVgymixf4GhnZ1PLkAcd0cUP+V68bywEApfim72XkCw7S+IRBaSVRwgZSD6g
-# Zf4mgHsOUgSX6q7dqDrIIVP3Qv6FvcNYHTt6oZGM5GpZ/TP8g972RT8f5r1a85F9
-# EDFJR9DmTZ3NK5Hc6jg0/KYNzDWuU1IZgmJytlUiVume5XKm1kYMzIFKh9wVdYK0
-# WMWmBsyi40ycw7VMN3J23eLscARWXOQYzanLQ1hLdLUUo5T+KLaisfkRilxAueKD
-# GKtgyJnM676QzDOdFr6beW/znpwxBbxVuO7FIDeZ1Ngz1LT5+zXq/vJ4P92L44m8
-# H+cT1E9OSxGLrUFRW3FYce+wC31cw34ui3VUidk+5JneMFTJA+npXysEJwzt+9TE
-# AxrmnoMeyNYqw4FSDE2aQRPDxlk+a5Pr+iZtzLes9tL6OaswA6FUAuwtGWNGv3rb
-# ilNGOO713QEQjM4xggIDMIIB/wIBATBiMEsxEzARBgoJkiaJk/IsZAEZFgNuZXQx
-# GTAXBgoJkiaJk/IsZAEZFgllZXRub3JkaWMxGTAXBgNVBAMTEEVFVCBHcm91cCBT
-# dWIgQ0ECEyUAAAdfKTQ0DSvU+rcAAAAAB18wCQYFKw4DAhoFAKB4MBgGCisGAQQB
-# gjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYK
-# KwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkEMRYEFGHU4OTw
-# Pfp2t6HkLBYzabAkkCxhMA0GCSqGSIb3DQEBAQUABIIBALh0GBtl9ONDtdMWmXSv
-# 9PHxLt/Yg9YJxrlAeopPzB2wQV9PzKzyQPUBQa3bDkDxL0asUV7Dhu0xfHtVx/2X
-# uNgsQUG0AHXCl9X8X3+qJi7Xiv/z5ZbttE7RAgTAVt8Z1Y9djVOZB921EjZkJPrI
-# RUlSHXB+orHMB7DHf0NA8EtDn4dwY2tIIMCrq5YqNxP7Ji2MOudEDZtAaHTiZ2s8
-# OV61vRSemLSE7gYrwT4WUuga1Pn2RtvfYYezf/i1yNYVn4Xm8lzRmiwBZYJgJdgH
-# Ij4C8/zRKg3LZWjmTCBs88EoywnQXLXUaumMXbJV1HX+gkUNFWEdIbRSmZAXrjxO
-# IJY=
-# SIG # End signature block

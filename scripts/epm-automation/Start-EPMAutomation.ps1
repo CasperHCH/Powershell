@@ -74,12 +74,12 @@ function Show-Menu {
     Write-Host "═════════════════════════════════════════════════════════════" -ForegroundColor Yellow
 }
 
-function Get-ProjectKeys {
+function Get-ProjectKeyList {
     Write-Host ""
     Write-Host "Enter project keys to analyze (comma-separated):" -ForegroundColor Cyan
     Write-Host "Example: PROJ1, PROJ2, PROJ3" -ForegroundColor Gray
-    $input = Read-Host "Project Keys"
-    return $input -split "," | ForEach-Object { $_.Trim() }
+    $projectKeyInput = Read-Host "Project Keys"
+    return $projectKeyInput -split "," | ForEach-Object { $_.Trim() }
 }
 
 function Get-Configuration {
@@ -187,7 +187,7 @@ do {
     switch ($choice) {
         "1" {
             Get-Configuration
-            $projects = Get-ProjectKeys
+            $projects = Get-ProjectKeyList
 
             $params = @{
                 JiraBaseUrl = $script:JiraBaseUrl
@@ -204,7 +204,7 @@ do {
 
         "2" {
             Get-Configuration
-            $projects = Get-ProjectKeys
+            $projects = Get-ProjectKeyList
 
             $params = @{
                 JiraBaseUrl = $script:JiraBaseUrl
@@ -221,7 +221,7 @@ do {
 
         "3" {
             Get-Configuration
-            $projects = Get-ProjectKeys
+            $projects = Get-ProjectKeyList
 
             Write-Host ""
             Write-Host "Select report period:" -ForegroundColor Cyan
@@ -246,7 +246,7 @@ do {
 
         "4" {
             Get-Configuration
-            $projects = Get-ProjectKeys
+            $projects = Get-ProjectKeyList
 
             $params = @{
                 JiraBaseUrl = $script:JiraBaseUrl

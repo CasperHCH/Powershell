@@ -71,6 +71,7 @@ $null = Initialize-SccmScript -ScriptName $MyInvocation.MyCommand.Name -EnableDe
 
 function Get-DeploymentMetricValue {
     [CmdletBinding()]
+    [OutputType([int])]
     param(
         [Parameter(Mandatory = $true)]
         [AllowNull()]
@@ -95,6 +96,7 @@ function Get-DeploymentMetricValue {
 
 function Get-DeploymentAssetDetail {
     [CmdletBinding()]
+    [OutputType([object[]])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$SiteCode,
@@ -215,7 +217,7 @@ try {
 
     $timestamp = Get-SccmTimestampString
     $summaryPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-DeploymentFailureSummary-{0}.csv" -f $timestamp)
-    $null = Export-SccmData -InputObject (@($summaryResults) | Sort-Object FailureRank -Descending, DeploymentName) -Path $summaryPath -Format 'Csv'
+    $null = Export-SccmData -InputObject (@($summaryResults) | Sort-Object -Property @('FailureRank', 'DeploymentName') -Descending) -Path $summaryPath -Format 'Csv'
     Write-SccmLog -Level 'SUCCESS' -Message ("Deployment failure summary exported to [{0}]." -f $summaryPath)
 
     if ($detailResults.Count -gt 0) {

@@ -1,60 +1,37 @@
 <#
 .SYNOPSIS
-	This script will list all AD users mailbox Automappings.
-
-.DESCRIPTION
-	This script will list all AD users mailbox Automappings from the attribute 'msexchdelegatelistlink' on the userobject in AD.
-
-.EXAMPLE
-	PS C:\>NSG-GetAllAutomappings.ps1
-
-	This example will return all ad users mailbox automappings.
-
-.NOTES
-    Written by   : NSG @ EET
-    Release date :
+Lists mailbox automapping delegates from Active Directory.
 #>
 
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory = $false)]
+    [string]$OutputPath
+)
 
-Begin {
-    Try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
+Import-Module ActiveDirectory -ErrorAction Stop
 
-    Catch {
-        Write-Warning $_
-        Break
-    }
-}
+$results = foreach ($user in Get-ADUser -Filter * -Properties msExchDelegateListLink, UserPrincipalName, DisplayName) {
+    foreach ($delegateDn in @($user.msExchDelegateListLink)) {
+        if ([string]::IsNullOrWhiteSpace($delegateDn)) {
+            continue
+        }
 
-process {
-    $automapped = Get-ADUser -Filter * -Properties msexchdelegatelistlink, UserPrincipalName |
-    where {$_.msexchdelegatelistlink -ne $null} |
-    Select-Object name, @{N="DelegateListLink"; e={$_.msexchdelegatelistlink}}, UserPrincipalName
-    $targets= @()
+        $delegateUser = Get-ADUser -Identity $delegateDn -Properties UserPrincipalName, DisplayName -ErrorAction SilentlyContinue
 
-    foreach ($User in $automapped) {
-        $Delegates = $user | select @{ N="Name"; e= {$_ |select -ExpandProperty MsExchDelegateListLink}}
-        $delegatesExp = $Delegates | Select -ExpandProperty Name
-
-        foreach ($delegate in $delegatesExp) {
-            If ($delegate -notlike "") {
-                $DelegatedUserUPN = Get-ADUser -Identity ($Delegate.tostring()) -Properties Userprincipalname | Select UserPrincipalName
-                $DelegatedName = ($Delegate.split("/")[0]).replace("CN=","")
-                $target = New-Object psobject
-                $target | Add-Member -type noteproperty -Name "UserName" -Value ($user.Name) -force
-                $target | Add-Member -type noteproperty -Name "DelegateName" -Value ($DelegatedName) -force
-                $target | Add-Member -type noteproperty -Name "UserPrincipalName" -Value ($user.UserPrincipalName) -force
-                $target | Add-Member -type noteproperty -Name "DelegateDisplayName" -Value ($DelegatedName) -force
-                $target | Add-Member -type noteproperty -Name "DelegateUPN" -Value ($DelegatedUserUPN.UserPrincipalName) -force
-                $targets += $target
-            }
+        [pscustomobject]@{
+            UserName                    = $user.DisplayName
+            UserPrincipalName           = $user.UserPrincipalName
+            DelegateDisplayName         = $delegateUser.DisplayName
+            DelegateUserPrincipalName   = $delegateUser.UserPrincipalName
+            DelegateDistinguishedName   = $delegateDn
         }
     }
 }
 
-end {
-    $targets # | Export-Csv C:\SCRIPTS\AutoMapped_Mailboxes_With_Delegates.csv -NoTypeInformation
+if ($OutputPath) {
+    $results | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
+}
+else {
+    $results
 }

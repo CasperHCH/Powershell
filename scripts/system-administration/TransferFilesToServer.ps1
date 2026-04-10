@@ -1,5 +1,5 @@
-####################################################################
-# 🏢 ENTERPRISE SECURE FILE TRANSFER SYSTEM (TO SERVER)
+﻿####################################################################
+# ­ƒÅó ENTERPRISE SECURE FILE TRANSFER SYSTEM (TO SERVER)
 ####################################################################
 #
 # PURPOSE: Military-grade file transfer system with comprehensive security and monitoring
@@ -7,13 +7,13 @@
 # SECURITY: End-to-end encryption, role-based access, comprehensive audit trails
 #
 # ENTERPRISE FEATURES:
-#   🔒 Military-grade security with encryption and digital signatures
-#   📊 Comprehensive transfer monitoring and progress tracking
-#   ⚡ Parallel processing with intelligent bandwidth management
-#   🛡️ Enterprise compliance and comprehensive audit logging
-#   🌍 Cross-platform compatibility with modern PowerShell Core
-#   📈 Performance optimization and detailed telemetry
-#   🎯 Advanced retry logic and fault tolerance systems
+#   ­ƒöÆ Military-grade security with encryption and digital signatures
+#   ­ƒôè Comprehensive transfer monitoring and progress tracking
+#   ÔÜí Parallel processing with intelligent bandwidth management
+#   ­ƒøí´©Å Enterprise compliance and comprehensive audit logging
+#   ­ƒîì Cross-platform compatibility with modern PowerShell Core
+#   ­ƒôê Performance optimization and detailed telemetry
+#   ­ƒÄ» Advanced retry logic and fault tolerance systems
 ####################################################################
 
 #Requires -Version 5.1
@@ -137,7 +137,7 @@ param(
     [string]$ExportFormat = "JSON"
 )
 
-# 🔧 ENTERPRISE INITIALIZATION: Load enterprise framework
+# ­ƒöº ENTERPRISE INITIALIZATION: Load enterprise framework
 try {
     $enterpriseLoggingPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "Enterprise-Logging-Framework.ps1"
     if (Test-Path $enterpriseLoggingPath) {
@@ -146,15 +146,20 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FileTransfer", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Host "[$Level] [$Category] $Message$propertySummary" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
     }
 } catch {
     Write-Warning "Enterprise logging not available: $($_.Exception.Message)"
 }
 
-# 📊 ENTERPRISE METRICS: File transfer tracking
-$Global:EnterpriseTransferMetrics = @{
+# ­ƒôè ENTERPRISE METRICS: File transfer tracking
+$script:EnterpriseTransferMetrics = @{
     StartTime = Get-Date
     FilesTransferred = 0
     BytesTransferred = 0
@@ -167,7 +172,7 @@ $Global:EnterpriseTransferMetrics = @{
 }
 
 ####################################################################
-# 🔒 ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
+# ­ƒöÆ ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
 ####################################################################
 
 function Test-EnterpriseTransferSecurity {
@@ -186,7 +191,7 @@ function Test-EnterpriseTransferSecurity {
     )
 
     try {
-        Write-Host "🛡️  Analyzing transfer security for: $TargetServer" -ForegroundColor Cyan
+        Write-Host "­ƒøí´©Å  Analyzing transfer security for: $TargetServer" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting security validation" -Category "Security" -Properties @{
             TargetServer = $TargetServer
             SourcePath = $SourcePath
@@ -234,11 +239,11 @@ function Test-EnterpriseTransferSecurity {
         # Overall security assessment
         if ($securityResults.RequiresEncryption -and -not $UseSSL) {
             $securityResults.OverallSecure = $false
-            $Global:EnterpriseTransferMetrics.SecurityViolations++
+            $script:EnterpriseTransferMetrics.SecurityViolations++
         }
 
         # Display security analysis
-        Write-Host "   🔍 Security Risk: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒöì Security Risk: " -NoNewline -ForegroundColor White
         $riskColor = switch ($securityResults.SecurityRisk) {
             "Low" { "Green" }
             "Medium" { "Yellow" }
@@ -246,19 +251,19 @@ function Test-EnterpriseTransferSecurity {
         }
         Write-Host $securityResults.SecurityRisk -ForegroundColor $riskColor
 
-        Write-Host "   🔐 Requires Encryption: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒöÉ Requires Encryption: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.RequiresEncryption -ForegroundColor $(if($securityResults.RequiresEncryption){"Yellow"}else{"Green"})
 
-        Write-Host "   🗂️  Sensitive Data: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒùé´©Å  Sensitive Data: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.SensitiveData -ForegroundColor $(if($securityResults.SensitiveData){"Yellow"}else{"Green"})
 
-        Write-Host "   📋 Compliance Required: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒôï Compliance Required: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.ComplianceRequired -ForegroundColor $(if($securityResults.ComplianceRequired){"Yellow"}else{"Green"})
 
         if ($securityResults.Recommendations.Count -gt 0) {
-            Write-Host "   📋 Recommendations:" -ForegroundColor Yellow
+            Write-Host "   ­ƒôï Recommendations:" -ForegroundColor Yellow
             $securityResults.Recommendations | ForEach-Object {
-                Write-Host "      • $_" -ForegroundColor White
+                Write-Host "      ÔÇó $_" -ForegroundColor White
             }
         }
 
@@ -288,7 +293,7 @@ function Test-EnterpriseConnectivity {
     )
 
     try {
-        Write-Host "🔗 Testing connectivity to: $ComputerName" -ForegroundColor Cyan
+        Write-Host "­ƒöù Testing connectivity to: $ComputerName" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting connectivity validation" -Category "Connectivity"
 
         $connectivityResults = @{
@@ -300,17 +305,17 @@ function Test-EnterpriseConnectivity {
         }
 
         # Test basic connectivity
-        Write-Host "   🏓 Testing ping connectivity..." -ForegroundColor Yellow
+        Write-Host "   ­ƒÅô Testing ping connectivity..." -ForegroundColor Yellow
         try {
             $pingResult = Test-Connection -ComputerName $ComputerName -Count 2 -Quiet -ErrorAction Stop
             $connectivityResults.PingSuccess = $pingResult
-            Write-Host "   ✅ Ping successful" -ForegroundColor Green
+            Write-Host "   Ô£à Ping successful" -ForegroundColor Green
         } catch {
-            Write-Host "   ❌ Ping failed" -ForegroundColor Red
+            Write-Host "   ÔØî Ping failed" -ForegroundColor Red
         }
 
         # Test WSMan/PowerShell Remoting
-        Write-Host "   🔧 Testing PowerShell remoting..." -ForegroundColor Yellow
+        Write-Host "   ­ƒöº Testing PowerShell remoting..." -ForegroundColor Yellow
         try {
             $wsmanParams = @{
                 ComputerName = $ComputerName
@@ -321,15 +326,15 @@ function Test-EnterpriseConnectivity {
             }
 
             $wsmanResult = Test-WSMan @wsmanParams
-            $connectivityResults.WSManEnabled = $wsmanResult -ne $null
-            Write-Host "   ✅ PowerShell remoting available" -ForegroundColor Green
+            $connectivityResults.WSManEnabled = [bool]$wsmanResult
+            Write-Host "   Ô£à PowerShell remoting available" -ForegroundColor Green
         } catch {
-            Write-Host "   ❌ PowerShell remoting failed: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "   ÔØî PowerShell remoting failed: $($_.Exception.Message)" -ForegroundColor Red
         }
 
         # Test actual session creation
         if ($connectivityResults.WSManEnabled) {
-            Write-Host "   🔐 Testing session creation..." -ForegroundColor Yellow
+            Write-Host "   ­ƒöÉ Testing session creation..." -ForegroundColor Yellow
             try {
                 $sessionParams = @{
                     ComputerName = $ComputerName
@@ -343,11 +348,11 @@ function Test-EnterpriseConnectivity {
                 if ($testSession) {
                     $connectivityResults.PowerShellRemoting = $true
                     $connectivityResults.CredentialValid = $true
-                    Write-Host "   ✅ Session creation successful" -ForegroundColor Green
+                    Write-Host "   Ô£à Session creation successful" -ForegroundColor Green
                     Remove-PSSession $testSession -ErrorAction SilentlyContinue
                 }
             } catch {
-                Write-Host "   ❌ Session creation failed: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "   ÔØî Session creation failed: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
 
@@ -367,7 +372,7 @@ function Test-EnterpriseConnectivity {
 }
 
 ####################################################################
-# 🚀 ENTERPRISE FILE TRANSFER FUNCTIONS
+# ­ƒÜÇ ENTERPRISE FILE TRANSFER FUNCTIONS
 ####################################################################
 
 function Get-FileIntegrityHash {
@@ -384,7 +389,6 @@ function Get-FileIntegrityHash {
     try {
         $hashResult = @{
             SHA256 = (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash
-            MD5 = (Get-FileHash -Path $FilePath -Algorithm MD5).Hash
             FileSize = (Get-Item $FilePath).Length
             LastModified = (Get-Item $FilePath).LastWriteTime
         }
@@ -413,7 +417,7 @@ function Invoke-EnterpriseFileTransfer {
     )
 
     try {
-        Write-Host "🚀 Starting enterprise file transfer..." -ForegroundColor Cyan
+        Write-Host "­ƒÜÇ Starting enterprise file transfer..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting file transfer operation" -Category "Transfer" -Properties @{
             Source = $SourcePath
             Destination = "$ComputerName`:$DestinationPath"
@@ -441,7 +445,7 @@ function Invoke-EnterpriseFileTransfer {
             $sessionParams.UseSSL = $true
         }
 
-        Write-Host "   🔐 Establishing secure session..." -ForegroundColor Yellow
+        Write-Host "   ­ƒöÉ Establishing secure session..." -ForegroundColor Yellow
         $session = New-PSSession @sessionParams
 
         # Get source file information
@@ -449,12 +453,12 @@ function Invoke-EnterpriseFileTransfer {
         $totalFiles = $sourceItems.Count
         $totalBytes = ($sourceItems | Measure-Object Length -Sum).Sum
 
-        Write-Host "   📊 Transfer scope: $totalFiles files ($([math]::Round($totalBytes / 1MB, 2)) MB)" -ForegroundColor Cyan
+        Write-Host "   ­ƒôè Transfer scope: $totalFiles files ($([math]::Round($totalBytes / 1MB, 2)) MB)" -ForegroundColor Cyan
 
         # Pre-transfer integrity collection
         $sourceHashes = @{}
         if ($ValidateIntegrity) {
-            Write-Host "   🔍 Collecting source file hashes..." -ForegroundColor Yellow
+            Write-Host "   ­ƒöì Collecting source file hashes..." -ForegroundColor Yellow
             foreach ($file in $sourceItems) {
                 $hash = Get-FileIntegrityHash -FilePath $file.FullName
                 if ($hash) {
@@ -464,7 +468,7 @@ function Invoke-EnterpriseFileTransfer {
         }
 
         # Execute transfer with progress tracking
-        Write-Host "   📤 Transferring files to $ComputerName..." -ForegroundColor Yellow
+        Write-Host "   ­ƒôñ Transferring files to $ComputerName..." -ForegroundColor Yellow
 
         $transferParams = @{
             Path = $SourcePath
@@ -478,7 +482,7 @@ function Invoke-EnterpriseFileTransfer {
 
         # Post-transfer validation
         if ($ValidateIntegrity -and $sourceHashes.Count -gt 0) {
-            Write-Host "   🔬 Validating file integrity..." -ForegroundColor Yellow
+            Write-Host "   ­ƒö¼ Validating file integrity..." -ForegroundColor Yellow
 
             $validationScript = {
                 param($DestPath, $SourceHashes)
@@ -507,10 +511,10 @@ function Invoke-EnterpriseFileTransfer {
 
             $integrityFailures = $validationResults | Where-Object { -not $_.IntegrityValid }
             if ($integrityFailures.Count -eq 0) {
-                Write-Host "   ✅ All files passed integrity validation" -ForegroundColor Green
+                Write-Host "   Ô£à All files passed integrity validation" -ForegroundColor Green
                 $transferResult.IntegrityValidated = $true
             } else {
-                Write-Host "   ⚠️  $($integrityFailures.Count) files failed integrity validation" -ForegroundColor Yellow
+                Write-Host "   ÔÜá´©Å  $($integrityFailures.Count) files failed integrity validation" -ForegroundColor Yellow
                 $transferResult.Errors += "Integrity validation failures: $($integrityFailures.Count)"
             }
         }
@@ -525,12 +529,12 @@ function Invoke-EnterpriseFileTransfer {
         # Calculate transfer speed
         if ($transferResult.TransferTime -gt 0) {
             $transferSpeedMBps = [math]::Round(($totalBytes / 1MB) / $transferResult.TransferTime, 2)
-            Write-Host "   📈 Transfer completed: $transferSpeedMBps MB/s" -ForegroundColor Green
-            $Global:EnterpriseTransferMetrics.AverageTransferSpeed = $transferSpeedMBps
+            Write-Host "   ­ƒôê Transfer completed: $transferSpeedMBps MB/s" -ForegroundColor Green
+            $script:EnterpriseTransferMetrics.AverageTransferSpeed = $transferSpeedMBps
         }
 
-        $Global:EnterpriseTransferMetrics.FilesTransferred += $transferResult.FilesTransferred
-        $Global:EnterpriseTransferMetrics.BytesTransferred += $transferResult.BytesTransferred
+        $script:EnterpriseTransferMetrics.FilesTransferred += $transferResult.FilesTransferred
+        $script:EnterpriseTransferMetrics.BytesTransferred += $transferResult.BytesTransferred
 
         Write-EnterpriseLog -Level "Success" -Message "File transfer completed successfully" -Category "Transfer" -Properties $transferResult
 
@@ -539,7 +543,7 @@ function Invoke-EnterpriseFileTransfer {
     } catch {
         $transferResult.Success = $false
         $transferResult.Errors += $_.Exception.Message
-        $Global:EnterpriseTransferMetrics.TransferErrors++
+        $script:EnterpriseTransferMetrics.TransferErrors++
 
         Write-EnterpriseLog -Level "Error" -Message "File transfer failed" -Category "Transfer" -Exception $_ -Properties @{
             Source = $SourcePath
@@ -577,8 +581,8 @@ function Export-EnterpriseTransferReport {
             TransferDirection = "TO_SERVER"
             Parameters = $PSBoundParameters
             Results = $TransferResults
-            Metrics = $Global:EnterpriseTransferMetrics
-            Duration = [math]::Round(((Get-Date) - $Global:EnterpriseTransferMetrics.StartTime).TotalMinutes, 2)
+            Metrics = $script:EnterpriseTransferMetrics
+            Duration = [math]::Round(((Get-Date) - $script:EnterpriseTransferMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($ExportFormat) {
@@ -599,16 +603,16 @@ function Export-EnterpriseTransferReport {
 <p><strong>Generated:</strong> $($report.Timestamp)</p>
 <p><strong>Computer:</strong> $($report.ComputerName)</p>
 <p><strong>Duration:</strong> $($report.Duration) minutes</p>
-<p><strong>Files Transferred:</strong> $($Global:EnterpriseTransferMetrics.FilesTransferred)</p>
-<p><strong>Bytes Transferred:</strong> $($Global:EnterpriseTransferMetrics.BytesTransferred)</p>
-<p><strong>Transfer Errors:</strong> $($Global:EnterpriseTransferMetrics.TransferErrors)</p>
+<p><strong>Files Transferred:</strong> $($script:EnterpriseTransferMetrics.FilesTransferred)</p>
+<p><strong>Bytes Transferred:</strong> $($script:EnterpriseTransferMetrics.BytesTransferred)</p>
+<p><strong>Transfer Errors:</strong> $($script:EnterpriseTransferMetrics.TransferErrors)</p>
 </body></html>
 "@
                 $htmlContent | Out-File $reportPath -Encoding UTF8
             }
         }
 
-        Write-Host "📄 Enterprise transfer report exported: $reportPath" -ForegroundColor Green
+        Write-Host "­ƒôä Enterprise transfer report exported: $reportPath" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "Enterprise transfer report generated" -Category "Reporting" -Properties @{
             ReportPath = $reportPath
             Format = $ExportFormat
@@ -619,20 +623,20 @@ function Export-EnterpriseTransferReport {
 
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Failed to generate enterprise transfer report" -Category "Reporting" -Exception $_
-        Write-Host "⚠️  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "ÔÜá´©Å  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
 ####################################################################
-# 🚀 MAIN ENTERPRISE EXECUTION LOGIC
+# ­ƒÜÇ MAIN ENTERPRISE EXECUTION LOGIC
 ####################################################################
 
 try {
     # Enterprise banner
-    Write-Host "`n" + ("═" * 70) -ForegroundColor Cyan
-    Write-Host "🏢 ENTERPRISE SECURE FILE TRANSFER SYSTEM (TO SERVER)" -ForegroundColor Green
-    Write-Host ("═" * 70) -ForegroundColor Cyan
-    Write-Host "🔒 Military-grade file transfer with comprehensive security and monitoring" -ForegroundColor White
+    Write-Host "`n" + ("ÔòÉ" * 70) -ForegroundColor Cyan
+    Write-Host "­ƒÅó ENTERPRISE SECURE FILE TRANSFER SYSTEM (TO SERVER)" -ForegroundColor Green
+    Write-Host ("ÔòÉ" * 70) -ForegroundColor Cyan
+    Write-Host "­ƒöÆ Military-grade file transfer with comprehensive security and monitoring" -ForegroundColor White
     Write-Host ""
 
     Write-EnterpriseLog -Level "Info" -Message "Enterprise file transfer system started" -Category "System" -Properties @{
@@ -670,7 +674,7 @@ try {
 
     # Get credentials if not provided
     if (-not $Credentials) {
-        Write-Host "🔐 Authentication required for server access:" -ForegroundColor Cyan
+        Write-Host "­ƒöÉ Authentication required for server access:" -ForegroundColor Cyan
         $Credentials = Get-Credential -Message "Enter credentials for $ComputerName"
         if (-not $Credentials) {
             throw "Valid credentials are required for server access"
@@ -678,7 +682,7 @@ try {
     }
 
     # Security validation
-    Write-Host "`n🛡️  ENTERPRISE SECURITY VALIDATION" -ForegroundColor Cyan
+    Write-Host "`n­ƒøí´©Å  ENTERPRISE SECURITY VALIDATION" -ForegroundColor Cyan
     $securityResults = Test-EnterpriseTransferSecurity -TargetServer $ComputerName -SourcePath $SourcePath -DestinationPath $DestinationPath
 
     if (-not $securityResults.OverallSecure -and -not $Force) {
@@ -691,18 +695,18 @@ try {
     }
 
     # Connectivity validation
-    Write-Host "`n🔗 ENTERPRISE CONNECTIVITY VALIDATION" -ForegroundColor Cyan
+    Write-Host "`n­ƒöù ENTERPRISE CONNECTIVITY VALIDATION" -ForegroundColor Cyan
     $connectivityResults = Test-EnterpriseConnectivity -ComputerName $ComputerName -Credential $Credentials
 
     if (-not $connectivityResults.OverallConnectivity) {
         throw "Cannot establish connectivity to $ComputerName. Please verify network access and credentials."
     }
 
-    Write-Host "✅ Connectivity validation successful" -ForegroundColor Green
+    Write-Host "Ô£à Connectivity validation successful" -ForegroundColor Green
 
     # Interactive confirmation
     if (-not $Force) {
-        Write-Host "`n⚠️  ENTERPRISE FILE TRANSFER CONFIRMATION" -ForegroundColor Yellow
+        Write-Host "`nÔÜá´©Å  ENTERPRISE FILE TRANSFER CONFIRMATION" -ForegroundColor Yellow
         Write-Host "Source: $SourcePath" -ForegroundColor Cyan
         Write-Host "Destination: $ComputerName`:$DestinationPath" -ForegroundColor Cyan
         Write-Host "Include Subdirectories: $($IncludeSubdirectories.IsPresent)" -ForegroundColor Cyan
@@ -719,43 +723,43 @@ try {
     }
 
     # Execute enterprise file transfer
-    Write-Host "`n🚀 ENTERPRISE FILE TRANSFER EXECUTION" -ForegroundColor Cyan
+    Write-Host "`n­ƒÜÇ ENTERPRISE FILE TRANSFER EXECUTION" -ForegroundColor Cyan
     $transferResults = Invoke-EnterpriseFileTransfer -ComputerName $ComputerName -SourcePath $SourcePath -DestinationPath $DestinationPath -Credential $Credentials
 
     # Generate comprehensive report
-    Write-Host "`n📄 ENTERPRISE REPORTING" -ForegroundColor Cyan
+    Write-Host "`n­ƒôä ENTERPRISE REPORTING" -ForegroundColor Cyan
     Export-EnterpriseTransferReport -TransferResults $transferResults
 
     # Final summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseTransferMetrics.StartTime).TotalMinutes, 2)
-    Write-Host "`n" + ("═" * 50) -ForegroundColor Green
-    Write-Host "🎉 ENTERPRISE FILE TRANSFER COMPLETE" -ForegroundColor Green
-    Write-Host ("═" * 50) -ForegroundColor Green
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseTransferMetrics.StartTime).TotalMinutes, 2)
+    Write-Host "`n" + ("ÔòÉ" * 50) -ForegroundColor Green
+    Write-Host "­ƒÄë ENTERPRISE FILE TRANSFER COMPLETE" -ForegroundColor Green
+    Write-Host ("ÔòÉ" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Files Transferred: $($Global:EnterpriseTransferMetrics.FilesTransferred)" -ForegroundColor White
-    Write-Host "   Bytes Transferred: $([math]::Round($Global:EnterpriseTransferMetrics.BytesTransferred / 1MB, 2)) MB" -ForegroundColor White
-    Write-Host "   Average Speed: $($Global:EnterpriseTransferMetrics.AverageTransferSpeed) MB/s" -ForegroundColor White
-    Write-Host "   Transfer Errors: $($Global:EnterpriseTransferMetrics.TransferErrors)" -ForegroundColor $(if($Global:EnterpriseTransferMetrics.TransferErrors -gt 0){"Red"}else{"Green"})
-    Write-Host "   Security Violations: $($Global:EnterpriseTransferMetrics.SecurityViolations)" -ForegroundColor $(if($Global:EnterpriseTransferMetrics.SecurityViolations -gt 0){"Red"}else{"Green"})
+    Write-Host "   Files Transferred: $($script:EnterpriseTransferMetrics.FilesTransferred)" -ForegroundColor White
+    Write-Host "   Bytes Transferred: $([math]::Round($script:EnterpriseTransferMetrics.BytesTransferred / 1MB, 2)) MB" -ForegroundColor White
+    Write-Host "   Average Speed: $($script:EnterpriseTransferMetrics.AverageTransferSpeed) MB/s" -ForegroundColor White
+    Write-Host "   Transfer Errors: $($script:EnterpriseTransferMetrics.TransferErrors)" -ForegroundColor $(if($script:EnterpriseTransferMetrics.TransferErrors -gt 0){"Red"}else{"Green"})
+    Write-Host "   Security Violations: $($script:EnterpriseTransferMetrics.SecurityViolations)" -ForegroundColor $(if($script:EnterpriseTransferMetrics.SecurityViolations -gt 0){"Red"}else{"Green"})
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise file transfer completed successfully" -Category "System" -Properties $Global:EnterpriseTransferMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise file transfer completed successfully" -Category "System" -Properties $script:EnterpriseTransferMetrics
 
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise file transfer failed" -Category "System" -Exception $_
-    Write-Host "`n❌ ENTERPRISE FILE TRANSFER FAILED" -ForegroundColor Red
+    Write-Host "`nÔØî ENTERPRISE FILE TRANSFER FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseTransferMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseTransferMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseTransferMetrics.Errors | ForEach-Object {
-            Write-Host "   • $_" -ForegroundColor Red
+        $script:EnterpriseTransferMetrics.Errors | ForEach-Object {
+            Write-Host "   ÔÇó $_" -ForegroundColor Red
         }
     }
 
     exit 1
 } finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseTransferMetrics) {
-        $Global:EnterpriseTransferMetrics.EndTime = Get-Date
+    if ($script:EnterpriseTransferMetrics) {
+        $script:EnterpriseTransferMetrics.EndTime = Get-Date
     }
 }

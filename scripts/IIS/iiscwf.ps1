@@ -1,7 +1,6 @@
 # Install IIS and Common Gateway Interface features
-param(
-    [switch]$WhatIf
-)
+[CmdletBinding(SupportsShouldProcess)]
+param()
 
 $features = @(
     "IIS-WebServerRole",
@@ -13,15 +12,13 @@ $features = @(
 foreach ($feature in $features) {
     $featureState = (Get-WindowsOptionalFeature -FeatureName $feature -Online).State
 
-    if($featureState -eq "Enabled") {
+    if ($featureState -eq "Enabled") {
         Write-Host "$feature is already enabled" -ForegroundColor Green
     } else {
         Write-Host "Enabling $feature..." -ForegroundColor Yellow
-        if (-not $WhatIf) {
+        if ($PSCmdlet.ShouldProcess($feature, "Enable Windows optional feature")) {
             Enable-WindowsOptionalFeature -Online -FeatureName $feature -All -NoRestart
             Write-Host "$feature enabled successfully" -ForegroundColor Green
-        } else {
-            Write-Host "WhatIf: Would enable $feature" -ForegroundColor Cyan
         }
     }
 }

@@ -50,21 +50,23 @@ param(
     [int]$MinimumFolderAgeDays = 30,
 
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated folder names to exclude")]
-    [string]$ExcludeFolders = "",
-
-    [Parameter(Mandatory=$false, HelpMessage="Enable detailed logging")]
-    [switch]$Verbose
+    [string]$ExcludeFolders = ""
 )
 
 # Initialize session tracking
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "SCCMSoftwareAudit_$($script:SessionId).log"
+$script:SccmSiteServerName = $SCCMSiteServer
+$script:SccmSiteCode = $SCCMSiteCode
+$script:SoftwareBasePath = $WindowsSoftwareBasePath
+$script:FolderAgeThresholdDays = $MinimumFolderAgeDays
+$script:ExcludedFolderList = $ExcludeFolders
 
 # ============================================================================
 # LOGGING FUNCTIONS
 # ============================================================================
 
-function Write-Log {
+function Write-ScriptLog {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
@@ -83,14 +85,7 @@ function Write-Log {
     $logEntry = "[$timestamp] [$script:SessionId] [$Level] $displayMessage"
 
     if (-not $Sensitive) {
-        $color = switch ($Level) {
-            "ERROR" { "Red" }
-            "WARNING" { "Yellow" }
-            "AUDIT" { "Cyan" }
-            "DEBUG" { "Gray" }
-            default { "White" }
-        }
-        Write-Host $logEntry -ForegroundColor $color
+        Write-Information $logEntry -InformationAction Continue
     }
 
     $fullLogEntry = "[$timestamp] [$script:SessionId] [$Level] [$env:USERNAME] $Message"
@@ -122,7 +117,7 @@ function Write-AuditLog {
         User = $env:USERNAME
     } | ConvertTo-Json -Compress
 
-    Write-Log -Message $auditEntry -Level "AUDIT" -Sensitive $true
+    Write-ScriptLog -Message $auditEntry -Level "AUDIT" -Sensitive $true
 }
 
 # ============================================================================
@@ -130,25 +125,26 @@ function Write-AuditLog {
 # ============================================================================
 
 function Test-SCCMConnectivity {
+    [OutputType([bool])]
     param(
         [string]$SiteServer,
         [string]$SiteCode
     )
 
     try {
-        Write-Log "Testing SCCM connectivity to [$SiteServer] with site code [$SiteCode]" -Level "INFO"
-        
+        Write-ScriptLog "Testing SCCM connectivity to [$SiteServer] with site code [$SiteCode]" -Level "INFO"
+
         # Test network connectivity
         $testConnection = Test-NetConnection -ComputerName $SiteServer -WarningAction SilentlyContinue
-        
+
         if (-not $testConnection.PingSucceeded) {
             throw "Cannot reach SCCM server: $SiteServer"
         }
 
-        Write-Log "✅ SCCM server connectivity verified" -Level "INFO"
+        Write-ScriptLog "SCCM server connectivity verified" -Level "INFO"
         return $true
     } catch {
-        Write-Log "❌ SCCM connectivity test failed: $($_.Exception.Message)" -Level "ERROR"
+        Write-ScriptLog "SCCM connectivity test failed: $($_.Exception.Message)" -Level "ERROR"
         Write-AuditLog -Action "SCCM_CONNECT_FAILED" -Status "Failed" -Details $_.Exception.Message
         throw
     }
@@ -159,17 +155,18 @@ function Test-SCCMConnectivity {
 # ============================================================================
 
 function Get-SCCMSoftwareList {
+    [OutputType([object[]])]
     param(
         [string]$SiteServer,
         [string]$SiteCode
     )
 
     try {
-        Write-Log "Retrieving software list from SCCM..." -Level "INFO"
+        Write-ScriptLog "Retrieving software list from SCCM..." -Level "INFO"
 
         # Import SCCM module
         Import-Module "ConfigurationManager" -ErrorAction Stop
-        
+
         # Connect to SCCM site
         $null = New-PSDrive -Name "$($SiteCode):" -PSProvider CMSite -Root $SiteServer -ErrorAction Stop
         Set-Location "$($SiteCode):" -ErrorAction Stop
@@ -178,16 +175,16 @@ function Get-SCCMSoftwareList {
         $software = Get-CMSoftwareUpdate -Fast | Select-Object -Property LocalizedDisplayName, SDMPackageVersion | Sort-Object LocalizedDisplayName
 
         if (-not $software) {
-            Write-Log "⚠️  No software packages found in SCCM" -Level "WARNING"
+            Write-ScriptLog "No software packages found in SCCM" -Level "WARNING"
             return @()
         }
 
-        Write-Log "✅ Retrieved $($software.Count) software packages from SCCM" -Level "INFO"
+        Write-ScriptLog "Retrieved $($software.Count) software packages from SCCM" -Level "INFO"
         Write-AuditLog -Action "SCCM_SOFTWARE_RETRIEVED" -Status "Success" -Details "Found $($software.Count) packages"
 
         return $software
     } catch {
-        Write-Log "❌ Failed to retrieve SCCM software: $($_.Exception.Message)" -Level "ERROR"
+        Write-ScriptLog "Failed to retrieve SCCM software: $($_.Exception.Message)" -Level "ERROR"
         Write-AuditLog -Action "SCCM_RETRIEVE_FAILED" -Status "Failed" -Details $_.Exception.Message
         throw
     } finally {
@@ -199,24 +196,31 @@ function Get-SCCMSoftwareList {
 # WINDOWS FOLDER ANALYSIS
 # ============================================================================
 
-function Get-WindowsSoftwareFolders {
+function Get-WindowsSoftwareFolder {
+    [OutputType([object[]])]
     param(
         [string]$BasePath
     )
 
     try {
-        Write-Log "Scanning Windows software folders at: $BasePath" -Level "INFO"
+        Write-ScriptLog "Scanning Windows software folders at: $BasePath" -Level "INFO"
 
         if (-not (Test-Path $BasePath)) {
             throw "Software base path not found: $BasePath"
         }
 
-        $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop | Select-Object -Property Name, FullPath, CreationTime, LastWriteTime
+        $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop | Select-Object @{
+            Name = 'Name'
+            Expression = { $_.Name }
+        }, @{
+            Name = 'FullPath'
+            Expression = { $_.FullName }
+        }, CreationTime, LastWriteTime
 
-        Write-Log "✅ Found $($folders.Count) software folders" -Level "INFO"
+        Write-ScriptLog "Found $($folders.Count) software folders" -Level "INFO"
         return $folders
     } catch {
-        Write-Log "❌ Failed to scan software folders: $($_.Exception.Message)" -Level "ERROR"
+        Write-ScriptLog "Failed to scan software folders: $($_.Exception.Message)" -Level "ERROR"
         throw
     }
 }
@@ -226,6 +230,7 @@ function Get-WindowsSoftwareFolders {
 # ============================================================================
 
 function Compare-SCCMAndWindowsSoftware {
+    [OutputType([object[]])]
     param(
         [Parameter(Mandatory=$true)]
         [array]$SCCMSoftware,
@@ -245,22 +250,22 @@ function Compare-SCCMAndWindowsSoftware {
         $excludedFolders = $ExcludeList -split "," | ForEach-Object { $_.Trim() }
     }
 
-    $scccmNames = $SCCMSoftware | Select-Object -ExpandProperty LocalizedDisplayName
+    $sccmNames = $SCCMSoftware | Select-Object -ExpandProperty LocalizedDisplayName
 
     $orphanedSoftware = @()
 
     foreach ($folder in $WindowsFolders) {
         # Skip excluded folders
         if ($folder.Name -in $excludedFolders) {
-            Write-Log "⏭️  Skipping excluded folder: $($folder.Name)" -Level "DEBUG"
+            Write-ScriptLog "Skipping excluded folder: $($folder.Name)" -Level "DEBUG"
             continue
         }
 
         $folderAge = (Get-Date) - $folder.CreationTime
-        $foundInSCCM = $scccmNames | Where-Object { $_ -like "*$($folder.Name)*" -or $folder.Name -like "*$_*" }
+        $foundInSCCM = $sccmNames | Where-Object { $_ -like "*$($folder.Name)*" -or $folder.Name -like "*$_*" }
 
         if (-not $foundInSCCM) {
-            $orphanedSoftware += @{
+            $orphanedSoftware += [pscustomobject]@{
                 FolderName = $folder.Name
                 FullPath = $folder.FullPath
                 CreationTime = $folder.CreationTime
@@ -269,7 +274,7 @@ function Compare-SCCMAndWindowsSoftware {
                 IsOldEnough = $folderAge.TotalDays -ge $MinimumAgeDays
             }
 
-            Write-Log "🔍 Orphaned software detected: $($folder.Name) (Age: $([math]::Round($folderAge.TotalDays)) days)" -Level "INFO"
+            Write-ScriptLog "Orphaned software detected: $($folder.Name) (Age: $([math]::Round($folderAge.TotalDays)) days)" -Level "INFO"
         }
     }
 
@@ -281,34 +286,35 @@ function Compare-SCCMAndWindowsSoftware {
 # ============================================================================
 
 function Show-OrphanedSoftwareReport {
+    [OutputType([void])]
     param(
         [array]$OrphanedSoftware
     )
 
     if (-not $OrphanedSoftware -or $OrphanedSoftware.Count -eq 0) {
-        Write-Host "`n✅ No orphaned software found!" -ForegroundColor Green
+        Write-Information "No orphaned software found!" -InformationAction Continue
         return
     }
 
-    Write-Host "`n" -ForegroundColor Cyan
-    Write-Host "╔═════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "║        ORPHANED SOFTWARE DETECTED (Not in SCCM)                 ║" -ForegroundColor Cyan
-    Write-Host "╚═════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Information '' -InformationAction Continue
+    Write-Information 'ORPHANED SOFTWARE DETECTED (Not in SCCM)' -InformationAction Continue
+    Write-Information '----------------------------------------' -InformationAction Continue
 
     $orphanedSoftware | ForEach-Object {
-        $safeIcon = if ($_.IsOldEnough) { "🗑️ " } else { "⚠️  " }
-        Write-Host "`n$safeIcon $($_.FolderName)"
-        Write-Host "   📁 Path: $($_.FullPath)" -ForegroundColor Gray
-        Write-Host "   📅 Created: $($_.CreationTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
-        Write-Host "   ⏱️  Age: $($_.AgeInDays) days" -ForegroundColor $(if ($_.IsOldEnough) { "Green" } else { "Yellow" })
-        Write-Host "   Status: $(if ($_.IsOldEnough) { 'Safe to remove' } else { 'Too new - review manually' })" -ForegroundColor $(if ($_.IsOldEnough) { "Green" } else { "Yellow" })
+        Write-Information '' -InformationAction Continue
+        Write-Information ("Folder: {0}" -f $_.FolderName) -InformationAction Continue
+        Write-Information ("  Path: {0}" -f $_.FullPath) -InformationAction Continue
+        Write-Information ("  Created: {0}" -f $_.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')) -InformationAction Continue
+        Write-Information ("  Age: {0} days" -f $_.AgeInDays) -InformationAction Continue
+        Write-Information ("  Status: {0}" -f $(if ($_.IsOldEnough) { 'Safe to remove' } else { 'Too new - review manually' })) -InformationAction Continue
     }
 
-    Write-Host "`n"
+    Write-Information '' -InformationAction Continue
 }
 
 function Remove-OrphanedSoftwareFolder {
     [CmdletBinding(SupportsShouldProcess = $true)]
+    [OutputType([bool])]
     param(
         [Parameter(Mandatory=$true)]
         [string]$FolderPath,
@@ -324,19 +330,19 @@ function Remove-OrphanedSoftwareFolder {
         if (-not $Force) {
             $confirm = Read-Host "Remove folder '$FolderName'? (yes/no)"
             if ($confirm -ne "yes") {
-                Write-Log "⏭️  Removal cancelled by user for: $FolderName" -Level "INFO"
+                Write-ScriptLog "Removal cancelled by user for: $FolderName" -Level "INFO"
                 return $false
             }
         }
 
         if ($PSCmdlet.ShouldProcess($FolderPath, "Remove folder")) {
             Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
-            Write-Log "✅ Successfully removed: $FolderName" -Level "INFO"
+            Write-ScriptLog "Successfully removed: $FolderName" -Level "INFO"
             Write-AuditLog -Action "FOLDER_REMOVED" -FolderName $FolderName -Status "Success"
             return $true
         }
     } catch {
-        Write-Log "❌ Failed to remove folder '$FolderName': $($_.Exception.Message)" -Level "ERROR"
+        Write-ScriptLog "Failed to remove folder '$FolderName': $($_.Exception.Message)" -Level "ERROR"
         Write-AuditLog -Action "FOLDER_REMOVAL_FAILED" -FolderName $FolderName -Status "Failed" -Details $_.Exception.Message
         return $false
     }
@@ -347,32 +353,32 @@ function Remove-OrphanedSoftwareFolder {
 # ============================================================================
 
 function Invoke-SCCMSoftwareComparison {
-    Write-Log "🚀 Starting SCCM Software Comparison Script" -Level "INFO"
+    Write-ScriptLog "Starting SCCM Software Comparison Script" -Level "INFO"
     Write-AuditLog -Action "SCRIPT_START" -Status "Started"
 
     try {
         # Test SCCM connectivity
-        Test-SCCMConnectivity -SiteServer $SCCMSiteServer -SiteCode $SCCMSiteCode
+        Test-SCCMConnectivity -SiteServer $script:SccmSiteServerName -SiteCode $script:SccmSiteCode
 
         # Get software lists
-        $scccmSoftware = Get-SCCMSoftwareList -SiteServer $SCCMSiteServer -SiteCode $SCCMSiteCode
-        $windowsFolders = Get-WindowsSoftwareFolders -BasePath $WindowsSoftwareBasePath
+        $scccmSoftware = Get-SCCMSoftwareList -SiteServer $script:SccmSiteServerName -SiteCode $script:SccmSiteCode
+        $windowsFolders = Get-WindowsSoftwareFolder -BasePath $script:SoftwareBasePath
 
         # Compare and identify orphaned software
         $orphanedSoftware = Compare-SCCMAndWindowsSoftware `
             -SCCMSoftware $scccmSoftware `
             -WindowsFolders $windowsFolders `
-            -MinimumAgeDays $MinimumFolderAgeDays `
-            -ExcludeList $ExcludeFolders
+            -MinimumAgeDays $script:FolderAgeThresholdDays `
+            -ExcludeList $script:ExcludedFolderList
 
         # Display report
         Show-OrphanedSoftwareReport -OrphanedSoftware $orphanedSoftware
 
-        Write-Log "✅ SCCM Software Comparison completed successfully" -Level "INFO"
+        Write-ScriptLog "SCCM Software Comparison completed successfully" -Level "INFO"
         Write-AuditLog -Action "SCRIPT_COMPLETE" -Status "Success" -Details "Found $($orphanedSoftware.Count) orphaned items"
 
     } catch {
-        Write-Log "❌ Script execution failed: $($_.Exception.Message)" -Level "ERROR"
+        Write-ScriptLog "Script execution failed: $($_.Exception.Message)" -Level "ERROR"
         Write-AuditLog -Action "SCRIPT_FAILED" -Status "Failed" -Details $_.Exception.Message
         exit 1
     }

@@ -76,6 +76,7 @@ $null = Initialize-SccmScript -ScriptName $MyInvocation.MyCommand.Name -EnableDe
 
 function Resolve-DeploymentPurpose {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $false)]
         [AllowNull()]
@@ -104,6 +105,7 @@ function Resolve-DeploymentPurpose {
 
 function Resolve-DeploymentAction {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $false)]
         [AllowNull()]
@@ -150,6 +152,7 @@ function Resolve-DeploymentAction {
 
 function Resolve-CollectionType {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$CollectionId,
@@ -174,6 +177,7 @@ function Resolve-CollectionType {
 
 function Resolve-ImplicitUninstallPropertySnapshot {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $false)]
         [AllowNull()]
@@ -216,6 +220,7 @@ function Resolve-ImplicitUninstallPropertySnapshot {
 
 function Resolve-ImplicitUninstallState {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $false)]
         [AllowNull()]
@@ -278,6 +283,7 @@ function Resolve-ImplicitUninstallState {
 
 function Get-ManualReviewRecommendation {
     [CmdletBinding()]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory = $true)]
         [string]$CollectionType,

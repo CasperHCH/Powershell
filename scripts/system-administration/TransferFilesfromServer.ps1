@@ -1,5 +1,5 @@
-####################################################################
-# 🏢 ENTERPRISE SECURE FILE RETRIEVAL SYSTEM (FROM SERVER)
+﻿####################################################################
+# ­ƒÅó ENTERPRISE SECURE FILE RETRIEVAL SYSTEM (FROM SERVER)
 ####################################################################
 #
 # PURPOSE: Military-grade file retrieval system with comprehensive security and monitoring
@@ -7,13 +7,13 @@
 # SECURITY: End-to-end encryption, role-based access, comprehensive audit trails
 #
 # ENTERPRISE FEATURES:
-#   🔒 Military-grade security with encryption and digital signatures
-#   📊 Comprehensive retrieval monitoring and progress tracking
-#   ⚡ Parallel processing with intelligent bandwidth management
-#   🛡️ Enterprise compliance and comprehensive audit logging
-#   🌍 Cross-platform compatibility with modern PowerShell Core
-#   📈 Performance optimization and detailed telemetry
-#   🎯 Advanced retry logic and fault tolerance systems
+#   ­ƒöÆ Military-grade security with encryption and digital signatures
+#   ­ƒôè Comprehensive retrieval monitoring and progress tracking
+#   ÔÜí Parallel processing with intelligent bandwidth management
+#   ­ƒøí´©Å Enterprise compliance and comprehensive audit logging
+#   ­ƒîì Cross-platform compatibility with modern PowerShell Core
+#   ­ƒôê Performance optimization and detailed telemetry
+#   ­ƒÄ» Advanced retry logic and fault tolerance systems
 ####################################################################
 
 #Requires -Version 5.1
@@ -137,7 +137,7 @@ param(
     [string]$ExportFormat = "JSON"
 )
 
-# 🔧 ENTERPRISE INITIALIZATION: Load enterprise framework
+# ­ƒöº ENTERPRISE INITIALIZATION: Load enterprise framework
 try {
     $enterpriseLoggingPath = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "Enterprise-Logging-Framework.ps1"
     if (Test-Path $enterpriseLoggingPath) {
@@ -146,15 +146,20 @@ try {
     } else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "FileRetrieval", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
+            $propertySummary = if ($Properties.Count -gt 0) {
+                " | Properties: $($Properties.Keys -join ', ')"
+            } else {
+                ""
+            }
+            Write-Host "[$Level] [$Category] $Message$propertySummary" -ForegroundColor $(if($Level -eq "Error"){"Red"} elseif($Level -eq "Warning"){"Yellow"} else {"White"})
         }
     }
 } catch {
     Write-Warning "Enterprise logging not available: $($_.Exception.Message)"
 }
 
-# 📊 ENTERPRISE METRICS: File retrieval tracking
-$Global:EnterpriseRetrievalMetrics = @{
+# ­ƒôè ENTERPRISE METRICS: File retrieval tracking
+$script:EnterpriseRetrievalMetrics = @{
     StartTime = Get-Date
     FilesRetrieved = 0
     BytesRetrieved = 0
@@ -167,7 +172,7 @@ $Global:EnterpriseRetrievalMetrics = @{
 }
 
 ####################################################################
-# 🔒 ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
+# ­ƒöÆ ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
 ####################################################################
 
 function Test-EnterpriseRetrievalSecurity {
@@ -186,7 +191,7 @@ function Test-EnterpriseRetrievalSecurity {
     )
 
     try {
-        Write-Host "🛡️  Analyzing retrieval security for: $SourceServer" -ForegroundColor Cyan
+        Write-Host "­ƒøí´©Å  Analyzing retrieval security for: $SourceServer" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting security validation" -Category "Security" -Properties @{
             SourceServer = $SourceServer
             SourcePath = $SourcePath
@@ -240,11 +245,11 @@ function Test-EnterpriseRetrievalSecurity {
         # Overall security assessment
         if ($securityResults.RequiresEncryption -and -not $UseSSL) {
             $securityResults.OverallSecure = $false
-            $Global:EnterpriseRetrievalMetrics.SecurityViolations++
+            $script:EnterpriseRetrievalMetrics.SecurityViolations++
         }
 
         # Display security analysis
-        Write-Host "   🔍 Security Risk: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒöì Security Risk: " -NoNewline -ForegroundColor White
         $riskColor = switch ($securityResults.SecurityRisk) {
             "Low" { "Green" }
             "Medium" { "Yellow" }
@@ -252,19 +257,19 @@ function Test-EnterpriseRetrievalSecurity {
         }
         Write-Host $securityResults.SecurityRisk -ForegroundColor $riskColor
 
-        Write-Host "   🔐 Requires Encryption: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒöÉ Requires Encryption: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.RequiresEncryption -ForegroundColor $(if($securityResults.RequiresEncryption){"Yellow"}else{"Green"})
 
-        Write-Host "   🗂️  Sensitive Data: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒùé´©Å  Sensitive Data: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.SensitiveData -ForegroundColor $(if($securityResults.SensitiveData){"Yellow"}else{"Green"})
 
-        Write-Host "   📋 Compliance Required: " -NoNewline -ForegroundColor White
+        Write-Host "   ­ƒôï Compliance Required: " -NoNewline -ForegroundColor White
         Write-Host $securityResults.ComplianceRequired -ForegroundColor $(if($securityResults.ComplianceRequired){"Yellow"}else{"Green"})
 
         if ($securityResults.Recommendations.Count -gt 0) {
-            Write-Host "   📋 Recommendations:" -ForegroundColor Yellow
+            Write-Host "   ­ƒôï Recommendations:" -ForegroundColor Yellow
             $securityResults.Recommendations | ForEach-Object {
-                Write-Host "      • $_" -ForegroundColor White
+                Write-Host "      ÔÇó $_" -ForegroundColor White
             }
         }
 
@@ -294,7 +299,7 @@ function Test-EnterpriseConnectivity {
     )
 
     try {
-        Write-Host "🔗 Testing connectivity to: $ComputerName" -ForegroundColor Cyan
+        Write-Host "­ƒöù Testing connectivity to: $ComputerName" -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting connectivity validation" -Category "Connectivity"
 
         $connectivityResults = @{
@@ -306,17 +311,17 @@ function Test-EnterpriseConnectivity {
         }
 
         # Test basic connectivity
-        Write-Host "   🏓 Testing ping connectivity..." -ForegroundColor Yellow
+        Write-Host "   ­ƒÅô Testing ping connectivity..." -ForegroundColor Yellow
         try {
             $pingResult = Test-Connection -ComputerName $ComputerName -Count 2 -Quiet -ErrorAction Stop
             $connectivityResults.PingSuccess = $pingResult
-            Write-Host "   ✅ Ping successful" -ForegroundColor Green
+            Write-Host "   Ô£à Ping successful" -ForegroundColor Green
         } catch {
-            Write-Host "   ❌ Ping failed" -ForegroundColor Red
+            Write-Host "   ÔØî Ping failed" -ForegroundColor Red
         }
 
         # Test WSMan/PowerShell Remoting
-        Write-Host "   🔧 Testing PowerShell remoting..." -ForegroundColor Yellow
+        Write-Host "   ­ƒöº Testing PowerShell remoting..." -ForegroundColor Yellow
         try {
             $wsmanParams = @{
                 ComputerName = $ComputerName
@@ -327,15 +332,15 @@ function Test-EnterpriseConnectivity {
             }
 
             $wsmanResult = Test-WSMan @wsmanParams
-            $connectivityResults.WSManEnabled = $wsmanResult -ne $null
-            Write-Host "   ✅ PowerShell remoting available" -ForegroundColor Green
+            $connectivityResults.WSManEnabled = [bool]$wsmanResult
+            Write-Host "   Ô£à PowerShell remoting available" -ForegroundColor Green
         } catch {
-            Write-Host "   ❌ PowerShell remoting failed: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "   ÔØî PowerShell remoting failed: $($_.Exception.Message)" -ForegroundColor Red
         }
 
         # Test actual session creation
         if ($connectivityResults.WSManEnabled) {
-            Write-Host "   🔐 Testing session creation..." -ForegroundColor Yellow
+            Write-Host "   ­ƒöÉ Testing session creation..." -ForegroundColor Yellow
             try {
                 $sessionParams = @{
                     ComputerName = $ComputerName
@@ -349,11 +354,11 @@ function Test-EnterpriseConnectivity {
                 if ($testSession) {
                     $connectivityResults.PowerShellRemoting = $true
                     $connectivityResults.CredentialValid = $true
-                    Write-Host "   ✅ Session creation successful" -ForegroundColor Green
+                    Write-Host "   Ô£à Session creation successful" -ForegroundColor Green
                     Remove-PSSession $testSession -ErrorAction SilentlyContinue
                 }
             } catch {
-                Write-Host "   ❌ Session creation failed: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "   ÔØî Session creation failed: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
 
@@ -373,7 +378,7 @@ function Test-EnterpriseConnectivity {
 }
 
 ####################################################################
-# 🚀 ENTERPRISE FILE RETRIEVAL FUNCTIONS
+# ­ƒÜÇ ENTERPRISE FILE RETRIEVAL FUNCTIONS
 ####################################################################
 
 function Get-FileIntegrityHash {
@@ -390,7 +395,6 @@ function Get-FileIntegrityHash {
     try {
         $hashResult = @{
             SHA256 = (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash
-            MD5 = (Get-FileHash -Path $FilePath -Algorithm MD5).Hash
             FileSize = (Get-Item $FilePath).Length
             LastModified = (Get-Item $FilePath).LastWriteTime
         }
@@ -419,7 +423,7 @@ function Invoke-EnterpriseFileRetrieval {
     )
 
     try {
-        Write-Host "🚀 Starting enterprise file retrieval..." -ForegroundColor Cyan
+        Write-Host "­ƒÜÇ Starting enterprise file retrieval..." -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Starting file retrieval operation" -Category "Retrieval" -Properties @{
             Source = "$ComputerName`:$SourcePath"
             Destination = $DestinationPath
@@ -447,11 +451,11 @@ function Invoke-EnterpriseFileRetrieval {
             $sessionParams.UseSSL = $true
         }
 
-        Write-Host "   🔐 Establishing secure session..." -ForegroundColor Yellow
+        Write-Host "   ­ƒöÉ Establishing secure session..." -ForegroundColor Yellow
         $session = New-PSSession @sessionParams
 
         # Validate remote source path and get file information
-        Write-Host "   🔍 Analyzing remote source path..." -ForegroundColor Yellow
+        Write-Host "   ­ƒöì Analyzing remote source path..." -ForegroundColor Yellow
         $remoteAnalysisScript = {
             param($SourcePath, $IncludeSubdirs)
 
@@ -478,18 +482,18 @@ function Invoke-EnterpriseFileRetrieval {
 
         $remoteAnalysis = Invoke-Command -Session $session -ScriptBlock $remoteAnalysisScript -ArgumentList $SourcePath, $IncludeSubdirectories.IsPresent
 
-        Write-Host "   📊 Retrieval scope: $($remoteAnalysis.FileCount) files ($([math]::Round($remoteAnalysis.TotalBytes / 1MB, 2)) MB)" -ForegroundColor Cyan
+        Write-Host "   ­ƒôè Retrieval scope: $($remoteAnalysis.FileCount) files ($([math]::Round($remoteAnalysis.TotalBytes / 1MB, 2)) MB)" -ForegroundColor Cyan
 
         # Ensure local destination directory exists
         if (-not (Test-Path $DestinationPath)) {
-            Write-Host "   📁 Creating destination directory..." -ForegroundColor Yellow
+            Write-Host "   ­ƒôü Creating destination directory..." -ForegroundColor Yellow
             New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
         }
 
         # Pre-retrieval integrity collection from remote server
         $remoteHashes = @{}
         if ($ValidateIntegrity) {
-            Write-Host "   🔍 Collecting remote file hashes..." -ForegroundColor Yellow
+            Write-Host "   ­ƒöì Collecting remote file hashes..." -ForegroundColor Yellow
 
             $hashCollectionScript = {
                 param($Files)
@@ -498,7 +502,6 @@ function Invoke-EnterpriseFileRetrieval {
                     try {
                         $hash = @{
                             SHA256 = (Get-FileHash -Path $file.FullName -Algorithm SHA256).Hash
-                            MD5 = (Get-FileHash -Path $file.FullName -Algorithm MD5).Hash
                             FileSize = $file.Size
                             LastModified = $file.LastModified
                         }
@@ -514,7 +517,7 @@ function Invoke-EnterpriseFileRetrieval {
         }
 
         # Execute retrieval with progress tracking
-        Write-Host "   📥 Retrieving files from $ComputerName..." -ForegroundColor Yellow
+        Write-Host "   ­ƒôÑ Retrieving files from $ComputerName..." -ForegroundColor Yellow
 
         $retrievalParams = @{
             Path = $SourcePath
@@ -528,7 +531,7 @@ function Invoke-EnterpriseFileRetrieval {
 
         # Post-retrieval validation
         if ($ValidateIntegrity -and $remoteHashes.Count -gt 0) {
-            Write-Host "   🔬 Validating file integrity..." -ForegroundColor Yellow
+            Write-Host "   ­ƒö¼ Validating file integrity..." -ForegroundColor Yellow
 
             $validationResults = @()
             foreach ($relativePath in $remoteHashes.Keys) {
@@ -555,15 +558,15 @@ function Invoke-EnterpriseFileRetrieval {
 
             $integrityFailures = $validationResults | Where-Object { -not $_.IntegrityValid }
             if ($integrityFailures.Count -eq 0) {
-                Write-Host "   ✅ All files passed integrity validation" -ForegroundColor Green
+                Write-Host "   Ô£à All files passed integrity validation" -ForegroundColor Green
                 $retrievalResult.IntegrityValidated = $true
             } else {
-                Write-Host "   ⚠️  $($integrityFailures.Count) files failed integrity validation" -ForegroundColor Yellow
+                Write-Host "   ÔÜá´©Å  $($integrityFailures.Count) files failed integrity validation" -ForegroundColor Yellow
                 $retrievalResult.Errors += "Integrity validation failures: $($integrityFailures.Count)"
 
                 # Log integrity failures
                 $integrityFailures | ForEach-Object {
-                    Write-Host "      ❌ $($_.File): $($_.Error -or 'Hash mismatch')" -ForegroundColor Red
+                    Write-Host "      ÔØî $($_.File): $($_.Error -or 'Hash mismatch')" -ForegroundColor Red
                 }
             }
         }
@@ -578,12 +581,12 @@ function Invoke-EnterpriseFileRetrieval {
         # Calculate retrieval speed
         if ($retrievalResult.RetrievalTime -gt 0) {
             $retrievalSpeedMBps = [math]::Round(($remoteAnalysis.TotalBytes / 1MB) / $retrievalResult.RetrievalTime, 2)
-            Write-Host "   📈 Retrieval completed: $retrievalSpeedMBps MB/s" -ForegroundColor Green
-            $Global:EnterpriseRetrievalMetrics.AverageRetrievalSpeed = $retrievalSpeedMBps
+            Write-Host "   ­ƒôê Retrieval completed: $retrievalSpeedMBps MB/s" -ForegroundColor Green
+            $script:EnterpriseRetrievalMetrics.AverageRetrievalSpeed = $retrievalSpeedMBps
         }
 
-        $Global:EnterpriseRetrievalMetrics.FilesRetrieved += $retrievalResult.FilesRetrieved
-        $Global:EnterpriseRetrievalMetrics.BytesRetrieved += $retrievalResult.BytesRetrieved
+        $script:EnterpriseRetrievalMetrics.FilesRetrieved += $retrievalResult.FilesRetrieved
+        $script:EnterpriseRetrievalMetrics.BytesRetrieved += $retrievalResult.BytesRetrieved
 
         Write-EnterpriseLog -Level "Success" -Message "File retrieval completed successfully" -Category "Retrieval" -Properties $retrievalResult
 
@@ -592,7 +595,7 @@ function Invoke-EnterpriseFileRetrieval {
     } catch {
         $retrievalResult.Success = $false
         $retrievalResult.Errors += $_.Exception.Message
-        $Global:EnterpriseRetrievalMetrics.RetrievalErrors++
+        $script:EnterpriseRetrievalMetrics.RetrievalErrors++
 
         Write-EnterpriseLog -Level "Error" -Message "File retrieval failed" -Category "Retrieval" -Exception $_ -Properties @{
             Source = "$ComputerName`:$SourcePath"
@@ -630,8 +633,8 @@ function Export-EnterpriseRetrievalReport {
             TransferDirection = "FROM_SERVER"
             Parameters = $PSBoundParameters
             Results = $RetrievalResults
-            Metrics = $Global:EnterpriseRetrievalMetrics
-            Duration = [math]::Round(((Get-Date) - $Global:EnterpriseRetrievalMetrics.StartTime).TotalMinutes, 2)
+            Metrics = $script:EnterpriseRetrievalMetrics
+            Duration = [math]::Round(((Get-Date) - $script:EnterpriseRetrievalMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($ExportFormat) {
@@ -652,16 +655,16 @@ function Export-EnterpriseRetrievalReport {
 <p><strong>Generated:</strong> $($report.Timestamp)</p>
 <p><strong>Computer:</strong> $($report.ComputerName)</p>
 <p><strong>Duration:</strong> $($report.Duration) minutes</p>
-<p><strong>Files Retrieved:</strong> $($Global:EnterpriseRetrievalMetrics.FilesRetrieved)</p>
-<p><strong>Bytes Retrieved:</strong> $($Global:EnterpriseRetrievalMetrics.BytesRetrieved)</p>
-<p><strong>Retrieval Errors:</strong> $($Global:EnterpriseRetrievalMetrics.RetrievalErrors)</p>
+<p><strong>Files Retrieved:</strong> $($script:EnterpriseRetrievalMetrics.FilesRetrieved)</p>
+<p><strong>Bytes Retrieved:</strong> $($script:EnterpriseRetrievalMetrics.BytesRetrieved)</p>
+<p><strong>Retrieval Errors:</strong> $($script:EnterpriseRetrievalMetrics.RetrievalErrors)</p>
 </body></html>
 "@
                 $htmlContent | Out-File $reportPath -Encoding UTF8
             }
         }
 
-        Write-Host "📄 Enterprise retrieval report exported: $reportPath" -ForegroundColor Green
+        Write-Host "­ƒôä Enterprise retrieval report exported: $reportPath" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "Enterprise retrieval report generated" -Category "Reporting" -Properties @{
             ReportPath = $reportPath
             Format = $ExportFormat
@@ -672,20 +675,20 @@ function Export-EnterpriseRetrievalReport {
 
     } catch {
         Write-EnterpriseLog -Level "Warning" -Message "Failed to generate enterprise retrieval report" -Category "Reporting" -Exception $_
-        Write-Host "⚠️  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "ÔÜá´©Å  Failed to generate report: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
 ####################################################################
-# 🚀 MAIN ENTERPRISE EXECUTION LOGIC
+# ­ƒÜÇ MAIN ENTERPRISE EXECUTION LOGIC
 ####################################################################
 
 try {
     # Enterprise banner
-    Write-Host "`n" + ("═" * 70) -ForegroundColor Cyan
-    Write-Host "🏢 ENTERPRISE SECURE FILE RETRIEVAL SYSTEM (FROM SERVER)" -ForegroundColor Green
-    Write-Host ("═" * 70) -ForegroundColor Cyan
-    Write-Host "🔒 Military-grade file retrieval with comprehensive security and monitoring" -ForegroundColor White
+    Write-Host "`n" + ("ÔòÉ" * 70) -ForegroundColor Cyan
+    Write-Host "­ƒÅó ENTERPRISE SECURE FILE RETRIEVAL SYSTEM (FROM SERVER)" -ForegroundColor Green
+    Write-Host ("ÔòÉ" * 70) -ForegroundColor Cyan
+    Write-Host "­ƒöÆ Military-grade file retrieval with comprehensive security and monitoring" -ForegroundColor White
     Write-Host ""
 
     Write-EnterpriseLog -Level "Info" -Message "Enterprise file retrieval system started" -Category "System" -Properties @{
@@ -718,7 +721,7 @@ try {
 
     # Get credentials if not provided
     if (-not $Credentials) {
-        Write-Host "🔐 Authentication required for server access:" -ForegroundColor Cyan
+        Write-Host "­ƒöÉ Authentication required for server access:" -ForegroundColor Cyan
         $Credentials = Get-Credential -Message "Enter credentials for $ComputerName"
         if (-not $Credentials) {
             throw "Valid credentials are required for server access"
@@ -726,7 +729,7 @@ try {
     }
 
     # Security validation
-    Write-Host "`n🛡️  ENTERPRISE SECURITY VALIDATION" -ForegroundColor Cyan
+    Write-Host "`n­ƒøí´©Å  ENTERPRISE SECURITY VALIDATION" -ForegroundColor Cyan
     $securityResults = Test-EnterpriseRetrievalSecurity -SourceServer $ComputerName -SourcePath $SourcePath -DestinationPath $DestinationPath
 
     if (-not $securityResults.OverallSecure -and -not $Force) {
@@ -739,18 +742,18 @@ try {
     }
 
     # Connectivity validation
-    Write-Host "`n🔗 ENTERPRISE CONNECTIVITY VALIDATION" -ForegroundColor Cyan
+    Write-Host "`n­ƒöù ENTERPRISE CONNECTIVITY VALIDATION" -ForegroundColor Cyan
     $connectivityResults = Test-EnterpriseConnectivity -ComputerName $ComputerName -Credential $Credentials
 
     if (-not $connectivityResults.OverallConnectivity) {
         throw "Cannot establish connectivity to $ComputerName. Please verify network access and credentials."
     }
 
-    Write-Host "✅ Connectivity validation successful" -ForegroundColor Green
+    Write-Host "Ô£à Connectivity validation successful" -ForegroundColor Green
 
     # Interactive confirmation
     if (-not $Force) {
-        Write-Host "`n⚠️  ENTERPRISE FILE RETRIEVAL CONFIRMATION" -ForegroundColor Yellow
+        Write-Host "`nÔÜá´©Å  ENTERPRISE FILE RETRIEVAL CONFIRMATION" -ForegroundColor Yellow
         Write-Host "Source: $ComputerName`:$SourcePath" -ForegroundColor Cyan
         Write-Host "Destination: $DestinationPath" -ForegroundColor Cyan
         Write-Host "Include Subdirectories: $($IncludeSubdirectories.IsPresent)" -ForegroundColor Cyan
@@ -767,43 +770,43 @@ try {
     }
 
     # Execute enterprise file retrieval
-    Write-Host "`n🚀 ENTERPRISE FILE RETRIEVAL EXECUTION" -ForegroundColor Cyan
+    Write-Host "`n­ƒÜÇ ENTERPRISE FILE RETRIEVAL EXECUTION" -ForegroundColor Cyan
     $retrievalResults = Invoke-EnterpriseFileRetrieval -ComputerName $ComputerName -SourcePath $SourcePath -DestinationPath $DestinationPath -Credential $Credentials
 
     # Generate comprehensive report
-    Write-Host "`n📄 ENTERPRISE REPORTING" -ForegroundColor Cyan
+    Write-Host "`n­ƒôä ENTERPRISE REPORTING" -ForegroundColor Cyan
     Export-EnterpriseRetrievalReport -RetrievalResults $retrievalResults
 
     # Final summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseRetrievalMetrics.StartTime).TotalMinutes, 2)
-    Write-Host "`n" + ("═" * 50) -ForegroundColor Green
-    Write-Host "🎉 ENTERPRISE FILE RETRIEVAL COMPLETE" -ForegroundColor Green
-    Write-Host ("═" * 50) -ForegroundColor Green
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseRetrievalMetrics.StartTime).TotalMinutes, 2)
+    Write-Host "`n" + ("ÔòÉ" * 50) -ForegroundColor Green
+    Write-Host "­ƒÄë ENTERPRISE FILE RETRIEVAL COMPLETE" -ForegroundColor Green
+    Write-Host ("ÔòÉ" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Files Retrieved: $($Global:EnterpriseRetrievalMetrics.FilesRetrieved)" -ForegroundColor White
-    Write-Host "   Bytes Retrieved: $([math]::Round($Global:EnterpriseRetrievalMetrics.BytesRetrieved / 1MB, 2)) MB" -ForegroundColor White
-    Write-Host "   Average Speed: $($Global:EnterpriseRetrievalMetrics.AverageRetrievalSpeed) MB/s" -ForegroundColor White
-    Write-Host "   Retrieval Errors: $($Global:EnterpriseRetrievalMetrics.RetrievalErrors)" -ForegroundColor $(if($Global:EnterpriseRetrievalMetrics.RetrievalErrors -gt 0){"Red"}else{"Green"})
-    Write-Host "   Security Violations: $($Global:EnterpriseRetrievalMetrics.SecurityViolations)" -ForegroundColor $(if($Global:EnterpriseRetrievalMetrics.SecurityViolations -gt 0){"Red"}else{"Green"})
+    Write-Host "   Files Retrieved: $($script:EnterpriseRetrievalMetrics.FilesRetrieved)" -ForegroundColor White
+    Write-Host "   Bytes Retrieved: $([math]::Round($script:EnterpriseRetrievalMetrics.BytesRetrieved / 1MB, 2)) MB" -ForegroundColor White
+    Write-Host "   Average Speed: $($script:EnterpriseRetrievalMetrics.AverageRetrievalSpeed) MB/s" -ForegroundColor White
+    Write-Host "   Retrieval Errors: $($script:EnterpriseRetrievalMetrics.RetrievalErrors)" -ForegroundColor $(if($script:EnterpriseRetrievalMetrics.RetrievalErrors -gt 0){"Red"}else{"Green"})
+    Write-Host "   Security Violations: $($script:EnterpriseRetrievalMetrics.SecurityViolations)" -ForegroundColor $(if($script:EnterpriseRetrievalMetrics.SecurityViolations -gt 0){"Red"}else{"Green"})
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise file retrieval completed successfully" -Category "System" -Properties $Global:EnterpriseRetrievalMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise file retrieval completed successfully" -Category "System" -Properties $script:EnterpriseRetrievalMetrics
 
 } catch {
     Write-EnterpriseLog -Level "Error" -Message "Enterprise file retrieval failed" -Category "System" -Exception $_
-    Write-Host "`n❌ ENTERPRISE FILE RETRIEVAL FAILED" -ForegroundColor Red
+    Write-Host "`nÔØî ENTERPRISE FILE RETRIEVAL FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseRetrievalMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseRetrievalMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseRetrievalMetrics.Errors | ForEach-Object {
-            Write-Host "   • $_" -ForegroundColor Red
+        $script:EnterpriseRetrievalMetrics.Errors | ForEach-Object {
+            Write-Host "   ÔÇó $_" -ForegroundColor Red
         }
     }
 
     exit 1
 } finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseRetrievalMetrics) {
-        $Global:EnterpriseRetrievalMetrics.EndTime = Get-Date
+    if ($script:EnterpriseRetrievalMetrics) {
+        $script:EnterpriseRetrievalMetrics.EndTime = Get-Date
     }
 }

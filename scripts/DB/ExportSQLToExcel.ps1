@@ -1,82 +1,98 @@
+<#
+.SYNOPSIS
+Exports SQL query results to an Excel workbook.
+
+.DESCRIPTION
+Runs a SQL query against the specified server and database using integrated
+security, writes the result set to an Excel workbook via COM automation, and
+autofits the resulting worksheet columns.
+#>
+
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
     [string]$ServerName,
-    [Parameter(Mandatory=$true)]
+
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
     [string]$DatabaseName,
-    [Parameter(Mandatory=$true)]
-    [string]$FilePath,
-    [string]$Query = "SELECT * FROM sys.tables"
+
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$OutputPath,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Query = 'SELECT name, create_date FROM sys.tables'
 )
 
-#some variables
-$serverName = $ServerName
-$databaseName = $DatabaseName
+$connectionStringBuilder = [System.Data.SqlClient.SqlConnectionStringBuilder]::new()
+$connectionStringBuilder['Data Source'] = $ServerName
+$connectionStringBuilder['Initial Catalog'] = $DatabaseName
+$connectionStringBuilder['Integrated Security'] = $true
 
-#the save location for the new Excel file
-$filepath = $FilePath
+$connection = [System.Data.SqlClient.SqlConnection]::new($connectionStringBuilder.ConnectionString)
+$command = [System.Data.SqlClient.SqlCommand]::new($Query, $connection)
+$adapter = [System.Data.SqlClient.SqlDataAdapter]::new($command)
+$dataTable = [System.Data.DataTable]::new()
 
-# Check if file exist, if it does, delete it
-# File contains previous output of Project Statistics
-$file = $FilePath
-If(Test-Path $file) {
-     Remove-Item -Path $file -Force
-     Write-Host "Removed existing file: $file" -ForegroundColor Yellow
+$excel = $null
+$workbook = $null
+$worksheet = $null
+
+try {
+    $connection.Open()
+    [void]$adapter.Fill($dataTable)
+
+    if (-not $PSCmdlet.ShouldProcess($OutputPath, 'Write Excel export')) {
+        return
+    }
+
+    if (Test-Path -Path $OutputPath) {
+        Remove-Item -Path $OutputPath -Force
+    }
+
+    $excel = New-Object -ComObject Excel.Application
+    $excel.DisplayAlerts = $false
+    $workbook = $excel.Workbooks.Add()
+    $worksheet = $workbook.Worksheets.Item(1)
+    $worksheet.Name = 'Data'
+
+    for ($columnIndex = 0; $columnIndex -lt $dataTable.Columns.Count; $columnIndex++) {
+        $worksheet.Cells.Item(1, $columnIndex + 1) = $dataTable.Columns[$columnIndex].ColumnName
+    }
+
+    for ($rowIndex = 0; $rowIndex -lt $dataTable.Rows.Count; $rowIndex++) {
+        for ($columnIndex = 0; $columnIndex -lt $dataTable.Columns.Count; $columnIndex++) {
+            $worksheet.Cells.Item($rowIndex + 2, $columnIndex + 1) = $dataTable.Rows[$rowIndex][$columnIndex]
+        }
+    }
+
+    $worksheet.UsedRange.EntireColumn.AutoFit() | Out-Null
+    $workbook.SaveAs($OutputPath)
+
+    [pscustomobject]@{
+        OutputPath = $OutputPath
+        RowCount = $dataTable.Rows.Count
+        ColumnCount = $dataTable.Columns.Count
+    }
 }
-#create excel object
+finally {
+    if ($workbook) {
+        $workbook.Close($true)
+    }
+    if ($excel) {
+        $excel.Quit()
+    }
 
-$excel = New-Object -ComObject Excel.Application
-$workbook = $excel.Workbooks.add()
-$worksheetA = $workbook.Worksheets.Add()
+    foreach ($comObject in @($worksheet, $workbook, $excel)) {
+        if ($comObject) {
+            [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($comObject)
+        }
+    }
 
-#create byUser worksheet
-$sheet1 = $workbook.worksheets.Item(1)
-$sheet1.name = "Data"
-
-#create a Dataset to store the DataTable
-$dataSet = new-object System.Data.DataSet
-
-#create a Connection to the SQL Server database
-$cn = new-object System.Data.SqlClient.SqlConnection
-$query = "SELECT * FROM YourTable"
-
-#Create a SQL Data Adapter to place the resultset into the DataSet
-$dataAdapter = new-object  ($query, $cn)
-$dataAdapter.Fill($dataSet) | Out-Null
-
-#close the connection
-$cn.Close()
-
-$dataTable = new-object System.Data.DataTable
-$dataTable = $dataSet.Tables[0]
-#assign  column names
-$sheet1.cells.item(1, 1) = "Column1"
-$sheet1.cells.item(1, 2) = "Column2"
-$sheet1.cells.item(1, 3) = "Column3"
-$sheet1.cells.item(1, 4) = "Column4"
-$sheet1.cells.item(1, 5) =
-$sheet1.cells.item(1, 6) =
-$sheet1.cells.item(1, 7) =
-
-#iterate through every DataTable line item and insert to the Excel worksheete
-
-##Note: starts at 2 as 1 is the column headers
-
-$x=2
-
-$dataTable | FOREACH-OBJECT{
-$sheet1.cells.item($x, 1) =  $_.email_address
-$sheet1.cells.item($x, 2) =  $_.Lead_Display_Name
-$sheet1.cells.item($x, 3) =  $_.lower_user_name
-$sheet1.cells.item($x, 4) =  $_.LEAD
-$sheet1.cells.item($x, 5) =  $_.pname
-$sheet1.cells.item($x, 6) =  $_.pkey
-$sheet1.cells.item($x, 7) =  $_.Issue_Count
-$x++
+    $adapter.Dispose()
+    $command.Dispose()
+    $connection.Dispose()
 }
-
-$range1 = $sheet1.UsedRange
-$range1.EntireColumn.AutoFit()
-
-#save excel worksbook
-$excel.ActiveWorkbook.SaveAs("C:\temp\ExportedData.xlsx")
-$excel.quit()

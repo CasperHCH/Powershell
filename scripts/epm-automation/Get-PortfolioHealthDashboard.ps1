@@ -61,9 +61,14 @@ param(
 # Script-level variables
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "PortfolioHealth_$(Get-Date -Format 'yyyyMMdd').log"
+$script:JiraBaseUrl = $JiraBaseUrl
+$script:CloudId = $CloudId
+$script:ServiceAccountEmail = $ServiceAccountEmail
+$script:ProjectKeys = $ProjectKeys
+$script:TimeoutSeconds = $TimeoutSeconds
 
 # Logging function
-function Write-Log {
+function Write-EpmLog {
     param(
         [string]$Message,
         [ValidateSet("INFO", "WARNING", "ERROR", "SUCCESS")]
@@ -93,11 +98,11 @@ function Get-ApiToken {
 }
 
 # Build API headers
-function Get-ApiHeaders {
+function Get-ApiHeader {
     param([string]$Token)
 
-    if ($ServiceAccountEmail -and $CloudId) {
-        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ServiceAccountEmail}:${Token}"))
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($script:ServiceAccountEmail):${Token}"))
         return @{
             'Authorization' = "Basic $base64Auth"
             'Accept'        = 'application/json'
@@ -117,16 +122,16 @@ function Get-ApiHeaders {
 function Get-ApiUrl {
     param([string]$Endpoint)
 
-    if ($ServiceAccountEmail -and $CloudId) {
-        return "https://api.atlassian.com/ex/jira/$CloudId/$Endpoint"
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        return "https://api.atlassian.com/ex/jira/$($script:CloudId)/$Endpoint"
     }
     else {
-        return "$JiraBaseUrl/$Endpoint"
+        return "$($script:JiraBaseUrl)/$Endpoint"
     }
 }
 
 # Get project details
-function Get-ProjectDetails {
+function Get-ProjectDetail {
     param(
         [string]$ProjectKey,
         [hashtable]$Headers
@@ -134,19 +139,19 @@ function Get-ProjectDetails {
 
     try {
         $url = Get-ApiUrl -Endpoint "rest/api/3/project/$ProjectKey"
-        $project = Invoke-RestMethod -Uri $url -Headers $Headers -Method Get -TimeoutSec $TimeoutSeconds
+        $project = Invoke-RestMethod -Uri $url -Headers $Headers -Method Get -TimeoutSec $script:TimeoutSeconds
 
-        Write-Log "Retrieved project details for $ProjectKey" -Level "INFO"
+        Write-EpmLog "Retrieved project details for $ProjectKey" -Level "INFO"
         return $project
     }
     catch {
-        Write-Log "Failed to retrieve project $ProjectKey : $($_.Exception.Message)" -Level "ERROR"
+        Write-EpmLog "Failed to retrieve project $ProjectKey : $($_.Exception.Message)" -Level "ERROR"
         return $null
     }
 }
 
 # Get project issues with JQL
-function Get-ProjectIssues {
+function Get-ProjectIssue {
     param(
         [string]$ProjectKey,
         [hashtable]$Headers
@@ -162,13 +167,13 @@ function Get-ProjectIssues {
             fields     = @("status", "priority", "created", "updated", "resolutiondate", "assignee", "issuetype", "summary")
         } | ConvertTo-Json
 
-        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $TimeoutSeconds
+        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $script:TimeoutSeconds
 
-        Write-Log "Retrieved $($response.total) issues for $ProjectKey" -Level "INFO"
+        Write-EpmLog "Retrieved $($response.total) issues for $ProjectKey" -Level "INFO"
         return $response.issues
     }
     catch {
-        Write-Log "Failed to retrieve issues for $ProjectKey : $($_.Exception.Message)" -Level "ERROR"
+        Write-EpmLog "Failed to retrieve issues for $ProjectKey : $($_.Exception.Message)" -Level "ERROR"
         return @()
     }
 }
@@ -418,27 +423,27 @@ function Export-HtmlReport {
 "@
 
     $html | Out-File -FilePath $OutputPath -Encoding UTF8
-    Write-Log "HTML report generated: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "HTML report generated: $OutputPath" -Level "SUCCESS"
 }
 
 # Main execution
 try {
-    Write-Log "🚀 Starting Portfolio Health Dashboard generation..." -Level "INFO"
+    Write-EpmLog "🚀 Starting Portfolio Health Dashboard generation..." -Level "INFO"
 
     # Get API token
     $apiToken = Get-ApiToken
-    $headers = Get-ApiHeaders -Token $apiToken
+    $headers = Get-ApiHeader -Token $apiToken
 
     # Collect portfolio data
     $portfolioData = @()
 
-    foreach ($projectKey in $ProjectKeys) {
-        Write-Log "Processing project: $projectKey" -Level "INFO"
+    foreach ($projectKey in $script:ProjectKeys) {
+        Write-EpmLog "Processing project: $projectKey" -Level "INFO"
 
-        $project = Get-ProjectDetails -ProjectKey $projectKey -Headers $headers
+        $project = Get-ProjectDetail -ProjectKey $projectKey -Headers $headers
         if ($null -eq $project) { continue }
 
-        $issues = Get-ProjectIssues -ProjectKey $projectKey -Headers $headers
+        $issues = Get-ProjectIssue -ProjectKey $projectKey -Headers $headers
         $healthMetrics = Get-ProjectHealth -Project $project -Issues $issues
 
         $portfolioData += $healthMetrics
@@ -451,20 +456,20 @@ try {
         }
         "JSON" {
             $portfolioData | ConvertTo-Json -Depth 10 | Out-File -FilePath $OutputPath -Encoding UTF8
-            Write-Log "JSON report generated: $OutputPath" -Level "SUCCESS"
+            Write-EpmLog "JSON report generated: $OutputPath" -Level "SUCCESS"
         }
         "CSV" {
             $portfolioData | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
-            Write-Log "CSV report generated: $OutputPath" -Level "SUCCESS"
+            Write-EpmLog "CSV report generated: $OutputPath" -Level "SUCCESS"
         }
     }
 
-    Write-Log "✅ Portfolio Health Dashboard completed successfully!" -Level "SUCCESS"
-    Write-Log "Report saved to: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "✅ Portfolio Health Dashboard completed successfully!" -Level "SUCCESS"
+    Write-EpmLog "Report saved to: $OutputPath" -Level "SUCCESS"
 
 }
 catch {
-    Write-Log "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
+    Write-EpmLog "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
     exit 1
 }
 finally {

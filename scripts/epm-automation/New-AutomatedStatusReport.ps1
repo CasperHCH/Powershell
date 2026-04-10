@@ -58,8 +58,14 @@ param(
 
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogFile = Join-Path $PSScriptRoot "StatusReport_$(Get-Date -Format 'yyyyMMdd').log"
+$script:JiraBaseUrl = $JiraBaseUrl
+$script:CloudId = $CloudId
+$script:ServiceAccountEmail = $ServiceAccountEmail
+$script:ProjectKeys = $ProjectKeys
+$script:ReportPeriod = $ReportPeriod
+$script:TimeoutSeconds = $TimeoutSeconds
 
-function Write-Log {
+function Write-EpmLog {
     param([string]$Message, [string]$Level = "INFO")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$script:SessionId] [$Level] $Message"
@@ -80,10 +86,10 @@ function Get-ApiToken {
     )
 }
 
-function Get-ApiHeaders {
+function Get-ApiHeader {
     param([string]$Token)
-    if ($ServiceAccountEmail -and $CloudId) {
-        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${ServiceAccountEmail}:${Token}"))
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($script:ServiceAccountEmail):${Token}"))
         return @{'Authorization' = "Basic $base64Auth"; 'Accept' = 'application/json'; 'Content-Type' = 'application/json' }
     }
     else {
@@ -93,17 +99,17 @@ function Get-ApiHeaders {
 
 function Get-ApiUrl {
     param([string]$Endpoint)
-    if ($ServiceAccountEmail -and $CloudId) {
-        return "https://api.atlassian.com/ex/jira/$CloudId/$Endpoint"
+    if ($script:ServiceAccountEmail -and $script:CloudId) {
+        return "https://api.atlassian.com/ex/jira/$($script:CloudId)/$Endpoint"
     }
     else {
-        return "$JiraBaseUrl/$Endpoint"
+        return "$($script:JiraBaseUrl)/$Endpoint"
     }
 }
 
 function Get-DateRange {
     $endDate = Get-Date
-    $startDate = switch ($ReportPeriod) {
+    $startDate = switch ($script:ReportPeriod) {
         "Weekly" { $endDate.AddDays(-7) }
         "Monthly" { $endDate.AddDays(-30) }
     }
@@ -118,7 +124,7 @@ function Get-DateRange {
 function Get-StatusReportData {
     param([hashtable]$Headers, [hashtable]$DateRange)
 
-    $projectList = $ProjectKeys -join ", "
+    $projectList = $script:ProjectKeys -join ", "
 
     # Completed issues in period
     $completedJql = "project in ($projectList) AND status = Done AND resolutiondate >= '$($DateRange.Start)'"
@@ -155,12 +161,12 @@ function Invoke-JiraSearch {
     } | ConvertTo-Json
 
     try {
-        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $TimeoutSeconds
-        Write-Log "JQL query returned $($response.total) issues" -Level "INFO"
+        $response = Invoke-RestMethod -Uri $url -Headers $Headers -Method Post -Body $body -TimeoutSec $script:TimeoutSeconds
+        Write-EpmLog "JQL query returned $($response.total) issues" -Level "INFO"
         return $response.issues
     }
     catch {
-        Write-Log "JQL query failed: $($_.Exception.Message)" -Level "ERROR"
+        Write-EpmLog "JQL query failed: $($_.Exception.Message)" -Level "ERROR"
         return @()
     }
 }
@@ -210,7 +216,7 @@ function Export-StatusReport {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>$ReportPeriod Status Report - $(Get-Date -Format 'yyyy-MM-dd')</title>
+    <title>$($script:ReportPeriod) Status Report - $(Get-Date -Format 'yyyy-MM-dd')</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
@@ -232,10 +238,10 @@ function Export-StatusReport {
 </head>
 <body>
     <div class="container">
-        <h1>📋 $ReportPeriod Status Report</h1>
+        <h1>📋 $($script:ReportPeriod) Status Report</h1>
         <p><strong>Report Period:</strong> $($DateRange.StartFormatted) - $($DateRange.EndFormatted)</p>
         <p><strong>Generated:</strong> $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</p>
-        <p><strong>Projects:</strong> $($ProjectKeys -join ", ")</p>
+        <p><strong>Projects:</strong> $($script:ProjectKeys -join ", ")</p>
 
         <div class="summary">
             <h3>📊 Summary Metrics</h3>
@@ -310,25 +316,25 @@ function Export-StatusReport {
 "@
 
     $html | Out-File -FilePath $OutputPath -Encoding UTF8
-    Write-Log "Status report generated: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "Status report generated: $OutputPath" -Level "SUCCESS"
 }
 
 try {
-    Write-Log "🚀 Starting $ReportPeriod Status Report generation..." -Level "INFO"
+    Write-EpmLog "🚀 Starting $($script:ReportPeriod) Status Report generation..." -Level "INFO"
 
     $apiToken = Get-ApiToken
-    $headers = Get-ApiHeaders -Token $apiToken
+    $headers = Get-ApiHeader -Token $apiToken
     $dateRange = Get-DateRange
 
     $reportData = Get-StatusReportData -Headers $headers -DateRange $dateRange
     Export-StatusReport -ReportData $reportData -DateRange $dateRange
 
-    Write-Log "✅ Status Report completed successfully!" -Level "SUCCESS"
-    Write-Log "Report saved to: $OutputPath" -Level "SUCCESS"
+    Write-EpmLog "✅ Status Report completed successfully!" -Level "SUCCESS"
+    Write-EpmLog "Report saved to: $OutputPath" -Level "SUCCESS"
 
 }
 catch {
-    Write-Log "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
+    Write-EpmLog "❌ Critical error: $($_.Exception.Message)" -Level "ERROR"
     exit 1
 }
 finally {

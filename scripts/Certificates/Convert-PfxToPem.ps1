@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Securely converts PFX certificates to PEM format using OpenSSL with enhanced security features
 

@@ -1,33 +1,55 @@
+<#
+.SYNOPSIS
+Runs a PowerShell script on one or more Citrix servers.
+
+.DESCRIPTION
+Uses PowerShell remoting to execute a local script file on the specified Citrix
+servers. Returns a result object for each server and supports WhatIf semantics.
+#>
+
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
     [string[]]$ComputerNames,
-    [Parameter(Mandatory=$true)]
+
+    [Parameter(Mandatory = $true)]
+    [ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
     [string]$ScriptPath,
-    [PSCredential]$Credentials
+
+    [Parameter(Mandatory = $false)]
+    [System.Management.Automation.PSCredential]$Credential
 )
 
-if (-not $Credentials) {
-    $Credentials = Get-Credential -Message "Enter credentials for Citrix servers"
+$invokeCommandParameters = @{
+    FilePath = $ScriptPath
 }
 
-# Example computer array - customize as needed
-$computers = @(
-    "CITRIX-SRV01",
-    "CITRIX-SRV02",
-    "CITRIX-SRV03"
-)
-
-# Use provided computers or default list
-if ($ComputerNames) {
-    $computers = $ComputerNames
+if ($Credential) {
+    $invokeCommandParameters.Credential = $Credential
 }
 
-foreach($c in $computers) {
-    Write-Host "Executing script on $c..." -ForegroundColor Cyan
-    try {
-        Invoke-Command -FilePath $ScriptPath -ComputerName $c -Credential $Credentials -ErrorAction Stop
-        Write-Host "SUCCESS: $c" -ForegroundColor Green
-    } catch {
-        Write-Host "FAILED: $c - $($_.Exception.Message)" -ForegroundColor Red
+foreach ($computerName in $ComputerNames) {
+    $result = [pscustomobject]@{
+        ComputerName = $computerName
+        Succeeded    = $false
+        Message      = $null
     }
+
+    if (-not $PSCmdlet.ShouldProcess($computerName, "Execute script '$ScriptPath'")) {
+        $result.Message = 'Skipped by WhatIf/ShouldProcess.'
+        $result
+        continue
+    }
+
+    try {
+        Invoke-Command -ComputerName $computerName @invokeCommandParameters -ErrorAction Stop | Out-Null
+        $result.Succeeded = $true
+        $result.Message = 'Script executed successfully.'
+    }
+    catch {
+        $result.Message = $_.Exception.Message
+    }
+
+    $result
 }

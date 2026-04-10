@@ -100,9 +100,12 @@
     Cross-domain LAPS lookup with strict security validation
 #>
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive console workflow intentionally uses colored host output.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseBOMForUnicodeEncodedFile', '', Justification = 'File intentionally remains in repository-native encoding.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Existing enterprise function names are kept for compatibility.')]
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
+    [Parameter(Mandatory = $false)]
     [string[]]$ComputerName = @("*"),
 
     [Parameter(Mandatory = $false)]
@@ -154,7 +157,8 @@ try {
     else {
         function Write-EnterpriseLog {
             param([string]$Level, [string]$Message, [string]$Category = "LAPSManagement", [hashtable]$Properties = @{})
-            Write-Host "[$Level] [$Category] $Message" -ForegroundColor $(if ($Level -eq "Error") { "Red" } elseif ($Level -eq "Warning") { "Yellow" } else { "White" })
+            $propertyText = if ($Properties.Count -gt 0) { " | Properties: $($Properties | ConvertTo-Json -Compress)" } else { '' }
+            Write-Host "[$Level] [$Category] $Message$propertyText" -ForegroundColor $(if ($Level -eq "Error") { "Red" } elseif ($Level -eq "Warning") { "Yellow" } else { "White" })
         }
     }
 }
@@ -163,7 +167,7 @@ catch {
 }
 
 # 📊 ENTERPRISE METRICS: LAPS management tracking
-$Global:EnterpriseLAPSMetrics = @{
+$script:EnterpriseLapsMetrics = @{
     StartTime             = Get-Date
     ComputersProcessed    = 0
     PasswordsRetrieved    = 0
@@ -195,6 +199,92 @@ $SecurityThresholds = @{
     MaxConcurrentSessions      = 10            # Maximum concurrent LAPS operations
 }
 
+function Write-LapsConsole {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ForegroundColor = 'White',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoNewLine,
+
+        [Parameter(Mandatory = $false)]
+        [string]$BackgroundColor
+    )
+
+    $writeHostParams = @{ Object = $Message; ForegroundColor = $ForegroundColor }
+    if ($NoNewLine) {
+        $writeHostParams.NoNewline = $true
+    }
+    if ($BackgroundColor) {
+        $writeHostParams.BackgroundColor = $BackgroundColor
+    }
+
+    Write-Host @writeHostParams
+}
+
+function Get-DirectoryOperationParameters {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Domain,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]$Credential
+    )
+
+    $parameters = @{}
+    if ($Domain) {
+        $parameters.Server = $Domain
+    }
+    if ($Credential) {
+        $parameters.Credential = $Credential
+    }
+
+    return $parameters
+}
+
+function ConvertTo-EnterpriseLapsResult {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Computer,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ResultStatus,
+
+        [Parameter(Mandatory = $true)]
+        $ResultExpiry,
+
+        [Parameter(Mandatory = $true)]
+        $ResultAge,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$IsCompliant,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComplianceIssues
+    )
+
+    return [pscustomobject]@{
+        ComputerName      = $Computer.Name
+        DNSHostName       = $Computer.DNSHostName
+        OperatingSystem   = $Computer.OperatingSystem
+        PasswordStatus    = $ResultStatus
+        PasswordExpiry    = $ResultExpiry
+        PasswordAge       = $ResultAge
+        IsCompliant       = $IsCompliant
+        ComplianceIssues  = ($ComplianceIssues -join '; ')
+        LastLogon         = $Computer.LastLogonDate
+        Enabled           = $Computer.Enabled
+        DistinguishedName = $Computer.DistinguishedName
+    }
+}
+
 ####################################################################
 # 🔒 ENTERPRISE SECURITY AND VALIDATION FUNCTIONS
 ####################################################################
@@ -213,8 +303,10 @@ function Test-EnterpriseLAPSPermissions {
     )
 
     try {
-        Write-Host "🔐 Validating LAPS permissions and security context..." -ForegroundColor Cyan
+        Write-LapsConsole -Message '🔐 Validating LAPS permissions and security context...' -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Validating LAPS permissions" -Category "Security"
+
+        $directoryOperationParams = Get-DirectoryOperationParameters -Domain $Domain -Credential $Credential
 
         $permissionResults = @{
             HasLAPSReadPermissions  = $false
@@ -240,47 +332,47 @@ function Test-EnterpriseLAPSPermissions {
         # Test Active Directory module availability
         try {
             Import-Module ActiveDirectory -ErrorAction Stop -Force
-            Write-Host "   ✅ Active Directory module loaded successfully" -ForegroundColor Green
+            Write-LapsConsole -Message '   ✅ Active Directory module loaded successfully' -ForegroundColor Green
         }
         catch {
-            Write-Host "   ❌ Active Directory module not available" -ForegroundColor Red
+            Write-LapsConsole -Message '   ❌ Active Directory module not available' -ForegroundColor Red
             $permissionResults.Recommendations += "Install Remote Server Administration Tools (RSAT)"
             throw "Active Directory module is required for LAPS operations"
         }
 
         # Test domain connectivity
         try {
-            $domainInfo = Get-ADDomain -Server $Domain -Credential $Credential -ErrorAction Stop
-            Write-Host "   ✅ Domain connectivity verified: $($domainInfo.DNSRoot)" -ForegroundColor Green
+            $domainInfo = Get-ADDomain @directoryOperationParams -ErrorAction Stop
+            Write-LapsConsole -Message "   ✅ Domain connectivity verified: $($domainInfo.DNSRoot)" -ForegroundColor Green
             $permissionResults.DomainInfo = $domainInfo
         }
         catch {
-            Write-Host "   ❌ Domain connectivity failed: $Domain" -ForegroundColor Red
+            Write-LapsConsole -Message "   ❌ Domain connectivity failed: $Domain" -ForegroundColor Red
             throw "Unable to connect to domain: $Domain"
         }
 
         # Test LAPS schema extensions
         try {
-            $lapsSchema = Get-ADObject -Filter "Name -eq 'ms-Mcs-AdmPwd'" -SearchBase $domainInfo.SchemaNamingContext -Server $Domain -Credential $Credential -ErrorAction Stop
-            Write-Host "   ✅ LAPS schema extensions detected" -ForegroundColor Green
+            $null = Get-ADObject -Filter "Name -eq 'ms-Mcs-AdmPwd'" -SearchBase $domainInfo.SchemaNamingContext @directoryOperationParams -ErrorAction Stop
+            Write-LapsConsole -Message '   ✅ LAPS schema extensions detected' -ForegroundColor Green
             $permissionResults.LAPSSchemaAvailable = $true
         }
         catch {
-            Write-Host "   ❌ LAPS schema extensions not found" -ForegroundColor Red
+            Write-LapsConsole -Message '   ❌ LAPS schema extensions not found' -ForegroundColor Red
             $permissionResults.LAPSSchemaAvailable = $false
             $permissionResults.Recommendations += "Install LAPS schema extensions in Active Directory"
         }
 
         # Test LAPS read permissions with a sample computer
         try {
-            $testComputer = Get-ADComputer -Filter "Name -like '*'" -Properties $LAPSAttributes.Password -Server $Domain -Credential $Credential -ResultSetSize 1 -ErrorAction Stop
+            $testComputer = Get-ADComputer -Filter "Name -like '*'" -Properties $LAPSAttributes.Password @directoryOperationParams -ResultSetSize 1 -ErrorAction Stop
             if ($testComputer) {
-                Write-Host "   ✅ LAPS read permissions verified" -ForegroundColor Green
+                Write-LapsConsole -Message '   ✅ LAPS read permissions verified' -ForegroundColor Green
                 $permissionResults.HasLAPSReadPermissions = $true
             }
         }
         catch {
-            Write-Host "   ⚠️  LAPS read permissions limited or unavailable" -ForegroundColor Yellow
+            Write-LapsConsole -Message '   ⚠️  LAPS read permissions limited or unavailable' -ForegroundColor Yellow
             $permissionResults.Recommendations += "Verify LAPS read permissions for current security context"
         }
 
@@ -317,8 +409,10 @@ function Get-EnterpriseLAPSComputers {
     )
 
     try {
-        Write-Host "🔍 Retrieving LAPS-enabled computers..." -ForegroundColor Cyan
+        Write-LapsConsole -Message '🔍 Retrieving LAPS-enabled computers...' -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Retrieving LAPS computers" -Category "DataRetrieval"
+
+        $directoryOperationParams = Get-DirectoryOperationParameters -Domain $Domain -Credential $Credential
 
         # Build comprehensive property list
         $properties = @(
@@ -358,7 +452,7 @@ function Get-EnterpriseLAPSComputers {
         # Determine search base
         if (-not $SearchBase) {
             if ($Domain) {
-                $domainInfo = Get-ADDomain -Server $Domain -Credential $Credential
+                $domainInfo = Get-ADDomain @directoryOperationParams
                 $SearchBase = $domainInfo.DistinguishedName
             }
             else {
@@ -367,8 +461,8 @@ function Get-EnterpriseLAPSComputers {
             }
         }
 
-        Write-Host "   📊 Search Base: $SearchBase" -ForegroundColor White
-        Write-Host "   🔍 Filter: $baseFilter" -ForegroundColor White
+        Write-LapsConsole -Message "   📊 Search Base: $SearchBase" -ForegroundColor White
+        Write-LapsConsole -Message "   🔍 Filter: $baseFilter" -ForegroundColor White
 
         # Execute computer search with comprehensive error handling
         $searchParams = @{
@@ -378,13 +472,14 @@ function Get-EnterpriseLAPSComputers {
             ResultSetSize = $MaxResults
         }
 
-        if ($Domain) { $searchParams.Server = $Domain }
-        if ($Credential) { $searchParams.Credential = $Credential }
+        foreach ($parameter in $directoryOperationParams.GetEnumerator()) {
+            $searchParams[$parameter.Key] = $parameter.Value
+        }
 
         $computers = Get-ADComputer @searchParams -ErrorAction Stop
 
-        Write-Host "   ✅ Found $($computers.Count) computers" -ForegroundColor Green
-        $Global:EnterpriseLAPSMetrics.ComputersProcessed = $computers.Count
+        Write-LapsConsole -Message "   ✅ Found $($computers.Count) computers" -ForegroundColor Green
+        $script:EnterpriseLapsMetrics.ComputersProcessed = $computers.Count
 
         Write-EnterpriseLog -Level "Success" -Message "LAPS computers retrieved" -Category "DataRetrieval" -Properties @{
             ComputerCount = $computers.Count
@@ -419,14 +514,14 @@ function Get-EnterpriseLAPSPasswordData {
     )
 
     try {
-        Write-Host "🔐 Processing LAPS password data..." -ForegroundColor Cyan
+        Write-LapsConsole -Message '🔐 Processing LAPS password data...' -ForegroundColor Cyan
         Write-EnterpriseLog -Level "Info" -Message "Processing LAPS password data" -Category "PasswordManagement"
 
-        $lapsResults = @()
+        $lapsResults = [System.Collections.Generic.List[object]]::new()
 
         foreach ($computer in $Computers) {
             try {
-                Write-Host "   📋 Processing: $($computer.Name)" -ForegroundColor White
+                Write-LapsConsole -Message "   📋 Processing: $($computer.Name)" -ForegroundColor White
 
                 # Extract LAPS password information
                 $lapsPassword = $computer.($LAPSAttributes.Password)
@@ -487,19 +582,7 @@ function Get-EnterpriseLAPSPasswordData {
                 }
 
                 # Create LAPS result object
-                $lapsResult = [PSCustomObject]@{
-                    ComputerName      = $computer.Name
-                    DNSHostName       = $computer.DNSHostName
-                    OperatingSystem   = $computer.OperatingSystem
-                    PasswordStatus    = if ($lapsPassword) { "Configured" } else { "Not Configured" }
-                    PasswordExpiry    = $expiryDate
-                    PasswordAge       = $passwordAge
-                    IsCompliant       = $isCompliant
-                    ComplianceIssues  = ($complianceIssues -join "; ")
-                    LastLogon         = $computer.LastLogonDate
-                    Enabled           = $computer.Enabled
-                    DistinguishedName = $computer.DistinguishedName
-                }
+                $lapsResult = ConvertTo-EnterpriseLapsResult -Computer $computer -ResultStatus $(if ($lapsPassword) { 'Configured' } else { 'Not Configured' }) -ResultExpiry $expiryDate -ResultAge $passwordAge -IsCompliant $isCompliant -ComplianceIssues $complianceIssues
 
                 # Add password if requested and authorized
                 if ($ShowPasswords) {
@@ -510,7 +593,7 @@ function Get-EnterpriseLAPSPasswordData {
                             AccessTime   = Get-Date
                         }
                         $lapsResult | Add-Member -NotePropertyName "Password" -NotePropertyValue $lapsPassword
-                        $Global:EnterpriseLAPSMetrics.PasswordsRetrieved++
+                        $script:EnterpriseLapsMetrics.PasswordsRetrieved++
                     }
                     else {
                         $lapsResult | Add-Member -NotePropertyName "Password" -NotePropertyValue "Not Available"
@@ -525,31 +608,31 @@ function Get-EnterpriseLAPSPasswordData {
                         ComputerDN    = $computer.DistinguishedName
                         SecurityLevel = $SecurityLevel
                     }
-                    $Global:EnterpriseLAPSMetrics.AuditEntries++
+                    $script:EnterpriseLapsMetrics.AuditEntries++
                 }
 
-                $lapsResults += $lapsResult
+                [void]$lapsResults.Add($lapsResult)
 
                 # Track compliance issues
                 if (-not $isCompliant) {
-                    $Global:EnterpriseLAPSMetrics.ComplianceIssues++
+                    $script:EnterpriseLapsMetrics.ComplianceIssues++
                 }
 
             }
             catch {
-                Write-Host "      ❌ Failed to process $($computer.Name): $($_.Exception.Message)" -ForegroundColor Red
+                Write-LapsConsole -Message "      ❌ Failed to process $($computer.Name): $($_.Exception.Message)" -ForegroundColor Red
                 Write-EnterpriseLog -Level "Error" -Message "Computer processing failed" -Category "PasswordManagement" -Exception $_ -Properties @{
                     ComputerName = $computer.Name
                 }
-                $Global:EnterpriseLAPSMetrics.Errors += "Computer $($computer.Name): $($_.Exception.Message)"
+                $script:EnterpriseLapsMetrics.Errors += "Computer $($computer.Name): $($_.Exception.Message)"
             }
         }
 
-        Write-Host "   ✅ Processed $($lapsResults.Count) computer records" -ForegroundColor Green
+        Write-LapsConsole -Message "   ✅ Processed $($lapsResults.Count) computer records" -ForegroundColor Green
         Write-EnterpriseLog -Level "Success" -Message "LAPS password data processed" -Category "PasswordManagement" -Properties @{
             RecordsProcessed   = $lapsResults.Count
-            PasswordsRetrieved = $Global:EnterpriseLAPSMetrics.PasswordsRetrieved
-            ComplianceIssues   = $Global:EnterpriseLAPSMetrics.ComplianceIssues
+            PasswordsRetrieved = $script:EnterpriseLapsMetrics.PasswordsRetrieved
+            ComplianceIssues   = $script:EnterpriseLapsMetrics.ComplianceIssues
         }
 
         return $lapsResults
@@ -582,7 +665,7 @@ function Show-EnterpriseLAPSResults {
             return
         }
 
-        Write-Host "`n" + ("═" * 70) -ForegroundColor Cyan
+        Write-Host -Object ("`n" + ("═" * 70)) -ForegroundColor Cyan
         Write-Host "🔐 ENTERPRISE LAPS PASSWORD MANAGEMENT RESULTS" -ForegroundColor Green
         Write-Host ("═" * 70) -ForegroundColor Cyan
 
@@ -632,7 +715,7 @@ function Show-EnterpriseLAPSResults {
         Write-Host "   Non-Compliant: $nonCompliantCount" -ForegroundColor $(if ($nonCompliantCount -gt 0) { "Red" }else { "Green" })
 
         if ($ShowPasswords) {
-            Write-Host "   Passwords Retrieved: $($Global:EnterpriseLAPSMetrics.PasswordsRetrieved)" -ForegroundColor Yellow
+            Write-Host "   Passwords Retrieved: $($script:EnterpriseLapsMetrics.PasswordsRetrieved)" -ForegroundColor Yellow
         }
 
     }
@@ -676,8 +759,8 @@ function Export-EnterpriseLAPSReport {
                 CompliantComputers    = ($LAPSResults | Where-Object { $_.IsCompliant }).Count
                 NonCompliantComputers = ($LAPSResults | Where-Object { -not $_.IsCompliant }).Count
             }
-            Metrics        = $Global:EnterpriseLAPSMetrics
-            Duration       = [math]::Round(((Get-Date) - $Global:EnterpriseLAPSMetrics.StartTime).TotalMinutes, 2)
+            Metrics        = $script:EnterpriseLapsMetrics
+            Duration       = [math]::Round(((Get-Date) - $script:EnterpriseLapsMetrics.StartTime).TotalMinutes, 2)
         }
 
         switch ($OutputFormat) {
@@ -762,7 +845,7 @@ th { background-color: #f2f2f2; }
 
 try {
     # Enterprise banner
-    Write-Host "`n" + ("═" * 70) -ForegroundColor Cyan
+    Write-Host -Object ("`n" + ("═" * 70)) -ForegroundColor Cyan
     Write-Host "🏢 ENTERPRISE LAPS PASSWORD MANAGEMENT SYSTEM" -ForegroundColor Green
     Write-Host ("═" * 70) -ForegroundColor Cyan
     Write-Host "🔐 Military-grade LAPS password management with comprehensive security controls" -ForegroundColor White
@@ -843,18 +926,18 @@ try {
     }
 
     # Final monitoring summary
-    $duration = [math]::Round(((Get-Date) - $Global:EnterpriseLAPSMetrics.StartTime).TotalMinutes, 2)
-    Write-Host "`n" + ("═" * 50) -ForegroundColor Green
+    $duration = [math]::Round(((Get-Date) - $script:EnterpriseLapsMetrics.StartTime).TotalMinutes, 2)
+    Write-Host -Object ("`n" + ("═" * 50)) -ForegroundColor Green
     Write-Host "🎉 ENTERPRISE LAPS MANAGEMENT COMPLETE" -ForegroundColor Green
     Write-Host ("═" * 50) -ForegroundColor Green
     Write-Host "   Duration: $duration minutes" -ForegroundColor White
-    Write-Host "   Computers Processed: $($Global:EnterpriseLAPSMetrics.ComputersProcessed)" -ForegroundColor White
-    Write-Host "   Passwords Retrieved: $($Global:EnterpriseLAPSMetrics.PasswordsRetrieved)" -ForegroundColor White
-    Write-Host "   Compliance Issues: $($Global:EnterpriseLAPSMetrics.ComplianceIssues)" -ForegroundColor $(if ($Global:EnterpriseLAPSMetrics.ComplianceIssues -gt 0) { "Yellow" }else { "Green" })
-    Write-Host "   Audit Entries: $($Global:EnterpriseLAPSMetrics.AuditEntries)" -ForegroundColor White
-    Write-Host "   Security Violations: $($Global:EnterpriseLAPSMetrics.SecurityViolations)" -ForegroundColor $(if ($Global:EnterpriseLAPSMetrics.SecurityViolations -gt 0) { "Red" }else { "Green" })
+    Write-Host "   Computers Processed: $($script:EnterpriseLapsMetrics.ComputersProcessed)" -ForegroundColor White
+    Write-Host "   Passwords Retrieved: $($script:EnterpriseLapsMetrics.PasswordsRetrieved)" -ForegroundColor White
+    Write-Host "   Compliance Issues: $($script:EnterpriseLapsMetrics.ComplianceIssues)" -ForegroundColor $(if ($script:EnterpriseLapsMetrics.ComplianceIssues -gt 0) { "Yellow" }else { "Green" })
+    Write-Host "   Audit Entries: $($script:EnterpriseLapsMetrics.AuditEntries)" -ForegroundColor White
+    Write-Host "   Security Violations: $($script:EnterpriseLapsMetrics.SecurityViolations)" -ForegroundColor $(if ($script:EnterpriseLapsMetrics.SecurityViolations -gt 0) { "Red" }else { "Green" })
 
-    Write-EnterpriseLog -Level "Success" -Message "Enterprise LAPS management completed successfully" -Category "System" -Properties $Global:EnterpriseLAPSMetrics
+    Write-EnterpriseLog -Level "Success" -Message "Enterprise LAPS management completed successfully" -Category "System" -Properties $script:EnterpriseLapsMetrics
 
 }
 catch {
@@ -862,9 +945,9 @@ catch {
     Write-Host "`n❌ ENTERPRISE LAPS MANAGEMENT FAILED" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($Global:EnterpriseLAPSMetrics.Errors.Count -gt 0) {
+    if ($script:EnterpriseLapsMetrics.Errors.Count -gt 0) {
         Write-Host "`nDetailed Errors:" -ForegroundColor Yellow
-        $Global:EnterpriseLAPSMetrics.Errors | ForEach-Object {
+        $script:EnterpriseLapsMetrics.Errors | ForEach-Object {
             Write-Host "   • $_" -ForegroundColor Red
         }
     }
@@ -873,7 +956,7 @@ catch {
 }
 finally {
     # Cleanup and final telemetry
-    if ($Global:EnterpriseLAPSMetrics) {
-        $Global:EnterpriseLAPSMetrics.EndTime = Get-Date
+    if ($script:EnterpriseLapsMetrics) {
+        $script:EnterpriseLapsMetrics.EndTime = Get-Date
     }
 }

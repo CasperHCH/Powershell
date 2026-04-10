@@ -1,3 +1,12 @@
+<#
+.SYNOPSIS
+Adds all users from an OU to a target Active Directory group.
+
+.DESCRIPTION
+Validates the OU and group, enumerates users from the specified search base, and
+adds each user to the requested group with optional WhatIf-style messaging.
+#>
+
 param(
     [string]$DistinguishedName,
     [string]$GroupName,
@@ -21,15 +30,15 @@ try {
     $null = Get-ADGroup -Identity $GroupName -ErrorAction Stop
 
     $users = Get-ADUser -SearchBase $DistinguishedName -Filter *
-    Write-Host "Found $($users.Count) users in OU: $DistinguishedName" -ForegroundColor Green
+    Write-Information "Found $($users.Count) users in OU: $DistinguishedName" -InformationAction Continue
 
     foreach ($user in $users) {
         if ($WhatIf) {
-            Write-Host "WhatIf: Would add $($user.Name) to group $GroupName" -ForegroundColor Yellow
+            Write-Information "WhatIf: Would add $($user.Name) to group $GroupName" -InformationAction Continue
         } else {
             try {
                 Add-ADGroupMember $GroupName -Members $user -ErrorAction Stop
-                Write-Host "Added $($user.Name) to group $GroupName" -ForegroundColor Green
+                Write-Information "Added $($user.Name) to group $GroupName" -InformationAction Continue
             } catch {
                 Write-Warning "Failed to add $($user.Name): $($_.Exception.Message)"
             }

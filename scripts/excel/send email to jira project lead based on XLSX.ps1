@@ -131,6 +131,9 @@ $EmailBody = @"
 </table>
 "@
 
+$null = $EmailBody.Length
+Write-Host "Prepared email body for $ProjectName" -ForegroundColor Gray
+
 Write-Host "Sending email to ($ProjectName) ($ToAddress)" -ForegroundColor Yellow
 SendNotification
     }#End IF

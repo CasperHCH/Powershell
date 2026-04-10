@@ -33,7 +33,7 @@ param(
 $script:SessionId = (New-Guid).ToString().Substring(0, 8)
 $script:LogPath = Join-Path $PSScriptRoot "Compare-EpmCmdbVsSccm.log"
 
-function Write-Log {
+function Write-EpmLog {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Message,
@@ -85,7 +85,7 @@ function Test-ValueMismatch {
 }
 
 try {
-    Write-Log -Message "Starting CMDB vs SCCM reconciliation" -Level "INFO"
+    Write-EpmLog -Message "Starting CMDB vs SCCM reconciliation" -Level "INFO"
 
     if (-not (Test-Path -Path $OutputPath)) {
         New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
@@ -158,9 +158,9 @@ try {
     Write-Host " - $siteMismatchPath" -ForegroundColor White
     Write-Host " - $summaryPath" -ForegroundColor White
 
-    Write-Log -Message "CMDB vs SCCM reconciliation completed" -Level "INFO"
+    Write-EpmLog -Message "CMDB vs SCCM reconciliation completed" -Level "INFO"
 }
 catch {
-    Write-Log -Message "CMDB vs SCCM reconciliation failed: $($_.Exception.Message)" -Level "ERROR"
+    Write-EpmLog -Message "CMDB vs SCCM reconciliation failed: $($_.Exception.Message)" -Level "ERROR"
     throw
 }
