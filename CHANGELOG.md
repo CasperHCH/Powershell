@@ -28,7 +28,10 @@ All notable changes to this **enterprise-grade PowerShell library** are document
 - Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` with SQL reachability, management point, software update point, distribution-point, boundary, and boundary-group validation driven by the manifest.
 - Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` further with standard-collection and source-path validation driven by the manifest.
 - Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` to validate boundary-group boundary references from the manifest.
+- Expanded `scripts/infrastructure/sccm/Test-SccmSiteHealth.ps1` with optional live Configuration Manager provider checks for boundaries, boundary groups, memberships, collections, and collection rules.
 - Expanded `scripts/infrastructure/Infrastructure-Common.ps1` to support both `.psd1` and `.ps1` manifest files.
+- Expanded `scripts/infrastructure/sccm/New-SccmBoundaryModel.ps1` with live boundary-group membership reconciliation.
+- Expanded `scripts/infrastructure/sccm/New-SccmBaselineCollections.ps1` with query, include, and exclude membership-rule support.
 
 ### Documentation
 - Updated `README.md` to index the new infrastructure automation area and roadmap guide.

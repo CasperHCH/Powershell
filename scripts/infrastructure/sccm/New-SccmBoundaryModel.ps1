@@ -31,6 +31,8 @@ param(
 Set-StrictMode -Version Latest
 
 . (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'Infrastructure-Common.ps1')
+$sccmCommonPath = Join-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -ChildPath 'SCCM\SCCM-Common.ps1'
+. $sccmCommonPath
 
 $scriptLogPath = Join-Path -Path $PSScriptRoot -ChildPath 'ScriptAudit.log'
 $manifest = Import-InfrastructureManifest -ManifestPath $ManifestPath
@@ -43,6 +45,68 @@ $missingBoundaries = New-Object 'System.Collections.Generic.List[object]'
 $existingBoundaryGroups = New-Object 'System.Collections.Generic.List[object]'
 $missingBoundaryGroups = New-Object 'System.Collections.Generic.List[object]'
 $pendingMemberships = New-Object 'System.Collections.Generic.List[object]'
+$connectionContext = $null
+
+function Invoke-AddSccmBoundaryMembership {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BoundaryGroupName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BoundaryName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$BoundaryId,
+
+        [Parameter(Mandatory = $false)]
+        [string]$BoundaryGroupId
+    )
+
+    $addCommand = Get-Command -Name Add-CMBoundaryToGroup -ErrorAction Stop
+    $parameterNames = @($addCommand.Parameters.Keys)
+    $attempts = New-Object 'System.Collections.Generic.List[scriptblock]'
+
+    if (($parameterNames -contains 'BoundaryGroupName') -and ($parameterNames -contains 'BoundaryName')) {
+        $targetBoundaryGroupName = $BoundaryGroupName
+        $targetBoundaryName = $BoundaryName
+        $attempts.Add({ Add-CMBoundaryToGroup -BoundaryGroupName $targetBoundaryGroupName -BoundaryName $targetBoundaryName -ErrorAction Stop | Out-Null })
+    }
+
+    if (($parameterNames -contains 'BoundaryGroupName') -and ($parameterNames -contains 'BoundaryId') -and -not [string]::IsNullOrWhiteSpace($BoundaryId)) {
+        $targetBoundaryGroupName = $BoundaryGroupName
+        $targetBoundaryId = $BoundaryId
+        $attempts.Add({ Add-CMBoundaryToGroup -BoundaryGroupName $targetBoundaryGroupName -BoundaryId $targetBoundaryId -ErrorAction Stop | Out-Null })
+    }
+
+    if (($parameterNames -contains 'BoundaryGroupId') -and ($parameterNames -contains 'BoundaryName') -and -not [string]::IsNullOrWhiteSpace($BoundaryGroupId)) {
+        $targetBoundaryGroupId = $BoundaryGroupId
+        $targetBoundaryName = $BoundaryName
+        $attempts.Add({ Add-CMBoundaryToGroup -BoundaryGroupId $targetBoundaryGroupId -BoundaryName $targetBoundaryName -ErrorAction Stop | Out-Null })
+    }
+
+    if (($parameterNames -contains 'BoundaryGroupId') -and ($parameterNames -contains 'BoundaryId') -and -not [string]::IsNullOrWhiteSpace($BoundaryGroupId) -and -not [string]::IsNullOrWhiteSpace($BoundaryId)) {
+        $targetBoundaryGroupId = $BoundaryGroupId
+        $targetBoundaryId = $BoundaryId
+        $attempts.Add({ Add-CMBoundaryToGroup -BoundaryGroupId $targetBoundaryGroupId -BoundaryId $targetBoundaryId -ErrorAction Stop | Out-Null })
+    }
+
+    if ($attempts.Count -eq 0) {
+        throw 'Unable to find a supported Add-CMBoundaryToGroup parameter set for boundary membership creation.'
+    }
+
+    foreach ($attempt in $attempts) {
+        try {
+            & $attempt
+            return
+        }
+        catch {
+            continue
+        }
+    }
+
+    throw "Failed to add boundary '$BoundaryName' to boundary group '$BoundaryGroupName'."
+}
 
 $cmModulePath = $null
 if (-not [string]::IsNullOrWhiteSpace($env:SMS_ADMIN_UI_PATH)) {
@@ -85,6 +149,12 @@ foreach ($boundaryGroup in $boundaryGroups) {
 $failedChecks = @($checks | Where-Object { -not $_.Passed -and $_.Severity -eq 'Error' })
 
 if ($failedChecks.Count -eq 0 -and $cmModuleImported) {
+    try {
+        $connectionContext = Connect-SccmSite -SiteCode $sccmConfig.SiteCode
+        $resolvedSiteCode = [string](Get-SccmObjectPropertyValue -InputObject $connectionContext -PropertyNames @('SiteCode'))
+        $namespace = "root/SMS/site_$resolvedSiteCode"
+        $boundaryGroupMembers = @(Get-CimInstance -Namespace $namespace -ClassName 'SMS_BoundaryGroupMembers' -ErrorAction SilentlyContinue)
+
     foreach ($boundary in $boundaries) {
         try {
             $existingBoundary = Get-CMBoundary -Name $boundary.Name -ErrorAction Stop
@@ -109,9 +179,10 @@ if ($failedChecks.Count -eq 0 -and $cmModuleImported) {
     foreach ($boundaryGroup in $boundaryGroups) {
         try {
             $existingBoundaryGroup = Get-CMBoundaryGroup -Name $boundaryGroup.Name -ErrorAction Stop
+            $groupId = [string](Get-SccmObjectPropertyValue -InputObject $existingBoundaryGroup -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
             $existingBoundaryGroups.Add([pscustomobject]@{
                 Name = $boundaryGroup.Name
-                BoundaryGroupId = $existingBoundaryGroup.GroupID
+                BoundaryGroupId = $groupId
                 SiteSystems = @($boundaryGroup.SiteSystems)
                 BoundaryNames = @($boundaryGroup.BoundaryNames)
                 Status = 'Exists'
@@ -128,11 +199,37 @@ if ($failedChecks.Count -eq 0 -and $cmModuleImported) {
         }
 
         foreach ($boundaryName in @($boundaryGroup.BoundaryNames)) {
-            $pendingMemberships.Add([pscustomobject]@{
-                BoundaryGroupName = $boundaryGroup.Name
-                BoundaryName = $boundaryName
-            })
+            $resolvedBoundary = @($existingBoundaries.ToArray() + $missingBoundaries.ToArray() | Where-Object { $_.Name -eq $boundaryName } | Select-Object -First 1)
+            $resolvedBoundaryGroup = @($existingBoundaryGroups.ToArray() + $missingBoundaryGroups.ToArray() | Where-Object { $_.Name -eq $boundaryGroup.Name } | Select-Object -First 1)
+            $existingMembership = $false
+
+            if ($resolvedBoundary.Count -gt 0 -and $resolvedBoundaryGroup.Count -gt 0 -and
+                $resolvedBoundary[0].PSObject.Properties.Match('BoundaryId').Count -gt 0 -and
+                $resolvedBoundaryGroup[0].PSObject.Properties.Match('BoundaryGroupId').Count -gt 0 -and
+                -not [string]::IsNullOrWhiteSpace([string]$resolvedBoundary[0].BoundaryId) -and
+                -not [string]::IsNullOrWhiteSpace([string]$resolvedBoundaryGroup[0].BoundaryGroupId)) {
+                $boundaryIdString = [string]$resolvedBoundary[0].BoundaryId
+                $groupIdString = [string]$resolvedBoundaryGroup[0].BoundaryGroupId
+                $existingMembership = @($boundaryGroupMembers | Where-Object {
+                    [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('BoundaryID', 'BoundaryId')) -eq $boundaryIdString -and
+                    [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupIdString
+                }).Count -gt 0
+            }
+
+            if (-not $existingMembership) {
+                $pendingMemberships.Add([pscustomobject]@{
+                    BoundaryGroupName = $boundaryGroup.Name
+                    BoundaryName = $boundaryName
+                    BoundaryId = if ($resolvedBoundary.Count -gt 0 -and $resolvedBoundary[0].PSObject.Properties.Match('BoundaryId').Count -gt 0) { [string]$resolvedBoundary[0].BoundaryId } else { $null }
+                    BoundaryGroupId = if ($resolvedBoundaryGroup.Count -gt 0 -and $resolvedBoundaryGroup[0].PSObject.Properties.Match('BoundaryGroupId').Count -gt 0) { [string]$resolvedBoundaryGroup[0].BoundaryGroupId } else { $null }
+                })
+            }
         }
+    }
+    }
+    finally {
+        Disconnect-SccmSite -ConnectionContext $connectionContext
+        $connectionContext = $null
     }
 }
 
@@ -190,9 +287,21 @@ foreach ($boundaryGroup in @($missingBoundaryGroups.ToArray())) {
     }
 }
 
+$boundaryLookup = @{}
+foreach ($boundary in @($existingBoundaries.ToArray())) {
+    $boundaryLookup[$boundary.Name] = $boundary
+}
+
+$boundaryGroupLookup = @{}
+foreach ($boundaryGroup in @($existingBoundaryGroups.ToArray())) {
+    $boundaryGroupLookup[$boundaryGroup.Name] = $boundaryGroup
+}
+
 foreach ($membership in @($pendingMemberships.ToArray())) {
     if ($PSCmdlet.ShouldProcess($membership.BoundaryGroupName, "Add boundary '$($membership.BoundaryName)' to group")) {
-        Add-CMBoundaryToGroup -BoundaryGroupName $membership.BoundaryGroupName -BoundaryName $membership.BoundaryName -ErrorAction Stop | Out-Null
+        $resolvedBoundary = if ($boundaryLookup.ContainsKey($membership.BoundaryName)) { $boundaryLookup[$membership.BoundaryName] } else { $null }
+        $resolvedBoundaryGroup = if ($boundaryGroupLookup.ContainsKey($membership.BoundaryGroupName)) { $boundaryGroupLookup[$membership.BoundaryGroupName] } else { $null }
+        Invoke-AddSccmBoundaryMembership -BoundaryGroupName $membership.BoundaryGroupName -BoundaryName $membership.BoundaryName -BoundaryId $(if ($null -ne $resolvedBoundary) { [string]$resolvedBoundary.BoundaryId } else { $null }) -BoundaryGroupId $(if ($null -ne $resolvedBoundaryGroup) { [string]$resolvedBoundaryGroup.BoundaryGroupId } else { $null })
     }
 }
 

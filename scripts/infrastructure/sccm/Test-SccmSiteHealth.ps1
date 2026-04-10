@@ -25,6 +25,8 @@ param(
 Set-StrictMode -Version Latest
 
 . (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'Infrastructure-Common.ps1')
+$sccmCommonPath = Join-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -ChildPath 'SCCM\SCCM-Common.ps1'
+. $sccmCommonPath
 
 $scriptLogPath = Join-Path -Path $PSScriptRoot -ChildPath 'ScriptAudit.log'
 $manifest = Import-InfrastructureManifest -ManifestPath $ManifestPath
@@ -35,6 +37,8 @@ $boundaryGroups = @($sccmConfig.BoundaryGroups)
 $boundaries = @($sccmConfig.Boundaries)
 $standardCollections = @($sccmConfig.StandardCollections)
 $sourcePathEntries = @()
+$providerConnected = $false
+$connectionContext = $null
 if ($sccmConfig.ContainsKey('SourcePaths')) {
     $sourcePathEntries = @($sccmConfig.SourcePaths.GetEnumerator())
 }
@@ -90,8 +94,13 @@ foreach ($distributionPoint in $distributionPoints) {
 }
 
 foreach ($collection in $standardCollections) {
+    $membershipRules = if ($collection.ContainsKey('MembershipRules')) { $collection.MembershipRules } else { @{} }
     $checks.Add((New-InfrastructureCheckResult -Name 'Standard collection has name' -Passed (-not [string]::IsNullOrWhiteSpace($collection.Name)) -Severity 'Error' -Target $collection.Name -Details 'Each standard collection must define Name.'))
     $checks.Add((New-InfrastructureCheckResult -Name 'Standard collection has limiting collection' -Passed (-not [string]::IsNullOrWhiteSpace($collection.LimitingCollection)) -Severity 'Error' -Target $collection.Name -Details 'Each standard collection must define LimitingCollection.'))
+    foreach ($queryRule in @($membershipRules.QueryRules)) {
+        $checks.Add((New-InfrastructureCheckResult -Name 'Standard collection query rule has name' -Passed (-not [string]::IsNullOrWhiteSpace($queryRule.Name)) -Severity 'Error' -Target $collection.Name -Details 'Each query rule must define Name.'))
+        $checks.Add((New-InfrastructureCheckResult -Name 'Standard collection query rule has expression' -Passed (-not [string]::IsNullOrWhiteSpace($queryRule.QueryExpression)) -Severity 'Error' -Target $collection.Name -Details 'Each query rule must define QueryExpression.'))
+    }
 }
 
 foreach ($sourcePath in $sourcePathEntries) {
@@ -121,6 +130,87 @@ foreach ($boundaryGroup in $boundaryGroups) {
     $checks.Add((New-InfrastructureCheckResult -Name 'Boundary group boundaries are known' -Passed ($unknownBoundaryNames.Count -eq 0) -Severity 'Error' -Target $boundaryGroup.Name -Details ($(if ($unknownBoundaryNames.Count -eq 0) { 'All boundary-group boundaries are present in the manifest.' } else { 'Unknown boundaries: ' + ($unknownBoundaryNames -join ', ') })) -Data $unknownBoundaryNames))
 }
 
+if ($cmModulePathPresent) {
+    try {
+        $connectionContext = Connect-SccmSite -SiteCode $sccmConfig.SiteCode
+        $providerConnected = $true
+        $resolvedSiteCode = [string](Get-SccmObjectPropertyValue -InputObject $connectionContext -PropertyNames @('SiteCode'))
+        $namespace = "root/SMS/site_$resolvedSiteCode"
+        $boundaryGroupMembers = @(Get-CimInstance -Namespace $namespace -ClassName 'SMS_BoundaryGroupMembers' -ErrorAction SilentlyContinue)
+
+        $checks.Add((New-InfrastructureCheckResult -Name 'Configuration Manager provider connection available' -Passed $true -Severity 'Info' -Target $resolvedSiteCode -Details 'Live Configuration Manager provider access succeeded.'))
+
+        foreach ($boundary in $boundaries) {
+            $liveBoundary = @(Get-CMBoundary -Name $boundary.Name -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $checks.Add((New-InfrastructureCheckResult -Name 'Manifest boundary exists in SCCM' -Passed ($liveBoundary.Count -gt 0) -Severity 'Warning' -Target $boundary.Name -Details ($(if ($liveBoundary.Count -gt 0) { 'Boundary exists in Configuration Manager.' } else { 'Boundary is defined in the manifest but not present in Configuration Manager.' }))))
+        }
+
+        foreach ($boundaryGroup in $boundaryGroups) {
+            $liveBoundaryGroup = @(Get-CMBoundaryGroup -Name $boundaryGroup.Name -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $checks.Add((New-InfrastructureCheckResult -Name 'Manifest boundary group exists in SCCM' -Passed ($liveBoundaryGroup.Count -gt 0) -Severity 'Warning' -Target $boundaryGroup.Name -Details ($(if ($liveBoundaryGroup.Count -gt 0) { 'Boundary group exists in Configuration Manager.' } else { 'Boundary group is defined in the manifest but not present in Configuration Manager.' }))))
+
+            if ($liveBoundaryGroup.Count -gt 0) {
+                $groupId = [string](Get-SccmObjectPropertyValue -InputObject $liveBoundaryGroup[0] -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
+                foreach ($boundaryName in @($boundaryGroup.BoundaryNames)) {
+                    $liveBoundary = @(Get-CMBoundary -Name $boundaryName -ErrorAction SilentlyContinue | Select-Object -First 1)
+                    $boundaryId = if ($liveBoundary.Count -gt 0) { [string](Get-SccmObjectPropertyValue -InputObject $liveBoundary[0] -PropertyNames @('BoundaryID', 'BoundaryId')) } else { $null }
+                    $membershipExists = $false
+                    if (-not [string]::IsNullOrWhiteSpace($groupId) -and -not [string]::IsNullOrWhiteSpace($boundaryId)) {
+                        $membershipExists = @($boundaryGroupMembers | Where-Object {
+                            [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupId -and
+                            [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('BoundaryID', 'BoundaryId')) -eq $boundaryId
+                        }).Count -gt 0
+                    }
+
+                    $checks.Add((New-InfrastructureCheckResult -Name 'Boundary group membership exists in SCCM' -Passed $membershipExists -Severity 'Warning' -Target $boundaryGroup.Name -Details ($(if ($membershipExists) { "Boundary '$boundaryName' is linked to the boundary group in Configuration Manager." } else { "Boundary '$boundaryName' is not linked to the boundary group in Configuration Manager." })) -Data $boundaryName))
+                }
+            }
+        }
+
+        foreach ($collection in $standardCollections) {
+            $liveCollection = @(Get-CMDeviceCollection -Name $collection.Name -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $checks.Add((New-InfrastructureCheckResult -Name 'Manifest collection exists in SCCM' -Passed ($liveCollection.Count -gt 0) -Severity 'Warning' -Target $collection.Name -Details ($(if ($liveCollection.Count -gt 0) { 'Collection exists in Configuration Manager.' } else { 'Collection is defined in the manifest but not present in Configuration Manager.' }))))
+
+            if ($liveCollection.Count -gt 0 -and $collection.ContainsKey('MembershipRules')) {
+                $queryRules = @(Get-CMDeviceCollectionQueryMembershipRule -CollectionId $liveCollection[0].CollectionID -ErrorAction SilentlyContinue)
+                $includeRules = @(Get-CMDeviceCollectionIncludeMembershipRule -CollectionId $liveCollection[0].CollectionID -ErrorAction SilentlyContinue)
+                $excludeRules = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionId $liveCollection[0].CollectionID -ErrorAction SilentlyContinue)
+
+                foreach ($queryRule in @($collection.MembershipRules.QueryRules)) {
+                    $queryRuleExists = @($queryRules | Where-Object {
+                        [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('RuleName', 'Name')) -eq $queryRule.Name -or
+                        [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('QueryExpression', 'QueryRuleExpression')) -eq $queryRule.QueryExpression
+                    }).Count -gt 0
+                    $checks.Add((New-InfrastructureCheckResult -Name 'Collection query rule exists in SCCM' -Passed $queryRuleExists -Severity 'Warning' -Target $collection.Name -Details ($(if ($queryRuleExists) { "Query rule '$($queryRule.Name)' exists in Configuration Manager." } else { "Query rule '$($queryRule.Name)' is missing from Configuration Manager." })) -Data $queryRule.Name))
+                }
+
+                foreach ($includeCollection in @($collection.MembershipRules.IncludeCollections)) {
+                    $includeRuleExists = @($includeRules | Where-Object {
+                        [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('IncludeCollectionName', 'CollectionName', 'ReferencedCollectionName')) -eq [string]$includeCollection
+                    }).Count -gt 0
+                    $checks.Add((New-InfrastructureCheckResult -Name 'Collection include rule exists in SCCM' -Passed $includeRuleExists -Severity 'Warning' -Target $collection.Name -Details ($(if ($includeRuleExists) { "Include rule for '$includeCollection' exists in Configuration Manager." } else { "Include rule for '$includeCollection' is missing from Configuration Manager." })) -Data $includeCollection))
+                }
+
+                foreach ($excludeCollection in @($collection.MembershipRules.ExcludeCollections)) {
+                    $excludeRuleExists = @($excludeRules | Where-Object {
+                        [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('ExcludeCollectionName', 'CollectionName', 'ReferencedCollectionName')) -eq [string]$excludeCollection
+                    }).Count -gt 0
+                    $checks.Add((New-InfrastructureCheckResult -Name 'Collection exclude rule exists in SCCM' -Passed $excludeRuleExists -Severity 'Warning' -Target $collection.Name -Details ($(if ($excludeRuleExists) { "Exclude rule for '$excludeCollection' exists in Configuration Manager." } else { "Exclude rule for '$excludeCollection' is missing from Configuration Manager." })) -Data $excludeCollection))
+                }
+            }
+        }
+    }
+    catch {
+        $checks.Add((New-InfrastructureCheckResult -Name 'Configuration Manager provider connection available' -Passed $false -Severity 'Warning' -Target $sccmConfig.SiteCode -Details $_.Exception.Message))
+    }
+    finally {
+        Disconnect-SccmSite -ConnectionContext $connectionContext
+    }
+}
+else {
+    $checks.Add((New-InfrastructureCheckResult -Name 'Configuration Manager provider connection available' -Passed $false -Severity 'Info' -Target $sccmConfig.SiteCode -Details 'Live Configuration Manager provider validation skipped because the console module is unavailable on this host.'))
+}
+
 $checkArray = [object[]]$checks.ToArray()
 $failedChecks = @($checkArray | Where-Object { -not $_.Passed -and $_.Severity -eq 'Error' })
 $warningChecks = @($checkArray | Where-Object { -not $_.Passed -and $_.Severity -eq 'Warning' })
@@ -133,6 +223,7 @@ Write-InfrastructureAudit -Action 'SCCM_SITE_HEALTH_VALIDATION' -Target $sccmCon
     DistributionPointCount = @($distributionPoints).Count
     BoundaryGroupCount = @($boundaryGroups).Count
     StandardCollectionCount = @($standardCollections).Count
+    ProviderConnected = $providerConnected
     FailedChecks = $failedChecks.Count
     WarningChecks = $warningChecks.Count
 } -LogPath $scriptLogPath
@@ -145,6 +236,7 @@ Write-InfrastructureAudit -Action 'SCCM_SITE_HEALTH_VALIDATION' -Target $sccmCon
     ManagementPoint = $sccmConfig.ManagementPoint
     SoftwareUpdatePoint = $sccmConfig.SoftwareUpdatePoint
     StandardCollectionCount = @($standardCollections).Count
+    ProviderConnected = $providerConnected
     OverallStatus = $overallStatus
     TotalChecks = $checkArray.Count
     PassedChecks = @($checkArray | Where-Object Passed).Count

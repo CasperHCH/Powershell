@@ -362,17 +362,30 @@ function Get-SmsProviderInstance {
         [string]$Filter = ''
     )
 
-    $cimParams = @{
-        Namespace   = $Namespace
-        ClassName   = $ClassName
-        ErrorAction = 'Stop'
-    }
+    $previousWhatIfPreference = $WhatIfPreference
 
-    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-        $cimParams.Filter = $Filter
-    }
+    try {
+        # Importing CimCmdlets lazily under a script-wide WhatIf preference can
+        # emit noisy alias-creation messages. Suppress WhatIf only for the local
+        # provider query so DryRun logs stay readable.
+        $WhatIfPreference = $false
+        Import-Module CimCmdlets -ErrorAction SilentlyContinue | Out-Null
 
-    return @(Get-CimInstance @cimParams)
+        $cimParams = @{
+            Namespace   = $Namespace
+            ClassName   = $ClassName
+            ErrorAction = 'Stop'
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+            $cimParams.Filter = $Filter
+        }
+
+        return @(Get-CimInstance @cimParams)
+    }
+    finally {
+        $WhatIfPreference = $previousWhatIfPreference
+    }
 }
 
 function Invoke-SmsProviderDelete {
@@ -381,12 +394,22 @@ function Invoke-SmsProviderDelete {
         $InputObject
     )
 
+    $previousWhatIfPreference = $WhatIfPreference
+
     try {
-        [void](Invoke-CimMethod -InputObject $InputObject -MethodName Delete -ErrorAction Stop)
-        return
+        $WhatIfPreference = $false
+        Import-Module CimCmdlets -ErrorAction SilentlyContinue | Out-Null
+
+        try {
+            [void](Invoke-CimMethod -InputObject $InputObject -MethodName Delete -ErrorAction Stop)
+            return
+        }
+        catch {
+            Remove-CimInstance -InputObject $InputObject -ErrorAction Stop
+        }
     }
-    catch {
-        Remove-CimInstance -InputObject $InputObject -ErrorAction Stop
+    finally {
+        $WhatIfPreference = $previousWhatIfPreference
     }
 }
 
@@ -4824,6 +4847,8 @@ function Remove-EmptyApplicationDeploymentFolders {
         return $normalized
     }
 
+    $folderNodesById = @{}
+
     $resolveFolderPath = {
         param(
             [Parameter(Mandatory = $true)]
@@ -4843,6 +4868,50 @@ function Remove-EmptyApplicationDeploymentFolders {
                 return [string]$candidate
             }
         }
+
+        $folderNodeId = [string](Get-ObjectPropertyValue -InputObject $FolderObject -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+        if ([string]::IsNullOrWhiteSpace($folderNodeId)) {
+            return ''
+        }
+
+        $nameChain = New-Object System.Collections.Generic.List[string]
+        $visitedNodeIds = New-Object System.Collections.Generic.HashSet[string]
+        $currentNode = $FolderObject
+
+        while ($currentNode) {
+            $currentNodeId = [string](Get-ObjectPropertyValue -InputObject $currentNode -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+            if ([string]::IsNullOrWhiteSpace($currentNodeId)) {
+                break
+            }
+
+            if (-not $visitedNodeIds.Add($currentNodeId)) {
+                break
+            }
+
+            $currentName = [string](Get-ObjectPropertyValue -InputObject $currentNode -PropertyNames @('Name'))
+            if (-not [string]::IsNullOrWhiteSpace($currentName)) {
+                [void]$nameChain.Add($currentName)
+            }
+
+            $parentNodeId = [string](Get-ObjectPropertyValue -InputObject $currentNode -PropertyNames @('ParentContainerNodeId', 'ParentContainerNodeID'))
+            if ([string]::IsNullOrWhiteSpace($parentNodeId) -or $parentNodeId -eq '0') {
+                break
+            }
+
+            if (-not $folderNodesById.ContainsKey($parentNodeId)) {
+                break
+            }
+
+            $currentNode = $folderNodesById[$parentNodeId]
+        }
+
+        if ($nameChain.Count -eq 0) {
+            return ''
+        }
+
+        $orderedNames = @($nameChain.ToArray())
+        [array]::Reverse($orderedNames)
+        return ('DeviceCollection\{0}' -f ($orderedNames -join '\'))
 
         return ''
     }
@@ -4934,6 +5003,21 @@ function Remove-EmptyApplicationDeploymentFolders {
     }
 
     Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Enumerated {0} folder object(s) for cleanup analysis." -f $allFolders.Count)
+
+    foreach ($folderNode in @($allFolders)) {
+        if (-not $folderNode) {
+            continue
+        }
+
+        $folderNodeId = [string](Get-ObjectPropertyValue -InputObject $folderNode -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+        if ([string]::IsNullOrWhiteSpace($folderNodeId)) {
+            continue
+        }
+
+        if (-not $folderNodesById.ContainsKey($folderNodeId)) {
+            $folderNodesById[$folderNodeId] = $folderNode
+        }
+    }
 
     # Normalize and keep only child folders under Application Deployment.
     $uniqueFoldersByPath = @{}
