@@ -577,7 +577,7 @@ Input text to parse.
 .OUTPUTS
 System.String
 #>
-function Extract-Version {
+function Get-Version {
     param([string]$Text)
 
     if (-not $Text) { return $null }
@@ -613,7 +613,7 @@ Input text to parse.
 .OUTPUTS
 System.String
 #>
-function Extract-Suffix {
+function Get-Suffix {
     param([string]$Text)
 
     if (-not $Text) { return "" }
@@ -667,7 +667,7 @@ Previously parsed suffix token to remove.
 .OUTPUTS
 System.String
 #>
-function Extract-SoftwareName {
+function Get-SoftwareName {
     param(
         [string]$Text,
         [string]$Version,
@@ -700,7 +700,7 @@ function Extract-SoftwareName {
     return $name
 }
 
-function Normalize-SoftwareKey {
+function ConvertTo-SoftwareKey {
     param([string]$SoftwareName)
 
     if ([string]::IsNullOrWhiteSpace($SoftwareName)) {
@@ -745,16 +745,16 @@ function Parse-CollectionIdentity {
         [string]$FolderName
     )
 
-    $colVersion = Extract-Version $CollectionName
-    $folderVersion = Extract-Version $FolderName
+    $colVersion = Get-Version $CollectionName
+    $folderVersion = Get-Version $FolderName
 
     $version = $colVersion
     if (-not $version) { $version = $folderVersion }
 
-    $suffix = Extract-Suffix $CollectionName
-    if (-not $suffix) { $suffix = Extract-Suffix $FolderName }
+    $suffix = Get-Suffix $CollectionName
+    if (-not $suffix) { $suffix = Get-Suffix $FolderName }
 
-    $software = Extract-SoftwareName -Text $CollectionName -Version $version -Suffix $suffix
+    $software = Get-SoftwareName -Text $CollectionName -Version $version -Suffix $suffix
 
     return [PSCustomObject]@{
         Software = $software
@@ -784,7 +784,7 @@ foreach ($containerItem in @($items)) {
     $analysisCollectionNameById[$analysisCollectionId] = $analysisCollectionName
 
     if ([string]$analysisIdentity.Suffix -ieq 'install' -and -not [string]::IsNullOrWhiteSpace([string]$analysisIdentity.Software)) {
-        $softwareKey = Normalize-SoftwareKey -SoftwareName ([string]$analysisIdentity.Software)
+        $softwareKey = ConvertTo-SoftwareKey -SoftwareName ([string]$analysisIdentity.Software)
         if ([string]::IsNullOrWhiteSpace($softwareKey)) { continue }
         if (-not $analysisInstallCollectionIdsBySoftware.ContainsKey($softwareKey)) {
             $analysisInstallCollectionIdsBySoftware[$softwareKey] = New-Object System.Collections.Generic.List[string]
@@ -1205,7 +1205,7 @@ function Get-PairedImplicitInstallCoverage {
         return $null
     }
 
-    $softwareKey = Normalize-SoftwareKey -SoftwareName $SoftwareName
+    $softwareKey = ConvertTo-SoftwareKey -SoftwareName $SoftwareName
     if ([string]::IsNullOrWhiteSpace($softwareKey)) {
         return $null
     }
@@ -1347,7 +1347,7 @@ Collection identifier potentially used as a limiting collection.
 .OUTPUTS
 System.Object[]
 #>
-function Is-LimitingCollection {
+function Get-LimitingCollectionDependents {
     param([string]$CollectionID)
     return @($allCollections | Where-Object { $_.LimitingCollectionID -eq $CollectionID })
 }
@@ -1724,7 +1724,7 @@ if ($AnalyzeSafeToDelete) {
             }
         }
 
-        $limitingUsedBy = @(Is-LimitingCollection -CollectionID $colId)
+        $limitingUsedBy = @(Get-LimitingCollectionDependents -CollectionID $colId)
         if ($limitingUsedBy.Count -gt 0) {
             $status = 'NotSafe'
             [void]$blockingCategories.Add('LimitingCollection')

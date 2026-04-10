@@ -77,7 +77,7 @@ param(
     [string]$ControlReviewMarkdownPath = (Join-Path $PSScriptRoot 'output\CollectionAnalyse-p03.ControlNamesReview.md')
 )
 
-function Normalize-RoleVariant {
+function ConvertTo-RoleVariant {
     param([string]$Name)
 
     return (($Name -as [string]).Trim() -replace '(?i)\s+(available|required)\s*$', '').Trim()
@@ -143,7 +143,7 @@ $controlResults = New-Object System.Collections.Generic.List[object]
 
 foreach ($group in $groups) {
     $software = [string]$group.Name
-    $normalized = Normalize-RoleVariant -Name $software
+    $normalized = ConvertTo-RoleVariant -Name $software
     $softwareKey = $software.Trim().ToLowerInvariant()
     $normalizedKey = $normalized.Trim().ToLowerInvariant()
 

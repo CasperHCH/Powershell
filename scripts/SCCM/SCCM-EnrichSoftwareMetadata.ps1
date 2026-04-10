@@ -191,7 +191,7 @@ function Get-ObjectPropertyValue {
     return $null
 }
 
-function Normalize-VersionString {
+function ConvertTo-NormalizedVersion {
     param(
         [Parameter(Mandatory = $false)]
         [string]$VersionString
@@ -214,7 +214,7 @@ function Normalize-VersionString {
     return ($parts[0..3] -join '.')
 }
 
-function Extract-VersionFromName {
+function Get-VersionFromName {
     param(
         [Parameter(Mandatory = $false)]
         [string]$Name
@@ -230,7 +230,7 @@ function Extract-VersionFromName {
         return $null
     }
 
-    return Normalize-VersionString -VersionString $match.Value
+    return ConvertTo-NormalizedVersion -VersionString $match.Value
 }
 
 function Get-SoftwareFamilyKey {
@@ -537,8 +537,8 @@ try {
         $familyKey = Get-SoftwareFamilyKey -DisplayName $displayName
         $publisher = Get-ObjectPropertyValue -InputObject $app -PropertyNames @('Publisher', 'Manufacturer', 'Vendor')
         $versionRaw = Get-ObjectPropertyValue -InputObject $app -PropertyNames @('SoftwareVersion', 'Version')
-        $version = Normalize-VersionString -VersionString $versionRaw
-        $extractedVersion = Extract-VersionFromName -Name $displayName
+        $version = ConvertTo-NormalizedVersion -VersionString $versionRaw
+        $extractedVersion = Get-VersionFromName -Name $displayName
 
         if (-not $familyProfiles.ContainsKey($familyKey)) {
             $familyProfiles[$familyKey] = @{

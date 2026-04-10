@@ -364,7 +364,7 @@ function Write-Log {
 # UTILITY HELPERS
 # -----------------------------------------------------------------------
 
-function Normalize-VersionString {
+function ConvertTo-NormalizedVersion {
     param([string]$Raw)
 
     if ([string]::IsNullOrWhiteSpace($Raw)) { return $null }
@@ -392,13 +392,13 @@ function Normalize-VersionString {
     return ($parts -join '.')
 }
 
-function Extract-VersionFromName {
+function Get-VersionFromName {
     param([string]$Name)
 
     if ([string]::IsNullOrWhiteSpace($Name)) { return $null }
     $m = [regex]::Match($Name, '\b\d+(?:\.\d+){1,3}\b')
     if (-not $m.Success) { return $null }
-    return Normalize-VersionString -Raw $m.Value
+    return ConvertTo-NormalizedVersion -Raw $m.Value
 }
 
 function Get-CleanedSearchName {
@@ -432,8 +432,8 @@ function Compare-VersionStrings {
     if ([string]::IsNullOrWhiteSpace($Current)) { return 'UnknownCurrent' }
     if ([string]::IsNullOrWhiteSpace($Latest))  { return 'UnknownLatest'  }
 
-    $nCur = Normalize-VersionString -Raw $Current
-    $nLat = Normalize-VersionString -Raw $Latest
+    $nCur = ConvertTo-NormalizedVersion -Raw $Current
+    $nLat = ConvertTo-NormalizedVersion -Raw $Latest
     if (-not $nCur) { return 'UnknownCurrent' }
     if (-not $nLat) { return 'UnknownLatest'  }
 
@@ -484,7 +484,7 @@ function Get-VendorOverrideValue {
     return $null
 }
 
-function Ensure-DirectoryExists {
+function New-DirectoryIfMissing {
     param([Parameter(Mandatory = $true)] [string]$Path)
 
     if (-not (Test-Path -Path $Path)) {
@@ -497,7 +497,7 @@ function Ensure-DirectoryExists {
 function Get-DefaultOutputPath {
     param([Parameter(Mandatory = $true)] [string]$FileName)
 
-    $outputDirectory = Ensure-DirectoryExists -Path $script:OutputDirectory
+    $outputDirectory = New-DirectoryIfMissing -Path $script:OutputDirectory
     return (Join-Path -Path $outputDirectory -ChildPath $FileName)
 }
 
@@ -674,7 +674,7 @@ function Get-ChocolateyPackageDetails {
         return $details
     }
 
-    $normVersion = Normalize-VersionString -Raw $version
+    $normVersion = ConvertTo-NormalizedVersion -Raw $version
 
     $details.Found         = $true
     $details.Publisher     = if (-not [string]::IsNullOrWhiteSpace($authors)) { $authors } else { $PackageId }
@@ -836,7 +836,7 @@ function Search-WingetPackage {
             return $result
         }
 
-        $normVersion = Normalize-VersionString -Raw $extractedVersion
+        $normVersion = ConvertTo-NormalizedVersion -Raw $extractedVersion
         $publisher   = Get-PublisherFromWingetId -PackageId $extractedId
 
         $result.Found         = $true
@@ -899,7 +899,7 @@ function Search-EvergreenPackage {
         }
 
         $rawVersion = [string]$candidate[0].Version
-        $normalizedVersion = Normalize-VersionString -Raw $rawVersion
+        $normalizedVersion = ConvertTo-NormalizedVersion -Raw $rawVersion
         $publisher = Get-VendorOverrideValue -SearchName $SearchName
 
         $result.Found         = $true
@@ -962,7 +962,7 @@ function Search-GitHubReleasePackage {
             return $result
         }
 
-        $normalizedVersion = Normalize-VersionString -Raw $rawVersion
+        $normalizedVersion = ConvertTo-NormalizedVersion -Raw $rawVersion
         $publisher = Get-VendorOverrideValue -SearchName $SearchName
         if ([string]::IsNullOrWhiteSpace($publisher)) {
             $publisher = ($repo -split '/')[0]
@@ -1558,7 +1558,7 @@ try {
 
         $versionForCompare = $currentVer
         if ([string]::IsNullOrWhiteSpace($versionForCompare)) {
-            $extracted = Extract-VersionFromName -Name $displayName
+            $extracted = Get-VersionFromName -Name $displayName
             if (-not [string]::IsNullOrWhiteSpace($extracted)) {
                 $versionForCompare = $extracted
             }

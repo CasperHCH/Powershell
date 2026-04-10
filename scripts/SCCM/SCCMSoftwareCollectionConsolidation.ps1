@@ -1073,13 +1073,13 @@ function Get-AppVersionNormalized {
     # reflect the deployable application version shown to operators.
     $displayName = [string](Get-ObjectPropertyValue -InputObject $App -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
     if (-not [string]::IsNullOrWhiteSpace($displayName)) {
-        $norm = Extract-VersionFromName -Name $displayName
+        $norm = Get-VersionFromName -Name $displayName
         if ($norm) { return $norm }
     }
 
     $softwareVersion = [string](Get-ObjectPropertyValue -InputObject $App -PropertyNames @('SoftwareVersion'))
     if (-not [string]::IsNullOrWhiteSpace($softwareVersion)) {
-        $norm = Normalize-VersionString -VersionString $softwareVersion
+        $norm = ConvertTo-NormalizedVersion -VersionString $softwareVersion
         if ($norm) { return $norm }
     }
 
@@ -1113,7 +1113,7 @@ function Get-VersionAwareDisplayName {
         return $resolvedName
     }
 
-    if (Extract-VersionFromName -Name $resolvedName) {
+    if (Get-VersionFromName -Name $resolvedName) {
         return $resolvedName
     }
 
@@ -1407,7 +1407,7 @@ function Get-DeploymentIntent {
     Checks for an existing latest deployment, writes audit records, and creates a
     replacement deployment when needed (or logs planned action in DryRun mode).
 #>
-function Ensure-LatestDeploymentForCollection {
+function Set-LatestDeploymentForCollection {
     param(
         [Parameter(Mandatory = $true)]
         $Deployment,
@@ -1733,7 +1733,7 @@ function Connect-SccmSite {
     Pads missing parts with zeros so version comparison can be done safely using
     PowerShell/System.Version semantics.
 #>
-function Normalize-VersionString {
+function ConvertTo-NormalizedVersion {
     param(
         [Parameter(Mandatory = $true)]
         [string]$VersionString
@@ -1761,7 +1761,7 @@ function Normalize-VersionString {
     Finds the first 2-4 part numeric sequence in a name and normalizes it for
     stable version sorting.
 #>
-function Extract-VersionFromName {
+function Get-VersionFromName {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Name
@@ -1770,7 +1770,7 @@ function Extract-VersionFromName {
     $pattern = '\d+(\.\d+){1,3}'
     $match = [System.Text.RegularExpressions.Regex]::Match($Name, $pattern)
     if ($match.Success) {
-        return Normalize-VersionString -VersionString $match.Value
+        return ConvertTo-NormalizedVersion -VersionString $match.Value
     }
 
     return $null
@@ -1874,7 +1874,7 @@ function Get-TargetFolderPath {
     Tries multiple folder query and creation parameter patterns to support
     environment-specific SCCM cmdlet differences.
 #>
-function Ensure-CollectionFolder {
+function Set-CollectionFolder {
     param(
         [Parameter(Mandatory = $true)]
         [string]$SiteCode,
@@ -2208,7 +2208,7 @@ function Invoke-CmCommandSafe {
     deployment purposes. Checks existing deployments, skips duplicates,
     and executes single deployment creation.
 #>
-function Ensure-MasterCollectionDeployment {
+function Set-MasterCollectionDeployment {
     param(
         [Parameter(Mandatory = $true)]
         $Application,
@@ -2737,7 +2737,7 @@ function New-MasterDeviceCollection {
     Creates Install (Available), Install (Required), and Uninstall collections
     when missing, and moves them into the configured target folder.
 #>
-function Ensure-MasterCollections {
+function Set-MasterCollections {
     param(
         [Parameter(Mandatory = $true)]
         [string]$CanonicalName,
@@ -2746,7 +2746,7 @@ function Ensure-MasterCollections {
         [string]$TargetFolder
     )
 
-    $fullFolderPath = Ensure-CollectionFolder -SiteCode $SiteCode -TargetFolder $TargetFolder
+    $fullFolderPath = Set-CollectionFolder -SiteCode $SiteCode -TargetFolder $TargetFolder
 
     $installAvailName = "{0} - Install (Available)" -f $CanonicalName
     $installReqName   = "{0} - Install (Required)"  -f $CanonicalName
@@ -3042,7 +3042,7 @@ function Get-DeviceMembersFromCollections {
     Computes Available/Required/Uninstall membership sets from legacy collections,
     applies set logic, and ensures deployment coverage for each master collection.
 #>
-function Populate-MasterCollections {
+function Update-MasterCollections {
     param(
         [Parameter(Mandatory = $true)]
         [string]$CanonicalName,
@@ -3064,12 +3064,12 @@ function Populate-MasterCollections {
 
     try {
         if (-not $CanonicalName) {
-            Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Populate-MasterCollections aborted: CanonicalName is missing."
+            Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Update-MasterCollections aborted: CanonicalName is missing."
             return
         }
 
         if (-not $Masters -or -not $Masters.InstallAvailable -or -not $Masters.InstallRequired -or -not $Masters.Uninstall) {
-            Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Populate-MasterCollections aborted: Master collection objects are missing or invalid."
+            Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Update-MasterCollections aborted: Master collection objects are missing or invalid."
             return
         }
 
@@ -3084,7 +3084,7 @@ function Populate-MasterCollections {
 
         $all = Convert-ToSafeArray -InputObject $AllCollections
         if ($all.Count -eq 0) {
-            Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail "Populate-MasterCollections: AllCollections is empty. No members to calculate."
+            Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail "Update-MasterCollections: AllCollections is empty. No members to calculate."
             return
         }
 
@@ -3255,9 +3255,9 @@ function Populate-MasterCollections {
 
             $app = $appForMasterDeploy
             if ($app) {
-                Ensure-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallAvailable -DeploymentPurpose 'Available'
-                Ensure-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallRequired -DeploymentPurpose 'Required'
-                Ensure-MasterCollectionDeployment -Application $app -MasterCollection $masterUninstall -DeploymentPurpose 'Uninstall' -DeploymentAction 'Uninstall'
+                Set-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallAvailable -DeploymentPurpose 'Available'
+                Set-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallRequired -DeploymentPurpose 'Required'
+                Set-MasterCollectionDeployment -Application $app -MasterCollection $masterUninstall -DeploymentPurpose 'Uninstall' -DeploymentAction 'Uninstall'
             }
             else {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("No deployable application found for '{0}'. Skipping master collection deployment creation." -f $CanonicalName)
@@ -3268,7 +3268,7 @@ function Populate-MasterCollections {
         }
     }
     catch {
-        Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail ("Populate-MasterCollections failed during stage '{0}': {1}" -f $populationStage, $_.Exception.Message)
+        Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail ("Update-MasterCollections failed during stage '{0}': {1}" -f $populationStage, $_.Exception.Message)
         return
     }
 }
@@ -3427,7 +3427,7 @@ function Find-TaskSequencesReferencingApp {
     Resolves deployment type metadata when required and iterates known
     Set-CMApplicationSupersedence parameter combinations until one succeeds.
 #>
-function Try-Set-ApplicationSupersedence {
+function Set-ApplicationSupersedenceLink {
     param(
         [Parameter(Mandatory=$true)]
         $OlderApp,
@@ -3576,7 +3576,7 @@ function Try-Set-ApplicationSupersedence {
     Sorts versioned applications from oldest to newest and links each adjacent
     pair to form a deterministic supersedence chain.
 #>
-function Apply-SupersedenceAndDeployments {
+function Set-SupersedenceAndDeployments {
     param(
         [Parameter(Mandatory = $true)]
         [string]$SoftwareName,
@@ -3628,7 +3628,7 @@ function Apply-SupersedenceAndDeployments {
 
         $entryVersionRaw = [string](Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('Version'))
         if ([string]::IsNullOrWhiteSpace($entryVersionRaw)) {
-            $entryVersionRaw = [string](Extract-VersionFromName -Name $entryName)
+            $entryVersionRaw = [string](Get-VersionFromName -Name $entryName)
         }
 
         $entryVersion = [version]'0.0.0'
@@ -3665,7 +3665,7 @@ function Apply-SupersedenceAndDeployments {
 
         try {
             if (-not $DryRun) {
-                $ok = Try-Set-ApplicationSupersedence -OlderApp $older -NewerApp $newer
+                $ok = Set-ApplicationSupersedenceLink -OlderApp $older -NewerApp $newer
                 if (-not $ok) {
                     throw "Set-CMApplicationSupersedence command not supported with detected parameter set."
                 }
@@ -4652,7 +4652,7 @@ function Remove-Collection-Robust {
     Detects dependency-reference failures (for example, task sequence references)
     so retries can skip permanent blockers.
 #>
-function Is-PermanentAppDeletionError {
+function Test-PermanentAppDeletionError {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ErrorMessage
@@ -5088,7 +5088,7 @@ function Remove-EmptyApplicationDeploymentFolders {
 # PLAN AND EXECUTE CLEANUP
 # ------------------------------------------------------------
 
-function Plan-And-Execute-Cleanup {
+function Invoke-CleanupPlan {
     <#
     .SYNOPSIS
         Plans and executes cleanup for deployments, applications and collections.
@@ -5296,7 +5296,7 @@ function Plan-And-Execute-Cleanup {
         # child collections to avoid "include" dependency errors.
             $oldCollectionsWithVersion = @()
             foreach ($col in $oldCollections) {
-                $version = Extract-VersionFromName -Name ($col.Name -as [string])
+                $version = Get-VersionFromName -Name ($col.Name -as [string])
                 $oldCollectionsWithVersion += [pscustomobject]@{
                     Collection = $col
                     VersionString = ($version -as [string])
@@ -5314,7 +5314,7 @@ function Plan-And-Execute-Cleanup {
             if ($oldCollections.Count -gt 0) {
                 Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Collections deletion order' -Detail ("Will delete {0} legacy collections in descending version order (newest first) to respect include hierarchy." -f $oldCollections.Count)
                 foreach ($col in $oldCollections) {
-                    $colVersion = Extract-VersionFromName -Name ($col.Name -as [string])
+                    $colVersion = Get-VersionFromName -Name ($col.Name -as [string])
                     Write-LogEvent -Level 'DEBUG' -Scope 'Cleanup' -Action 'Deletion queue' -Detail ("  {0} (version: {1})" -f $col.Name, ($colVersion -as [string]))
                 }
             }
@@ -5362,7 +5362,7 @@ function Plan-And-Execute-Cleanup {
             $dCollectionName = [string](Get-ObjectPropertyValue -InputObject $d -PropertyNames @('CollectionName', 'TargetCollectionName'))
 
             if (-not $migratedCollections.Contains($dCollectionName)) {
-                $migrated = Ensure-LatestDeploymentForCollection -Deployment $d -LatestApp $latestAppForMigration
+                $migrated = Set-LatestDeploymentForCollection -Deployment $d -LatestApp $latestAppForMigration
                 if (-not $migrated) {
                     Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Deployment delete skipped' -Detail ("Migration to latest app failed for collection '{0}'." -f $dCollectionName)
                     continue
@@ -5412,7 +5412,7 @@ function Plan-And-Execute-Cleanup {
         catch {
             Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete failed' -Detail (("'{0}' | {1}") -f $appDisplayName, $_.Exception.Message)
 
-            if (Is-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
+            if (Test-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
                 Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $appDisplayName)
                 continue
             }
@@ -5460,13 +5460,13 @@ function Plan-And-Execute-Cleanup {
             $cleanupErrorMessage = '[No exception message available]'
         }
 
-        Write-Log -Level 'ERROR' -Message ("[CLEANUP] Failed: Plan-And-Execute-Cleanup failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
+        Write-Log -Level 'ERROR' -Message ("[CLEANUP] Failed: Invoke-CleanupPlan failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
         if ($_.ScriptStackTrace) {
             Write-Log -Level 'DEBUG' -Message ("[CLEANUP] Debug: Stack: {0}" -f $_.ScriptStackTrace)
         }
 
         # Also emit the structured event when possible for consistency.
-        Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Failed' -Detail ("Plan-And-Execute-Cleanup failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
+        Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Failed' -Detail ("Invoke-CleanupPlan failed during stage '{0}': {1}" -f $cleanupStage, $cleanupErrorMessage)
         throw
     }
 }
@@ -5524,7 +5524,7 @@ function Export-FailedObjectsToCsv {
 # RETRY FAILED DELETIONS
 # ------------------------------------------------------------
 
-function Retry-FailedDeletions {
+function Invoke-FailedDeletionRetry {
     <#
     .SYNOPSIS
         Retries previously failed deletions for deployments, apps and collections.
@@ -5599,7 +5599,7 @@ function Retry-FailedDeletions {
                 catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Application retry failed' -Detail (("'{0}' | {1}") -f $a.Name, $_.Exception.Message)
 
-                    if (Is-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
+                    if (Test-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
                         Write-LogEvent -Level 'INFO' -Scope 'Retry' -Action 'Application retry skipped' -Detail (("'{0}' blocked by dependency references.") -f (Get-ApplicationDisplayName -App $a))
                         continue
                     }
@@ -5864,7 +5864,7 @@ try {
         # ENSURE MASTER COLLECTIONS EXIST
         # ------------------------------------------------------------
         # Phase 5: create/locate master collections and place them in target folder.
-        $masters = Ensure-MasterCollections `
+        $masters = Set-MasterCollections `
             -CanonicalName $canonicalName `
             -TargetFolder $TargetFolder
 
@@ -5876,7 +5876,7 @@ try {
         Write-LogEvent -Level 'DEBUG' -Scope 'Run' -Action 'Population input' -Detail ("AllCollections count: {0}" -f ($allCollections.Count))
         # Phase 6: compute member sets and ensure deployment intent on masters.
         if ($allCollections -and $allCollections.Count -gt 0) {
-            Populate-MasterCollections `
+            Update-MasterCollections `
                 -CanonicalName $canonicalName `
                 -RequestedSoftwareName $resolvedSoftwareName `
                 -Masters $masters `
@@ -5889,7 +5889,7 @@ try {
         # APPLY SUPERSEDENCE AND DEPLOYMENTS
         # ------------------------------------------------------------
         # Phase 7: apply optional supersedence chain for version progression.
-        Apply-SupersedenceAndDeployments `
+        Set-SupersedenceAndDeployments `
             -SoftwareName $resolvedSoftwareName `
             -ManageSupersedence:$ManageSupersedence
 
@@ -5902,14 +5902,14 @@ try {
         # CLEANUP OLD COLLECTIONS
         # ------------------------------------------------------------
         # Phase 8: migrate/delete legacy artifacts in dependency-safe order.
-        Plan-And-Execute-Cleanup `
+        Invoke-CleanupPlan `
             -SoftwareName $resolvedSoftwareName `
             -Masters $masters `
             -AllCollections $allCollections `
             -DeleteOldCollections:$DeleteOldCollections
 
         # Phase 9: retry transient failures after provider state has settled.
-        Retry-FailedDeletions `
+        Invoke-FailedDeletionRetry `
             -RetryCount $RetryCount `
             -RetryDelaySeconds $RetryDelaySeconds
 
