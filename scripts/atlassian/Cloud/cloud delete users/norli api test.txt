@@ -1,6 +1,0 @@
-org id 
-6jdk33a5-8622-143d-kd2k-ba4d5959cb36
-
-
-api key
-XdK82MrIqvp9Qor9UhBy
