@@ -4,7 +4,7 @@
 .DESCRIPTION
    This function is designed to quickly search for open network shared file(s).
 .NOTES
-    Created by: Nicolai Graakær
+    Created by: Nicolai Graakaer
     Modified: 04.06.2018 12.30
     Version: 1.0
 
@@ -26,7 +26,7 @@
    Test User TUR-DK   E:\lunch_example-week2.XLSX
 #>
 
-Function Get-OpenFiles {
+Function Get-OpenFile {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, HelpMessage = "Specify the file name or part of the file name to query.")]
@@ -54,6 +54,8 @@ Function Get-OpenFiles {
     # Output the report
     $Report | Select-Object Name, UserName, Directory | Sort-Object Name
 }
+
+Set-Alias -Name Get-OpenFiles -Value Get-OpenFile
 
 # Example usage:
 # Get-OpenFiles -File "example"

@@ -23,6 +23,7 @@
 #>
 function Get-ObjectsInTwoArrays {
     [CmdletBinding()]
+    [OutputType([System.Collections.Generic.List[PSObject]])]
     param (
         [Parameter(Mandatory = $true)]
         [object[]]$Array,
@@ -35,17 +36,15 @@ function Get-ObjectsInTwoArrays {
         [string]$ComparisonMethod,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('String', 'int','PSObject')]
+        [ValidateSet('String', 'int', 'PSObject')]
         [string]$ObjectType
     )
 
-    if($ObjectType -eq 'String'){
+    if ($ObjectType -eq 'String') {
         $arrayIndex = [System.Collections.Generic.HashSet[String]]$Array
-    }
-    elseif($ObjectType -eq 'int'){
+    } elseif ($ObjectType -eq 'int') {
         $arrayIndex = [System.Collections.Generic.HashSet[int]]$Array
-    }
-    elseif($ObjectType -eq 'PSObject'){
+    } elseif ($ObjectType -eq 'PSObject') {
         $arrayIndex = [System.Collections.Generic.HashSet[PSObject]]$Array
     }
 
@@ -57,8 +56,7 @@ function Get-ObjectsInTwoArrays {
                 $res.Add($object)
             }
         }
-    }
-    elseif ($ComparisonMethod -eq 'NotIn') {
+    } elseif ($ComparisonMethod -eq 'NotIn') {
         foreach ($object in $ArrayToCompare) {
             if (-not($arrayIndex.Contains($object))) {
                 $res.Add($object)

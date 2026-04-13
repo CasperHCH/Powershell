@@ -1,3 +1,27 @@
+<#
+.SYNOPSIS
+Audits and updates installed PowerShell modules from PSGallery.
+
+.DESCRIPTION
+Enumerates installed modules, compares versions with PowerShell Gallery, updates
+outdated modules, and optionally removes older installed versions.
+
+.PARAMETER ExcludedModules
+Modules to skip.
+
+.PARAMETER IncludedModules
+Only process modules matching these names.
+
+.PARAMETER SkipPublisherCheck
+Allows install/update when module publisher signature changed.
+
+.PARAMETER SimulationMode
+Shows intended actions without installing, updating, or uninstalling modules.
+
+.NOTES
+Run in an elevated session when module removal is required.
+#>
+
 # https://itpro-tips.com/2020/update-all-powershell-modules-at-once/
 # https://itpro-tips.com/2020/mettre-a-jour-tous-les-modules-powershell-en-une-fois/
 [CmdletBinding()]
@@ -30,7 +54,7 @@ If you have a module with two or more versions, the script delete them and reins
 #Requires -Version 5.0
 #Requires -RunAsAdministrator
 
-Write-Host -ForegroundColor cyan 'Define PowerShell to add TLS1.2 in this session, needed since 1st April 2020 (https://devblogs.microsoft.com/powershell/powershell-gallery-tls-support/)'
+Write-Information 'Define PowerShell to add TLS1.2 in this session, needed since 1st April 2020 (https://devblogs.microsoft.com/powershell/powershell-gallery-tls-support/)' -InformationAction Continue
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 # if needed, register PSGallery
@@ -39,10 +63,11 @@ Write-Host -ForegroundColor cyan 'Define PowerShell to add TLS1.2 in this sessio
 # Set-PSRepository -Name PSGallery -InstallationPolicy trusted -ErrorAction SilentlyContinue
 
 if ($SimulationMode) {
-    Write-Host -ForegroundColor yellow 'Simulation mode is ON, nothing will be installed / removed / updated'
+    Write-Information 'Simulation mode is ON, nothing will be installed / removed / updated' -InformationAction Continue
 }
 
-function Remove-OldPowerShellModules {
+function Remove-OldPowerShellModule {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param (
         [string]$ModuleName,
         [string]$GalleryVersion
@@ -52,10 +77,9 @@ function Remove-OldPowerShellModules {
         $oldVersions = Get-InstalledModule -Name $ModuleName -AllVersions -ErrorAction Stop | Where-Object { $_.Version -ne $GalleryVersion }
 
         foreach ($oldVersion in $oldVersions) {
-            Write-Host -ForegroundColor Cyan "$ModuleName - Uninstall previous version" -NoNewline
-            Write-Host -ForegroundColor White " ($($oldVersion.Version))"
+            Write-Information "$ModuleName - Uninstall previous version ($($oldVersion.Version))" -InformationAction Continue
 
-            if (-not($SimulationMode)) {
+            if (-not $SimulationMode -and $PSCmdlet.ShouldProcess("$ModuleName $($oldVersion.Version)", 'Uninstall old module version')) {
                 Remove-Module $ModuleName -ErrorAction SilentlyContinue
                 Uninstall-Module $oldVersion -Force -ErrorAction Stop
             }
@@ -66,22 +90,24 @@ function Remove-OldPowerShellModules {
     }
 }
 
+Set-Alias -Name Remove-OldPowerShellModules -Value Remove-OldPowerShellModule
+
 if ($IncludedModules) {
-    Write-Host -ForegroundColor Cyan "Get PowerShell modules like $IncludedModules"
+    Write-Information "Get PowerShell modules like $IncludedModules" -InformationAction Continue
     $modules = Get-InstalledModule | Where-Object { $_.Name -like $IncludedModules }
 }
 else {
-    Write-Host -ForegroundColor Cyan 'Get all PowerShell modules'
+    Write-Information 'Get all PowerShell modules' -InformationAction Continue
     $modules = Get-InstalledModule
 }
 
 foreach ($module in $modules.Name) {
     if ($ExcludedModules -contains $module) {
-        Write-Host -ForegroundColor Yellow "Module $module is excluded from the update process"
+        Write-Information "Module $module is excluded from the update process" -InformationAction Continue
         continue
     }
     elseif ($module -like "$excludedModules") {
-        Write-Host -ForegroundColor Yellow "Module $module is excluded from the update process (match $excludeModules)"
+        Write-Information "Module $module is excluded from the update process (match $excludeModules)" -InformationAction Continue
         continue
     }
 
@@ -121,7 +147,7 @@ foreach ($module in $modules.Name) {
     $publishedDate = $publishedDate.ToString('yyyy/MM/dd HH:mm:ss')
 
     if ($null -eq $currentVersion) {
-        Write-Host -ForegroundColor Cyan "$module - Install from PowerShellGallery version $($moduleGalleryInfo.Version) - Release date: $publishedDate"
+        Write-Information "$module - Install from PowerShellGallery version $($moduleGalleryInfo.Version) - Release date: $publishedDate" -InformationAction Continue
 
         if (-not($SimulationMode)) {
             try {
@@ -133,33 +159,25 @@ foreach ($module in $modules.Name) {
         }
     }
     elseif ($moduleGalleryInfo.Version -eq $currentVersion) {
-        Write-Host -ForegroundColor Green "$module - already in latest version: " -NoNewline
-        Write-Host -ForegroundColor White "$currentVersion" -NoNewline
-        Write-Host -ForegroundColor Green ' - Release date:' -NoNewline
-        Write-Host -ForegroundColor White " $publishedDate"
+        Write-Information "$module - already in latest version: $currentVersion - Release date: $publishedDate" -InformationAction Continue
     }
     elseif ($currentVersion.count -gt 1) {
-        Write-Host -ForegroundColor Yellow "$module is installed in $($currentVersion.count) versions:" -NoNewline
-        Write-Host -ForegroundColor White " $($currentVersion -join ' | ')"
-        Write-Host -ForegroundColor Cyan "$module - Uninstall previous $module version(s) below the latest version" -NoNewline
-        Write-Host -ForegroundColor White " ($($moduleGalleryInfo.Version))"
+        Write-Information "$module is installed in $($currentVersion.count) versions: $($currentVersion -join ' | ')" -InformationAction Continue
+        Write-Information "$module - Uninstall previous $module version(s) below the latest version ($($moduleGalleryInfo.Version))" -InformationAction Continue
 
-        Remove-OldPowerShellModules -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
+        Remove-OldPowerShellModule -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
 
         # Check again the current Version as we uninstalled some old versions
         $currentVersion = (Get-InstalledModule -Name $module).Version
 
         if ($moduleGalleryVersion -ne $currentVersion) {
-            Write-Host -ForegroundColor Cyan "$module - Install from PowerShellGallery version" -NoNewline
-            Write-Host -ForegroundColor White " $($moduleGalleryInfo.Version)" -NoNewline
-            Write-Host -ForegroundColor Cyan ' - Release date:' -NoNewline
-            Write-Host -ForegroundColor White " $publishedDate"
+            Write-Information "$module - Install from PowerShellGallery version $($moduleGalleryInfo.Version) - Release date: $publishedDate" -InformationAction Continue
 
             if (-not($SimulationMode)) {
                 try {
                     Install-Module -Name $module -Force -ErrorAction Stop
 
-                    Remove-OldPowerShellModules -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
+                    Remove-OldPowerShellModule -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
                 }
                 catch {
                     Write-Warning "$module - $($_.Exception.Message)"
@@ -169,26 +187,23 @@ foreach ($module in $modules.Name) {
     }
     # https://invoke-thebrain.com/2018/12/comparing-version-numbers-powershell/
     elseif ([version]$currentVersion -gt [version]$moduleGalleryVersion) {
-        Write-Host -ForegroundColor Yellow "$module - the current version $currentVersion is newer than the version available on PowerShell Gallery $($moduleGalleryInfo.Version) (Release date: $publishedDate). Sometimes happens when you install a module from another repository or via .exe/.msi or if you change the version number manually."
+        Write-Information "$module - the current version $currentVersion is newer than the version available on PowerShell Gallery $($moduleGalleryInfo.Version) (Release date: $publishedDate). Sometimes happens when you install a module from another repository or via .exe/.msi or if you change the version number manually." -InformationAction Continue
     }
     elseif ([version]$currentVersion -lt [version]$moduleGalleryVersion) {
-        Write-Host -ForegroundColor Cyan "$module - Update from PowerShellGallery version" -NoNewline
-        Write-Host -ForegroundColor White " $currentVersion -> $($moduleGalleryInfo.Version)" -NoNewline
-        Write-Host -ForegroundColor Cyan ' - Release date:' -NoNewline
-        Write-Host -ForegroundColor White " $publishedDate"
+        Write-Information "$module - Update from PowerShellGallery version $currentVersion -> $($moduleGalleryInfo.Version) - Release date: $publishedDate" -InformationAction Continue
 
         if (-not($SimulationMode)) {
             try {
                 Update-Module -Name $module -Force -ErrorAction Stop
-                Remove-OldPowerShellModules -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
+                Remove-OldPowerShellModule -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
             }
             catch {
                 if ($_.Exception.Message -match 'Authenticode') {
-                    Write-Host -ForegroundColor Yellow "$module - The module certificate used by the creator is either changed since the last module install or the module sign status has changed."
+                    Write-Information "$module - The module certificate used by the creator is either changed since the last module install or the module sign status has changed." -InformationAction Continue
 
                     if ($SkipPublisherCheck.IsPresent) {
-                        Write-Host -ForegroundColor Cyan "$module - SkipPublisherCheck Parameter is present, so install will run without Authenticode check"
-                        Write-Host -ForegroundColor Cyan "$module - Install from PowerShellGallery version $($moduleGalleryInfo.Version) - Release date: $publishedDate"
+                        Write-Information "$module - SkipPublisherCheck Parameter is present, so install will run without Authenticode check" -InformationAction Continue
+                        Write-Information "$module - Install from PowerShellGallery version $($moduleGalleryInfo.Version) - Release date: $publishedDate" -InformationAction Continue
                         try {
                             Install-Module -Name $module -Force -SkipPublisherCheck
                         }
@@ -196,7 +211,7 @@ foreach ($module in $modules.Name) {
                             Write-Warning "$module - $($_.Exception.Message)"
                         }
 
-                        Remove-OldPowerShellModules -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
+                        Remove-OldPowerShellModule -ModuleName $module -GalleryVersion $moduleGalleryInfo.Version
                     }
                     else {
                         Write-Warning "$module - If you want to update this module, run again with -SkipPublisherCheck switch, but please keep in mind the security risk"

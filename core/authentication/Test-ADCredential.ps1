@@ -62,16 +62,16 @@ function Test-ADCredential {
         $PC = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::Domain, $DomainName)
 
         if ($PC.ValidateCredentials($UserName,$Password)) {
-            Write-Verbose "✅ Credentials validated successfully for $DomainName\\$UserName"
+            Write-Verbose "Credentials validated successfully for $DomainName\\$UserName"
             return $True
         }
         else {
-            throw "❌ Invalid credentials for $DomainName\\$UserName"
+            throw "Invalid credentials for $DomainName\\$UserName"
         }
     }
 
     catch {
-        Write-Verbose
+        Write-Verbose "Credential validation failed: $($_.Exception.Message)"
         return $False
     }
 }

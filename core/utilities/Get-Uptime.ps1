@@ -1,17 +1,16 @@
 <#
 .SYNOPSIS
-    Gets the up    Process {
-        foreach ($server in $ComputerName) {me information for one or more servers.
+    Gets uptime information for one or more computers.
 .DESCRIPTION
     This function retrieves the boot time and calculates uptime for specified servers
     using WMI/CIM queries. It displays both simple and detailed uptime information.
-.PARAMETER servers
+.PARAMETER ComputerName
     One or more server names to query. Defaults to the local computer.
 .EXAMPLE
     Get-Uptime
     Gets uptime for the local computer.
 .EXAMPLE
-    Get-Uptime -servers "Server1", "Server2"
+    Get-Uptime -ComputerName "Server1", "Server2"
     Gets uptime for multiple servers.
 .EXAMPLE
     "Server1", "Server2" | Get-Uptime
@@ -19,7 +18,7 @@
 .NOTES
     Requires appropriate WMI/CIM permissions on target servers.
 #>
-Function Get-Uptime {
+Function Get-ComputerUptime {
 	[CmdletBinding()]
 	Param (
 		[Parameter(Mandatory = $False,
@@ -30,7 +29,7 @@ Function Get-Uptime {
     )
 
     process {
-        foreach ($server in $servers) {
+        foreach ($server in $ComputerName) {
             $os = Get-CimInstance Win32_OperatingSystem -ComputerName $server
             $boottime = $OS.LastBootUpTime
             $uptime = New-TimeSpan (Get-Date $boottime)
@@ -53,3 +52,5 @@ Function Get-Uptime {
         }
     }
 }
+
+Set-Alias -Name Get-Uptime -Value Get-ComputerUptime

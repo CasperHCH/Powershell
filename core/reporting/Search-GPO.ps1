@@ -1,3 +1,21 @@
+<#
+.SYNOPSIS
+Searches Group Policy Objects for a text match in their XML reports.
+
+.DESCRIPTION
+Imports the GroupPolicy module, enumerates all GPOs in the current user domain,
+and returns display names of GPOs whose XML report contains the provided string.
+
+.PARAMETER String
+Text to search for inside each GPO XML report.
+
+.EXAMPLE
+Search-GPO -String "firewall"
+
+.NOTES
+Requires RSAT Group Policy tools and permission to read GPO reports.
+#>
+
 #########################################################
 #
 # Name: Search-GPOs.ps1

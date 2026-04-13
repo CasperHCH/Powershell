@@ -99,6 +99,11 @@
     Name of the limiting collection used during reassignment when
     ReassignLimitingCollectionDependencies is specified. Default is "All Systems".
 
+.PARAMETER StrictApplicationDeploymentRootDiscovery
+    If specified, fail the run when the application deployment root cannot be
+    discovered deterministically from explicit override, existing target-folder
+    evidence, or provider evidence. This prevents silent fallback behavior.
+
 .PARAMETER ScriptBuildId
     Optional build identifier for cross-machine verification.
     Example: "2026.03.20-rc2" or a CI run id.
@@ -153,6 +158,9 @@ param(
     [string]$ApplicationDeploymentRootPath = '',
 
     [Parameter(Mandatory = $false)]
+    [switch]$StrictApplicationDeploymentRootDiscovery,
+
+    [Parameter(Mandatory = $false)]
     [string]$ScriptBuildId = ''
 )
 
@@ -170,6 +178,7 @@ $script:CleanupMembershipDependenciesEnabled = [bool]$CleanupCollectionMembershi
 $script:ReassignLimitingDependencyEnabled = $ReassignLimitingCollectionDependencies.IsPresent
 $script:FallbackLimitingCollection = $FallbackLimitingCollectionName
 $script:ApplicationDeploymentRootOverride = $ApplicationDeploymentRootPath
+$script:StrictRootDiscoveryEnabled = $StrictApplicationDeploymentRootDiscovery.IsPresent
 $script:ExecutionBuildId = $ScriptBuildId
 
 function Write-SectionHeader {
@@ -215,6 +224,9 @@ $script:CmCollectionByNameCache = @{}
 $script:CollectionDependencyIndexCache = $null
 $script:CanonicalMappingInventoryCache = $null
 $script:ResolvedApplicationDeploymentRoot = $null
+$script:GetCmFolderSupportsPath = $null
+$script:GetCmFolderSupportsRecurse = $null
+$script:RemoveCmFolderSupportsPath = $null
 
 # ------------------------------------------------------------
 # LOGGING
@@ -556,6 +568,118 @@ function Get-CachedCommand {
     $command = Get-Command $Name -ErrorAction SilentlyContinue
     $script:CommandMetadataCache[$Name] = $command
     return $command
+}
+
+function Test-CmFolderPathParameterSupport {
+    <#
+    .SYNOPSIS
+        Returns whether Get-CMFolder supports the -Path parameter.
+
+    .DESCRIPTION
+        SCCM module parameter sets vary by environment. This helper avoids
+        runtime binding failures by detecting support once per run.
+    #>
+    if ($null -ne $script:GetCmFolderSupportsPath) {
+        return [bool]$script:GetCmFolderSupportsPath
+    }
+
+    $supportsPath = $false
+    try {
+        $getCmFolderCommand = Get-CachedCommand -Name 'Get-CMFolder'
+        if ($getCmFolderCommand -and $getCmFolderCommand.Parameters -and $getCmFolderCommand.Parameters.ContainsKey('Path')) {
+            $supportsPath = $true
+        }
+    } catch {
+        $supportsPath = $false
+    }
+
+    $script:GetCmFolderSupportsPath = $supportsPath
+    return [bool]$script:GetCmFolderSupportsPath
+}
+
+function Test-CmFolderRecurseParameterSupport {
+    <#
+    .SYNOPSIS
+        Returns whether Get-CMFolder supports the -Recurse parameter.
+
+    .DESCRIPTION
+        SCCM module parameter sets vary by environment. This helper avoids
+        runtime binding failures by detecting support once per run.
+    #>
+    if ($null -ne $script:GetCmFolderSupportsRecurse) {
+        return [bool]$script:GetCmFolderSupportsRecurse
+    }
+
+    $supportsRecurse = $false
+    try {
+        $getCmFolderCommand = Get-CachedCommand -Name 'Get-CMFolder'
+        if ($getCmFolderCommand -and $getCmFolderCommand.Parameters -and $getCmFolderCommand.Parameters.ContainsKey('Recurse')) {
+            $supportsRecurse = $true
+        }
+    } catch {
+        $supportsRecurse = $false
+    }
+
+    $script:GetCmFolderSupportsRecurse = $supportsRecurse
+    return [bool]$script:GetCmFolderSupportsRecurse
+}
+
+function Test-RemoveCmFolderPathParameterSupport {
+    <#
+    .SYNOPSIS
+        Returns whether Remove-CMFolder supports the -Path parameter.
+
+    .DESCRIPTION
+        SCCM module parameter sets vary by environment. This helper avoids
+        runtime binding failures by detecting support once per run.
+    #>
+    if ($null -ne $script:RemoveCmFolderSupportsPath) {
+        return [bool]$script:RemoveCmFolderSupportsPath
+    }
+
+    $supportsPath = $false
+    try {
+        $removeCmFolderCommand = Get-CachedCommand -Name 'Remove-CMFolder'
+        if ($removeCmFolderCommand -and $removeCmFolderCommand.Parameters -and $removeCmFolderCommand.Parameters.ContainsKey('Path')) {
+            $supportsPath = $true
+        }
+    } catch {
+        $supportsPath = $false
+    }
+
+    $script:RemoveCmFolderSupportsPath = $supportsPath
+    return [bool]$script:RemoveCmFolderSupportsPath
+}
+
+function Get-ApplicationDeploymentDiscoveryFingerprint {
+    <#
+    .SYNOPSIS
+        Returns a capability fingerprint for root discovery cache safety.
+
+    .DESCRIPTION
+        Captures site and cmdlet capability shape so cached root resolution is
+        reused only when execution context appears equivalent.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode
+    )
+
+    $getCmFolderSupportsPath = Test-CmFolderPathParameterSupport
+    $getCmFolderSupportsRecurse = Test-CmFolderRecurseParameterSupport
+    $removeCmFolderSupportsPath = Test-RemoveCmFolderPathParameterSupport
+
+    $getCmFolderParameterKey = ''
+    try {
+        $getCmFolderCommand = Get-CachedCommand -Name 'Get-CMFolder'
+        if ($getCmFolderCommand -and $getCmFolderCommand.Parameters) {
+            $getCmFolderParameterKey = (@($getCmFolderCommand.Parameters.Keys | Sort-Object) -join ',')
+        }
+    } catch {
+        $getCmFolderParameterKey = ''
+    }
+
+    return ('{0}|GP:{1}|GR:{2}|RP:{3}|K:{4}' -f $SiteCode, [int]$getCmFolderSupportsPath, [int]$getCmFolderSupportsRecurse, [int]$removeCmFolderSupportsPath, $getCmFolderParameterKey)
 }
 
 function Get-CachedAllDeployments {
@@ -1902,7 +2026,7 @@ function Get-SoftwareFamilyCandidateFromCollectionName {
             $previousToken = $token
         }
 
-        $candidate = ($dedupedTokens.ToArray() -join ' ').Trim()
+        $candidate = (@($dedupedTokens) -join ' ').Trim()
     }
 
     if ([string]::IsNullOrWhiteSpace($candidate)) {
@@ -2046,6 +2170,7 @@ function Get-ApplicationDeploymentRootInfo {
         ContainerNodeId            = [string]$ContainerNodeId
         FolderObject               = $FolderObject
         OverridePath               = [string]$OverridePath
+        DiscoveryFingerprint       = ''
     }
 }
 
@@ -2073,10 +2198,12 @@ function Resolve-ApplicationDeploymentRoot {
     )
 
     $normalizedOverridePath = Get-NormalizedCmFolderPath -Path $script:ApplicationDeploymentRootOverride
+    $discoveryFingerprint = Get-ApplicationDeploymentDiscoveryFingerprint -SiteCode $SiteCode
     $cachedRootInfo = $script:ResolvedApplicationDeploymentRoot
     if ($cachedRootInfo -and
         [string]$cachedRootInfo.SiteCode -eq [string]$SiteCode -and
-        [string]$cachedRootInfo.OverridePath -eq [string]$normalizedOverridePath) {
+        [string]$cachedRootInfo.OverridePath -eq [string]$normalizedOverridePath -and
+        [string]$cachedRootInfo.DiscoveryFingerprint -eq [string]$discoveryFingerprint) {
 
         $cacheCanBeReused = $true
         if (-not [string]::IsNullOrWhiteSpace($TargetFolder) -and
@@ -2097,6 +2224,8 @@ function Resolve-ApplicationDeploymentRoot {
         $knownRootLookup[(('{0}\{1}' -f $rootDefinition.DeviceRootName, $rootDefinition.DeploymentRootName).ToLowerInvariant())] = $true
     }
 
+    $getCmFolderSupportsPath = Test-CmFolderPathParameterSupport
+
     $resolveRootFolderObject = {
         param(
             [Parameter(Mandatory = $true)]
@@ -2115,9 +2244,11 @@ function Resolve-ApplicationDeploymentRoot {
                 return $folderResult
             }
 
-            $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
-            if ($folderResult) {
-                return $folderResult
+            if ($getCmFolderSupportsPath) {
+                $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+                if ($folderResult) {
+                    return $folderResult
+                }
             }
         }
 
@@ -2140,11 +2271,30 @@ function Resolve-ApplicationDeploymentRoot {
             [string]$ChildFolderName
         )
 
-        $candidatePaths = @(
-            Join-Path -Path ([string]$RootInfo.RootPath) -ChildPath $ChildFolderName,
-            ('{0}\{1}' -f [string]$RootInfo.RootPathNoDrive, $ChildFolderName),
-            ('\{0}\{1}' -f [string]$RootInfo.RootPathNoDrive, $ChildFolderName)
-        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+        $childFolderLeaf = [string](@($ChildFolderName) | Select-Object -First 1)
+        $childFolderLeaf = $childFolderLeaf.Trim()
+        if ([string]::IsNullOrWhiteSpace($childFolderLeaf)) {
+            return $false
+        }
+
+        $rootPathValue = [string](Get-ObjectPropertyValue -InputObject $RootInfo -PropertyNames @('RootPath'))
+        $rootPathNoDriveValue = [string](Get-ObjectPropertyValue -InputObject $RootInfo -PropertyNames @('RootPathNoDrive'))
+
+        try {
+            $candidatePaths = @(
+                ('{0}\{1}' -f $rootPathValue.TrimEnd('\'), $childFolderLeaf),
+                ('{0}\{1}' -f $rootPathNoDriveValue.TrimEnd('\'), $childFolderLeaf),
+                ('\{0}\{1}' -f $rootPathNoDriveValue.TrimStart('\').TrimEnd('\'), $childFolderLeaf)
+            ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
+                "Could not build child folder probe paths for root '{0}' and child '{1}': {2}" -f
+                [string](Get-ObjectPropertyValue -InputObject $RootInfo -PropertyNames @('RootPathNoDrive')),
+                $childFolderLeaf,
+                $_.Exception.Message
+            )
+            return $false
+        }
 
         foreach ($candidatePath in $candidatePaths) {
             $folderResult = @(Get-CMFolder -FolderPath $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
@@ -2152,9 +2302,11 @@ function Resolve-ApplicationDeploymentRoot {
                 return $true
             }
 
-            $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
-            if ($folderResult) {
-                return $true
+            if ($getCmFolderSupportsPath) {
+                $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+                if ($folderResult) {
+                    return $true
+                }
             }
         }
 
@@ -2167,7 +2319,11 @@ function Resolve-ApplicationDeploymentRoot {
             $RootInfo
         )
 
+        $RootInfo.DiscoveryFingerprint = [string]$discoveryFingerprint
         $script:ResolvedApplicationDeploymentRoot = $RootInfo
+        Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Resolved application deployment root' -Detail (
+            "{0} (source: {1})" -f [string]$RootInfo.RootPathNoDrive, [string]$RootInfo.Source
+        )
         Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
             "Resolved Application Deployment root via {0}: {1}" -f [string]$RootInfo.Source, [string]$RootInfo.RootPathNoDrive
         )
@@ -2245,11 +2401,16 @@ function Resolve-ApplicationDeploymentRoot {
             }
 
             if ($targetFolderRootsByPath.Count -gt 1) {
+                $ambiguousRoots = ((Convert-ToSafeArray -InputObject $targetFolderRootsByPath.Values) | ForEach-Object { $_.RootPathNoDrive }) -join ', '
                 Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
                     "Target folder '{0}' exists under multiple possible roots: {1}. Auto-discovery will continue with provider-based scoring. Use -ApplicationDeploymentRootPath to force one." -f
                     $TargetFolder,
-                    ((@($targetFolderRootsByPath.Values) | ForEach-Object { $_.RootPathNoDrive }) -join ', ')
+                    $ambiguousRoots
                 )
+
+                if ($script:StrictRootDiscoveryEnabled) {
+                    throw ("StrictApplicationDeploymentRootDiscovery is enabled and target-folder inference is ambiguous. Candidates: {0}" -f $ambiguousRoots)
+                }
             }
         } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
@@ -2259,6 +2420,7 @@ function Resolve-ApplicationDeploymentRoot {
     }
 
     $providerCandidatesByPath = @{}
+    $providerDiscoveryError = ''
     try {
         $siteNamespace = 'root\SMS\site_{0}' -f $SiteCode
         $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode')
@@ -2277,24 +2439,51 @@ function Resolve-ApplicationDeploymentRoot {
                 continue
             }
 
+            $nodeTypeName = [string](Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('ObjectTypeName'))
             $containerNodeId = [string](Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
             $isEmptyValue = Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('IsEmpty')
 
-            foreach ($deviceRootName in $knownDeviceRootNames) {
+            # Deterministic fast-path for environments that expose the root as
+            # a top-level SMS_Collection_Device node named "Application Deployment Devices".
+            if ($nodeTypeName -match 'Collection_Device' -and $nodeName.Trim().ToLowerInvariant() -eq 'application deployment devices') {
+                $directRoot = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName 'DeviceCollections' -DeploymentRootPath $nodeName -Source 'ProviderDiscovery-DirectDeviceCollections' -Score 9999 -TargetFolder $TargetFolder -ContainerNodeId $containerNodeId -OverridePath $normalizedOverridePath
+                if ($directRoot) {
+                    $directRoot.FolderObject = & $resolveRootFolderObject $directRoot
+                    return & $cacheResolvedRoot $directRoot
+                }
+            }
+
+            # Prefer root-name candidates that match provider object type. Device
+            # collection folders commonly surface as SMS_Collection_Device.
+            $deviceRootCandidates = @($knownDeviceRootNames)
+            if ($nodeTypeName -match 'Collection_Device') {
+                $deviceRootCandidates = @('DeviceCollections', 'DeviceCollection')
+            }
+
+            foreach ($deviceRootName in $deviceRootCandidates) {
                 $candidateRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName $deviceRootName -DeploymentRootPath $nodeName -Source 'ProviderDiscovery' -TargetFolder $TargetFolder -ContainerNodeId $containerNodeId -OverridePath $normalizedOverridePath
                 if (-not $candidateRootInfo) {
                     continue
                 }
 
                 $candidateRootInfo.FolderObject = & $resolveRootFolderObject $candidateRootInfo
-                if (-not $candidateRootInfo.FolderObject) {
-                    continue
-                }
 
                 $candidateScore = 100
                 $candidateRootPathKey = ([string]$candidateRootInfo.RootPathNoDrive).ToLowerInvariant()
                 if ($knownRootLookup.ContainsKey($candidateRootPathKey)) {
                     $candidateScore += 50
+                }
+
+                if ($candidateRootInfo.FolderObject) {
+                    $candidateScore += 40
+                }
+
+                if ($nodeTypeName -match 'Collection_Device') {
+                    if ($deviceRootName -eq 'DeviceCollections') {
+                        $candidateScore += 120
+                    } elseif ($deviceRootName -eq 'DeviceCollection') {
+                        $candidateScore -= 30
+                    }
                 }
 
                 $nodeNameLower = $nodeName.ToLowerInvariant()
@@ -2313,9 +2502,13 @@ function Resolve-ApplicationDeploymentRoot {
                         $candidateScore += 5
                     }
                 } catch {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
+                        "Could not evaluate IsEmpty for provider node '{0}': {1}" -f $nodeName, $_.Exception.Message
+                    )
                 }
 
-                if (-not [string]::IsNullOrWhiteSpace($TargetFolder) -and (& $testChildFolderExists $candidateRootInfo $TargetFolder)) {
+                $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
+                if (-not [string]::IsNullOrWhiteSpace($targetFolderLeaf) -and (& $testChildFolderExists -RootInfo $candidateRootInfo -ChildFolderName $targetFolderLeaf)) {
                     $candidateScore += 200
                 }
 
@@ -2327,8 +2520,9 @@ function Resolve-ApplicationDeploymentRoot {
             }
         }
     } catch {
+        $providerDiscoveryError = [string]$_.Exception.Message
         Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
-            "Provider-based Application Deployment root discovery failed: {0}" -f $_.Exception.Message
+            "Provider-based Application Deployment root discovery failed: {0}" -f $providerDiscoveryError
         )
     }
 
@@ -2346,6 +2540,10 @@ function Resolve-ApplicationDeploymentRoot {
             (($bestCandidates | ForEach-Object { $_.RootPathNoDrive }) -join ', ')
         )
 
+        if ($script:StrictRootDiscoveryEnabled) {
+            throw ("StrictApplicationDeploymentRootDiscovery is enabled and provider discovery is ambiguous. Candidates: {0}" -f (($bestCandidates | ForEach-Object { $_.RootPathNoDrive }) -join ', '))
+        }
+
         $knownBestCandidate = @($bestCandidates | Where-Object { $knownRootLookup.ContainsKey(([string]$_.RootPathNoDrive).ToLowerInvariant()) } | Select-Object -First 1)[0]
         if ($knownBestCandidate) {
             return & $cacheResolvedRoot $knownBestCandidate
@@ -2360,6 +2558,14 @@ function Resolve-ApplicationDeploymentRoot {
 
         $fallbackRootInfo.FolderObject = & $resolveRootFolderObject $fallbackRootInfo
         if ($fallbackRootInfo.FolderObject) {
+            Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Fallback root selected' -Detail (
+                "Using known layout fallback '{0}' because deterministic provider resolution did not produce a unique candidate. Provider error: {1}" -f
+                [string]$fallbackRootInfo.RootPathNoDrive,
+                ([string]$providerDiscoveryError)
+            )
+            if ($script:StrictRootDiscoveryEnabled) {
+                throw ("StrictApplicationDeploymentRootDiscovery is enabled and fallback root '{0}' would be required." -f [string]$fallbackRootInfo.RootPathNoDrive)
+            }
             return & $cacheResolvedRoot $fallbackRootInfo
         }
     }
@@ -2369,7 +2575,58 @@ function Resolve-ApplicationDeploymentRoot {
     Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
         "Could not auto-discover an existing Application Deployment root. Defaulting to '{0}'. Use -ApplicationDeploymentRootPath if this environment uses a different root." -f [string]$fallbackRootInfo.RootPathNoDrive
     )
+    Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Fallback root selected' -Detail (
+        "Default fallback used because no known layout root was discoverable. Provider error: {0}" -f ([string]$providerDiscoveryError)
+    )
+    if ($script:StrictRootDiscoveryEnabled) {
+        throw ("StrictApplicationDeploymentRootDiscovery is enabled and no deterministic Application Deployment root was discoverable.")
+    }
     return & $cacheResolvedRoot $fallbackRootInfo
+}
+
+function Test-ApplicationDeploymentRootPrerequisites {
+    <#
+    .SYNOPSIS
+        Performs root-resolution preflight checks and logs environment shape.
+
+    .DESCRIPTION
+        Captures cmdlet capability flags and validates that provider/root
+        discovery can produce a usable application deployment root.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetFolder = ''
+    )
+
+    $getCmFolderSupportsPath = Test-CmFolderPathParameterSupport
+    $getCmFolderSupportsRecurse = Test-CmFolderRecurseParameterSupport
+    $removeCmFolderSupportsPath = Test-RemoveCmFolderPathParameterSupport
+
+    Write-LogEvent -Level 'INFO' -Scope 'Preflight' -Action 'CMFolder capabilities' -Detail (
+        "Get-CMFolder: Path={0}, Recurse={1}; Remove-CMFolder: Path={2}" -f [int]$getCmFolderSupportsPath, [int]$getCmFolderSupportsRecurse, [int]$removeCmFolderSupportsPath
+    )
+
+    try {
+        $siteNamespace = 'root\SMS\site_{0}' -f $SiteCode
+        $sampleNode = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' | Select-Object -First 1)
+        if ($sampleNode.Count -gt 0) {
+            Write-LogEvent -Level 'INFO' -Scope 'Preflight' -Action 'Provider connectivity' -Detail ("SMS_ObjectContainerNode query succeeded for {0}." -f $siteNamespace)
+        } else {
+            Write-LogEvent -Level 'WARN' -Scope 'Preflight' -Action 'Provider connectivity' -Detail ("SMS_ObjectContainerNode query returned no rows for {0}." -f $siteNamespace)
+        }
+    } catch {
+        Write-LogEvent -Level 'WARN' -Scope 'Preflight' -Action 'Provider connectivity failed' -Detail $_.Exception.Message
+    }
+
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder
+    if (-not $rootInfo -or [string]::IsNullOrWhiteSpace([string]$rootInfo.RootPathNoDrive)) {
+        throw 'Application deployment root preflight failed: no root path was resolved.'
+    }
+
+    return $rootInfo
 }
 
 <#
@@ -2437,16 +2694,22 @@ function Set-CollectionFolder {
     )
 
     try {
+        $getCmFolderSupportsPath = Test-CmFolderPathParameterSupport
+        $getCmFolderSupportsRecurse = Test-CmFolderRecurseParameterSupport
         $folder = $null
         foreach ($candidate in $normalizedCandidates) {
             if ($folder) { break }
 
             $queries = @(
                 { Get-CMFolder -FolderPath $candidate -ErrorAction SilentlyContinue },
-                { Get-CMFolder -Path $candidate -ErrorAction SilentlyContinue },
-                { Get-CMFolder -Name $TargetFolder -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $candidate } },
-                { Get-CMFolder -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $candidate } }
+                { Get-CMFolder -Name $TargetFolder -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $candidate } }
             )
+            if ($getCmFolderSupportsPath) {
+                $queries += { Get-CMFolder -Path $candidate -ErrorAction SilentlyContinue }
+            }
+            if ($getCmFolderSupportsRecurse) {
+                $queries += { Get-CMFolder -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $candidate } }
+            }
 
             foreach ($q in $queries) {
                 try {
@@ -2480,9 +2743,11 @@ function Set-CollectionFolder {
                         return $folderResult
                     }
 
-                    $folderResult = @(Get-CMFolder -Path $CandidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
-                    if ($folderResult) {
-                        return $folderResult
+                    if ($getCmFolderSupportsPath) {
+                        $folderResult = @(Get-CMFolder -Path $CandidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+                        if ($folderResult) {
+                            return $folderResult
+                        }
                     }
 
                     if (-not [string]::IsNullOrWhiteSpace($NameHint)) {
@@ -5500,7 +5765,7 @@ function Get-CollectionFolderCleanupCandidates {
                     continue
                 }
 
-                $orderedNames = @($nameChain.ToArray())
+                $orderedNames = @($nameChain)
                 [array]::Reverse($orderedNames)
                 $candidatePath = ('{0}\{1}' -f ([string]$rootInfo.DeviceRootName), ($orderedNames -join '\\'))
                 & $addCandidatePath $candidatePath
@@ -5534,6 +5799,7 @@ function Remove-KnownApplicationDeploymentFolders {
         [Parameter(Mandatory = $false)]
         [string[]]$PreserveFolderPaths = @()
     )
+    $removeCmFolderSupportsPath = Test-RemoveCmFolderPathParameterSupport
     $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode
     $rootPathCandidates = @([string]$rootInfo.RootPathNoDrive)
 
@@ -5608,7 +5874,7 @@ function Remove-KnownApplicationDeploymentFolders {
         }
     }
 
-    $sortedCleanupPaths = @($plannedPaths.ToArray() | Sort-Object {
+    $sortedCleanupPaths = @(@($plannedPaths) | Sort-Object {
             $_.Split('\\').Count
         } -Descending)
 
@@ -5635,12 +5901,14 @@ function Remove-KnownApplicationDeploymentFolders {
 
         $removeAttempts = @(
             { Remove-CMFolder -FolderPath $siteQualifiedPath -Force -ErrorAction Stop | Out-Null },
-            { Remove-CMFolder -Path $siteQualifiedPath -Force -ErrorAction Stop | Out-Null },
             { Remove-CMFolder -FolderPath $pathNoDrive -Force -ErrorAction Stop | Out-Null },
-            { Remove-CMFolder -Path $pathNoDrive -Force -ErrorAction Stop | Out-Null },
-            { Remove-CMFolder -FolderPath $leadingSlashPath -Force -ErrorAction Stop | Out-Null },
-            { Remove-CMFolder -Path $leadingSlashPath -Force -ErrorAction Stop | Out-Null }
+            { Remove-CMFolder -FolderPath $leadingSlashPath -Force -ErrorAction Stop | Out-Null }
         )
+        if ($removeCmFolderSupportsPath) {
+            $removeAttempts += { Remove-CMFolder -Path $siteQualifiedPath -Force -ErrorAction Stop | Out-Null }
+            $removeAttempts += { Remove-CMFolder -Path $pathNoDrive -Force -ErrorAction Stop | Out-Null }
+            $removeAttempts += { Remove-CMFolder -Path $leadingSlashPath -Force -ErrorAction Stop | Out-Null }
+        }
 
         try {
             Invoke-DryRunAction -Action {
@@ -5677,6 +5945,7 @@ function Remove-EmptyApplicationDeploymentFolders {
         [string[]]$PreserveFolderPaths = @()
     )
 
+    $removeCmFolderSupportsPath = Test-RemoveCmFolderPathParameterSupport
     $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode
     $rootPath = [string]$rootInfo.RootPath
     $rootPathNoDrive = [string]$rootInfo.RootPathNoDrive
@@ -5769,7 +6038,7 @@ function Remove-EmptyApplicationDeploymentFolders {
             return ''
         }
 
-        $orderedNames = @($nameChain.ToArray())
+        $orderedNames = @($nameChain)
         [array]::Reverse($orderedNames)
         return ('{0}\{1}' -f ([string]$rootInfo.DeviceRootName), ($orderedNames -join '\'))
 
@@ -5785,6 +6054,7 @@ function Remove-EmptyApplicationDeploymentFolders {
         Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Preserving {0} folder path(s) from cleanup: {1}" -f $normalizedPreservePaths.Count, ($normalizedPreservePaths -join ', '))
     }
 
+    $getCmFolderSupportsRecurse = Test-CmFolderRecurseParameterSupport
     $allFolders = @()
 
     # Collect folders using multiple path/query variants because SCCM folder cmdlets
@@ -5794,9 +6064,11 @@ function Remove-EmptyApplicationDeploymentFolders {
         { @(Get-CMFolder -FolderPath $rootPath -ErrorAction SilentlyContinue) },
         { @(Get-CMFolder -FolderPath $rootPathNoDrive -ErrorAction SilentlyContinue) },
         { @(Get-CMFolder -FolderPath $rootPathNoDriveWithSlash -ErrorAction SilentlyContinue) },
-        { @(Get-CMFolder -Recurse -ErrorAction SilentlyContinue) },
         { @(Get-CMFolder -Name '*' -ErrorAction SilentlyContinue) }
     )
+    if ($getCmFolderSupportsRecurse) {
+        $folderQueryAttempts += { @(Get-CMFolder -Recurse -ErrorAction SilentlyContinue) }
+    }
 
     foreach ($queryAttempt in $folderQueryAttempts) {
         try {
@@ -6005,8 +6277,7 @@ function Remove-EmptyApplicationDeploymentFolders {
                         continue
                     }
 
-                    [array]::Reverse($nameChain.ToArray()) | Out-Null
-                    $orderedNames = @($nameChain.ToArray())
+                    $orderedNames = @($nameChain)
                     [array]::Reverse($orderedNames)
 
                     $appDeploymentIndex = -1
@@ -6135,17 +6406,21 @@ function Remove-EmptyApplicationDeploymentFolders {
 
                 $removeAttempts = @(
                     { Remove-CMFolder -FolderPath $folderPath -Force -ErrorAction Stop | Out-Null },
-                    { Remove-CMFolder -Path $folderPath -Force -ErrorAction Stop | Out-Null },
-                    { Remove-CMFolder -FolderPath $normalizedFolderPath -Force -ErrorAction Stop | Out-Null },
-                    { Remove-CMFolder -Path $normalizedFolderPath -Force -ErrorAction Stop | Out-Null }
+                    { Remove-CMFolder -FolderPath $normalizedFolderPath -Force -ErrorAction Stop | Out-Null }
                 )
+                if ($removeCmFolderSupportsPath) {
+                    $removeAttempts += { Remove-CMFolder -Path $folderPath -Force -ErrorAction Stop | Out-Null }
+                    $removeAttempts += { Remove-CMFolder -Path $normalizedFolderPath -Force -ErrorAction Stop | Out-Null }
+                }
 
                 if (-not [string]::IsNullOrWhiteSpace($folderPathWithoutDrive)) {
                     $removeAttempts += {
                         Remove-CMFolder -FolderPath $folderPathWithoutDrive -Force -ErrorAction Stop | Out-Null
                     }
-                    $removeAttempts += {
-                        Remove-CMFolder -Path $folderPathWithoutDrive -Force -ErrorAction Stop | Out-Null
+                    if ($removeCmFolderSupportsPath) {
+                        $removeAttempts += {
+                            Remove-CMFolder -Path $folderPathWithoutDrive -Force -ErrorAction Stop | Out-Null
+                        }
                     }
                 }
 
@@ -6315,7 +6590,7 @@ function Invoke-CleanupPlan {
         $appsToKeepList = @()
         if ($appsToKeep) {
             if ($appsToKeep -is [System.Collections.Generic.List[object]]) {
-                $appsToKeepList = @($appsToKeep.ToArray())
+                $appsToKeepList = @($appsToKeep)
             } else {
                 $appsToKeepList = Convert-ToSafeArray -InputObject $appsToKeep
             }
@@ -6785,6 +7060,10 @@ try {
     # ------------------------------------------------------------
     # Phase 1: establish SCCM provider context for all subsequent operations.
     Connect-SccmSite -SiteCode $SiteCode
+
+    # Preflight: validate cmdlet/provider capabilities and resolve a stable
+    # application deployment root before creating/moving any collections.
+    [void](Test-ApplicationDeploymentRootPrerequisites -SiteCode $SiteCode -TargetFolder $TargetFolder)
 
     # ------------------------------------------------------------
     # RETRIEVE ALL COLLECTIONS MATCHING USER INPUT

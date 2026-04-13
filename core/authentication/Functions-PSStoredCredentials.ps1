@@ -31,6 +31,8 @@ check out Practical 365.
 
 
 Function New-StoredCredential {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
+    param()
 
     <#
     .SYNOPSIS
@@ -80,7 +82,10 @@ Function New-StoredCredential {
 
     $Credential = Get-Credential -Message "Enter a user name and password"
 
-    $Credential.Password | ConvertFrom-SecureString | Out-File "$($KeyPath)\$($Credential.Username).cred" -Force
+    $credentialFile = "$($KeyPath)\$($Credential.Username).cred"
+    if ($PSCmdlet.ShouldProcess($credentialFile, 'Store encrypted credential file')) {
+        $Credential.Password | ConvertFrom-SecureString | Out-File $credentialFile -Force
+    }
 
 }
 
@@ -152,7 +157,7 @@ Function Get-StoredCredential {
         $CredentialList = @(Get-ChildItem -Path $keypath -Filter *.cred -ErrorAction STOP)
 
         foreach ($Cred in $CredentialList) {
-            Write-Host "Username: $($Cred.BaseName)"
+            Write-Information "Username: $($Cred.BaseName)" -InformationAction Continue
             }
         }
         catch {

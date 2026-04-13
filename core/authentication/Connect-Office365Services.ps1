@@ -491,7 +491,7 @@ function global:Get-TenantIDfromMail {
 function global:Get-TenantID {
     $global:myOffice365Services['TenantID']= Get-TenantIDfromMail $global:myOffice365Services['Office365Credentials'].UserName
     If( $global:myOffice365Services['TenantID']) {
-        Write-Host ('TenantID: {0}' -f $global:myOffice365Services['TenantID'])
+        Write-Information ('TenantID: {0}' -f $global:myOffice365Services['TenantID']) -InformationAction Continue
     }
 }
 
@@ -729,26 +729,26 @@ function global:Connect-ExchangeOnline {
         $PSBoundParameters['PSSessionOption']= $global:myOffice365Services['SessionExchangeOptions']
     }
     If ( $PSBoundParameters.ContainsKey('UserPrincipalName') -or $PSBoundParameters.ContainsKey('Certificate') -or $PSBoundParameters.ContainsKey('CertificateFilePath') -or $PSBoundParameters.ContainsKey('CertificateThumbprint') -or $PSBoundParameters.ContainsKey('AppId')) {
-        Write-Host ('Connecting to Exchange Online ..')
+        Write-Information ('Connecting to Exchange Online ..') -InformationAction Continue
     }
     Else {
         If ( $PSBoundParameters.ContainsKey('Credential')) {
-            Write-Host ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].UserName)
+            Write-Information ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].UserName) -InformationAction Continue
             $global:myOffice365Services['Office365Credentials']= $Credential
         }
         Else {
             If ( $global:myOffice365Services['Office365Credentials']) {
-                Write-Host ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username)
+                Write-Information ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username) -InformationAction Continue
                 $PSBoundParameters['Credential']= $global:myOffice365Services['Office365Credentials']
             }
             Else {
                 Get-Office365Credentials
                 If ( $global:myOffice365Services['Office365Credentials']) {
-                    Write-Host ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username)
+                    Write-Information ('Connecting to Exchange Online using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username) -InformationAction Continue
                     $PSBoundParameters['Credential']= $global:myOffice365Services['Office365Credentials']
                 }
                 Else {
-                    Write-Host ('Connecting to Exchange Online ..')
+                    Write-Information ('Connecting to Exchange Online ..') -InformationAction Continue
                 }
             }
         }
@@ -763,7 +763,7 @@ function global:Connect-ExchangeOnPremises {
     If ( !($global:myOffice365Services['OnPremisesCredentials'])) { Get-OnPremisesCredentials }
     If ( !($global:myOffice365Services['ExchangeOnPremisesFQDN'])) { Get-ExchangeOnPremisesFQDN }
     If ( !($global:myOffice365Services['OnPremisesCredentials'])) {
-        Write-Host ('Connecting to Exchange On-Premises {0} using {1} ..' -f $global:myOffice365Services['ExchangeOnPremisesFQDN'], $global:myOffice365Services['OnPremisesCredentials'].username)
+        Write-Information ('Connecting to Exchange On-Premises {0} using {1} ..' -f $global:myOffice365Services['ExchangeOnPremisesFQDN'], $global:myOffice365Services['OnPremisesCredentials'].username) -InformationAction Continue
         $global:myOffice365Services['SessionExchange'] = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://$($global:myOffice365Services['ExchangeOnPremisesFQDN'])/PowerShell" -Credential $global:myOffice365Services['OnPremisesCredentials'] -Authentication Kerberos -AllowRedirection -SessionOption $global:myOffice365Services['SessionExchangeOptions']
         If ( $global:myOffice365Services['SessionExchange']) {Import-PSSession -Session $global:myOffice365Services['SessionExchange'] -AllowClobber}
     }
@@ -776,11 +776,11 @@ Function global:Get-ExchangeOnPremisesFQDN {
 function global:Connect-IPPSession {
     If ( !($global:myOffice365Services['Office365Credentials'])) { Get-Office365Credentials }
     If ( $global:myOffice365Services['Office365Credentials']) {
-        Write-Host ('Connecting to Security & Compliance Center using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username)
+        Write-Information ('Connecting to Security & Compliance Center using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username) -InformationAction Continue
         $global:myOffice365Services['SessionCC'] = ExchangeOnlineManagement\Connect-IPPSSession -ConnectionUri $global:myOffice365Services['SCCConnectionEndpointUri'] -UserPrincipalName ($global:myOffice365Services['Office365Credentials']).UserName -PSSessionOption $global:myOffice365Services['SessionExchangeOptions']
     }
     Else {
-        Write-Host ('Connecting to Security & Compliance Center ..')
+        Write-Information ('Connecting to Security & Compliance Center ..') -InformationAction Continue
         $global:myOffice365Services['SessionCC'] = ExchangeOnlineManagement\Connect-IPPSSession -ConnectionUrl $global:myOffice365Services['SCCConnectionEndpointUri'] -Credential $global:myOffice365Services['Office365Credentials'] -PSSessionOption $global:myOffice365Services['SessionExchangeOptions']
     }
     If ( $global:myOffice365Services['SessionCC'] ) {
@@ -791,7 +791,7 @@ function global:Connect-IPPSession {
 
 function global:Connect-MSTeams {
     If ( !($global:myOffice365Services['Office365Credentials'])) { Get-Office365Credentials }
-    Write-Host ('Connecting to Microsoft Teams using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username)
+    Write-Information ('Connecting to Microsoft Teams using {0} ..' -f $global:myOffice365Services['Office365Credentials'].username) -InformationAction Continue
     Connect-MicrosoftTeams -AccountId ($global:myOffice365Services['Office365Credentials']).UserName -TenantId $global:myOffice365Services['TenantId']
 }
 
@@ -799,7 +799,7 @@ function global:Connect-AIP {
     If ( !(Get-Module -Name AIPService)) {Import-Module -Name AIPService -ErrorAction SilentlyContinue}
     If ( Get-Module -Name AIPService) {
         If ( !($global:myOffice365Services['Office365Credentials'])) { Get-Office365Credentials }
-        Write-Host ('Connecting to Azure Information Protection using {0}' -f $global:myOffice365Services['Office365Credentials'].username)
+        Write-Information ('Connecting to Azure Information Protection using {0}' -f $global:myOffice365Services['Office365Credentials'].username) -InformationAction Continue
         Connect-AipService -Credential $global:myOffice365Services['Office365Credentials']
     }
     Else {
@@ -817,7 +817,7 @@ function global:Connect-SharePointOnline {
         Else {
             If ( !($global:myOffice365Services['Office365Tenant'])) { Get-Office365Tenant }
         }
-        Write-Host 'Connecting to SharePoint Online  ..'
+        Write-Information 'Connecting to SharePoint Online  ..' -InformationAction Continue
         $Parms = @{
             url= 'https://{0}-admin.sharepoint.com' -f $($global:myOffice365Services['Office365Tenant'])
             region= $global:myOffice365Services['SharePointRegion']
@@ -833,7 +833,7 @@ function global:Connect-PowerApps {
     If ( !(Get-Module -Name Microsoft.PowerApps.Administration.PowerShell)) {Import-Module -Name Microsoft.PowerApps.Administration.PowerShell -ErrorAction SilentlyContinue}
     If ( Get-Module -Name Microsoft.PowerApps.PowerShell) {
         If ( !($global:myOffice365Services['Office365Credentials'])) { Get-Office365Credentials }
-        Write-Host "Connecting to PowerApps using $($global:myOffice365Services['Office365Credentials'].username) .."
+        Write-Information "Connecting to PowerApps using $($global:myOffice365Services['Office365Credentials'].username) .." -InformationAction Continue
         $Parms = @{'Username' = $global:myOffice365Services['Office365Credentials'].UserName }
         Add-PowerAppsAccount @Parms
     }
@@ -929,19 +929,19 @@ Function global:Update-Office365Modules {
             If( ($local:Module).RepositorySourceLocation) {
 
                 $local:Version = Get-ModuleVersionInfo -Module $local:Module
-                Write-Host ('Checking {0}' -f $local:Item.Description) -NoNewLine
+                Write-Information ('Checking {0}' -f $local:Item.Description) -InformationAction Continue
 
                 $local:NewerAvailable= $false
                 $OnlineModule = Find-myModule -Name $local:Item.Module -ErrorAction SilentlyContinue
                 If( $OnlineModule) {
-                    Write-Host (': Local:{0}, Online:{1}' -f $local:Version, $OnlineModule.version)
+                    Write-Information (': Local:{0}, Online:{1}' -f $local:Version, $OnlineModule.version) -InformationAction Continue
                     If( (Compare-TextVersionNumber -Version $local:Version -CompareTo $OnlineModule.version) -eq 1) {
                         $local:NewerAvailable= $true
                     }
                 }
                 Else {
                         # Not installed from online or cannot determine
-                        Write-Host ('Local:{0} Online:N/A' -f $local:Version)
+                        Write-Information ('Local:{0} Online:N/A' -f $local:Version) -InformationAction Continue
                 }
 
                 If( $local:NewerAvailable) {
@@ -960,7 +960,7 @@ Function global:Update-Office365Modules {
 
                         $local:Module = $local:ModuleVersions | Sort-Object -Property @{e={ [System.Version]($_.Version -replace '[^\d\.]','')}} -Descending | Select-Object -First 1
                         $local:LatestVersion = ($local:Module).Version
-                        Write-Host ('Updated {0} to version {1}' -f $local:Item.Description, $local:LatestVersion) -ForegroundColor Green
+                        Write-Information ('Updated {0} to version {1}' -f $local:Item.Description, $local:LatestVersion) -InformationAction Continue
 
                         # Uninstall all old versions of module & dependencies
                         If( $OnlineModule) {
@@ -972,7 +972,7 @@ Function global:Update-Office365Modules {
                                 $local:OldDepModules= $local:DepModuleVersions | Where-Object {$_.Version -ne $local:DepLatestVersion}
                                 $local:OldDepModules | ForEach-Object {
                                     $DepModule= $_
-                                    Write-Host ('Uninstalling dependency {0} version {1}' -f $DepModule.Name, $DepModule.Version)
+                                    Write-Information ('Uninstalling dependency {0} version {1}' -f $DepModule.Name, $DepModule.Version) -InformationAction Continue
                                     Try {
                                         Uninstall-myModule -Name $DepModule.Name -Version $DepModule.Version -IsPrerelease:$DepModule.IsPrerelease
                                     }
@@ -984,7 +984,7 @@ Function global:Update-Office365Modules {
                             $local:OldModules= $local:ModuleVersions | Where-Object {$_.Version -ne $local:LatestVersion}
                             If( $local:OldModules) {
                                 ForEach( $OldModule in $local:OldModules) {
-                                    Write-Host ('Uninstalling {0} version {1}' -f $local:Item.Description, $OldModule.Version) -ForegroundColor White
+                                    Write-Information ('Uninstalling {0} version {1}' -f $local:Item.Description, $OldModule.Version) -InformationAction Continue
                                     Try {
                                         Uninstall-myModule -Name $OldModule.Name -Version $OldModule.Version -IsPrerelease:$OldModule.IsPrerelease
                                     }
@@ -1031,7 +1031,7 @@ Function global:Clean-Office365Modules {
             $local:Module= Get-Module -Name ('{0}' -f $local:Item.Module) -ListAvailable | Sort-Object -Property Version -Descending
 
             If( $local:Module) {
-                Write-Host ('Checking {0} .. ' -f $local:Item.Description) -NoNewline
+                Write-Information ('Checking {0} .. ' -f $local:Item.Description) -InformationAction Continue
 
                 $local:ModuleVersions= Get-myModule -Name $local:Item.Module -ListAvailable -All  -ErrorAction SilentlyContinue
                 $local:LatestModule = $local:ModuleVersions | Sort-Object -Property @{e={ [System.Version]($_.Version -replace '[^\d\.]','')}} -Descending | Select-Object -First 1
@@ -1040,12 +1040,12 @@ Function global:Clean-Office365Modules {
                 $local:OldModules= $local:ModuleVersions | Where-Object {$_.Version -ne $local:LatestVersion}
                 If( $local:OldModules) {
 
-                    Write-Host ('previous versions found')
+                    Write-Information ('previous versions found') -InformationAction Continue
 
                     ForEach( $OldModule in $local:OldModules) {
 
                         # Uninstall all old versions of the module
-                        Write-Host ('Uninstalling {0} v{1}' -f $OldModule.Name, $OldModule.Version) -ForegroundColor White
+                        Write-Information ('Uninstalling {0} v{1}' -f $OldModule.Name, $OldModule.Version) -InformationAction Continue
                         Try {
                             Uninstall-myModule -Name $OldModule.Name -Version $OldModule.Version -IsPrerelease:$OldModule.IsPrerelease
                         }
@@ -1055,7 +1055,7 @@ Function global:Clean-Office365Modules {
                     }
                 }
                 Else {
-                    Write-Host ('OK') -ForegroundColor Green
+                    Write-Information ('OK') -InformationAction Continue
                 }
 
                 # Cleanup required modules as well
@@ -1063,7 +1063,7 @@ Function global:Clean-Office365Modules {
 
                 ForEach( $RequiredModule in $local:RequiredModules) {
 
-                    Write-Host ('Checking {0} .. ' -f $RequiredModule.Name) -NoNewline
+                    Write-Information ('Checking {0} .. ' -f $RequiredModule.Name) -InformationAction Continue
 
                     $local:ModuleVersions= Get-myModule -Name $RequiredModule.Name -ListAvailable -ErrorAction SilentlyContinue
                     $local:LatestModule = $local:ModuleVersions | Sort-Object -Property @{e={ [System.Version]($_.Version -replace '[^\d\.]','')}} -Descending | Select-Object -First 1
@@ -1072,11 +1072,11 @@ Function global:Clean-Office365Modules {
                     $local:OldModules= $local:ModuleVersions | Where-Object {$_.Version -ne $local:LatestVersion}
                     If( $local:OldModules) {
 
-                        Write-Host ('needs cleanup')
+                        Write-Information ('needs cleanup') -InformationAction Continue
 
                         ForEach( $OldModule in $local:OldModules) {
 
-                            Write-Host ('Uninstalling {0} v{1}' -f $OldModule.Name, $OldModule.Version)
+                            Write-Information ('Uninstalling {0} v{1}' -f $OldModule.Name, $OldModule.Version) -InformationAction Continue
                             Try {
                                 Uninstall-myModule -Name $OldModule.Name -Version $OldModule.Version -IsPrerelease:$OldModule.IsPrerelease
                             }
@@ -1086,14 +1086,14 @@ Function global:Clean-Office365Modules {
                         }
                     }
                     Else {
-                        Write-Host ('OK') -ForegroundColor Green
+                        Write-Information ('OK') -InformationAction Continue
                     }
                 }
             }
         }
     }
     Else {
-        Write-Host ('Script not running with elevated privileges; cannot remove modules') -ForegroundColor Yellow
+        Write-Information ('Script not running with elevated privileges; cannot remove modules') -InformationAction Continue
     }
 }
 
@@ -1166,26 +1166,26 @@ Function global:Report-Office365Modules {
         If( $local:Module) {
 
             $local:Version = Get-ModuleVersionInfo -Module $local:Module
-            Write-Host ('{0}: Local v{1}' -f $local:Item.Description, $Local:Version) -NoNewline
+            Write-Information ('{0}: Local v{1}' -f $local:Item.Description, $Local:Version) -InformationAction Continue
             $OnlineModule = Find-myModule -Name $local:Item.Module -ErrorAction SilentlyContinue
 
             If( $OnlineModule) {
-                Write-Host (', Online v{0}' -f $OnlineModule.version) -NoNewline
+                Write-Information (', Online v{0}' -f $OnlineModule.version) -InformationAction Continue
             }
             Else {
-                Write-Host (', Online N/A') -NoNewline
+                Write-Information (', Online N/A') -InformationAction Continue
             }
-            Write-Host (', Scope:{0} Status:' -f (Get-ModuleScope -Module $local:Module)) -NoNewline
+            Write-Information (', Scope:{0} Status:' -f (Get-ModuleScope -Module $local:Module)) -InformationAction Continue
 
             If( [string]::IsNullOrEmpty( $local:Version) -or [string]::IsNullOrEmpty( $OnlineModule.version)) {
-                Write-Host ('Unknown')
+                Write-Information ('Unknown') -InformationAction Continue
             }
             Else {
                 If( (Compare-TextVersionNumber -Version $local:Version -CompareTo $OnlineModule.version) -eq 1) {
-                    Write-Host ('Outdated') -ForegroundColor Red
+                    Write-Information ('Outdated') -InformationAction Continue
                 }
                 Else {
-                    Write-Host ('OK') -ForegroundColor Green
+                    Write-Information ('OK') -InformationAction Continue
                 }
             }
             If( $local:Item.ReplacedBy) {
@@ -1193,7 +1193,7 @@ Function global:Report-Office365Modules {
             }
         }
         Else {
-            Write-Host ('{0} not found ({1})' -f $local:Item.Description, $local:Item.Repo) -ForegroundColor DarkGray
+            Write-Information ('{0} not found ({1})' -f $local:Item.Description, $local:Item.Repo) -InformationAction Continue
         }
     }
 }
@@ -1223,9 +1223,9 @@ Else {
     $PMMVer= $PackageManagementModule.Version
 }
 
-Write-Host ('*' * 78)
-Write-Host ('Connect-Office365Services v{0}' -f $local:ScriptVersion)
-Write-Host ('Source: https://github.com/michelderooij/Connect-Office365Services')
+Write-Information ('*' * 78) -InformationAction Continue
+Write-Information ('Connect-Office365Services v{0}' -f $local:ScriptVersion) -InformationAction Continue
+Write-Information ('Source: https://github.com/michelderooij/Connect-Office365Services') -InformationAction Continue
 
 # See if the Administator built-in role is part of your role
 $local:IsAdmin= [System.Security.principal.windowsprincipal]::new([System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -1242,16 +1242,16 @@ $global:myOffice365Services['Scope'] = 'AllUsers'
 # Initialize environment & endpoints
 Set-Office365Environment -AzureEnvironment 'Default'
 
-Write-Host ('Environment:{0}, Administrator:{1}, Scope:{2}' -f $global:myOffice365Services['AzureEnvironment'], $local:IsAdmin, $global:myOffice365Services['Scope'])
-Write-Host ('PS:{0}, PSResourceGet:{1}, PackageManagement:{2}' -f ($PSVersionTable).PSVersion, $PSGetVer, $PMMVer )
-Write-Host ('*' * 78)
+Write-Information ('Environment:{0}, Administrator:{1}, Scope:{2}' -f $global:myOffice365Services['AzureEnvironment'], $local:IsAdmin, $global:myOffice365Services['Scope']) -InformationAction Continue
+Write-Information ('PS:{0}, PSResourceGet:{1}, PackageManagement:{2}' -f ($PSVersionTable).PSVersion, $PSGetVer, $PMMVer ) -InformationAction Continue
+Write-Information ('*' * 78) -InformationAction Continue
 
 $local:Functions= Get-Office365ModuleInfo
 
 # Determine if we can use PSResourceGet or need to use Module cmdlets
 Get-myPSResourceGetInstalled
 
-Write-Host ('Collecting Module information ..')
+Write-Information ('Collecting Module information ..') -InformationAction Continue
 
 $local:Functions | ForEach-Object -Process {
 
@@ -1263,7 +1263,7 @@ $local:Functions | ForEach-Object -Process {
         $local:Module = $local:Module | Sort-Object -Property @{e= { [System.Version]($_.Version -replace '[^\d\.]','')}} -Descending
         $local:Module= $local:Module | Where-Object {([System.Uri]($_.RepositorySourceLocation)).Authority -ieq ([System.Uri]($local:Item.Repo)).Authority } | Select-Object -First 1
         $local:Version = Get-ModuleVersionInfo -Module $local:Module
-        Write-Host ('Found {0} (v{1})' -f $local:Item.Description, $local:Version) -ForegroundColor Green
+        Write-Information ('Found {0} (v{1})' -f $local:Item.Description, $local:Version) -InformationAction Continue
         If( $local:Item.ReplacedBy) {
             Write-Warning ('{0} replaced by {1}' -f $local:Item.Module, $local:Item.ReplacedBy)
         }

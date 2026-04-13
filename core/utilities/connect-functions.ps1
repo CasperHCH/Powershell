@@ -51,7 +51,7 @@
     Connects using provided credentials with HTTPS security.
 
 .EXAMPLE
-    Connect-ExchPowershell -StoredCredentialTarget "ExchangeService"
+    Connect-ExchPowershell -StoredTargetName "ExchangeService"
     Uses stored credentials from Windows Credential Manager.
 
 .NOTES
@@ -70,8 +70,9 @@ function Connect-ExchPowershell {
         [Parameter(Mandatory = $false, HelpMessage = "Exchange administrator credentials")]
         [System.Management.Automation.PSCredential]$Credential,
 
-        [Parameter(Mandatory = $false, HelpMessage = "Use stored credentials from credential manager")]
-        [string]$StoredCredentialTarget
+        [Parameter(Mandatory = $false, HelpMessage = "Use stored credential target name from credential manager")]
+        [Alias('StoredCredentialTarget')]
+        [string]$StoredTargetName
     )
 
     # Security audit logging
@@ -81,7 +82,7 @@ function Connect-ExchPowershell {
         User         = $env:USERNAME
         ComputerName = $env:COMPUTERNAME
         TargetServer = $ExchangeServer
-        AuthMethod   = if ($StoredCredentialTarget) { "StoredCredential" } else { "Interactive" }
+        AuthMethod   = if ($StoredTargetName) { "StoredCredential" } else { "Interactive" }
     }
 
     # Secure server configuration management
@@ -103,11 +104,11 @@ function Connect-ExchPowershell {
 
     try {
         # Secure credential management
-        if ($StoredCredentialTarget) {
+        if ($StoredTargetName) {
             try {
-                $Credential = Get-StoredCredential -Target $StoredCredentialTarget -ErrorAction Stop
-                Write-Verbose "Using stored credentials for target: $StoredCredentialTarget"
-                $auditEntry.AuthMethod = "StoredCredential:$StoredCredentialTarget"
+                $Credential = Get-StoredCredential -Target $StoredTargetName -ErrorAction Stop
+                Write-Verbose "Using stored credentials for target: $StoredTargetName"
+                $auditEntry.AuthMethod = "StoredCredential:$StoredTargetName"
             }
             catch {
                 Write-Warning "Failed to retrieve stored credentials: $($_.Exception.Message)"
@@ -133,7 +134,7 @@ function Connect-ExchPowershell {
         $RPSession = New-PSSession -Name "ExchangeRemoting" -ConfigurationName Microsoft.Exchange -ConnectionUri $ConnectionURI -Credential $Credential -ErrorAction Stop
         Import-PSSession $RPSession -Prefix local -ErrorAction Stop -AllowClobber
 
-        Write-Host "✅ Successfully connected to Exchange Server: $ExchangeServer" -ForegroundColor Green
+        Write-Information "Successfully connected to Exchange Server: $ExchangeServer" -InformationAction Continue
         $auditEntry.Status = "Success"
         $auditEntry.SessionId = $RPSession.Id
 
@@ -178,15 +179,16 @@ function Connect-O365Powershell {
         [Parameter(Mandatory = $false, HelpMessage = "Office 365 administrator credentials")]
         [System.Management.Automation.PSCredential]$Credential,
 
-        [Parameter(Mandatory = $false, HelpMessage = "Use stored credentials from credential manager")]
-        [string]$StoredCredentialTarget
+        [Parameter(Mandatory = $false, HelpMessage = "Use stored credential target name from credential manager")]
+        [Alias('StoredCredentialTarget')]
+        [string]$StoredTargetName
     )
 
     # Secure credential management
-    if ($StoredCredentialTarget) {
+    if ($StoredTargetName) {
         try {
-            $Credential = Get-StoredCredential -Target $StoredCredentialTarget -ErrorAction Stop
-            Write-Verbose "Using stored credentials for target: $StoredCredentialTarget"
+            $Credential = Get-StoredCredential -Target $StoredTargetName -ErrorAction Stop
+            Write-Verbose "Using stored credentials for target: $StoredTargetName"
         }
         catch {
             Write-Warning "Failed to retrieve stored credentials: $($_.Exception.Message)"
@@ -206,11 +208,14 @@ function Connect-O365Powershell {
 }
 
 function Remove-O365Powershell {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
     param()
 
-    Get-PSSession -Name "O365Remoting" | Remove-PSSession
-    Write-Information "Disconnected from Office 365" -InformationAction Continue
+    $session = Get-PSSession -Name "O365Remoting" -ErrorAction SilentlyContinue
+    if ($session -and $PSCmdlet.ShouldProcess('O365Remoting', 'Remove PowerShell session')) {
+        $session | Remove-PSSession
+        Write-Information "Disconnected from Office 365" -InformationAction Continue
+    }
 }
 
 ###  END O365  ###

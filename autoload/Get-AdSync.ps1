@@ -6,9 +6,11 @@
     Azure AD Connect synchronization scheduler. It supports configuration-driven server
     selection and credential management.
 .PARAMETER ComputerName
-    The name or FQDN of the AD Sync server. If not provided, will prompt or use config file.
+    The name or FQDN of the AD Sync server. If not provided, config file is used.
 .PARAMETER Credential
     PowerShell credential object for authentication. If not provided, will use current context.
+.PARAMETER Interactive
+    Prompt for ComputerName when no value is supplied and config is missing.
 .EXAMPLE
     Get-AdSync
     Retrieves AD Sync status using configured server or prompts for server name.
@@ -30,7 +32,10 @@ function Get-AdSync {
         [string]$ComputerName,
 
         [Parameter(Mandatory = $false, HelpMessage = "Specify credentials for authentication")]
-        [System.Management.Automation.PSCredential]$Credential
+        [System.Management.Automation.PSCredential]$Credential,
+
+        [Parameter(Mandatory = $false, HelpMessage = "Prompt for server name when not provided")]
+        [switch]$Interactive
     )
 
     # Get AD Sync server from config file if not provided
@@ -41,7 +46,11 @@ function Get-AdSync {
         }
 
         if (-not $ComputerName) {
-            $ComputerName = Read-Host "Enter AD Sync server name (e.g., adsync-server-01)"
+            if ($Interactive) {
+                $ComputerName = Read-Host "Enter AD Sync server name (e.g., adsync-server-01)"
+            } else {
+                throw "ComputerName was not provided and no configuration value was found at '$ConfigPath'. Provide -ComputerName or use -Interactive."
+            }
         }
     }
 
@@ -66,10 +75,9 @@ function Get-AdSync {
         $ComputerName | Out-File "$ConfigDir\adsync-server.txt" -Force
 
         return $Result
-    }
-    catch {
+    } catch {
         Write-Warning "Failed to connect to AD Sync server '$ComputerName': $($_.Exception.Message)"
         Write-Information "Ensure the server name is correct and you have appropriate permissions." -InformationAction Continue
-        Break
+        return $null
     }
 }

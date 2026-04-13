@@ -1,103 +1,111 @@
 #requires -version 4
 <#
 .SYNOPSIS
-    Add a path to the environment.
+    Adds a path entry to Path or PSModulePath with WhatIf support.
 .DESCRIPTION
-    This script adds a specified path to the system or user environment variables.
+    Defines Add-EnvPathEntry for adding a specified path to system or user environment
+    variables. For backward compatibility, this script also creates an AddTo-Path alias.
 .PARAMETER PathToAdd
-    The path to add to the environment variable.
+    The path to add to the environment variable. Use an empty string to show current value.
 .PARAMETER UserType
-    Specifies whether to add the path to the 'System' or 'User' environment variables.
+    Specifies whether to add the path to the System or User environment variables.
 .PARAMETER PathType
-    Specifies whether to add the path to 'Path' or 'PSModulePath'.
-.INPUTS
-    None
-.OUTPUTS
-    The updated environment variable.
-.NOTES
-  Version:        1.0
-  Author:         YorSubs
-  Creation Date:  unknown
-  URL:            https://stackoverflow.com/questions/714877/setting-windows-powershell-environment-variables
+    Specifies whether to add the path to Path or PSModulePath.
 .EXAMPLE
-    # Add to User Path (but only if not already present)
-    AddTo-Path -PathToAdd "C:\NewPath" -UserType "User" -PathType "Path"
-
-    # Just show the current status by putting an empty path
+    Add-EnvPathEntry -PathToAdd "C:\NewPath" -UserType "User" -PathType "Path"
+.EXAMPLE
     AddTo-Path -PathToAdd "" -UserType "User" -PathType "Path"
 #>
-function AddTo-Path {
-  param (
-      [Parameter(Mandatory = $true, HelpMessage = "Specify the path to add.")]
-      [ValidateNotNullOrEmpty()]
-      [string]$PathToAdd,
+function Add-EnvPathEntry {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter(Mandatory = $false, HelpMessage = "Specify the path to add. Use an empty string to display the current value.")]
+        [AllowEmptyString()]
+        [string]$PathToAdd,
 
-      [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to the 'System' or 'User' environment variables.")]
-      [ValidateSet('System', 'User')]
-      [string]$UserType,
+        [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to the System or User environment variables.")]
+        [ValidateSet('System', 'User')]
+        [string]$UserType,
 
-      [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to 'Path' or 'PSModulePath'.")]
-      [ValidateSet('Path', 'PSModulePath')]
-      [string]$PathType
-  )
+        [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to Path or PSModulePath.")]
+        [ValidateSet('Path', 'PSModulePath')]
+        [string]$PathType
+    )
 
-  # Determine the registry location based on UserType
-  if ($UserType -eq 'System') {
-      $RegPropertyLocation = 'HKLM:\System\CurrentControlSet\Control\Session Manager\Environment'
-  } elseif ($UserType -eq 'User') {
-      $RegPropertyLocation = 'HKCU:\Environment'
-  }
+    if ($UserType -eq 'System') {
+        $regPropertyLocation = 'HKLM:\System\CurrentControlSet\Control\Session Manager\Environment'
+    } else {
+        $regPropertyLocation = 'HKCU:\Environment'
+    }
 
-  # Get the current value of the environment variable
-  $PathOld = (Get-ItemProperty -Path $RegPropertyLocation -Name $PathType).$PathType
+    # Some environments do not have a user-level Path/PSModulePath value yet.
+    $pathOld = ''
+    try {
+        $pathOld = (Get-ItemProperty -Path $regPropertyLocation -Name $PathType -ErrorAction Stop).$PathType
+    } catch {
+        Write-Verbose "$PathType value was not found at $regPropertyLocation. It will be created if needed."
+    }
 
-  # Split the current path into an array
-  $PathArray = $PathOld -Split ';' -replace '^\s+|\s+$', ''
+    $pathArray = @()
+    if (-not [string]::IsNullOrWhiteSpace($pathOld)) {
+        $pathArray = $pathOld -split ';' -replace '^\s+|\s+$', ''
+    }
 
-  # Check if the path is already present
-  if ($PathArray -notcontains $PathToAdd -and $PathToAdd -ne "") {
-      try {
-          # Validate that the path exists (optional warning)
-          if (-not (Test-Path $PathToAdd)) {
-              Write-Warning "Path '$PathToAdd' does not exist. Adding anyway..."
-          }
+    if ($PathToAdd -eq '') {
+        Write-Information "Current $PathType ($UserType): $pathOld" -InformationAction Continue
+        return
+    }
 
-          # Add the new path to the array
-          $PathNew = $PathOld + ';' + $PathToAdd
+    if ($pathArray -contains $PathToAdd) {
+        Write-Information "Path '$PathToAdd' is already present in $PathType ($UserType)" -InformationAction Continue
+        return
+    }
 
-          # Update the environment variable in the registry
-          Set-ItemProperty -Path $RegPropertyLocation -Name $PathType -Value $PathNew -ErrorAction Stop
-          Write-Host "Successfully added '$PathToAdd' to $PathType ($UserType)" -ForegroundColor Green
+    if (-not (Test-Path -Path $PathToAdd)) {
+        Write-Warning "Path '$PathToAdd' does not exist. Adding anyway..."
+    }
 
-          # Output the updated environment variable
-          Get-ItemProperty -Path $RegPropertyLocation -Name $PathType | Select-Object -ExpandProperty $PathType
+    $pathNew = if ([string]::IsNullOrWhiteSpace($pathOld)) { $PathToAdd } else { $pathOld + ';' + $PathToAdd }
 
-          # Update the environment variable for the current session
-          try {
-              if ($PathType -eq 'Path') {
-                  $env:Path += ";$PathToAdd"
-              } elseif ($PathType -eq 'PSModulePath') {
-                  $env:PSModulePath += ";$PathToAdd"
-              }
-              Write-Host "Current session environment updated." -ForegroundColor Green
-          }
-          catch {
-              Write-Warning "Registry updated but failed to update current session: $($_.Exception.Message)"
-          }
-      }
-      catch {
-          Write-Error "Failed to update $PathType environment variable: $($_.Exception.Message)"
-          Write-Host "You may need to run PowerShell as Administrator to modify system environment variables." -ForegroundColor Red
-          return
-      }
-  } else {
-      if ($PathToAdd -eq "") {
-          Write-Host "Current $PathType ($UserType): $PathOld" -ForegroundColor Cyan
-      } else {
-          Write-Host "Path '$PathToAdd' is already present in $PathType ($UserType)" -ForegroundColor Yellow
-      }
-  }
+    try {
+        if ($PSCmdlet.ShouldProcess("$PathType ($UserType)", "Add path entry '$PathToAdd'")) {
+            Set-ItemProperty -Path $regPropertyLocation -Name $PathType -Value $pathNew -ErrorAction Stop
+            Write-Information "Successfully added '$PathToAdd' to $PathType ($UserType)" -InformationAction Continue
+            Get-ItemProperty -Path $regPropertyLocation -Name $PathType | Select-Object -ExpandProperty $PathType
+
+            try {
+                if ($PathType -eq 'Path') {
+                    $env:Path += ";$PathToAdd"
+                } else {
+                    $env:PSModulePath += ";$PathToAdd"
+                }
+                Write-Information "Current session environment updated." -InformationAction Continue
+            } catch {
+                Write-Warning "Registry updated but failed to update current session: $($_.Exception.Message)"
+            }
+        }
+    } catch {
+        Write-Error "Failed to update $PathType environment variable: $($_.Exception.Message)"
+        Write-Information "You may need to run PowerShell as Administrator to modify system environment variables." -InformationAction Continue
+    }
 }
 
-# Example usage:
-# AddTo-Path -PathToAdd "C:\NewPath" -UserType "User" -PathType "Path"
+# Backward compatibility for existing profile usage.
+function AddTo-Path {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
+    param(
+        [Parameter(Mandatory = $false, HelpMessage = "Specify the path to add. Use an empty string to display the current value.")]
+        [AllowEmptyString()]
+        [string]$PathToAdd,
+
+        [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to the System or User environment variables.")]
+        [ValidateSet('System', 'User')]
+        [string]$UserType,
+
+        [Parameter(Mandatory = $true, HelpMessage = "Specify whether to add the path to Path or PSModulePath.")]
+        [ValidateSet('Path', 'PSModulePath')]
+        [string]$PathType
+    )
+
+    Add-EnvPathEntry @PSBoundParameters
+}

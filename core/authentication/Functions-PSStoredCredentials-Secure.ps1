@@ -183,7 +183,7 @@ function New-StoredCredential-Secure {
                 $credential.Password | ConvertFrom-SecureString | Out-File $credentialPath -Force -ErrorAction Stop
 
                 Write-SecurityAuditLog -EventType 'CredentialAccess' -Message "Credential successfully stored for user: $($credential.Username)" -Status 'Success'
-                Write-Host "✅ Credential stored successfully for: $($credential.Username)" -ForegroundColor Green
+                Write-Information "Credential stored successfully for: $($credential.Username)" -InformationAction Continue
 
                 # Set file permissions (Windows only)
                 if ($IsWindows -or ($PSVersionTable.PSVersion.Major -le 5)) {
@@ -292,17 +292,17 @@ function Get-StoredCredential-Secure {
                 $credentialList = @(Get-ChildItem -Path $KeyPath -Filter "*.cred" -ErrorAction Stop)
 
                 if ($credentialList.Count -eq 0) {
-                    Write-Host "No stored credentials found in: $KeyPath" -ForegroundColor Yellow
+                    Write-Information "No stored credentials found in: $KeyPath" -InformationAction Continue
                     Write-SecurityAuditLog -EventType 'CredentialAccess' -Message "No stored credentials found" -Status 'Success'
                 }
                 else {
-                    Write-Host "📋 Stored Credentials in: $KeyPath" -ForegroundColor Green
-                    Write-Host "=" * 50
+                    Write-Information "Stored Credentials in: $KeyPath" -InformationAction Continue
+                    Write-Information ("=" * 50) -InformationAction Continue
 
                     foreach ($cred in $credentialList) {
                         $username = $cred.BaseName
                         $lastModified = $cred.LastWriteTime.ToString("yyyy-MM-dd HH:mm")
-                        Write-Host "Username: $username | Last Modified: $lastModified" -ForegroundColor Cyan
+                        Write-Information "Username: $username | Last Modified: $lastModified" -InformationAction Continue
                     }
 
                     Write-SecurityAuditLog -EventType 'CredentialAccess' -Message "Listed $($credentialList.Count) stored credentials" -Status 'Success'
@@ -328,7 +328,7 @@ function Get-StoredCredential-Secure {
                 $credential = New-Object System.Management.Automation.PSCredential -ArgumentList $UserName, $securePassword
 
                 Write-SecurityAuditLog -EventType 'CredentialAccess' -Message "Successfully retrieved stored credential for user: $UserName" -Status 'Success'
-                Write-Verbose "✅ Retrieved stored credential for: $UserName"
+                Write-Verbose "Retrieved stored credential for: $UserName"
 
                 return $credential
             }
@@ -420,7 +420,7 @@ function Remove-StoredCredential-Secure {
             if ($PSCmdlet.ShouldProcess($credentialPath, "Remove stored credential")) {
                 Remove-Item $credentialPath -Force -ErrorAction Stop
                 Write-SecurityAuditLog -EventType 'CredentialAccess' -Message "Successfully removed stored credential for user: $UserName" -Status 'Success'
-                Write-Host "✅ Removed stored credential for: $UserName" -ForegroundColor Green
+                Write-Information "Removed stored credential for: $UserName" -InformationAction Continue
             }
         }
         catch {
@@ -441,9 +441,9 @@ Export-ModuleMember -Function @(
     'Remove-StoredCredential-Secure'
 )
 
-Write-Host "🔒 Security-Enhanced Stored Credential Functions Loaded Successfully" -ForegroundColor Green
-Write-Host "   - Comprehensive parameter validation enabled" -ForegroundColor Green
-Write-Host "   - Secure file path handling implemented" -ForegroundColor Green
-Write-Host "   - Enhanced audit logging active" -ForegroundColor Green
-Write-Host "   - Input sanitization and validation enforced" -ForegroundColor Green
-Write-Host "   - Secure file permissions applied" -ForegroundColor Green
+Write-Information "Security-Enhanced Stored Credential Functions Loaded Successfully" -InformationAction Continue
+Write-Information "   - Comprehensive parameter validation enabled" -InformationAction Continue
+Write-Information "   - Secure file path handling implemented" -InformationAction Continue
+Write-Information "   - Enhanced audit logging active" -InformationAction Continue
+Write-Information "   - Input sanitization and validation enforced" -InformationAction Continue
+Write-Information "   - Secure file permissions applied" -InformationAction Continue

@@ -350,8 +350,8 @@ Export-ModuleMember -Function @(
     'Write-SecurityAuditLog'
 )
 
-Write-Host "🔒 Security-Enhanced Authentication Functions Loaded Successfully" -ForegroundColor Green
-Write-Host "   - Input validation and sanitization enabled" -ForegroundColor Green
-Write-Host "   - Comprehensive audit logging active" -ForegroundColor Green
-Write-Host "   - Secure error handling implemented" -ForegroundColor Green
-Write-Host "   - Parameter validation enforced" -ForegroundColor Green
+Write-Information "Security-Enhanced Authentication Functions Loaded Successfully" -InformationAction Continue
+Write-Information "   - Input validation and sanitization enabled" -InformationAction Continue
+Write-Information "   - Comprehensive audit logging active" -InformationAction Continue
+Write-Information "   - Secure error handling implemented" -InformationAction Continue
+Write-Information "   - Parameter validation enforced" -InformationAction Continue
