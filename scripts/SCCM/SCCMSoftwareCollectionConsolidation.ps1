@@ -53,11 +53,13 @@
     Example: "Mozilla Firefox"
 
 .PARAMETER ManageSupersedence
-    If specified, build a linear supersedence chain between applications
-    related to SoftwareName.
+    Defaults to $true and builds a linear supersedence chain between
+    applications related to SoftwareName. Pass -ManageSupersedence $false
+    to disable.
 
 .PARAMETER DeleteOldCollections
-    If specified, delete old version-specific collections after consolidation.
+    Defaults to $true and deletes old version-specific collections after
+    consolidation. Pass -DeleteOldCollections $false to disable.
 
 .PARAMETER AutoApprove
     If specified, perform cleanup without interactive confirmation.
@@ -108,10 +110,10 @@ param(
     [string]$TargetFolder,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ManageSupersedence,
+    [bool]$ManageSupersedence = $true,
 
     [Parameter(Mandatory = $false)]
-    [switch]$DeleteOldCollections,
+    [bool]$DeleteOldCollections = $true,
 
     [Parameter(Mandatory = $false)]
     [switch]$AutoApprove,
@@ -173,6 +175,7 @@ function Write-SectionHeader {
 function Write-ResultLine {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Message
     )
 
@@ -183,9 +186,9 @@ function Write-ResultLine {
 # GLOBAL STATE
 # ------------------------------------------------------------
 
-$failedApps         = New-Object System.Collections.Generic.List[object]
-$failedCollections  = New-Object System.Collections.Generic.List[object]
-$failedDeployments  = New-Object System.Collections.Generic.List[object]
+$failedApps = New-Object System.Collections.Generic.List[object]
+$failedCollections = New-Object System.Collections.Generic.List[object]
+$failedDeployments = New-Object System.Collections.Generic.List[object]
 $deploymentMigrationAudit = New-Object System.Collections.Generic.List[object]
 $script:ProtectedLegacyCollectionIds = New-Object System.Collections.Generic.HashSet[string]
 $script:ProtectedLegacyCollectionNames = New-Object System.Collections.Generic.HashSet[string]
@@ -217,7 +220,7 @@ $script:CanonicalMappingInventoryCache = $null
 function Write-ScriptLog {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('INFO','WARN','ERROR','SUCCESS', 'DEBUG')]
+        [ValidateSet('INFO', 'WARN', 'ERROR', 'SUCCESS', 'DEBUG')]
         [string]$Level,
 
         [Parameter(Mandatory = $true)]
@@ -243,7 +246,7 @@ function Write-ScriptLog {
 function Write-LogEvent {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('INFO','WARN','ERROR','SUCCESS', 'DEBUG')]
+        [ValidateSet('INFO', 'WARN', 'ERROR', 'SUCCESS', 'DEBUG')]
         [string]$Level,
 
         [Parameter(Mandatory = $true)]
@@ -268,8 +271,7 @@ function Write-LogEvent {
         if (-not [string]::IsNullOrWhiteSpace($scopeValue)) {
             $normalizedScope = $scopeValue.Trim().ToUpperInvariant()
         }
-    }
-    catch {
+    } catch {
         $normalizedScope = 'GENERAL'
     }
 
@@ -278,15 +280,13 @@ function Write-LogEvent {
         if (-not [string]::IsNullOrWhiteSpace($actionValue)) {
             $normalizedAction = $actionValue.Trim()
         }
-    }
-    catch {
+    } catch {
         $normalizedAction = 'Event'
     }
 
     try {
         $detailText = [string]$Detail
-    }
-    catch {
+    } catch {
         $detailText = '[Detail conversion failed]'
     }
 
@@ -295,12 +295,10 @@ function Write-LogEvent {
     try {
         if ([string]::IsNullOrWhiteSpace($detailText)) {
             Write-ScriptLog -Level $Level -Message $prefix
-        }
-        else {
+        } else {
             Write-ScriptLog -Level $Level -Message ("{0}: {1}" -f $prefix, $detailText)
         }
-    }
-    catch {
+    } catch {
         # Last-resort logging path; never let logging failures crash the workflow.
         $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         Write-Information ("{0} [ERROR] [LOGGING] Write-LogEvent fallback | Level={1}; Scope={2}; Action={3}; Detail={4}; Error={5}" -f $timestamp, $Level, $normalizedScope, $normalizedAction, $detailText, $_.Exception.Message) -InformationAction Continue
@@ -327,15 +325,13 @@ function Get-ScriptIdentity {
     if (-not [string]::IsNullOrWhiteSpace($scriptPath) -and (Test-Path -LiteralPath $scriptPath)) {
         try {
             $hash = (Get-FileHash -LiteralPath $scriptPath -Algorithm SHA256 -ErrorAction Stop).Hash
-        }
-        catch {
+        } catch {
             $hash = 'HashError'
         }
 
         try {
             $lastWrite = (Get-Item -LiteralPath $scriptPath -ErrorAction Stop).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
-        }
-        catch {
+        } catch {
             $lastWrite = 'TimeError'
         }
     }
@@ -382,8 +378,7 @@ function Get-SmsProviderInstance {
         }
 
         return @(Get-CimInstance @cimParams)
-    }
-    finally {
+    } finally {
         $WhatIfPreference = $previousWhatIfPreference
     }
 }
@@ -403,12 +398,10 @@ function Invoke-SmsProviderDelete {
         try {
             [void](Invoke-CimMethod -InputObject $InputObject -MethodName Delete -ErrorAction Stop)
             return
-        }
-        catch {
+        } catch {
             Remove-CimInstance -InputObject $InputObject -ErrorAction Stop
         }
-    }
-    finally {
+    } finally {
         $WhatIfPreference = $previousWhatIfPreference
     }
 }
@@ -432,8 +425,7 @@ function Invoke-DryRunAction {
 
     if ($DryRun) {
         Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would execute action' -Detail $Description
-    }
-    else {
+    } else {
         & $Action
     }
 }
@@ -448,22 +440,26 @@ function Invoke-DryRunAction {
 #>
 function Invoke-CmCommandWithFallback {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [scriptblock[]]$Attempts,
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$ActionName = 'command'
     )
 
     foreach ($attempt in $Attempts) {
         try {
-            # Invoke with explicit non-interactive error handling to catch any prompts
-            $result = & $attempt -ErrorAction Stop
+            # Execute each attempt under a temporary Stop preference so non-terminating
+            # command errors are promoted without passing unsupported args to scriptblocks.
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Stop'
+            $result = & $attempt
             return @{ Success = $true; Result = $result }
-        }
-        catch {
+        } catch {
             # Sanitize error to avoid information disclosure
             $sanitizedMsg = $_.Exception.Message -replace '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[EMAIL]'
             Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Fallback {0} attempt failed: {1}" -f $ActionName, $sanitizedMsg)
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
         }
     }
 
@@ -497,8 +493,7 @@ function Get-ObjectPropertyValue {
             if ($property -and $null -ne $property.Value -and -not [string]::IsNullOrWhiteSpace(($property.Value -as [string]))) {
                 return $property.Value
             }
-        }
-        catch {
+        } catch {
             Write-Verbose ("Failed to inspect property [{0}] on input object." -f $propertyName)
         }
     }
@@ -569,8 +564,7 @@ function Get-CachedAllDeployments {
     if ($Refresh -or $null -eq $script:AllDeploymentsCache) {
         try {
             $script:AllDeploymentsCache = @(Get-CMDeployment -ErrorAction SilentlyContinue)
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Deployments' -Action 'Debug' -Detail ("Could not query all deployments: {0}" -f $_.Exception.Message)
             $script:AllDeploymentsCache = @()
         }
@@ -595,9 +589,9 @@ function Get-CachedDeploymentsForCollectionName {
     }
 
     return @($allDeployments | Where-Object {
-        $deploymentCollectionName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CollectionName', 'TargetCollectionName'))
-        $deploymentCollectionName -eq $CollectionName
-    })
+            $deploymentCollectionName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CollectionName', 'TargetCollectionName'))
+            $deploymentCollectionName -eq $CollectionName
+        })
 }
 
 function Get-CachedDeploymentById {
@@ -616,9 +610,9 @@ function Get-CachedDeploymentById {
     }
 
     $match = @($allDeployments | Where-Object {
-        $depId = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DeploymentID', 'DeploymentId', 'AssignmentID', 'AssignmentId', 'Id'))
-        $depId -eq $DeploymentId
-    } | Select-Object -First 1)
+            $depId = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DeploymentID', 'DeploymentId', 'AssignmentID', 'AssignmentId', 'Id'))
+            $depId -eq $DeploymentId
+        } | Select-Object -First 1)
 
     if ($match.Count -gt 0) {
         return $match[0]
@@ -646,8 +640,7 @@ function Get-CachedAllDeviceCollections {
         try {
             $script:AllDeviceCollectionsCache = @(Get-CMDeviceCollection -ErrorAction SilentlyContinue)
             Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Device collection cache primed with {0} collections." -f $script:AllDeviceCollectionsCache.Count)
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Could not enumerate device collections: {0}" -f $_.Exception.Message)
             $script:AllDeviceCollectionsCache = @()
         }
@@ -672,9 +665,9 @@ function Get-CachedDeviceCollectionById {
     }
 
     $match = @($allCollections | Where-Object {
-        $candidateId = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
-        $candidateId -eq $CollectionId
-    } | Select-Object -First 1)
+            $candidateId = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
+            $candidateId -eq $CollectionId
+        } | Select-Object -First 1)
 
     if ($match.Count -gt 0) {
         return $match[0]
@@ -699,9 +692,9 @@ function Get-CachedDeviceCollectionByName {
     }
 
     $match = @($allCollections | Where-Object {
-        $candidateName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('Name', 'CollectionName'))
-        $candidateName -eq $CollectionName
-    } | Select-Object -First 1)
+            $candidateName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('Name', 'CollectionName'))
+            $candidateName -eq $CollectionName
+        } | Select-Object -First 1)
 
     if ($match.Count -gt 0) {
         return $match[0]
@@ -730,12 +723,10 @@ function Get-CachedCmCollectionByName {
         $collection = @(Get-CMCollection -Name $CollectionName -ErrorAction SilentlyContinue | Select-Object -First 1)
         if ($collection.Count -gt 0) {
             $collection = $collection[0]
-        }
-        else {
+        } else {
             $collection = $null
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Could not resolve CM collection '{0}': {1}" -f $CollectionName, $_.Exception.Message)
         $collection = $null
     }
@@ -766,11 +757,11 @@ function Get-CachedCollectionDependencyIndex {
     $allCollections = Get-CachedAllDeviceCollections -Refresh:$Refresh
 
     $index = [ordered]@{
-        IncludeByTargetId   = @{}
-        IncludeByTargetName = @{}
-        ExcludeByTargetId   = @{}
-        ExcludeByTargetName = @{}
-        LimitingByTargetId  = @{}
+        IncludeByTargetId    = @{}
+        IncludeByTargetName  = @{}
+        ExcludeByTargetId    = @{}
+        ExcludeByTargetName  = @{}
+        LimitingByTargetId   = @{}
         LimitingByTargetName = @{}
     }
 
@@ -845,8 +836,7 @@ function Get-CachedCollectionDependencyIndex {
                 if ([int]::TryParse([string]$ruleCountVal, [ref]$ruleCountInt)) {
                     $hasIncludeExcludeRules = $ruleCountInt -gt 0
                 }
-            }
-            catch {
+            } catch {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail (
                     "Could not parse IncludeExcludeCollectionsCount for '{0}' ({1}): {2}" -f
                     $candidateName,
@@ -879,8 +869,7 @@ function Get-CachedCollectionDependencyIndex {
                         & $addReference $index.IncludeByTargetName $targetName.Trim().ToLowerInvariant() $dependentEntry
                     }
                 }
-            }
-            catch {
+            } catch {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Could not query include membership rules for collection '{0}' ({1}): {2}" -f $candidateName, $candidateId, $_.Exception.Message)
             }
         }
@@ -908,8 +897,7 @@ function Get-CachedCollectionDependencyIndex {
                         & $addReference $index.ExcludeByTargetName $targetName.Trim().ToLowerInvariant() $dependentEntry
                     }
                 }
-            }
-            catch {
+            } catch {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Could not query exclude membership rules for collection '{0}' ({1}): {2}" -f $candidateName, $candidateId, $_.Exception.Message)
             }
         }
@@ -1002,8 +990,7 @@ function Get-ApplicationsForSoftwareName {
                     $appsByKey[$appKey.ToLowerInvariant()] = $app
                 }
             }
-        }
-        catch {
+        } catch {
             if ($_.Exception.Message -like '*Not found*') {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("No apps found matching pattern '*{0}*'" -f $term)
                 continue
@@ -1021,17 +1008,16 @@ function Get-ApplicationsForSoftwareName {
         try {
             $allApps = @(Get-CMApplication -ErrorAction SilentlyContinue)
             $apps = @($allApps | Where-Object {
-                $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
-                foreach ($term in $allTerms) {
-                    if ($displayName -like ("*{0}*" -f $term)) {
-                        return $true
+                    $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+                    foreach ($term in $allTerms) {
+                        if ($displayName -like ("*{0}*" -f $term)) {
+                            return $true
+                        }
                     }
-                }
 
-                return $false
-            })
-        }
-        catch {
+                    return $false
+                })
+        } catch {
             Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Warning' -Detail ("Could not query applications for '{0}': {1}" -f $SoftwareName, $_.Exception.Message)
             $apps = @()
         }
@@ -1095,8 +1081,7 @@ function Find-ExistingApplicationDeployment {
             $collectionMatches = $false
             if ($deploymentCollectionName) {
                 $collectionMatches = $deploymentCollectionName -eq $CollectionName
-            }
-            elseif ($deploymentSet.Scope -eq 'ByCollection') {
+            } elseif ($deploymentSet.Scope -eq 'ByCollection') {
                 $collectionMatches = $true
             }
 
@@ -1154,7 +1139,7 @@ function Get-CollectionDeployments {
 #>
 function Get-AppVersionNormalized {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         $App
     )
 
@@ -1270,7 +1255,7 @@ function Get-VersionedApplicationsForSoftwareName {
     foreach ($app in $apps) {
         # Build a unique set of versioned applications by CI id so renamed app
         # objects do not appear as duplicate versions in cleanup decisions.
-        $appCiId = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID','CIId','ModelID','ModelId'))
+        $appCiId = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId'))
         if ([string]::IsNullOrWhiteSpace($appCiId)) {
             continue
         }
@@ -1292,7 +1277,7 @@ function Get-VersionedApplicationsForSoftwareName {
     $sorted = @($appsWithVersion |
         Sort-Object -Property @(
             @{ Expression = { [version]$_.Version }; Descending = $true },
-            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_.App -PropertyNames @('CI_ID','CIId','ModelID','ModelId')) }; Descending = $true },
+            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_.App -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
             @{ Expression = { [string]$_.App.LocalizedDisplayName }; Descending = $false }
         ))
 
@@ -1353,22 +1338,22 @@ function Get-LatestApplicationSelection {
     }
 
     $latestFallback = @($apps | Sort-Object -Property @(
-        @{ Expression = {
-                $candidate = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DateLastModified', 'LastModified', 'DateCreated', 'CreatedDate')
-                if ($candidate -is [datetime]) {
-                    return $candidate
-                }
+            @{ Expression     = {
+                    $candidate = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('DateLastModified', 'LastModified', 'DateCreated', 'CreatedDate')
+                    if ($candidate -is [datetime]) {
+                        return $candidate
+                    }
 
-                try {
-                    return [datetime]$candidate
-                }
-                catch {
-                    return [datetime]::MinValue
-                }
-            }; Descending = $true },
-        @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
-        @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) }; Descending = $false }
-    ) | Select-Object -First 1)
+                    try {
+                        return [datetime]$candidate
+                    } catch {
+                        return [datetime]::MinValue
+                    }
+                }; Descending = $true
+            },
+            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')) }; Descending = $true },
+            @{ Expression = { [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) }; Descending = $false }
+        ) | Select-Object -First 1)
 
     if ($latestFallback.Count -gt 0) {
         $fallbackDisplayName = Get-ApplicationDisplayName -App $latestFallback[0]
@@ -1411,8 +1396,8 @@ function Get-MasterDeploymentApplicationSelection {
     $exactCanonicalApp = $null
     $canonicalApps = Convert-ToSafeArray -InputObject (Get-ApplicationsForSoftwareName -SoftwareName $CanonicalName)
     $exactCanonicalMatch = @($canonicalApps | Where-Object {
-        [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) -eq $CanonicalName
-    } | Select-Object -First 1)
+            [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name')) -eq $CanonicalName
+        } | Select-Object -First 1)
     if ($exactCanonicalMatch.Count -gt 0) {
         $exactCanonicalApp = $exactCanonicalMatch[0]
     }
@@ -1428,32 +1413,32 @@ function Get-MasterDeploymentApplicationSelection {
 
     if ($selection -and $selection.App) {
         return [pscustomobject]@{
-            App                       = $selection.App
-            IsVersionConfirmed        = $selection.IsVersionConfirmed
-            SelectionMode             = $selection.SelectionMode
-            WarningDetail             = $selection.WarningDetail
-            ExactCanonicalApp         = $exactCanonicalApp
+            App                        = $selection.App
+            IsVersionConfirmed         = $selection.IsVersionConfirmed
+            SelectionMode              = $selection.SelectionMode
+            WarningDetail              = $selection.WarningDetail
+            ExactCanonicalApp          = $exactCanonicalApp
             ExactCanonicalWasPreferred = $false
         }
     }
 
     if ($exactCanonicalApp) {
         return [pscustomobject]@{
-            App                       = $exactCanonicalApp
-            IsVersionConfirmed        = $false
-            SelectionMode             = 'ExactCanonicalFallback'
-            WarningDetail             = ''
-            ExactCanonicalApp         = $exactCanonicalApp
+            App                        = $exactCanonicalApp
+            IsVersionConfirmed         = $false
+            SelectionMode              = 'ExactCanonicalFallback'
+            WarningDetail              = ''
+            ExactCanonicalApp          = $exactCanonicalApp
             ExactCanonicalWasPreferred = $true
         }
     }
 
     return [pscustomobject]@{
-        App                       = $null
-        IsVersionConfirmed        = $false
-        SelectionMode             = 'NotFound'
-        WarningDetail             = ''
-        ExactCanonicalApp         = $exactCanonicalApp
+        App                        = $null
+        IsVersionConfirmed         = $false
+        SelectionMode              = 'NotFound'
+        WarningDetail              = ''
+        ExactCanonicalApp          = $exactCanonicalApp
         ExactCanonicalWasPreferred = $false
     }
 }
@@ -1516,13 +1501,13 @@ function Set-LatestDeploymentForCollection {
 
     if ([string]::IsNullOrWhiteSpace(($collectionName -as [string]))) {
         $audit = [pscustomobject]@{
-            Timestamp         = (Get-Date).ToString('o')
-            SourceDeployment  = $deploymentId
-            CollectionName    = $collectionName
-            SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $latestAppDisplayName
-            Status            = 'Skipped'
-            Notes             = 'Missing collection name on source deployment.'
+            Timestamp        = (Get-Date).ToString('o')
+            SourceDeployment = $deploymentId
+            CollectionName   = $collectionName
+            SourceAppName    = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
+            TargetAppName    = $latestAppDisplayName
+            Status           = 'Skipped'
+            Notes            = 'Missing collection name on source deployment.'
         }
         [void]$deploymentMigrationAudit.Add($audit)
         return $false
@@ -1531,13 +1516,13 @@ function Set-LatestDeploymentForCollection {
     $existing = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $LatestApp
     if ($existing) {
         $audit = [pscustomobject]@{
-            Timestamp         = (Get-Date).ToString('o')
-            SourceDeployment  = $deploymentId
-            CollectionName    = $collectionName
-            SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $latestAppDisplayName
-            Status            = 'AlreadyExists'
-            Notes             = 'Latest deployment already present for target collection.'
+            Timestamp        = (Get-Date).ToString('o')
+            SourceDeployment = $deploymentId
+            CollectionName   = $collectionName
+            SourceAppName    = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
+            TargetAppName    = $latestAppDisplayName
+            Status           = 'AlreadyExists'
+            Notes            = 'Latest deployment already present for target collection.'
         }
         [void]$deploymentMigrationAudit.Add($audit)
         return $true
@@ -1547,13 +1532,13 @@ function Set-LatestDeploymentForCollection {
 
     if ($DryRun) {
         $audit = [pscustomobject]@{
-            Timestamp         = (Get-Date).ToString('o')
-            SourceDeployment  = $deploymentId
-            CollectionName    = $collectionName
-            SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $latestAppDisplayName
-            Status            = 'Planned'
-            Notes             = ("[DryRun] Would migrate deployment with Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
+            Timestamp        = (Get-Date).ToString('o')
+            SourceDeployment = $deploymentId
+            CollectionName   = $collectionName
+            SourceAppName    = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
+            TargetAppName    = $latestAppDisplayName
+            Status           = 'Planned'
+            Notes            = ("[DryRun] Would migrate deployment with Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
@@ -1578,28 +1563,27 @@ function Set-LatestDeploymentForCollection {
         }
 
         $audit = [pscustomobject]@{
-            Timestamp         = (Get-Date).ToString('o')
-            SourceDeployment  = $deploymentId
-            CollectionName    = $collectionName
-            SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $latestAppDisplayName
-            Status            = 'Created'
-            Notes             = ("Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
+            Timestamp        = (Get-Date).ToString('o')
+            SourceDeployment = $deploymentId
+            CollectionName   = $collectionName
+            SourceAppName    = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
+            TargetAppName    = $latestAppDisplayName
+            Status           = 'Created'
+            Notes            = ("Action={0}; Purpose={1}" -f $intent.DeployAction, $intent.DeployPurpose)
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
         Write-LogEvent -Level 'SUCCESS' -Scope 'Deployments' -Action 'Success' -Detail ("Migrated deployment for collection '{0}' to latest app '{1}' ({2}/{3})." -f $collectionName, $latestAppDisplayName, $intent.DeployAction, $intent.DeployPurpose)
         return $true
-    }
-    catch {
+    } catch {
         $audit = [pscustomobject]@{
-            Timestamp         = (Get-Date).ToString('o')
-            SourceDeployment  = $deploymentId
-            CollectionName    = $collectionName
-            SourceAppName     = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
-            TargetAppName     = $latestAppDisplayName
-            Status            = 'Failed'
-            Notes             = $_.Exception.Message
+            Timestamp        = (Get-Date).ToString('o')
+            SourceDeployment = $deploymentId
+            CollectionName   = $collectionName
+            SourceAppName    = (Get-ObjectPropertyValue -InputObject $Deployment -PropertyNames @('ApplicationName', 'SoftwareName', 'Name'))
+            TargetAppName    = $latestAppDisplayName
+            Status           = 'Failed'
+            Notes            = $_.Exception.Message
         }
         [void]$deploymentMigrationAudit.Add($audit)
 
@@ -1671,8 +1655,7 @@ function Remove-Application-Robust {
                     $resolvedApplication = $candidate[0]
                     break
                 }
-            }
-            catch {
+            } catch {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Application rehydrate attempt failed with {0}: {1}" -f $resolveAttempt.Label, $_.Exception.Message)
             }
         }
@@ -1685,8 +1668,7 @@ function Remove-Application-Robust {
     $applicationDisplayName = $applicationName
     try {
         $applicationDisplayName = [string](Get-ApplicationDisplayName -App $resolvedApplication)
-    }
-    catch {
+    } catch {
         $applicationDisplayName = $applicationName
     }
 
@@ -1748,8 +1730,7 @@ function Remove-Application-Robust {
         try {
             & $attempt.Action
             return $true
-        }
-        catch {
+        } catch {
             $attemptError = [string]$_.Exception.Message
             if ([string]::IsNullOrWhiteSpace($attemptError)) {
                 $attemptError = '[No exception message available]'
@@ -1788,15 +1769,13 @@ function Connect-SccmSite {
         if (-not (Get-PSDrive -Name $SiteCode -ErrorAction SilentlyContinue)) {
             try {
                 New-PSDrive -Name $SiteCode -PSProvider "AdminUI.PS.Provider\CMSite" -Root $env:COMPUTERNAME -ErrorAction Stop | Out-Null
-            }
-            catch {
+            } catch {
                 Write-LogEvent -Level 'WARN' -Scope 'Connect' -Action 'Warning' -Detail ("Could not create PSDrive with AdminUI.PS.Provider.CMSite: {0}" -f $_.Exception.Message)
                 $provider = Get-PSProvider | Where-Object { $_.Name -match 'CMSite' } | Select-Object -First 1
                 if ($provider) {
                     try {
                         New-PSDrive -Name $SiteCode -PSProvider $provider.Name -Root $env:COMPUTERNAME -ErrorAction Stop | Out-Null
-                    }
-                    catch {
+                    } catch {
                         Write-LogEvent -Level 'WARN' -Scope 'Connect' -Action 'Warning' -Detail ("Could not create PSDrive with provider $($provider.Name): {0}" -f $_.Exception.Message)
                     }
                 }
@@ -1809,8 +1788,7 @@ function Connect-SccmSite {
 
         Set-Location -Path $siteDriveName
         Write-LogEvent -Level 'SUCCESS' -Scope 'Connect' -Action 'Success' -Detail ("Connected to SCCM site '{0}'." -f $SiteCode)
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'ERROR' -Scope 'Connect' -Action 'Error' -Detail ("Failed to connect to SCCM site '{0}': {1}" -f $SiteCode, $_.Exception.Message)
         throw
     }
@@ -1891,12 +1869,30 @@ function Get-SoftwareFamilyCandidateFromCollectionName {
         return $null
     }
 
+    $candidate = $candidate -replace '[_]+', ' '
     $candidate = $candidate -replace '(?i)\s*-\s*(install|uninstall)\s*\((available|required|device|user)\)\s*$', ''
     $candidate = $candidate -replace '(?i)\s*-\s*(install|uninstall)\s*(\((available|required)\))?\s*$', ''
     $candidate = $candidate -replace '(?i)\s*\((device|user)\)\s*$', ''
-    $candidate = $candidate -replace '(?i)\s+v?\d+(?:\.\d+){1,3}(?:\s+[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})+)?\s*$', ''
+    $candidate = $candidate -replace '(?i)(?:[\s_-]+)v?\d+(?:[._-]\d+){1,}(?:\s+[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})+)?\s*$', ''
     $candidate = $candidate -replace '(?i)\s+[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})+\s*$', ''
-    $candidate = $candidate.Trim().TrimEnd('-', ' ')
+    $candidate = ($candidate -replace '\s+', ' ').Trim().TrimEnd('-', ' ')
+
+    $tokens = @($candidate -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($tokens.Count -gt 1) {
+        $dedupedTokens = New-Object System.Collections.Generic.List[string]
+        $previousToken = ''
+
+        foreach ($token in $tokens) {
+            if (-not [string]::IsNullOrWhiteSpace($previousToken) -and $token.Equals($previousToken, [System.StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+
+            [void]$dedupedTokens.Add($token)
+            $previousToken = $token
+        }
+
+        $candidate = ($dedupedTokens.ToArray() -join ' ').Trim()
+    }
 
     if ([string]::IsNullOrWhiteSpace($candidate)) {
         return $null
@@ -1916,10 +1912,17 @@ function Get-SoftwareFamilyCandidateFromCollectionName {
 function Test-SoftwareNameCandidate {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Candidate
+        [AllowNull()]
+        [AllowEmptyString()]
+        [object]$Candidate
     )
 
-    $trimmedCandidate = ($Candidate -as [string]).Trim()
+    $trimmedCandidate = [string]$Candidate
+    if ($null -eq $trimmedCandidate) {
+        $trimmedCandidate = ''
+    }
+    $trimmedCandidate = $trimmedCandidate.Trim()
+
     if ([string]::IsNullOrWhiteSpace($trimmedCandidate)) {
         return $false
     }
@@ -2007,8 +2010,7 @@ function Set-CollectionFolder {
                         $folder = $result
                         break
                     }
-                }
-                catch {
+                } catch {
                     Write-Verbose 'Failed to resolve collection folder via one provider query attempt.'
                 }
             }
@@ -2018,9 +2020,13 @@ function Set-CollectionFolder {
             if ($DryRun) {
                 Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("[DryRun] Would create folder: {0}" -f $fullFolderPath)
                 return $fullFolderPath
-            }
-            else {
+            } else {
+                $siteBaseFolderPath = "{0}:\DeviceCollection\Application Deployment" -f $SiteCode
+                $createAttemptErrors = New-Object System.Collections.Generic.List[string]
                 $createAttempts = @(
+                    { New-CMFolder -Name $TargetFolder -ParentFolderPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
+                    { New-CMFolder -Name $TargetFolder -ParentPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
+                    { New-CMFolder -Name $TargetFolder -Path $siteBaseFolderPath -ErrorAction Stop | Out-Null },
                     { New-CMFolder -Name $TargetFolder -ParentFolderPath "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
                     { New-CMFolder -Name $TargetFolder -ParentPath "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
                     { New-CMFolder -Name $TargetFolder -Path "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
@@ -2030,17 +2036,62 @@ function Set-CollectionFolder {
                     { New-CMFolder -Name $TargetFolder -ObjectType SMS_ApplicationDeployment -ErrorAction Stop | Out-Null }
                 )
 
-                $result = Invoke-CmCommandWithFallback -Attempts $createAttempts -ActionName 'New-CMFolder'
-                if ($result.Success) {
-                    Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
-                    return $fullFolderPath
+                foreach ($attempt in $createAttempts) {
+                    try {
+                        & $attempt
+                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
+                        return $fullFolderPath
+                    } catch {
+                        $msg = [string]$_.Exception.Message
+                        if ([string]::IsNullOrWhiteSpace($msg)) {
+                            $msg = '[No exception message available]'
+                        }
+                        [void]$createAttemptErrors.Add($msg)
+                        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("New-CMFolder attempt failed for '{0}': {1}" -f $fullFolderPath, $msg)
+                    }
                 }
 
-                Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not create folder '{0}': no supported parameters succeeded." -f $fullFolderPath)
+                $providerAttemptErrors = New-Object System.Collections.Generic.List[string]
+                $providerCreateAttempts = @(
+                    { New-Item -Path $fullFolderPath -ItemType Directory -ErrorAction Stop | Out-Null },
+                    { New-Item -Path ("{0}:\DeviceCollection\Application Deployment" -f $SiteCode) -Name $TargetFolder -ItemType Directory -ErrorAction Stop | Out-Null },
+                    { New-Item -Path ("\DeviceCollection\Application Deployment" ) -Name $TargetFolder -ItemType Directory -ErrorAction Stop | Out-Null }
+                )
+
+                foreach ($attempt in $providerCreateAttempts) {
+                    try {
+                        & $attempt
+                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder via provider path: {0}" -f $fullFolderPath)
+                        return $fullFolderPath
+                    } catch {
+                        $msg = [string]$_.Exception.Message
+                        if ([string]::IsNullOrWhiteSpace($msg)) {
+                            $msg = '[No exception message available]'
+                        }
+                        [void]$providerAttemptErrors.Add($msg)
+                        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Provider New-Item attempt failed for '{0}': {1}" -f $fullFolderPath, $msg)
+                    }
+                }
+
+                $distinctCreateErrors = @($createAttemptErrors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+                $distinctProviderErrors = @($providerAttemptErrors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+                $errorDetailParts = New-Object System.Collections.Generic.List[string]
+                if ($distinctCreateErrors.Count -gt 0) {
+                    [void]$errorDetailParts.Add(("New-CMFolder errors: {0}" -f ([string]::Join(' | ', $distinctCreateErrors))))
+                }
+                if ($distinctProviderErrors.Count -gt 0) {
+                    [void]$errorDetailParts.Add(("Provider New-Item errors: {0}" -f ([string]::Join(' | ', $distinctProviderErrors))))
+                }
+
+                $errorDetailText = ''
+                if ($errorDetailParts.Count -gt 0) {
+                    $errorDetailText = [string]::Join(' || ', @($errorDetailParts))
+                }
+
+                Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not create folder '{0}': no supported parameters succeeded. {1}" -f $fullFolderPath, $errorDetailText)
                 return $fullFolderPath
             }
-        }
-        else {
+        } else {
             $resolvedPath = $folder.FolderPath
             if (-not $resolvedPath) {
                 $resolvedPath = $fullFolderPath
@@ -2048,8 +2099,7 @@ function Set-CollectionFolder {
             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Found existing folder: {0}" -f $resolvedPath)
             return $resolvedPath
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not ensure folder '{0}': {1}" -f $fullFolderPath, $_.Exception.Message)
         return $fullFolderPath
     }
@@ -2144,13 +2194,11 @@ function Get-SoftwareCollections {
                 $identity = Get-CollectionIdentity -InputObject $candidate
                 if ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Id)) {
                     $collectionsById[$identity.Id.ToLowerInvariant()] = $candidate
-                }
-                elseif ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Name)) {
+                } elseif ($identity.IsValid -and -not [string]::IsNullOrWhiteSpace($identity.Name)) {
                     $collectionsByName[$identity.Name.Trim().ToLowerInvariant()] = $candidate
                 }
             }
-        }
-        catch {
+        } catch {
             if ($_.Exception.Message -like '*Not found*') {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("No collections found matching pattern '{0}'" -f $namePattern)
                 continue
@@ -2292,8 +2340,7 @@ function Invoke-CmCommandSafe {
 
     try {
         return & $Command
-    }
-    catch {
+    } catch {
         $message = $ErrorMessageTemplate -f $_.Exception.Message
         Write-LogEvent -Level 'DEBUG' -Scope $Scope -Action 'Debug' -Detail $message
         return $null
@@ -2359,12 +2406,10 @@ function Set-MasterCollectionDeployment {
             New-CMApplicationDeployment @deployParams | Out-Null
             Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'" -f $appDisplayName, $DeploymentPurpose, $collectionName)
         } -Description "deploy '$appDisplayName' as $DeploymentPurpose to collection '$collectionName'"
-    }
-    catch {
+    } catch {
         if ($_.Exception.Message -match 'already been deployed') {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
-        }
-        else {
+        } else {
             Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not deploy '{0}' as '{1}' to collection '{2}': {3}" -f $appDisplayName, $DeploymentPurpose, $collectionName, $_.Exception.Message)
         }
     }
@@ -2454,8 +2499,8 @@ function Add-CollectionQueryMembershipRuleIfMissing {
     foreach ($existingRule in $existingRules) {
         if (-not $existingRule) { continue }
 
-        $existingName = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('RuleName','Name'))
-        $existingQuery = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('QueryExpression','Query'))
+        $existingName = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('RuleName', 'Name'))
+        $existingQuery = [string](Get-ObjectPropertyValue -InputObject $existingRule -PropertyNames @('QueryExpression', 'Query'))
 
         if ((-not [string]::IsNullOrWhiteSpace($existingName) -and $existingName -eq $RuleName) -or
             (-not [string]::IsNullOrWhiteSpace($existingQuery) -and $existingQuery.Trim() -eq $normalizedQuery)) {
@@ -2565,8 +2610,8 @@ function Copy-QueryMembershipRulesToMaster {
         foreach ($queryRule in $queryRules) {
             if (-not $queryRule) { continue }
 
-            $sourceRuleName = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('RuleName','Name'))
-            $sourceQuery = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('QueryExpression','Query'))
+            $sourceRuleName = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('RuleName', 'Name'))
+            $sourceQuery = [string](Get-ObjectPropertyValue -InputObject $queryRule -PropertyNames @('QueryExpression', 'Query'))
 
             if ([string]::IsNullOrWhiteSpace($sourceQuery)) {
                 $allCopied = $false
@@ -2582,8 +2627,7 @@ function Copy-QueryMembershipRulesToMaster {
             $copied = Add-CollectionQueryMembershipRuleIfMissing -TargetCollection $MasterCollection -RuleName $effectiveRuleName -QueryExpression $sourceQuery
             if ($copied) {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Query rule copied' -Detail ("Source='{0}', Target='{1}', Rule='{2}'" -f $legacyIdentity.Name, $masterIdentity.Name, $effectiveRuleName)
-            }
-            else {
+            } else {
                 $allCopied = $false
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Query rule copy failed' -Detail ("Source='{0}', Target='{1}', Rule='{2}'" -f $legacyIdentity.Name, $masterIdentity.Name, $effectiveRuleName)
             }
@@ -2666,8 +2710,7 @@ function Get-CanonicalMappingInventory {
             }
 
             throw 'CanonicalMappings key is missing or empty.'
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Canonical inventory fallback' -Detail (
                 "Could not load {0} from '{1}': {2}" -f $inventoryCandidate.Type, $inventoryCandidate.Path, $_.Exception.Message
             )
@@ -2802,10 +2845,10 @@ function Get-CanonicalName {
 function New-MasterDeviceCollection {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal collection creation helper. Confirmation is coordinated by the top-level workflow.')]
     param(
-        [Parameter(Mandatory=$true)][string]$Name,
-        [Parameter(Mandatory=$true)][string]$Comment,
-        [Parameter(Mandatory=$true)][string]$LimitingCollectionName,
-        [Parameter(Mandatory=$true)][string]$FolderPath
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Comment,
+        [Parameter(Mandatory = $true)][string]$LimitingCollectionName,
+        [Parameter(Mandatory = $true)][string]$FolderPath
     )
 
     if ([string]::IsNullOrWhiteSpace($Name) -or
@@ -2860,27 +2903,25 @@ function Set-MasterCollections {
     $fullFolderPath = Set-CollectionFolder -SiteCode $SiteCode -TargetFolder $TargetFolder
 
     $installAvailName = "{0} - Install (Available)" -f $CanonicalName
-    $installReqName   = "{0} - Install (Required)"  -f $CanonicalName
-    $uninstallName    = "{0} - Uninstall"           -f $CanonicalName
+    $installReqName = "{0} - Install (Required)" -f $CanonicalName
+    $uninstallName = "{0} - Uninstall" -f $CanonicalName
 
     # Use targeted per-name queries here instead of going through the full-scan
     # cache. The all-collections fetch takes 2+ minutes in large environments and
     # is only needed for dependency resolution, which happens later in the run.
     $installAvailCol = @(Get-CMDeviceCollection -Name $installAvailName -ErrorAction SilentlyContinue) | Select-Object -First 1
-    $installReqCol   = @(Get-CMDeviceCollection -Name $installReqName   -ErrorAction SilentlyContinue) | Select-Object -First 1
-    $uninstallCol    = @(Get-CMDeviceCollection -Name $uninstallName    -ErrorAction SilentlyContinue) | Select-Object -First 1
+    $installReqCol = @(Get-CMDeviceCollection -Name $installReqName   -ErrorAction SilentlyContinue) | Select-Object -First 1
+    $uninstallCol = @(Get-CMDeviceCollection -Name $uninstallName    -ErrorAction SilentlyContinue) | Select-Object -First 1
 
     if (-not $installAvailCol) {
         if ($DryRun) {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $installAvailName)
             $installAvailCol = [pscustomobject]@{ Name = $installAvailName; CollectionID = 0 }
-        }
-        else {
+        } else {
             $installAvailCol = New-MasterDeviceCollection -Name $installAvailName -LimitingCollectionName "All Systems" -Comment ("Master available install collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
             if ($installAvailCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $installAvailName)
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not create master collection: {0}" -f $installAvailName)
             }
         }
@@ -2890,13 +2931,11 @@ function Set-MasterCollections {
         if ($DryRun) {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $installReqName)
             $installReqCol = [pscustomobject]@{ Name = $installReqName; CollectionID = 0 }
-        }
-        else {
+        } else {
             $installReqCol = New-MasterDeviceCollection -Name $installReqName -LimitingCollectionName "All Systems" -Comment ("Master required install collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
             if ($installReqCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $installReqName)
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not create master collection: {0}" -f $installReqName)
             }
         }
@@ -2906,13 +2945,11 @@ function Set-MasterCollections {
         if ($DryRun) {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $uninstallName)
             $uninstallCol = [pscustomobject]@{ Name = $uninstallName; CollectionID = 0 }
-        }
-        else {
+        } else {
             $uninstallCol = New-MasterDeviceCollection -Name $uninstallName -LimitingCollectionName "All Systems" -Comment ("Master uninstall collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
             if ($uninstallCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $uninstallName)
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not create master collection: {0}" -f $uninstallName)
             }
         }
@@ -2926,8 +2963,7 @@ function Set-MasterCollections {
             $moved = Move-CollectionToFolder -Collection $col -FolderPath $fullFolderPath
             if ($moved) {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Moved collection '{0}' to folder '{1}'." -f $col.Name, $fullFolderPath)
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not move collection '{0}' to folder '{1}'. All move methods failed." -f $col.Name, $fullFolderPath)
             }
         }
@@ -2961,7 +2997,7 @@ function Get-DirectMembershipResourceIds {
     $ids = New-Object System.Collections.Generic.HashSet[int]
 
     if (-not $Collection -or -not $Collection.CollectionID -or $Collection.CollectionID -eq 0) {
-        return ,$ids
+        return , $ids
     }
 
     try {
@@ -2969,12 +3005,11 @@ function Get-DirectMembershipResourceIds {
         foreach ($rule in $rules) {
             if ($rule.ResourceID) { [void]$ids.Add($rule.ResourceID) }
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not read direct membership rules for collection '{0}': {1}" -f ($Collection.Name -as [string]), $_.Exception.Message)
     }
 
-    return ,$ids
+    return , $ids
 }
 
 <#
@@ -3015,8 +3050,7 @@ function Add-DirectMembershipRulesIfMissing {
         Invoke-DryRunAction -Action {
             try {
                 Add-CMDeviceCollectionDirectMembershipRule -CollectionId $Collection.CollectionID -ResourceId $id -ErrorAction Stop
-            }
-            catch {
+            } catch {
                 # Relationship may already exist from concurrent operations; ignore duplicate errors.
                 Write-Verbose ("Direct membership rule may already exist for resource [{0}] in collection [{1}]." -f $id, $Collection.CollectionID)
             }
@@ -3046,7 +3080,7 @@ function Get-CollectionEffectiveResourceIds {
     $ids = New-Object System.Collections.Generic.HashSet[int]
 
     if (-not $Collection) {
-        return ,$ids
+        return , $ids
     }
 
     $collectionId = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
@@ -3082,7 +3116,7 @@ function Get-CollectionEffectiveResourceIds {
                 }
 
                 if ($ids.Count -gt 0) {
-                    return ,$ids
+                    return , $ids
                 }
             }
         }
@@ -3109,12 +3143,12 @@ function Get-DeviceMembersFromCollections {
     $ids = New-Object System.Collections.Generic.HashSet[int]
 
     if (-not $Collections) {
-        return ,$ids
+        return , $ids
     }
 
     $collectionList = @($Collections)
     if ($collectionList.Count -eq 0) {
-        return ,$ids
+        return , $ids
     }
 
     foreach ($col in $collectionList) {
@@ -3132,13 +3166,12 @@ function Get-DeviceMembersFromCollections {
                 if (-not $sourceId) { continue }
                 [void]$ids.Add($sourceId)
             }
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not get members from collection '{0}': {1}" -f ($col.Name -as [string]), $_.Exception.Message)
         }
     }
 
-    return ,$ids
+    return , $ids
 }
 
 
@@ -3188,8 +3221,8 @@ function Update-MasterCollections {
 
         $populationStage = 'normalize inputs'
         $masterInstallAvailableName = "{0} - Install (Available)" -f $CanonicalName
-        $masterInstallRequiredName  = "{0} - Install (Required)"  -f $CanonicalName
-        $masterUninstallName        = "{0} - Uninstall"           -f $CanonicalName
+        $masterInstallRequiredName = "{0} - Install (Required)" -f $CanonicalName
+        $masterUninstallName = "{0} - Uninstall" -f $CanonicalName
 
         $masterInstallAvailable = $Masters.InstallAvailable
         $masterInstallRequired = $Masters.InstallRequired
@@ -3208,9 +3241,9 @@ function Update-MasterCollections {
 
         $populationStage = 'classify legacy collections'
         $legacyInstallAvailableCollections = @($all | Where-Object {
-            $candidateName = [string](& $getCollectionName $_)
-            $candidateName -like '*Install (Available)*' -and $candidateName -ne $masterInstallAvailableName
-        })
+                $candidateName = [string](& $getCollectionName $_)
+                $candidateName -like '*Install (Available)*' -and $candidateName -ne $masterInstallAvailableName
+            })
 
         $legacyInstallRequiredCollections = @($all |
             Where-Object {
@@ -3233,9 +3266,9 @@ function Update-MasterCollections {
             })
 
         $legacyUninstallCollections = @($all | Where-Object {
-            $candidateName = [string](& $getCollectionName $_)
-            $candidateName -like '*Uninstall*' -and $candidateName -ne $masterUninstallName
-        })
+                $candidateName = [string](& $getCollectionName $_)
+                $candidateName -like '*Uninstall*' -and $candidateName -ne $masterUninstallName
+            })
 
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Legacy Install (Available): {0}" -f ((@($legacyInstallAvailableCollections | ForEach-Object { [string](& $getCollectionName $_) }) -join ', ')))
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Legacy Install (Required):  {0}" -f ((@($legacyInstallRequiredCollections | ForEach-Object { [string](& $getCollectionName $_) }) -join ', ')))
@@ -3250,13 +3283,11 @@ function Update-MasterCollections {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Exact canonical fallback' -Detail (
                     "No version-confirmed latest app was found for '{0}'. Falling back to exact canonical app '{1}' for master deployments." -f $CanonicalName, $appForMasterDeployDisplayName
                 )
-            }
-            elseif (-not $appSelection.IsVersionConfirmed) {
+            } elseif (-not $appSelection.IsVersionConfirmed) {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Inferred deployment target' -Detail (
                     "No version-confirmed app was found for '{0}'. Using inferred latest app '{1}' for master deployments." -f $CanonicalName, $appForMasterDeployDisplayName
                 )
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
                     "Using latest version-confirmed app '{0}' for master deployments targeting '{1}'." -f $appForMasterDeployDisplayName, $CanonicalName
                 )
@@ -3278,37 +3309,31 @@ function Update-MasterCollections {
 
                         if ($existingDeployment -or $collectionDeployments.Count -gt 0) {
                             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
-                        }
-                        else {
+                        } else {
                             try {
                                 Invoke-DryRunAction -Action {
                                     New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -ErrorAction Stop | Out-Null
                                     Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as 'Available' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                                 } -Description "deploy '$appDisplayName' as Available to collection '$masterInstallAvailableNameResolved'"
-                            }
-                            catch {
+                            } catch {
                                 if ($_.Exception.Message -match 'already been deployed') {
                                     Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
-                                }
-                                else {
+                                } else {
                                     throw
                                 }
                             }
                         }
-                    }
-                    else {
+                    } else {
                         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("No deployable application found for '{0}'. Deployment to master Available collection skipped." -f $CanonicalName)
                     }
-                }
-                else {
+                } else {
                     $dryRunAppName = $CanonicalName
                     if ($appForMasterDeploy) {
                         $dryRunAppName = [string](Get-ApplicationDisplayName -App $appForMasterDeploy)
                     }
                     Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would deploy '{0}' as 'Available' to collection '{1}'" -f $dryRunAppName, $masterInstallAvailableNameResolved)
                 }
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail "Master 'Available' collection does not exist or has no name."
             }
         }
@@ -3371,16 +3396,13 @@ function Update-MasterCollections {
                 Set-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallAvailable -DeploymentPurpose 'Available'
                 Set-MasterCollectionDeployment -Application $app -MasterCollection $masterInstallRequired -DeploymentPurpose 'Required'
                 Set-MasterCollectionDeployment -Application $app -MasterCollection $masterUninstall -DeploymentPurpose 'Uninstall' -DeploymentAction 'Uninstall'
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("No deployable application found for '{0}'. Skipping master collection deployment creation." -f $CanonicalName)
             }
-        }
-        else {
+        } else {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail '[DryRun] Would populate master collections with calculated members.'
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'ERROR' -Scope 'Collections' -Action 'Error' -Detail ("Update-MasterCollections failed during stage '{0}': {1}" -f $populationStage, $_.Exception.Message)
         return
     }
@@ -3406,12 +3428,10 @@ function Find-TaskSequencesReferencingApp {
             try {
                 # Use -Fast to avoid loading lazy properties and suppress warnings in newer CM environments.
                 $taskSequences = @(Get-CMTaskSequence -Fast -ErrorAction SilentlyContinue)
-            }
-            catch {
+            } catch {
                 try {
                     $taskSequences = @(Get-CMTaskSequence -ErrorAction SilentlyContinue)
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Warning' -Detail ("Could not retrieve task sequences: {0}" -f $_.Exception.Message)
                     $taskSequences = @()
                 }
@@ -3478,8 +3498,7 @@ function Find-TaskSequencesReferencingApp {
                                 & $addToCache ([string]$ciNode.InnerText)
                             }
                         }
-                    }
-                    catch {
+                    } catch {
                         Write-Verbose 'Failed to parse task sequence XML while building application reference cache.'
                     }
                 }
@@ -3527,8 +3546,7 @@ function Find-TaskSequencesReferencingApp {
         }
 
         return @($results)
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Applications' -Action 'Warning' -Detail ("Task sequence reference lookup failed for CI_ID='{0}', ModelName='{1}': {2}" -f ([string]$AppCI_ID), ([string]$AppModelName), $_.Exception.Message)
         return @()
     }
@@ -3545,9 +3563,9 @@ function Find-TaskSequencesReferencingApp {
 function Set-ApplicationSupersedenceLink {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal supersedence helper. Confirmation is coordinated by the script entry point.')]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         $OlderApp,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         $NewerApp
     )
 
@@ -3593,8 +3611,7 @@ function Set-ApplicationSupersedenceLink {
                     if ($resolved -and @($resolved).Count -gt 0) {
                         return @($resolved)[0]
                     }
-                }
-                catch {
+                } catch {
                     Write-Verbose 'A deployment type resolution attempt failed; continuing with fallback parameter sets.'
                 }
             }
@@ -3628,19 +3645,19 @@ function Set-ApplicationSupersedenceLink {
     if (($paramNames -contains 'InputObject') -and ($paramNames -contains 'SupersededApplicationId')) {
         if (($paramNames -contains 'CurrentDeploymentTypeId') -and ($paramNames -contains 'OldDeploymentTypeId') -and $newerDtId -and $olderDtId) {
             $attempts += [pscustomobject]@{
-                Label = 'InputObject+SupersededApplicationId+CurrentDeploymentTypeId+OldDeploymentTypeId'
+                Label  = 'InputObject+SupersededApplicationId+CurrentDeploymentTypeId+OldDeploymentTypeId'
                 Action = { & $cmd -InputObject $NewerApp -SupersededApplicationId $OlderApp.CI_ID -CurrentDeploymentTypeId $newerDtId -OldDeploymentTypeId $olderDtId -Force -ErrorAction Stop }
             }
         }
         if (($paramNames -contains 'CurrentDeploymentTypeName') -and ($paramNames -contains 'OldDeploymentTypeName') -and $newerDtName -and $olderDtName) {
             $attempts += [pscustomobject]@{
-                Label = 'InputObject+SupersededApplicationId+CurrentDeploymentTypeName+OldDeploymentTypeName'
+                Label  = 'InputObject+SupersededApplicationId+CurrentDeploymentTypeName+OldDeploymentTypeName'
                 Action = { & $cmd -InputObject $NewerApp -SupersededApplicationId $OlderApp.CI_ID -CurrentDeploymentTypeName $newerDtName -OldDeploymentTypeName $olderDtName -Force -ErrorAction Stop }
             }
         }
         if (($paramNames -contains 'CurrentDeploymentType') -and ($paramNames -contains 'OldDeploymentType') -and $newerDt -and $olderDt) {
             $attempts += [pscustomobject]@{
-                Label = 'InputObject+SupersededApplicationId+CurrentDeploymentType+OldDeploymentType'
+                Label  = 'InputObject+SupersededApplicationId+CurrentDeploymentType+OldDeploymentType'
                 Action = { & $cmd -InputObject $NewerApp -SupersededApplicationId $OlderApp.CI_ID -CurrentDeploymentType $newerDt -OldDeploymentType $olderDt -Force -ErrorAction Stop }
             }
         }
@@ -3649,19 +3666,19 @@ function Set-ApplicationSupersedenceLink {
     # Fallback sets (for environments that do not require deployment type arguments).
     if (($paramNames -contains 'InputObject') -and ($paramNames -contains 'SupersededApplicationId')) {
         $attempts += [pscustomobject]@{
-            Label = 'InputObject+SupersededApplicationId'
+            Label  = 'InputObject+SupersededApplicationId'
             Action = { & $cmd -InputObject $NewerApp -SupersededApplicationId $OlderApp.CI_ID -Force -ErrorAction Stop }
         }
     }
     if (($paramNames -contains 'Id') -and ($paramNames -contains 'SupersededApplicationId')) {
         $attempts += [pscustomobject]@{
-            Label = 'Id+SupersededApplicationId'
+            Label  = 'Id+SupersededApplicationId'
             Action = { & $cmd -Id $NewerApp.CI_ID -SupersededApplicationId $OlderApp.CI_ID -Force -ErrorAction Stop }
         }
     }
     if (($paramNames -contains 'Name') -and ($paramNames -contains 'SupersededApplicationName')) {
         $attempts += [pscustomobject]@{
-            Label = 'Name+SupersededApplicationName'
+            Label  = 'Name+SupersededApplicationName'
             Action = { & $cmd -Name $NewerApp.LocalizedDisplayName -SupersededApplicationName $OlderApp.LocalizedDisplayName -Force -ErrorAction Stop }
         }
     }
@@ -3676,8 +3693,7 @@ function Set-ApplicationSupersedenceLink {
             & $attempt.Action
             Write-LogEvent -Level 'DEBUG' -Scope 'Supersedence' -Action 'Debug' -Detail ("Applied supersedence for '{0}' -> '{1}' with params: {2}" -f $OlderApp.LocalizedDisplayName, $NewerApp.LocalizedDisplayName, $attempt.Label)
             return $true
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Supersedence' -Action 'Debug' -Detail ("Could not apply supersedence for '{0}' -> '{1}' with params {2}: {3}" -f $OlderApp.LocalizedDisplayName, $NewerApp.LocalizedDisplayName, $attempt.Label, $_.Exception.Message)
         }
     }
@@ -3704,11 +3720,11 @@ function Set-SupersedenceAndDeployments {
         [string]$SoftwareName,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ManageSupersedence
+        [bool]$ManageSupersedence = $true
     )
 
     if (-not $ManageSupersedence) {
-        Write-LogEvent -Level 'INFO' -Scope 'Supersedence' -Action 'Skipped' -Detail 'ManageSupersedence not specified.'
+        Write-LogEvent -Level 'INFO' -Scope 'Supersedence' -Action 'Skipped' -Detail 'ManageSupersedence is disabled.'
         return
     }
 
@@ -3743,7 +3759,7 @@ function Set-SupersedenceAndDeployments {
         $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
         if (-not $entryApp) { continue }
 
-        $entryName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName','Name'))
+        $entryName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName', 'Name'))
         if ([string]::IsNullOrWhiteSpace($entryName)) {
             $entryName = '[Unnamed application]'
         }
@@ -3781,7 +3797,7 @@ function Set-SupersedenceAndDeployments {
         # Create adjacent pairs (older -> newer) to form a linear supersedence
         # chain that is easy to reason about and troubleshoot.
         $olderEntry = $chainEntries[$i]
-        $newerEntry = $chainEntries[$i+1]
+        $newerEntry = $chainEntries[$i + 1]
         $older = $olderEntry.App
         $newer = $newerEntry.App
 
@@ -3793,12 +3809,10 @@ function Set-SupersedenceAndDeployments {
                 }
 
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Supersedence' -Action 'Linked' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.DisplayName, $olderEntry.DisplayName)
-            }
-            else {
+            } else {
                 Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would link supersedence' -Detail (("'{0}' supersedes '{1}'") -f $newerEntry.DisplayName, $olderEntry.DisplayName)
             }
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'WARN' -Scope 'Supersedence' -Action 'Link failed' -Detail (("'{0}' -> '{1}' | {2}") -f $olderEntry.DisplayName, $newerEntry.DisplayName, $_.Exception.Message)
         }
     }
@@ -3890,8 +3904,7 @@ function Remove-Deployment-Robust {
                 $freshDeployment = Get-CMDeployment -DeploymentId $deploymentId -ErrorAction Stop
                 if ($null -ne $freshDeployment) {
                     Remove-CMDeployment -InputObject $freshDeployment -Force -Confirm:$false -WarningAction SilentlyContinue -ErrorAction Stop
-                }
-                else {
+                } else {
                     throw "Could not retrieve fresh deployment object for ID: $deploymentId"
                 }
             }
@@ -3927,8 +3940,7 @@ function Remove-Deployment-Robust {
         if (-not $DryRun) {
             Write-LogEvent -Level 'SUCCESS' -Scope 'Deployments' -Action 'Success' -Detail ("Deleted deployment: {0} (Collection: {1})" -f ($deploymentId -as [string]), ($collectionName -as [string]))
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Deployments' -Action 'Warning' -Detail ("Could not delete deployment {0}: {1}" -f ($deploymentId -as [string]), $_.Exception.Message)
         if ($_.ScriptStackTrace) {
             Write-LogEvent -Level 'DEBUG' -Scope 'Deployments' -Action 'Debug' -Detail ("Stack: {0}" -f $_.ScriptStackTrace)
@@ -4070,11 +4082,11 @@ function Get-CollectionDependencySnapshot {
         }
 
         [void]$limitingDependents.Add([pscustomobject]@{
-            CollectionID           = $limitingDependent.CollectionID
-            Name                   = $limitingDependent.Name
-            LimitingCollectionId   = $targetCollectionId
-            LimitingCollectionName = $limitingCollectionName
-        })
+                CollectionID           = $limitingDependent.CollectionID
+                Name                   = $limitingDependent.Name
+                LimitingCollectionId   = $targetCollectionId
+                LimitingCollectionName = $limitingCollectionName
+            })
     }
 
     return [pscustomobject]@{
@@ -4192,8 +4204,7 @@ function Remove-CollectionIncludeDependencyRule {
         }
 
         return $true
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Dependencies' -Action 'Warning' -Detail ("Could not remove include dependency from '{0}' to '{1}': {2}" -f $dependentCollectionName, $targetCollectionName, $_.Exception.Message)
         return $false
     }
@@ -4265,8 +4276,7 @@ function Remove-CollectionExcludeDependencyRule {
         }
 
         return $true
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Dependencies' -Action 'Warning' -Detail ("Could not remove exclude dependency from '{0}' to '{1}': {2}" -f $dependentCollectionName, $targetCollectionName, $_.Exception.Message)
         return $false
     }
@@ -4343,8 +4353,7 @@ function Set-CollectionLimitingDependency {
         }
 
         return $true
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Dependencies' -Action 'Warning' -Detail ("Could not reassign limiting collection for '{0}' to '{1}': {2}" -f $dependentCollectionName, $NewLimitingCollectionName, $_.Exception.Message)
         return $false
     }
@@ -4394,8 +4403,7 @@ function Resolve-CollectionDeleteDependencies {
                 }
             }
         }
-    }
-    elseif ($initialSnapshot.IncludeDependents.Count -gt 0 -or $initialSnapshot.ExcludeDependents.Count -gt 0) {
+    } elseif ($initialSnapshot.IncludeDependents.Count -gt 0 -or $initialSnapshot.ExcludeDependents.Count -gt 0) {
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Collection membership dependency cleanup is disabled. Include/exclude references to '{0}' will only be logged." -f $targetCollectionName)
     }
 
@@ -4411,8 +4419,7 @@ function Resolve-CollectionDeleteDependencies {
                     }
                 }
             }
-        }
-        else {
+        } else {
             Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Limiting collection reassignment is disabled. Collections limited by '{0}' will remain blockers until -ReassignLimitingCollectionDependencies is used." -f $targetCollectionName)
         }
     }
@@ -4484,12 +4491,12 @@ function Remove-Collection-Robust {
 
     try {
         $dependencyReasons = @()
-        
+
         # PHASE 1: Attempt direct membership rule cleanup (optional; may fail in some SCCM versions).
         # Skip if Get-CMCollectionMembershipRule is unavailable or fails.
         try {
             Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Attempting membership rule cleanup for collection '{0}' ({1})." -f ($collectionName -as [string]), ($collectionId -as [string]))
-            
+
             if (-not [string]::IsNullOrWhiteSpace(($collectionId -as [string]))) {
                 # Try to query the collection object itself for include/exclude rules stored in its RuleType property.
                 # This avoids the problematic Get-CMCollectionMembershipRule cmdlet.
@@ -4502,26 +4509,23 @@ function Remove-Collection-Robust {
                             Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Found provider collection object for '{0}' ({1}), attempting rule enumeration." -f ($collectionName -as [string]), ($collectionId -as [string]))
                         }
                     }
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Skipped membership rule query for '{0}' ({1}): {2}" -f ($collectionName -as [string]), ($collectionId -as [string]), $_.Exception.Message)
                 }
             }
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Membership rule cleanup phase skipped for '{0}' ({1}): {2}" -f ($collectionName -as [string]), ($collectionId -as [string]), $_.Exception.Message)
         }
-        
+
         # PHASE 2: Run the original dependency resolution (more reliable; handles include/exclude cleanup).
         try {
             Write-LogEvent -Level 'DEBUG' -Scope 'Dependencies' -Action 'Debug' -Detail ("Running dependency resolution for collection '{0}' ({1})." -f ($collectionName -as [string]), ($collectionId -as [string]))
-            
+
             $dependencyResolution = Resolve-CollectionDeleteDependencies -TargetCollection $collectionObject
             if ($dependencyResolution -and $dependencyResolution.RemainingReasons) {
                 $dependencyReasons = @($dependencyResolution.RemainingReasons)
             }
-        }
-        catch {
+        } catch {
             $dependencyErrorMessage = [string]$_.Exception.Message
             $dependencyLogLevel = 'WARN'
             $dependencyAction = 'Warning'
@@ -4553,9 +4557,9 @@ function Remove-Collection-Robust {
             $allDeployments = Get-CachedAllDeployments
             if ($allDeployments.Count -gt 0) {
                 $byTargetId = @($allDeployments | Where-Object {
-                    $targetCollectionId = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('TargetCollectionID', 'CollectionID', 'CollectionId')
-                    [string]$targetCollectionId -eq [string]$collectionId
-                })
+                        $targetCollectionId = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('TargetCollectionID', 'CollectionID', 'CollectionId')
+                        [string]$targetCollectionId -eq [string]$collectionId
+                    })
 
                 if ($byTargetId.Count -gt 0) {
                     $deploymentCandidates += $byTargetId
@@ -4606,15 +4610,15 @@ function Remove-Collection-Robust {
         if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
             # Explicit string cast to prevent "Argument types do not match" errors
             $collectionIdStr = [string]$collectionId
-            
+
             # Attempt with fresh fetch - sometimes cached objects have type issues
-            $attempts += { 
+            $attempts += {
                 $freshCollection = Get-CMDeviceCollection -CollectionId $collectionIdStr -ErrorAction Stop
                 if ($freshCollection) {
                     Remove-CMDeviceCollection -InputObject $freshCollection -Force -Confirm:$false -ErrorAction Stop
                 }
             }
-            
+
             $attempts += { Remove-CMDeviceCollection -CollectionId $collectionIdStr -Force -Confirm:$false -ErrorAction Stop }
             $attempts += { Remove-CMCollection -CollectionId $collectionIdStr -Force -Confirm:$false -ErrorAction Stop }
         }
@@ -4622,15 +4626,15 @@ function Remove-Collection-Robust {
         if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
             # Explicit string cast to prevent "Argument types do not match" errors
             $collectionNameStr = [string]$collectionName
-            
+
             # Attempt with fresh fetch - sometimes cached objects have type issues
-            $attempts += { 
+            $attempts += {
                 $freshCollection = Get-CMDeviceCollection -Name $collectionNameStr -ErrorAction Stop
                 if ($freshCollection) {
                     Remove-CMDeviceCollection -InputObject $freshCollection -Force -Confirm:$false -ErrorAction Stop
                 }
             }
-            
+
             $attempts += { Remove-CMDeviceCollection -Name $collectionNameStr -Force -Confirm:$false -ErrorAction Stop }
             $attempts += { Remove-CMCollection -Name $collectionNameStr -Force -Confirm:$false -ErrorAction Stop }
         }
@@ -4665,16 +4669,13 @@ function Remove-Collection-Robust {
                         try {
                             Invoke-SmsProviderDelete -InputObject $providerTarget
                             $removed = $true
-                        }
-                        catch {
+                        } catch {
                             [void]$attemptErrors.Add(("Provider direct delete failed: {0}" -f $_.Exception.Message))
                         }
-                    }
-                    else {
+                    } else {
                         [void]$attemptErrors.Add('Provider lookup returned no collection object (tried both DeviceCollection and Collection classes).')
                     }
-                }
-                catch {
+                } catch {
                     [void]$attemptErrors.Add(("Provider delete attempt failed: {0}" -f $_.Exception.Message))
                 }
             }
@@ -4686,8 +4687,7 @@ function Remove-Collection-Robust {
                     & $attempt
                     $removed = $true
                     break
-                }
-                catch {
+                } catch {
                     $msg = $_.Exception.Message
                     if (-not [string]::IsNullOrWhiteSpace($msg)) {
                         [void]$attemptErrors.Add($msg)
@@ -4700,7 +4700,7 @@ function Remove-Collection-Robust {
                 try {
                     $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
                     $collectionIdStr = [string]$collectionId
-                    
+
                     $providerCollection = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_DeviceCollection' -Filter ("CollectionID='{0}'" -f $collectionIdStr) | Select-Object -First 1)
 
                     if ($providerCollection.Count -eq 0) {
@@ -4713,16 +4713,13 @@ function Remove-Collection-Robust {
                         try {
                             Invoke-SmsProviderDelete -InputObject $providerTarget
                             $removed = $true
-                        }
-                        catch {
+                        } catch {
                             [void]$attemptErrors.Add(("Provider fallback delete failed: {0}" -f $_.Exception.Message))
                         }
-                    }
-                    else {
+                    } else {
                         [void]$attemptErrors.Add('Provider lookup returned no collection object (tried both DeviceCollection and Collection classes).')
                     }
-                }
-                catch {
+                } catch {
                     [void]$attemptErrors.Add(("Provider fallback failed: {0}" -f $_.Exception.Message))
                 }
             }
@@ -4741,8 +4738,7 @@ function Remove-Collection-Robust {
         if (-not $DryRun) {
             Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deleted collection: {0} ({1})" -f ($collectionName -as [string]), ($collectionId -as [string]))
         }
-    }
-    catch {
+    } catch {
         Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not delete collection '{0}' ({1}): {2}" -f ($collectionName -as [string]), ($collectionId -as [string]), $_.Exception.Message)
 
         [void]$failedCollections.Add(
@@ -4799,6 +4795,308 @@ function Test-PermanentAppDeletionError {
 # ------------------------------------------------------------
 # REMOVE EMPTY FOLDERS UNDER APPLICATION DEPLOYMENT
 # ------------------------------------------------------------
+
+<#!
+.SYNOPSIS
+    Resolves deterministic Application Deployment folder cleanup candidates.
+
+.DESCRIPTION
+    Uses collection metadata plus SMS_ObjectContainer mappings to determine
+    folder paths tied to collections that are scheduled for deletion.
+#>
+function Get-CollectionFolderCleanupCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode,
+
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [object[]]$Collections
+    )
+
+    $rootPathNoDrive = 'DeviceCollection\Application Deployment'
+    $results = New-Object System.Collections.Generic.HashSet[string]
+
+    $normalizeCmFolderPath = {
+        param(
+            [Parameter(Mandatory = $false)]
+            [AllowNull()]
+            [string]$Path
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Path)) {
+            return ''
+        }
+
+        $normalized = [string]$Path
+        $normalized = $normalized.Trim()
+        $normalized = $normalized -replace '/', '\\'
+        $normalized = $normalized -replace '\\\\+', '\\'
+        $normalized = $normalized -replace '^[^:]+:\\?', ''
+        $normalized = $normalized.TrimStart('\\').TrimEnd('\\')
+        return $normalized
+    }
+
+    $addCandidatePath = {
+        param(
+            [Parameter(Mandatory = $false)]
+            [AllowNull()]
+            [string]$Path
+        )
+
+        $normalized = [string](& $normalizeCmFolderPath $Path)
+        if ([string]::IsNullOrWhiteSpace($normalized)) {
+            return
+        }
+
+        $normalizedLower = $normalized.ToLowerInvariant()
+        $rootLower = $rootPathNoDrive.ToLowerInvariant()
+        $rootIndex = $normalizedLower.IndexOf($rootLower)
+        if ($rootIndex -lt 0) {
+            return
+        }
+
+        $relative = $normalized.Substring($rootIndex).TrimEnd('\\')
+        if ($relative.ToLowerInvariant() -eq $rootLower) {
+            return
+        }
+
+        [void]$results.Add($relative)
+    }
+
+    foreach ($collection in @($Collections)) {
+        if (-not $collection) {
+            continue
+        }
+
+        $collectionPathCandidates = @(
+            [string](Get-ObjectPropertyValue -InputObject $collection -PropertyNames @('FolderPath', 'Path', 'ContainerNodePath', 'ObjectPath'))
+        )
+
+        foreach ($candidatePath in $collectionPathCandidates) {
+            & $addCandidatePath $candidatePath
+        }
+    }
+
+    try {
+        $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+        $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode')
+        $nodesById = @{}
+
+        foreach ($node in $containerNodes) {
+            if (-not $node) { continue }
+            $nodeId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+            if ([string]::IsNullOrWhiteSpace($nodeId)) { continue }
+            if (-not $nodesById.ContainsKey($nodeId)) {
+                $nodesById[$nodeId] = $node
+            }
+        }
+
+        foreach ($collection in @($Collections)) {
+            if (-not $collection) { continue }
+
+            $identity = Get-CollectionIdentity -InputObject $collection
+            $collectionId = [string]$identity.Id
+            if ([string]::IsNullOrWhiteSpace($collectionId)) {
+                continue
+            }
+
+            $escapedCollectionId = $collectionId.Replace("'", "''")
+            $containerItems = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerItem' -Filter ("ObjectType = 5000 AND InstanceKey = '{0}'" -f $escapedCollectionId))
+
+            foreach ($item in $containerItems) {
+                if (-not $item) { continue }
+
+                $nodeId = [string](Get-ObjectPropertyValue -InputObject $item -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'ObjectContainerNodeID', 'ObjectContainerNodeId'))
+                if ([string]::IsNullOrWhiteSpace($nodeId)) {
+                    continue
+                }
+
+                if (-not $nodesById.ContainsKey($nodeId)) {
+                    continue
+                }
+
+                $nameChain = New-Object System.Collections.Generic.List[string]
+                $visited = New-Object System.Collections.Generic.HashSet[string]
+                $current = $nodesById[$nodeId]
+
+                while ($current) {
+                    $currentId = [string](Get-ObjectPropertyValue -InputObject $current -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+                    if ([string]::IsNullOrWhiteSpace($currentId)) { break }
+                    if (-not $visited.Add($currentId)) { break }
+
+                    $currentName = [string](Get-ObjectPropertyValue -InputObject $current -PropertyNames @('Name'))
+                    if (-not [string]::IsNullOrWhiteSpace($currentName)) {
+                        [void]$nameChain.Add($currentName)
+                    }
+
+                    $parentId = [string](Get-ObjectPropertyValue -InputObject $current -PropertyNames @('ParentContainerNodeId', 'ParentContainerNodeID'))
+                    if ([string]::IsNullOrWhiteSpace($parentId) -or $parentId -eq '0') {
+                        break
+                    }
+
+                    if (-not $nodesById.ContainsKey($parentId)) {
+                        break
+                    }
+
+                    $current = $nodesById[$parentId]
+                }
+
+                if ($nameChain.Count -eq 0) {
+                    continue
+                }
+
+                $orderedNames = @($nameChain.ToArray())
+                [array]::Reverse($orderedNames)
+                $candidatePath = ('DeviceCollection\{0}' -f ($orderedNames -join '\\'))
+                & $addCandidatePath $candidatePath
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Could not resolve provider-based collection folder cleanup candidates: {0}" -f $_.Exception.Message)
+    }
+
+    return @(@($results) | Sort-Object -Unique)
+}
+
+<#!
+.SYNOPSIS
+    Removes deterministic folder cleanup candidates and parent chain paths.
+
+.DESCRIPTION
+    Deletes known candidate folders first, then attempts parent folders up to the
+    Application Deployment root while honoring preserve paths.
+#>
+function Remove-KnownApplicationDeploymentFolders {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal cleanup helper. Confirmation is coordinated by the top-level workflow and DryRun wrapper.')]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode,
+
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [string[]]$FolderPaths,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$PreserveFolderPaths = @()
+    )
+
+    $rootPathNoDrive = 'DeviceCollection\Application Deployment'
+
+    $normalizeCmFolderPath = {
+        param(
+            [Parameter(Mandatory = $false)]
+            [AllowNull()]
+            [string]$Path
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Path)) {
+            return ''
+        }
+
+        $normalized = [string]$Path
+        $normalized = $normalized.Trim()
+        $normalized = $normalized -replace '/', '\\'
+        $normalized = $normalized -replace '\\\\+', '\\'
+        $normalized = $normalized -replace '^[^:]+:\\?', ''
+        $normalized = $normalized.TrimStart('\\').TrimEnd('\\')
+        return $normalized
+    }
+
+    $normalizedPreservePaths = @($PreserveFolderPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+            ([string](& $normalizeCmFolderPath ([string]$_))).ToLowerInvariant()
+        } | Sort-Object -Unique)
+
+    $plannedPaths = New-Object System.Collections.Generic.HashSet[string]
+
+    foreach ($folderPath in @($FolderPaths)) {
+        $normalizedPath = [string](& $normalizeCmFolderPath $folderPath)
+        if ([string]::IsNullOrWhiteSpace($normalizedPath)) {
+            continue
+        }
+
+        $normalizedLower = $normalizedPath.ToLowerInvariant()
+        $rootLower = $rootPathNoDrive.ToLowerInvariant()
+        $rootIndex = $normalizedLower.IndexOf($rootLower)
+        if ($rootIndex -lt 0) {
+            continue
+        }
+
+        $relativePath = $normalizedPath.Substring($rootIndex).TrimEnd('\\')
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            continue
+        }
+
+        if ($relativePath.ToLowerInvariant() -eq $rootLower) {
+            continue
+        }
+
+        $currentPath = $relativePath
+        while (-not [string]::IsNullOrWhiteSpace($currentPath)) {
+            if ($currentPath.ToLowerInvariant() -eq $rootLower) {
+                break
+            }
+
+            [void]$plannedPaths.Add($currentPath)
+            $lastSlash = $currentPath.LastIndexOf('\\')
+            if ($lastSlash -le 0) {
+                break
+            }
+
+            $currentPath = $currentPath.Substring(0, $lastSlash)
+        }
+    }
+
+    $sortedCleanupPaths = @($plannedPaths.ToArray() | Sort-Object {
+            $_.Split('\\').Count
+        } -Descending)
+
+    if ($sortedCleanupPaths.Count -eq 0) {
+        Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail 'No deterministic folder cleanup candidates were generated from collection delete plan.'
+        return
+    }
+
+    Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Deterministic folder cleanup candidates: {0}" -f $sortedCleanupPaths.Count)
+
+    foreach ($pathNoDrive in $sortedCleanupPaths) {
+        if ([string]::IsNullOrWhiteSpace($pathNoDrive)) {
+            continue
+        }
+
+        $pathKey = $pathNoDrive.ToLowerInvariant()
+        if ($normalizedPreservePaths -contains $pathKey) {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Skipping preserved folder from deterministic cleanup: {0}" -f $pathNoDrive)
+            continue
+        }
+
+        $siteQualifiedPath = ("{0}:\{1}" -f $SiteCode, $pathNoDrive)
+        $leadingSlashPath = ("\{0}" -f $pathNoDrive)
+
+        $removeAttempts = @(
+            { Remove-CMFolder -FolderPath $siteQualifiedPath -Force -ErrorAction Stop | Out-Null },
+            { Remove-CMFolder -Path $siteQualifiedPath -Force -ErrorAction Stop | Out-Null },
+            { Remove-CMFolder -FolderPath $pathNoDrive -Force -ErrorAction Stop | Out-Null },
+            { Remove-CMFolder -Path $pathNoDrive -Force -ErrorAction Stop | Out-Null },
+            { Remove-CMFolder -FolderPath $leadingSlashPath -Force -ErrorAction Stop | Out-Null },
+            { Remove-CMFolder -Path $leadingSlashPath -Force -ErrorAction Stop | Out-Null }
+        )
+
+        try {
+            Invoke-DryRunAction -Action {
+                $result = Invoke-CmCommandWithFallback -Attempts $removeAttempts -ActionName 'Remove-CMFolder (deterministic cleanup)'
+                if (-not $result.Success) {
+                    throw ("No supported Remove-CMFolder argument set succeeded for deterministic path '{0}'." -f $pathNoDrive)
+                }
+            } -Description ("delete deterministic empty folder '{0}'" -f $siteQualifiedPath)
+
+            if (-not $DryRun) {
+                Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Deleted deterministic folder candidate: {0}" -f $siteQualifiedPath)
+            }
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Deterministic folder cleanup skipped for '{0}': {1}" -f $siteQualifiedPath, $_.Exception.Message)
+        }
+    }
+}
 
 <#
 .SYNOPSIS
@@ -4917,8 +5215,8 @@ function Remove-EmptyApplicationDeploymentFolders {
     }
 
     $normalizedPreservePaths = @($PreserveFolderPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
-        ([string](& $normalizeCmFolderPath ([string]$_))).ToLowerInvariant()
-    } | Sort-Object -Unique)
+            ([string](& $normalizeCmFolderPath ([string]$_))).ToLowerInvariant()
+        } | Sort-Object -Unique)
 
     Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Scanning for empty folders under: {0}" -f $rootPath)
     if ($normalizedPreservePaths.Count -gt 0) {
@@ -4945,37 +5243,35 @@ function Remove-EmptyApplicationDeploymentFolders {
                 $allFolders += $result
                 Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Folder query returned {0} folder(s)." -f $result.Count)
             }
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Folder query attempt failed: {0}" -f $_.Exception.Message)
         }
     }
 
     if (-not $allFolders -or $allFolders.Count -eq 0) {
         Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail "No folders found under Application Deployment root. Attempting manual recursive discovery..."
-        
+
         # Manual recursive folder discovery by querying each folder path level
         try {
             $queue = @($rootPath)
             $discoveredFolders = @()
-            
+
             while ($queue.Count -gt 0) {
                 $currentPath = $queue[0]
                 if ($queue.Count -gt 1) {
                     $queue = @($queue[1..($queue.Count - 1)])
-                }
-                else {
+                } else {
                     $queue = @()
                 }
-                
+
                 Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Querying children of: {0}" -f $currentPath)
-                
+
                 try {
                     $childFolders = @(Get-CMFolder -FolderPath $currentPath -ErrorAction Stop)
                     if ($childFolders -and $childFolders.Count -gt 0) {
                         Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Found {0} child folder(s) under {1}" -f $childFolders.Count, $currentPath)
                         $discoveredFolders += $childFolders
-                        
+
                         # Add child folders to queue for recursive discovery
                         foreach ($child in $childFolders) {
                             $childFolderPath = [string](& $resolveFolderPath $child)
@@ -4984,15 +5280,13 @@ function Remove-EmptyApplicationDeploymentFolders {
                             }
                         }
                     }
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Could not query children of {0}: {1}" -f $currentPath, $_.Exception.Message)
                 }
             }
-            
+
             $allFolders = @($discoveredFolders)
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Manual recursive discovery failed: {0}" -f $_.Exception.Message)
         }
     }
@@ -5027,6 +5321,21 @@ function Remove-EmptyApplicationDeploymentFolders {
             continue
         }
 
+        $isEmptyValue = Get-ObjectPropertyValue -InputObject $folder -PropertyNames @('IsEmpty')
+        $isEmptyResolved = $null
+        if ($null -ne $isEmptyValue -and -not [string]::IsNullOrWhiteSpace(($isEmptyValue -as [string]))) {
+            try {
+                $isEmptyInt = 0
+                if ([int]::TryParse([string]$isEmptyValue, [ref]$isEmptyInt)) {
+                    $isEmptyResolved = ($isEmptyInt -eq 1)
+                } else {
+                    $isEmptyResolved = [bool]$isEmptyValue
+                }
+            } catch {
+                $isEmptyResolved = $null
+            }
+        }
+
         $rawPath = [string](& $resolveFolderPath $folder)
         if ([string]::IsNullOrWhiteSpace($rawPath)) {
             continue
@@ -5057,6 +5366,8 @@ function Remove-EmptyApplicationDeploymentFolders {
             $uniqueFoldersByPath[$normalizedPathKey] = [pscustomobject]@{
                 FolderObject = $folder
                 RawPath      = $rawPath
+                IsEmptyKnown = ($null -ne $isEmptyResolved)
+                IsEmpty      = $isEmptyResolved
             }
         }
     }
@@ -5170,8 +5481,7 @@ function Remove-EmptyApplicationDeploymentFolders {
                     }
                 }
             }
-        }
-        catch {
+        } catch {
             Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Provider fallback query for SMS_ObjectContainerNode failed: {0}" -f $_.Exception.Message)
         }
 
@@ -5196,7 +5506,7 @@ function Remove-EmptyApplicationDeploymentFolders {
             }
 
             $sampleValues = @()
-            foreach ($propName in @('Name','FolderPath','Path','ContainerNodePath','ObjectPath','InstanceKey','ParentContainerNodeId','ContainerNodeId','ObjectTypeName')) {
+            foreach ($propName in @('Name', 'FolderPath', 'Path', 'ContainerNodePath', 'ObjectPath', 'InstanceKey', 'ParentContainerNodeId', 'ContainerNodeId', 'ObjectTypeName')) {
                 try {
                     $prop = $sampleFolder.PSObject.Properties[$propName]
                     if ($prop) {
@@ -5205,8 +5515,7 @@ function Remove-EmptyApplicationDeploymentFolders {
                             $sampleValues += ("{0}={1}" -f $propName, $value)
                         }
                     }
-                }
-                catch {
+                } catch {
                     Write-Verbose ("Failed to sample folder object property [{0}]." -f $propName)
                 }
             }
@@ -5222,9 +5531,25 @@ function Remove-EmptyApplicationDeploymentFolders {
     Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Discovered {0} candidate folder(s) under Application Deployment." -f $allSubfolders.Count)
 
     # Sort deepest path first so child folders are removed before parents.
-    $sortedFolders = $allSubfolders | Sort-Object {
-        ([string](& $normalizeCmFolderPath $_.RawPath)).Split('\\').Count
-    } -Descending
+    $sortedFolders = $allSubfolders | Sort-Object -Property @(
+        @{ Expression     = {
+                $isKnownEmpty = $false
+                try {
+                    if ($_.PSObject.Properties['IsEmpty']) {
+                        $isKnownEmpty = ($_.IsEmpty -eq $true)
+                    }
+                } catch {
+                    $isKnownEmpty = $false
+                }
+
+                if ($isKnownEmpty) { 0 } else { 1 }
+            }; Descending = $false
+        },
+        @{ Expression     = {
+                ([string](& $normalizeCmFolderPath $_.RawPath)).Split('\\').Count
+            }; Descending = $true
+        }
+    )
 
     foreach ($folderEntry in $sortedFolders) {
         if (-not $folderEntry) {
@@ -5241,17 +5566,45 @@ function Remove-EmptyApplicationDeploymentFolders {
                 Invoke-DryRunAction -Action {
                     Invoke-SmsProviderDelete -InputObject $folderEntry.Node
                 } -Description "delete empty folder '$folderPath' via provider"
-            }
-            else {
+            } else {
+                $normalizedFolderPath = [string](& $normalizeCmFolderPath $folderPath)
+                $folderPathWithoutDrive = $normalizedFolderPath -replace '^[^:]+:\\', ''
+                $folderPathWithoutDrive = $folderPathWithoutDrive -replace '^[\\]+', ''
+
+                $removeAttempts = @(
+                    { Remove-CMFolder -FolderPath $folderPath -Force -ErrorAction Stop | Out-Null },
+                    { Remove-CMFolder -Path $folderPath -Force -ErrorAction Stop | Out-Null },
+                    { Remove-CMFolder -FolderPath $normalizedFolderPath -Force -ErrorAction Stop | Out-Null },
+                    { Remove-CMFolder -Path $normalizedFolderPath -Force -ErrorAction Stop | Out-Null }
+                )
+
+                if (-not [string]::IsNullOrWhiteSpace($folderPathWithoutDrive)) {
+                    $removeAttempts += {
+                        Remove-CMFolder -FolderPath $folderPathWithoutDrive -Force -ErrorAction Stop | Out-Null
+                    }
+                    $removeAttempts += {
+                        Remove-CMFolder -Path $folderPathWithoutDrive -Force -ErrorAction Stop | Out-Null
+                    }
+                }
+
+                if ($folderEntry.PSObject.Properties['FolderObject'] -and $folderEntry.FolderObject) {
+                    $folderInputObject = $folderEntry.FolderObject
+                    $removeAttempts += {
+                        Remove-CMFolder -InputObject $folderInputObject -Force -ErrorAction Stop | Out-Null
+                    }
+                }
+
                 Invoke-DryRunAction -Action {
-                    Remove-CMFolder -FolderPath $folderPath -Force -ErrorAction Stop
+                    $removeResult = Invoke-CmCommandWithFallback -Attempts $removeAttempts -ActionName 'Remove-CMFolder (empty cleanup)'
+                    if (-not $removeResult.Success) {
+                        throw ("No supported Remove-CMFolder argument set succeeded for path '{0}'." -f $folderPath)
+                    }
                 } -Description "delete empty folder '$folderPath'"
             }
             if (-not $DryRun) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Deleted empty folder: {0}" -f $folderPath)
             }
-        }
-        catch {
+        } catch {
             # Expected for non-empty folders; keep as DEBUG to avoid noisy logs.
             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Skipping non-empty/protected folder '{0}': {1}" -f $folderPath, $_.Exception.Message)
         }
@@ -5283,14 +5636,14 @@ function Invoke-CleanupPlan {
         $AllCollections,
 
         [Parameter(Mandatory = $false)]
-        [switch]$DeleteOldCollections
+        [bool]$DeleteOldCollections = $true
     )
 
     $cleanupStage = 'initialization'
 
     try {
         if (-not $DeleteOldCollections) {
-            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Skipped' -Detail 'DeleteOldCollections not specified.'
+            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Skipped' -Detail 'DeleteOldCollections is disabled.'
             return
         }
 
@@ -5323,8 +5676,7 @@ function Invoke-CleanupPlan {
                 Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Migration target inferred' -Detail ("Target '{0}' is inferred from application metadata and is not version-confirmed. Review before allowing deployment migration and cleanup deletes." -f $migrationTargetDisplayName)
             }
             Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Migration target selected' -Detail $migrationTargetDisplayName
-        }
-        else {
+        } else {
             Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Migration target missing' -Detail ("Could not identify latest version app for '{0}'." -f $normalizedSoftwareName)
         }
 
@@ -5359,7 +5711,7 @@ function Invoke-CleanupPlan {
             $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
             if (-not $entryApp) { continue }
 
-            $appId        = Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID','CIId','ModelID','ModelId')
+            $appId = Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
             $appModelName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('ModelName', 'ModelId'))
             $tsRefs = @(Find-TaskSequencesReferencingApp -AppCI_ID $appId -AppModelName $appModelName)
 
@@ -5378,7 +5730,7 @@ function Invoke-CleanupPlan {
             $entryApp = Get-ObjectPropertyValue -InputObject $entry -PropertyNames @('App')
             if (-not $entryApp) { continue }
 
-            $keepId = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID','CIId','ModelID','ModelId'))
+            $keepId = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId'))
             if ([string]::IsNullOrWhiteSpace($keepId)) { continue }
 
             if ($keepIdsSet.Add($keepId)) {
@@ -5390,20 +5742,19 @@ function Invoke-CleanupPlan {
 
         $cleanupStage = 'classify old apps'
         $oldApps = @($appsSorted | Where-Object {
-            if (-not $_) { return $false }
-            $candidateApp = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('App')
-            if (-not $candidateApp) { return $false }
-            $candidateId = [string](Get-ObjectPropertyValue -InputObject $candidateApp -PropertyNames @('CI_ID','CIId','ModelID','ModelId'))
-            -not [string]::IsNullOrWhiteSpace($candidateId) -and ($keepIds -notcontains $candidateId)
-        })
+                if (-not $_) { return $false }
+                $candidateApp = Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('App')
+                if (-not $candidateApp) { return $false }
+                $candidateId = [string](Get-ObjectPropertyValue -InputObject $candidateApp -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId'))
+                -not [string]::IsNullOrWhiteSpace($candidateId) -and ($keepIds -notcontains $candidateId)
+            })
 
         $cleanupStage = 'log app keep/delete plan'
         $appsToKeepList = @()
         if ($appsToKeep) {
             if ($appsToKeep -is [System.Collections.Generic.List[object]]) {
                 $appsToKeepList = @($appsToKeep.ToArray())
-            }
-            else {
+            } else {
                 $appsToKeepList = Convert-ToSafeArray -InputObject $appsToKeep
             }
         }
@@ -5451,13 +5802,14 @@ function Invoke-CleanupPlan {
         # Determine which non-master collections are eligible for deletion.
         $cleanupStage = 'build collection delete plan'
         $oldCollections = @()
+        $knownFolderCleanupCandidates = @()
 
         if ($DeleteOldCollections) {
             foreach ($col in $AllCollections) {
                 if (-not $col) { continue }
                 if ($masterNames -notcontains $col.Name) {
                     if (Test-LegacyCollectionProtectedFromDeletion -Collection $col) {
-                        Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Collection delete skipped (protected)' -Detail ([string](Get-ObjectPropertyValue -InputObject $col -PropertyNames @('Name','CollectionName')))
+                        Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Collection delete skipped (protected)' -Detail ([string](Get-ObjectPropertyValue -InputObject $col -PropertyNames @('Name', 'CollectionName')))
                         continue
                     }
 
@@ -5465,16 +5817,16 @@ function Invoke-CleanupPlan {
                 }
             }
 
-        # Sort collections by version in DESCENDING order (newest to oldest).
-        # This respects the include hierarchy: delete parent collections before
-        # child collections to avoid "include" dependency errors.
+            # Sort collections by version in DESCENDING order (newest to oldest).
+            # This respects the include hierarchy: delete parent collections before
+            # child collections to avoid "include" dependency errors.
             $oldCollectionsWithVersion = @()
             foreach ($col in $oldCollections) {
                 $version = Get-VersionFromName -Name ($col.Name -as [string])
                 $oldCollectionsWithVersion += [pscustomobject]@{
-                    Collection = $col
+                    Collection    = $col
                     VersionString = ($version -as [string])
-                    Version = if ([version]::TryParse(($version -as [string]), [ref]$null)) { [version]$version } else { [version]'0.0.0' }
+                    Version       = if ([version]::TryParse(($version -as [string]), [ref]$null)) { [version]$version } else { [version]'0.0.0' }
                 }
             }
 
@@ -5491,128 +5843,133 @@ function Invoke-CleanupPlan {
                     $colVersion = Get-VersionFromName -Name ($col.Name -as [string])
                     Write-LogEvent -Level 'DEBUG' -Scope 'Cleanup' -Action 'Deletion queue' -Detail ("  {0} (version: {1})" -f $col.Name, ($colVersion -as [string]))
                 }
+
+                $knownFolderCleanupCandidates = @(Get-CollectionFolderCleanupCandidates -SiteCode $SiteCode -Collections $oldCollections)
+                if ($knownFolderCleanupCandidates.Count -gt 0) {
+                    Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Folder cleanup plan' -Detail ("Resolved {0} deterministic folder candidate(s) from collection delete plan." -f $knownFolderCleanupCandidates.Count)
+                } else {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Cleanup' -Action 'Debug' -Detail 'No deterministic folder candidates resolved from collection delete plan. Generic empty-folder discovery will still run.'
+                }
             }
         }
 
         $cleanupStage = 'confirm cleanup plan'
-        if (($deploymentsToDelete.Count -eq 0) -and ($oldApps.Count -eq 0) -and ($oldCollections.Count -eq 0)) {
-            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'No-op' -Detail 'No legacy deployments, applications, or collections require cleanup.'
-            return
-        }
+        $hasObjectCleanupActions = (($deploymentsToDelete.Count -gt 0) -or ($oldApps.Count -gt 0) -or ($oldCollections.Count -gt 0))
 
-        if ($DryRun) {
-            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmation skipped' -Detail 'DryRun is active. Continuing with simulated cleanup actions without prompting.'
-        }
-        elseif (-not $AutoApprove) {
-            if ($NonInteractive) {
-                Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Aborted' -Detail 'Cleanup confirmation is required, but NonInteractive is set. Re-run with -AutoApprove to proceed without prompts.'
-                return
+        if ($hasObjectCleanupActions) {
+            if ($DryRun) {
+                Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmation skipped' -Detail 'DryRun is active. Continuing with simulated cleanup actions without prompting.'
+            } elseif (-not $AutoApprove) {
+                if ($NonInteractive) {
+                    Write-LogEvent -Level 'ERROR' -Scope 'Cleanup' -Action 'Aborted' -Detail 'Cleanup confirmation is required, but NonInteractive is set. Re-run with -AutoApprove to proceed without prompts.'
+                    return
+                }
+                Write-SectionHeader -Message 'Planned cleanup actions:'
+                Write-ResultLine -Message (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
+                Write-ResultLine -Message (" - Applications to delete: {0}" -f $oldApps.Count)
+                Write-ResultLine -Message (" - Collections to delete:  {0}" -f $oldCollections.Count)
+                Write-ResultLine -Message ''
+                $answer = Read-Host "Proceed with cleanup? (Y/N)"
+                if ($answer -notin @('Y', 'y', 'Yes', 'yes')) {
+                    Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Aborted' -Detail 'User declined confirmation prompt.'
+                    return
+                }
+            } else {
+                Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmed' -Detail 'AutoApprove enabled. Running without additional prompts.'
             }
-            Write-SectionHeader -Message 'Planned cleanup actions:'
-            Write-ResultLine -Message (" - Deployments to delete: {0}" -f $deploymentsToDelete.Count)
-            Write-ResultLine -Message (" - Applications to delete: {0}" -f $oldApps.Count)
-            Write-ResultLine -Message (" - Collections to delete:  {0}" -f $oldCollections.Count)
-            Write-ResultLine -Message ''
-            $answer = Read-Host "Proceed with cleanup? (Y/N)"
-            if ($answer -notin @('Y','y','Yes','yes')) {
-                Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Aborted' -Detail 'User declined confirmation prompt.'
-                return
+
+            $cleanupStage = 'migrate and delete deployments'
+            $migratedCollections = New-Object System.Collections.Generic.HashSet[string]
+
+            foreach ($d in $deploymentsToDelete) {
+                # For each source deployment, ensure the target collection first has a
+                # deployment to the latest app version, then remove the legacy deployment.
+                if (-not $d) { continue }
+
+                if ($latestAppForMigration) {
+                    $dCollectionName = [string](Get-ObjectPropertyValue -InputObject $d -PropertyNames @('CollectionName', 'TargetCollectionName'))
+
+                    if (-not $migratedCollections.Contains($dCollectionName)) {
+                        $migrated = Set-LatestDeploymentForCollection -Deployment $d -LatestApp $latestAppForMigration
+                        if (-not $migrated) {
+                            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Deployment delete skipped' -Detail ("Migration to latest app failed for collection '{0}'." -f $dCollectionName)
+                            continue
+                        }
+                        [void]$migratedCollections.Add($dCollectionName)
+                    }
+                }
+
+                Remove-Deployment-Robust -Deployment $d
             }
-        }
-        else {
-            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Confirmed' -Detail 'AutoApprove enabled. Running without additional prompts.'
-        }
 
-        $cleanupStage = 'migrate and delete deployments'
-        $migratedCollections = New-Object System.Collections.Generic.HashSet[string]
+            $cleanupStage = 'delete old apps'
+            foreach ($a in $oldApps) {
+                # App deletion is skipped when task sequence references are detected.
+                # This ensures cleanup never breaks operational task sequences.
 
-        foreach ($d in $deploymentsToDelete) {
-        # For each source deployment, ensure the target collection first has a
-        # deployment to the latest app version, then remove the legacy deployment.
-        if (-not $d) { continue }
-        
-        if ($latestAppForMigration) {
-            $dCollectionName = [string](Get-ObjectPropertyValue -InputObject $d -PropertyNames @('CollectionName', 'TargetCollectionName'))
+                if (-not $a) { continue }
 
-            if (-not $migratedCollections.Contains($dCollectionName)) {
-                $migrated = Set-LatestDeploymentForCollection -Deployment $d -LatestApp $latestAppForMigration
-                if (-not $migrated) {
-                    Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Deployment delete skipped' -Detail ("Migration to latest app failed for collection '{0}'." -f $dCollectionName)
+                $entryApp = Get-ObjectPropertyValue -InputObject $a -PropertyNames @('App')
+                if (-not $entryApp) { continue }
+
+                $appName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName', 'Name'))
+                $appDisplayName = Get-ApplicationDisplayName -App $entryApp
+                $appId = Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
+                $appModelName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('ModelName', 'ModelId'))
+
+                $tsRefs = Find-TaskSequencesReferencingApp -AppCI_ID $appId -AppModelName $appModelName
+
+                if ($tsRefs.Count -gt 0) {
+                    Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete skipped' -Detail (("'{0}' (CI_ID: {1}) is referenced by {2} task sequence(s).") -f $appDisplayName, $appId, $tsRefs.Count)
+
+                    foreach ($r in $tsRefs) {
+                        Write-ResultLine -Message (" - Task Sequence: {0} (PackageId: {1})" -f $r.TaskSequenceName, $r.PackageId)
+                    }
+
                     continue
                 }
-                [void]$migratedCollections.Add($dCollectionName)
-            }
-        }
 
-            Remove-Deployment-Robust -Deployment $d
-        }
+                try {
+                    Invoke-DryRunAction -Action {
+                        [void](Remove-Application-Robust -Application $entryApp)
+                    } -Description "delete software application '$appDisplayName'"
+                    if (-not $DryRun) {
+                        Write-LogEvent -Level 'SUCCESS' -Scope 'Cleanup' -Action 'Application deleted' -Detail $appDisplayName
+                    }
+                } catch {
+                    Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete failed' -Detail (("'{0}' | {1}") -f $appDisplayName, $_.Exception.Message)
 
-        $cleanupStage = 'delete old apps'
-        foreach ($a in $oldApps) {
-        # App deletion is skipped when task sequence references are detected.
-        # This ensures cleanup never breaks operational task sequences.
+                    if (Test-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
+                        Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $appDisplayName)
+                        continue
+                    }
 
-        if (-not $a) { continue }
-
-        $entryApp = Get-ObjectPropertyValue -InputObject $a -PropertyNames @('App')
-        if (-not $entryApp) { continue }
-
-        $appName      = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('LocalizedDisplayName','Name'))
-        $appDisplayName = Get-ApplicationDisplayName -App $entryApp
-        $appId        = Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('CI_ID','CIId','ModelID','ModelId')
-        $appModelName = [string](Get-ObjectPropertyValue -InputObject $entryApp -PropertyNames @('ModelName', 'ModelId'))
-
-        $tsRefs = Find-TaskSequencesReferencingApp -AppCI_ID $appId -AppModelName $appModelName
-
-        if ($tsRefs.Count -gt 0) {
-            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete skipped' -Detail (("'{0}' (CI_ID: {1}) is referenced by {2} task sequence(s).") -f $appDisplayName, $appId, $tsRefs.Count)
-
-            foreach ($r in $tsRefs) {
-                Write-ResultLine -Message (" - Task Sequence: {0} (PackageId: {1})" -f $r.TaskSequenceName, $r.PackageId)
-            }
-
-            continue
-        }
-
-        try {
-            Invoke-DryRunAction -Action {
-                [void](Remove-Application-Robust -Application $entryApp)
-            } -Description "delete software application '$appDisplayName'"
-            if (-not $DryRun) {
-                Write-LogEvent -Level 'SUCCESS' -Scope 'Cleanup' -Action 'Application deleted' -Detail $appDisplayName
-            }
-        }
-        catch {
-            Write-LogEvent -Level 'WARN' -Scope 'Cleanup' -Action 'Application delete failed' -Detail (("'{0}' | {1}") -f $appDisplayName, $_.Exception.Message)
-
-            if (Test-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
-                Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Retry skipped' -Detail (("'{0}' blocked by dependency references.") -f $appDisplayName)
-                continue
-            }
-
-            [void]$failedApps.Add(
-                [pscustomobject]@{
-                    Name      = $appName
-                    CI_ID     = $appId
-                    ModelName = $appModelName
-                    Error     = $_.Exception.Message
+                    [void]$failedApps.Add(
+                        [pscustomobject]@{
+                            Name      = $appName
+                            CI_ID     = $appId
+                            ModelName = $appModelName
+                            Error     = $_.Exception.Message
+                        }
+                    )
                 }
-            )
-        }
-        }
+            }
 
-        $cleanupStage = 'refresh caches before collection cleanup'
-        Reset-SccmRuntimeCaches
+            $cleanupStage = 'refresh caches before collection cleanup'
+            Reset-SccmRuntimeCaches
 
-        $cleanupStage = 'delete old collections'
-        foreach ($col in $oldCollections) {
-        # Collection deletion runs after app/deployment cleanup to minimize
-        # dependency conflicts and failed delete retries.
-            if (-not $col) { continue }
-            Remove-Collection-Robust -Collection $col
+            $cleanupStage = 'delete old collections'
+            foreach ($col in $oldCollections) {
+                # Collection deletion runs after app/deployment cleanup to minimize
+                # dependency conflicts and failed delete retries.
+                if (-not $col) { continue }
+                Remove-Collection-Robust -Collection $col
+            }
+
+            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Finished'
+        } else {
+            Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'No-op' -Detail 'No legacy deployments, applications, or collections require cleanup. Continuing to folder cleanup for leftovers from previous runs.'
         }
-
-        Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Finished'
 
         $cleanupStage = 'cleanup empty folders'
         Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Folder cleanup start' -Detail 'Application Deployment root.'
@@ -5625,9 +5982,15 @@ function Invoke-CleanupPlan {
             Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Folder cleanup simulation' -Detail 'Enumerating empty folder delete candidates under Application Deployment root.'
         }
 
+        if ($knownFolderCleanupCandidates.Count -gt 0) {
+            $cleanupStage = 'deterministic folder cleanup'
+            Remove-KnownApplicationDeploymentFolders -SiteCode $SiteCode -FolderPaths $knownFolderCleanupCandidates -PreserveFolderPaths $preserveFolders
+        }
+
+        $cleanupStage = 'generic empty folder cleanup'
+
         Remove-EmptyApplicationDeploymentFolders -SiteCode $SiteCode -PreserveFolderPaths $preserveFolders
-    }
-    catch {
+    } catch {
         $cleanupErrorMessage = [string]$_.Exception.Message
         if ([string]::IsNullOrWhiteSpace($cleanupErrorMessage)) {
             $cleanupErrorMessage = '[No exception message available]'
@@ -5737,13 +6100,11 @@ function Invoke-FailedDeletionRetry {
 
                     if ($depObj) {
                         Remove-Deployment-Robust -Deployment $depObj
-                    }
-                    else {
+                    } else {
                         Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Deployment not found' -Detail $d.DeploymentID
                         [void]$failedDeployments.Add($d)
                     }
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Deployment retry failed' -Detail (("{0} | {1}") -f $d.DeploymentID, $_.Exception.Message)
 
                     [void]$failedDeployments.Add(
@@ -5768,8 +6129,7 @@ function Invoke-FailedDeletionRetry {
                 try {
                     [void](Remove-Application-Robust -Application $a)
                     Write-LogEvent -Level 'SUCCESS' -Scope 'Retry' -Action 'Application deleted' -Detail (Get-ApplicationDisplayName -App $a)
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Application retry failed' -Detail (("'{0}' | {1}") -f $a.Name, $_.Exception.Message)
 
                     if (Test-PermanentAppDeletionError -ErrorMessage $_.Exception.Message) {
@@ -5802,13 +6162,11 @@ function Invoke-FailedDeletionRetry {
 
                     if ($colObj) {
                         Remove-Collection-Robust -Collection $colObj
-                    }
-                    else {
+                    } else {
                         Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Collection not found' -Detail $c.CollectionID
                         [void]$failedCollections.Add($c)
                     }
-                }
-                catch {
+                } catch {
                     Write-LogEvent -Level 'WARN' -Scope 'Retry' -Action 'Collection retry failed' -Detail (("'{0}' | {1}") -f $c.Name, $_.Exception.Message)
 
                     [void]$failedCollections.Add(
@@ -5835,10 +6193,10 @@ function Invoke-FailedDeletionRetry {
 # MAIN FLOW
 # ------------------------------------------------------------
 
-$__OldConfirmPreference  = $ConfirmPreference
+$__OldConfirmPreference = $ConfirmPreference
 $__OldProgressPreference = $ProgressPreference
 
-$ConfirmPreference  = 'None'
+$ConfirmPreference = 'None'
 $ProgressPreference = 'SilentlyContinue'
 
 try {
@@ -5874,8 +6232,7 @@ try {
 
     if (-not $allCollections -or $allCollections.Count -eq 0) {
         Write-LogEvent -Level 'WARN' -Scope 'Discovery' -Action 'No matching collections' -Detail $SoftwareName
-    }
-    else {
+    } else {
 
         # ------------------------------------------------------------
         # AUTO-DETECT ACTUAL SOFTWARE NAME USED IN SCCM
@@ -5884,8 +6241,8 @@ try {
 
         # Phase 3: derive the best software-family name from existing collection names.
         $matchingCollections = Convert-ToSafeArray -InputObject ($allCollections | Where-Object {
-            $_.Name -like ("*" + $SoftwareName + "*")
-        })
+                $_.Name -like ("*" + $SoftwareName + "*")
+            })
 
         if ($matchingCollections.Count -gt 0) {
 
@@ -5907,8 +6264,7 @@ try {
                 ) {
 
                     $softwareNameCandidatesRaw += $candidate
-                }
-                else {
+                } else {
                     $debugFiltered += [PSCustomObject]@{
                         CollectionName = $originalName
                         Extracted      = $candidate
@@ -5931,7 +6287,7 @@ try {
                 foreach ($item in $debugFiltered) {
                     Write-LogEvent -Level 'DEBUG' -Scope 'Discovery' -Action 'Candidate filtered out' -Detail (
                         " - Collection: '{0}', Extracted: '{1}', Reason: {2}" `
-                        -f $item.CollectionName, $item.Extracted, $item.Reason
+                            -f $item.CollectionName, $item.Extracted, $item.Reason
                     )
                 }
             }
@@ -5943,38 +6299,37 @@ try {
             $skipPrompt = $false
             $requestedSoftwareNameNormalized = ($requestedSoftwareName -as [string]).Trim().ToLowerInvariant()
             $requestedSoftwareCandidate = @($softwareNameCandidates | Where-Object {
-                $_.Trim().ToLowerInvariant() -eq $requestedSoftwareNameNormalized
-            } | Select-Object -First 1)
+                    $_.Trim().ToLowerInvariant() -eq $requestedSoftwareNameNormalized
+                } | Select-Object -First 1)
 
             if ($requestedSoftwareCandidate.Count -gt 0) {
                 $SoftwareName = $requestedSoftwareCandidate[0].Trim()
                 Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'Auto-selected software name' -Detail ("Requested software name matched discovered candidate '{0}'." -f $SoftwareName)
                 $skipPrompt = $true
-            }
-            elseif ($softwareNameCandidates.Count -eq 1) {
+            } elseif ($softwareNameCandidates.Count -eq 1) {
                 # Only one valid candidate -> auto-select.
                 $candidate = [string]($softwareNameCandidates | Select-Object -First 1)
                 if (Test-SoftwareNameCandidate -Candidate $candidate) {
                     $SoftwareName = $candidate.Trim()
-                }
-                else {
+                } else {
                     Write-LogEvent -Level 'WARN' -Scope 'Discovery' -Action 'Candidate rejected' -Detail ("Auto-detected candidate '{0}' is too short. Keeping requested software name '{1}'." -f $candidate, $requestedSoftwareName)
                     $SoftwareName = $requestedSoftwareName
                 }
                 Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'Auto-selected software name' -Detail $SoftwareName
                 $skipPrompt = $true
-            }
-            elseif ($softwareNameCandidates.Count -gt 1 -and $AutoApprove) {
+            } elseif ($softwareNameCandidates.Count -gt 1 -and $AutoApprove) {
                 # AutoApprove -> pick the most common candidate.
                 $SoftwareName = ($softwareNameCandidatesRaw |
                     Group-Object |
                     Sort-Object -Property @(
-                        @{ Expression = {
+                        @{ Expression     = {
                                 if ($requestedSoftwareNameNormalized -and $_.Name.Trim().ToLowerInvariant() -eq $requestedSoftwareNameNormalized) { 1 } else { 0 }
-                            }; Descending = $true },
-                        @{ Expression = {
+                            }; Descending = $true
+                        },
+                        @{ Expression     = {
                                 if ($requestedSoftwareNameNormalized -and $_.Name.Trim().ToLowerInvariant().Contains($requestedSoftwareNameNormalized)) { 1 } else { 0 }
-                            }; Descending = $true },
+                            }; Descending = $true
+                        },
                         @{ Expression = { $_.Count }; Descending = $true },
                         @{ Expression = { $_.Name.Length }; Descending = $false }
                     ) |
@@ -6003,7 +6358,7 @@ try {
 
                 for ($i = 0; $i -lt $candidateStats.Count; $i++) {
                     Write-ResultLine -Message (("[{0}] {1}  (matches: {2})" `
-                        -f ($i+1), $candidateStats[$i].Name, $candidateStats[$i].Count))
+                                -f ($i + 1), $candidateStats[$i].Name, $candidateStats[$i].Count))
                 }
 
                 $selection = Read-Host "Enter the number of the correct software name"
@@ -6014,8 +6369,7 @@ try {
 
                     $SoftwareName = $candidateStats[$selection - 1].Name
                     Write-LogEvent -Level 'INFO' -Scope 'Discovery' -Action 'User-selected software name' -Detail $SoftwareName
-                }
-                else {
+                } else {
                     Write-LogEvent -Level 'ERROR' -Scope 'Discovery' -Action 'Invalid user selection' -Detail 'Aborting run.'
                     return
                 }
@@ -6091,23 +6445,21 @@ try {
 
     if ($DryRun) {
         Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Completed in DryRun mode' -Detail 'No changes were performed.'
-    }
-    else {
+    } else {
         Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Completed'
     }
 
     # End-of-run summary
     $summaryLines = @()
     $summaryLines += ("  Collections processed : {0}" -f @($allCollections).Count)
-    $summaryLines += ("  Deployment migrations : {0}" -f ($deploymentMigrationAudit | Where-Object { $_.Status -in @('Created','Planned') }).Count)
+    $summaryLines += ("  Deployment migrations : {0}" -f ($deploymentMigrationAudit | Where-Object { $_.Status -in @('Created', 'Planned') }).Count)
     $summaryLines += ("  Failed apps           : {0}" -f $failedApps.Count)
     $summaryLines += ("  Failed collections    : {0}" -f $failedCollections.Count)
     $summaryLines += ("  Failed deployments    : {0}" -f $failedDeployments.Count)
     Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Summary'
     foreach ($line in $summaryLines) { Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Summary line' -Detail $line.Trim() }
-}
-finally {
-    $ConfirmPreference  = $__OldConfirmPreference
+} finally {
+    $ConfirmPreference = $__OldConfirmPreference
     $ProgressPreference = $__OldProgressPreference
 
     try { Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Restored session preferences' -Detail 'ConfirmPreference and ProgressPreference.' } catch { Write-Verbose 'Failed to record session preference restoration.' }

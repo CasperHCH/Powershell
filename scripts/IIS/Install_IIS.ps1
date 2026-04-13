@@ -1,67 +1,49 @@
 <#
 .SYNOPSIS
-    Enterprise IIS Deployment & Security Hardening Platform
+    Installs IIS and applies optional security, monitoring, and reporting configuration.
 
 .DESCRIPTION
-    Military-grade IIS deployment system providing comprehensive security hardening,
-    compliance validation, automated configuration management, and enterprise-level
-    monitoring for production web server environments.
+    This script installs IIS features, applies optional security hardening, enables
+    monitoring-related configuration, records compliance selections, and exports a
+    deployment report. It supports a richer configuration mode and a simpler legacy
+    installation mode.
 
-    🏢 ENTERPRISE FEATURES:
-    • Advanced security hardening with military-grade configurations
-    • Comprehensive compliance validation (SOX, GDPR, HIPAA, PCI-DSS)
-    • Automated configuration management and deployment orchestration
-    • Real-time security monitoring and threat detection
-    • Enterprise certificate management and SSL/TLS configuration
-    • Load balancing and high availability configuration
-    • Advanced logging and SIEM integration
-    • Business continuity and disaster recovery setup
-
-    🔒 SECURITY & COMPLIANCE:
-    • Military-grade security baseline implementation
-    • Advanced threat protection and hardening
-    • Comprehensive audit logging and compliance reporting
-    • Role-based access control (RBAC) implementation
-    • Data loss prevention (DLP) integration
-    • Advanced attack surface reduction
-
-    📊 BUSINESS INTELLIGENCE:
-    • Executive deployment dashboards and reporting
-    • Performance optimization and capacity planning
-    • Security posture monitoring and alerting
-    • Compliance scoring and trend analysis
-    • Automated documentation and change management
-    • Cost optimization and resource utilization analytics
+    Main capabilities:
+    • Install IIS features for common server profiles
+    • Apply optional hardening such as request filtering and header reduction
+    • Record selected compliance frameworks for deployment reporting
+    • Prepare report output in JSON and other selected formats
+    • Keep a simpler fallback mode for basic IIS installation
 
 .PARAMETER UseEnterpriseMode
-    [ENTERPRISE] Enable advanced enterprise deployment and security features
+    Enable the expanded deployment mode with reporting, hardening, and monitoring options.
 
 .PARAMETER DeploymentProfile
-    [ENTERPRISE] Deployment profile: 'Production', 'Staging', 'Development', 'HighSecurity', 'Compliance'
+    Deployment profile: 'Production', 'Staging', 'Development', 'Restricted', 'Compliance'
 
 .PARAMETER SecurityLevel
-    [ENTERPRISE] Security hardening level: 'Basic', 'Enhanced', 'Military', 'Government'
+    Security baseline level: 'Basic', 'Standard', 'Strict', 'LockedDown'
 
 .PARAMETER ComplianceFrameworks
-    [ENTERPRISE] Compliance frameworks to implement: 'SOX', 'GDPR', 'HIPAA', 'PCI-DSS', 'ISO27001'
+    Compliance frameworks to record in the deployment report: 'SOX', 'GDPR', 'HIPAA', 'PCI-DSS', 'ISO27001'
 
 .PARAMETER EnableSecurityHardening
-    [ENTERPRISE] Enable comprehensive security hardening and attack surface reduction
+    Enable additional IIS hardening steps such as request filtering and header configuration.
 
 .PARAMETER EnableMonitoring
-    [ENTERPRISE] Enable enterprise monitoring and alerting systems
+    Enable monitoring-related configuration and report output.
 
 .PARAMETER BusinessIntelligence
-    [ENTERPRISE] Enable executive business intelligence reporting
+    Include deployment telemetry and reporting recommendations in the generated report.
 
 .PARAMETER HighAvailability
-    [ENTERPRISE] Configure high availability and load balancing
+    Record that the deployment requires additional high-availability configuration.
 
 .PARAMETER ReportingLevel
-    [ENTERPRISE] Reporting detail level: 'Executive', 'Management', 'Technical', 'Forensic'
+    Reporting detail level: 'Summary', 'Detailed', 'Audit', 'Trace'
 
 .PARAMETER OutputFormat
-    [ENTERPRISE] Output formats: 'PowerBI', 'Excel', 'JSON', 'SIEM', 'Database'
+    Output formats: 'PowerBI', 'Excel', 'JSON', 'SIEM', 'Database'
 #>
 
 #Requires -RunAsAdministrator
@@ -73,12 +55,12 @@ param(
     [switch]$UseEnterpriseMode,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [ValidateSet('Production', 'Staging', 'Development', 'HighSecurity', 'Compliance')]
+    [ValidateSet('Production', 'Staging', 'Development', 'Restricted', 'Compliance')]
     [string]$DeploymentProfile = 'Production',
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [ValidateSet('Basic', 'Enhanced', 'Military', 'Government')]
-    [string]$SecurityLevel = 'Enhanced',
+    [ValidateSet('Basic', 'Standard', 'Strict', 'LockedDown')]
+    [string]$SecurityLevel = 'Standard',
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
     [ValidateSet('SOX', 'GDPR', 'HIPAA', 'PCI-DSS', 'ISO27001', 'All')]
@@ -97,8 +79,8 @@ param(
     [switch]$HighAvailability,
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
-    [ValidateSet('Executive', 'Management', 'Technical', 'Forensic')]
-    [string]$ReportingLevel = 'Management',
+    [ValidateSet('Summary', 'Detailed', 'Audit', 'Trace')]
+    [string]$ReportingLevel = 'Detailed',
 
     [Parameter(ParameterSetName='Enterprise', Mandatory = $false)]
     [ValidateSet('PowerBI', 'Excel', 'JSON', 'SIEM', 'Database', 'All')]
@@ -218,7 +200,7 @@ $script:EnterpriseIISProfiles = @{
             DisableWeakCiphers = $true
         }
     }
-    HighSecurity = @{
+    Restricted = @{
         Features = @(
             "IIS-WebServerRole", "IIS-WebServer", "IIS-CommonHttpFeatures", "IIS-HttpErrors",
             "IIS-RequestFiltering", "IIS-StaticContent", "IIS-ManagementConsole", "IIS-Security",
@@ -272,7 +254,7 @@ if ($script:UseEnterpriseMode -or $PSCmdlet.ParameterSetName -eq 'Enterprise') {
         # Select deployment profile
         $deploymentConfig = switch ($script:DeploymentProfile) {
             'Production' { $script:EnterpriseIISProfiles.Production }
-            'HighSecurity' { $script:EnterpriseIISProfiles.HighSecurity }
+            'Restricted' { $script:EnterpriseIISProfiles.Restricted }
             default { $script:EnterpriseIISProfiles.Production }
         }
 

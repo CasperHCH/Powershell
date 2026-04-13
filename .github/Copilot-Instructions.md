@@ -59,6 +59,19 @@ This is a comprehensive PowerShell automation library containing enterprise-grad
 - Treat vendored third-party READMEs as upstream content unless the repository adds an explicit local wrapper note.
 - Do not assume a `tests/` directory exists; check the current tree before documenting test paths.
 
+## PowerShell Workflow Expectations
+- Treat VS Code Problems and analyzer diagnostics as potentially stale. When findings matter, verify with a fresh `Invoke-ScriptAnalyzer` run against the edited file or folder.
+- After editing PowerShell scripts, validate with both a parser check using `[System.Management.Automation.Language.Parser]::ParseFile(...)` and a fresh `Invoke-ScriptAnalyzer` run.
+- Prefer repository- or workspace-level PSScriptAnalyzer settings over inline suppression attributes when reducing warning noise.
+- Preserve existing `DryRun`, `WhatIf`, `AutoApprove`, and `NonInteractive` behavior. If a change touches destructive flows, validate those paths explicitly.
+- For SCCM scripts, distinguish between static correctness and live SCCM runtime validation. Lack of local `ConfigurationManager` cmdlets does not by itself indicate a broken change.
+- Avoid module-import side effects during `WhatIf` or `DryRun` runs. If introducing CIM or other modules, keep module initialization noise out of operator-facing output.
+- When working with SCCM folder or provider objects, verify property shapes from real run logs before assuming `FolderPath`, `Path`, or similar fields exist.
+- Prefer the repository logging helpers and `Write-Information` over adding new `Write-Host` output unless the existing script already relies on host-only output.
+- Do not rename public or widely used functions for style-only reasons unless all call sites, documentation, and analyzer validation are updated together.
+- For this repository, prefer functional safety over analyzer cleanliness when the two conflict.
+- Do not add `Diagnostics.CodeAnalysis.SuppressMessageAttribute` to PowerShell functions unless PowerShell syntax and analyzer behavior have both been validated for that placement in this repository.
+
 ## 📋 **PowerShell Best Practices to Follow**
 
 ### **1. Security & Parameterization Standards**

@@ -139,7 +139,7 @@ param(
 
     [switch]$ConsolidationCanonicalPerVersion,
 
-    [ValidateSet('Standard','Deep')]
+    [ValidateSet('Standard', 'Deep')]
     [string]$Mode = 'Standard',
 
     [switch]$Quiet,
@@ -176,6 +176,7 @@ function Write-SectionHeader {
 function Write-ResultLine {
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string]$Message
     )
 
@@ -202,7 +203,7 @@ function Write-PhaseLog {
         [string]$Message,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('INFO','WARN','SUCCESS')]
+        [ValidateSet('INFO', 'WARN', 'SUCCESS')]
         [string]$Level = 'INFO'
     )
 
@@ -285,8 +286,7 @@ function Resolve-ValidatedOutputPath {
 
     try {
         $resolvedPath = [System.IO.Path]::GetFullPath($resolvedPath)
-    }
-    catch {
+    } catch {
         throw ("Output path is not valid: '{0}' | {1}" -f $trimmedPath, $_.Exception.Message)
     }
 
@@ -308,11 +308,11 @@ $script:ApplicationAssignmentsCacheByCollectionId = @{}
 $script:MembershipRulesCacheByCollectionId = @{}
 $script:QueryRulesCacheByCollectionId = @{}
 $script:AnalysisWarningCounts = @{
-    DeploymentQueryFailures = 0
+    DeploymentQueryFailures            = 0
     ApplicationAssignmentQueryFailures = 0
-    MembershipRuleFailures = 0
-    QueryRuleFailures = 0
-    DeepReferenceHeuristicMatches = 0
+    MembershipRuleFailures             = 0
+    QueryRuleFailures                  = 0
+    DeepReferenceHeuristicMatches      = 0
 }
 
 # ---------------------------------------------------------
@@ -326,7 +326,7 @@ if (-not $AnalyzeConsolidation -and -not $AnalyzeSafeToDelete -and -not $Analyze
 
 if ($AnalyzeAll) {
     $AnalyzeConsolidation = $true
-    $AnalyzeSafeToDelete  = $true
+    $AnalyzeSafeToDelete = $true
 }
 
 if (-not $SiteCode) {
@@ -335,8 +335,7 @@ if (-not $SiteCode) {
         $provider = Get-CimInstance -Namespace "root\SMS" -ClassName SMS_ProviderLocation | Select-Object -First 1
         $SiteCode = $provider.SiteCode
         Write-PhaseLog -Message ("Auto-detected SiteCode: {0}" -f $SiteCode) -Level 'SUCCESS'
-    }
-    catch {
+    } catch {
         Write-PhaseLog -Message 'Could not auto-detect SiteCode.' -Level 'WARN'
         return
     }
@@ -364,11 +363,11 @@ $namespace = "root\SMS\site_$SiteCode"
 Write-PhaseLog -Message ("Loading metadata from namespace {0}..." -f $namespace)
 
 $folders = Get-CimInstance -Namespace $namespace -ClassName SMS_ObjectContainerNode |
-           Where-Object { $_.ObjectType -eq 5000 } |
-           Sort-Object Name
+Where-Object { $_.ObjectType -eq 5000 } |
+Sort-Object Name
 
-$items   = Get-CimInstance -Namespace $namespace -ClassName SMS_ObjectContainerItem |
-           Where-Object { $_.ObjectType -eq 5000 }
+$items = Get-CimInstance -Namespace $namespace -ClassName SMS_ObjectContainerItem |
+Where-Object { $_.ObjectType -eq 5000 }
 
 $allCollections = @(Get-CMDeviceCollection -ErrorAction SilentlyContinue)
 Write-PhaseLog -Message ("Metadata loaded: Folders={0}; ContainerItems={1}; Collections={2}" -f @($folders).Count, @($items).Count, @($allCollections).Count) -Level 'SUCCESS'
@@ -426,8 +425,7 @@ function Get-FolderPath {
 
         if ($null -eq $parentNodeId -or -not $folderByNodeId.ContainsKey($parentNodeId)) {
             $current = $null
-        }
-        else {
+        } else {
             $current = $folderByNodeId[$parentNodeId]
         }
     }
@@ -518,8 +516,8 @@ function Test-IsMasterCollectionName {
     }
 
     return ($CollectionName -match ' - Install \(Available\)$' -or
-            $CollectionName -match ' - Install \(Required\)$'  -or
-            $CollectionName -match ' - Uninstall$')
+        $CollectionName -match ' - Install \(Required\)$' -or
+        $CollectionName -match ' - Uninstall$')
 }
 
 # ---------------------------------------------------------
@@ -553,12 +551,12 @@ foreach ($ci in @($items)) {
     }
 
     [void]$scopedItems.Add([pscustomobject]@{
-        ContainerItem = $ci
-        CollectionID  = $colId
-        Collection    = $colObj
-        CollectionName = $collectionName
-        FolderPath    = $folderPath
-    })
+            ContainerItem  = $ci
+            CollectionID   = $colId
+            Collection     = $colObj
+            CollectionName = $collectionName
+            FolderPath     = $folderPath
+        })
 
     if ($MaxCollectionsToAnalyze -gt 0 -and $scopedItems.Count -ge $MaxCollectionsToAnalyze) {
         break
@@ -652,7 +650,7 @@ function Get-Suffix {
     }
 
     $knownSuffix = @(
-        "Installed","Not Installed","Pilot","Production","Test","Dev","Stable","Beta","Canary"
+        "Installed", "Not Installed", "Pilot", "Production", "Test", "Dev", "Stable", "Beta", "Canary"
     )
 
     foreach ($s in $knownSuffix) {
@@ -851,8 +849,7 @@ function Convert-ToSortableVersion {
 
     try {
         return [version]($parts[0..3] -join '.')
-    }
-    catch {
+    } catch {
         return [version]'0.0.0.0'
     }
 }
@@ -922,48 +919,46 @@ if ($AnalyzeConsolidation) {
 
     Write-PhaseLog -Message ("Consolidation parsing complete: {0} candidate entries." -f @($parsedList).Count)
 
-# Functional suffixes should remain separate grouping tracks.
-$functionalSuffixes = @("install", "uninstall", "repair", "cleanup")
+    # Functional suffixes should remain separate grouping tracks.
+    $functionalSuffixes = @("install", "uninstall", "repair", "cleanup")
 
-# Add GroupKey for deterministic grouping.
-$parsedList = $parsedList | ForEach-Object {
-    $suffixLower = $_.Suffix.ToLower()
+    # Add GroupKey for deterministic grouping.
+    $parsedList = $parsedList | ForEach-Object {
+        $suffixLower = $_.Suffix.ToLower()
 
-    if ($ConsolidationCanonicalPerVersion) {
-        # Merge install/uninstall into one software-level track.
-        $groupKey = "$($_.Software)|<canonical>"
+        if ($ConsolidationCanonicalPerVersion) {
+            # Merge install/uninstall into one software-level track.
+            $groupKey = "$($_.Software)|<canonical>"
+        } elseif ($functionalSuffixes -contains $suffixLower) {
+            # Install/uninstall remain separate groups.
+            $groupKey = "$($_.Software)|$suffixLower"
+        } else {
+            # Environment suffixes collapse into one track.
+            $groupKey = "$($_.Software)|<env>"
+        }
+
+        $_ | Add-Member -NotePropertyName GroupKey -NotePropertyValue $groupKey -Force
+        $_
     }
-    elseif ($functionalSuffixes -contains $suffixLower) {
-        # Install/uninstall remain separate groups.
-        $groupKey = "$($_.Software)|$suffixLower"
-    }
-    else {
-        # Environment suffixes collapse into one track.
-        $groupKey = "$($_.Software)|<env>"
-    }
 
-    $_ | Add-Member -NotePropertyName GroupKey -NotePropertyValue $groupKey -Force
-    $_
-}
-
-# Group by GroupKey and sort by software name for deterministic log/output order.
-$groups = @($parsedList | Group-Object -Property GroupKey | Sort-Object {
-    [string]$_.Group[0].Software
-})
+    # Group by GroupKey and sort by software name for deterministic log/output order.
+    $groups = @($parsedList | Group-Object -Property GroupKey | Sort-Object {
+            [string]$_.Group[0].Software
+        })
     Write-PhaseLog -Message ("Consolidation grouping complete: {0} groups." -f @($groups).Count)
 
 
     foreach ($g in $groups) {
 
         $software = $g.Group[0].Software
-        $suffix   = $g.Group[0].Suffix
+        $suffix = $g.Group[0].Suffix
 
         $versions = @($g.Group | Where-Object { $_.Version } | Sort-Object -Property @(
-            @{ Expression = { Convert-ToSortableVersion -VersionText $_.Version }; Descending = $false },
-            @{ Expression = { [string]$_.Version }; Descending = $false },
-            @{ Expression = { Get-ConsolidationRowPriority -Suffix $_.Suffix -CollectionName $_.CollectionName }; Descending = $false },
-            @{ Expression = { [string]$_.CollectionName }; Descending = $false }
-        ))
+                @{ Expression = { Convert-ToSortableVersion -VersionText $_.Version }; Descending = $false },
+                @{ Expression = { [string]$_.Version }; Descending = $false },
+                @{ Expression = { Get-ConsolidationRowPriority -Suffix $_.Suffix -CollectionName $_.CollectionName }; Descending = $false },
+                @{ Expression = { [string]$_.CollectionName }; Descending = $false }
+            ))
 
         if ($ConsolidationCanonicalPerVersion) {
             $canonicalRows = @()
@@ -971,9 +966,9 @@ $groups = @($parsedList | Group-Object -Property GroupKey | Sort-Object {
                 if (-not $versionGroup) { continue }
 
                 $candidates = @($versionGroup.Group | Sort-Object -Property @(
-                    @{ Expression = { Get-ConsolidationRowPriority -Suffix $_.Suffix -CollectionName $_.CollectionName }; Descending = $false },
-                    @{ Expression = { [string]$_.CollectionName }; Descending = $false }
-                ))
+                        @{ Expression = { Get-ConsolidationRowPriority -Suffix $_.Suffix -CollectionName $_.CollectionName }; Descending = $false },
+                        @{ Expression = { [string]$_.CollectionName }; Descending = $false }
+                    ))
 
                 if (@($candidates).Count -gt 0) {
                     $canonicalRows += $candidates[0]
@@ -981,19 +976,19 @@ $groups = @($parsedList | Group-Object -Property GroupKey | Sort-Object {
             }
 
             $versions = @($canonicalRows | Sort-Object -Property @(
-                @{ Expression = { Convert-ToSortableVersion -VersionText $_.Version }; Descending = $false },
-                @{ Expression = { [string]$_.Version }; Descending = $false }
-            ))
+                    @{ Expression = { Convert-ToSortableVersion -VersionText $_.Version }; Descending = $false },
+                    @{ Expression = { [string]$_.Version }; Descending = $false }
+                ))
         }
 
-# Skip when only one unique version exists but multiple function suffixes exist.
-$uniqueVersions = ($g.Group.Version | Where-Object { $_ } | Select-Object -Unique)
-$uniqueSuffixes = ($g.Group.Suffix  | Where-Object { $_ } | Select-Object -Unique)
+        # Skip when only one unique version exists but multiple function suffixes exist.
+        $uniqueVersions = ($g.Group.Version | Where-Object { $_ } | Select-Object -Unique)
+        $uniqueSuffixes = ($g.Group.Suffix  | Where-Object { $_ } | Select-Object -Unique)
 
-# If only one version but multiple suffixes, skip as non-consolidation signal.
-if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
-    continue
-}
+        # If only one version but multiple suffixes, skip as non-consolidation signal.
+        if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
+            continue
+        }
 
         if ($versions.Count -le 1) { continue }
 
@@ -1002,11 +997,9 @@ if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
 
         $displaySuffix = if ($ConsolidationCanonicalPerVersion) {
             '<canonical>'
-        }
-        elseif ($suffix -ne "") {
+        } elseif ($suffix -ne "") {
             $suffix
-        }
-        else {
+        } else {
             "<none>"
         }
         Write-ResultLine -Message ("Suffix:   {0}" -f $displaySuffix)
@@ -1016,15 +1009,15 @@ if ($uniqueVersions.Count -eq 1 -and $uniqueSuffixes.Count -gt 1) {
             Write-ResultLine -Message ("  - {0} (ID: {1}) [{2}]" -f $item.CollectionName, $item.CollectionID, $item.FolderPath)
 
             $results += [PSCustomObject]@{
-                Type           = 'Consolidation'
-                FolderPath     = $item.FolderPath
-                Software       = $item.Software
-                CollectionName = $item.CollectionName
-                Version        = $item.Version
-                CollectionID   = $item.CollectionID
-                Status         = 'VersionGroup'
-                Reason         = "Multiple versions detected for same software + suffix"
-                DataQuality    = 'Complete'
+                Type               = 'Consolidation'
+                FolderPath         = $item.FolderPath
+                Software           = $item.Software
+                CollectionName     = $item.CollectionName
+                Version            = $item.Version
+                CollectionID       = $item.CollectionID
+                Status             = 'VersionGroup'
+                Reason             = "Multiple versions detected for same software + suffix"
+                DataQuality        = 'Complete'
                 AnalysisConfidence = 'High'
             }
         }
@@ -1068,8 +1061,7 @@ function Get-CollectionDeployment {
         $deployments = @(Get-CMDeployment -CollectionId $CollectionID -ErrorAction SilentlyContinue)
         $script:DeploymentCacheByCollectionId[$cacheKey] = @($deployments)
         return @($deployments)
-    }
-    catch {
+    } catch {
         $script:AnalysisWarningCounts.DeploymentQueryFailures++
         $script:DeploymentCacheByCollectionId[$cacheKey] = @()
         return @()
@@ -1093,8 +1085,7 @@ function Get-CollectionApplicationAssignment {
         $assignments = @(Get-CimInstance -Namespace $namespace -ClassName SMS_ApplicationAssignment -Filter ("TargetCollectionID = '{0}'" -f $escapedCollectionId) -ErrorAction Stop)
         $script:ApplicationAssignmentsCacheByCollectionId[$cacheKey] = @($assignments)
         return @($assignments)
-    }
-    catch {
+    } catch {
         $script:AnalysisWarningCounts.ApplicationAssignmentQueryFailures++
         $script:ApplicationAssignmentsCacheByCollectionId[$cacheKey] = @()
         return @()
@@ -1158,8 +1149,7 @@ function Test-ImplicitUninstallEnabled {
             if (([uint32]$offerFlags -band 64) -eq 64) {
                 return $true
             }
-        }
-        catch {
+        } catch {
             Write-Verbose ("Failed to interpret OfferFlags value [{0}] as UInt32." -f $offerFlags)
         }
     }
@@ -1176,8 +1166,7 @@ function Test-ImplicitUninstallEnabled {
         if ($null -ne $implicitNode) {
             return ([string]$implicitNode.InnerText -match '^(?i:true|1)$')
         }
-    }
-    catch {
+    } catch {
         Write-Verbose 'Failed to parse AdditionalProperties XML while checking implicit uninstall state.'
     }
 
@@ -1191,24 +1180,24 @@ function Get-CollectionDeploymentSignal {
     $assignments = @(Get-CollectionApplicationAssignment -CollectionID $CollectionID)
 
     $requiredInstallAssignments = @($assignments | Where-Object {
-        (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Install' -and
-        (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
-    })
+            (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Install' -and
+            (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
+        })
 
     $requiredUninstallAssignments = @($assignments | Where-Object {
-        (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Uninstall' -and
-        (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
-    })
+            (Resolve-ApplicationAssignmentAction -Assignment $_) -eq 'Uninstall' -and
+            (Resolve-ApplicationAssignmentPurpose -Assignment $_) -eq 'Required'
+        })
 
     $implicitInstallAssignments = @($requiredInstallAssignments | Where-Object { Test-ImplicitUninstallEnabled -Assignment $_ })
 
     return [pscustomobject]@{
-        HasDeployments                    = ($deployments.Count -gt 0 -or $assignments.Count -gt 0)
-        GenericDeploymentCount            = $deployments.Count
-        ApplicationAssignmentCount        = $assignments.Count
-        RequiredInstallAssignmentCount    = $requiredInstallAssignments.Count
-        RequiredUninstallAssignmentCount  = $requiredUninstallAssignments.Count
-        HasRequiredUninstallDeployment    = ($requiredUninstallAssignments.Count -gt 0)
+        HasDeployments                     = ($deployments.Count -gt 0 -or $assignments.Count -gt 0)
+        GenericDeploymentCount             = $deployments.Count
+        ApplicationAssignmentCount         = $assignments.Count
+        RequiredInstallAssignmentCount     = $requiredInstallAssignments.Count
+        RequiredUninstallAssignmentCount   = $requiredUninstallAssignments.Count
+        HasRequiredUninstallDeployment     = ($requiredUninstallAssignments.Count -gt 0)
         HasImplicitUninstallEnabledInstall = ($implicitInstallAssignments.Count -gt 0)
     }
 }
@@ -1241,13 +1230,14 @@ function Get-PairedImplicitInstallCoverage {
 
     $orderedCandidateIds = @(
         $candidateIds | Sort-Object -Property @(
-            @{ Expression = {
-                $candidateCollectionName = ''
-                if ($analysisCollectionNameById.ContainsKey([string]$_)) {
-                    $candidateCollectionName = [string]$analysisCollectionNameById[[string]$_]
-                }
-                if ($candidateCollectionName -match '\(Required\)$') { 0 } else { 1 }
-            }; Descending = $false },
+            @{ Expression     = {
+                    $candidateCollectionName = ''
+                    if ($analysisCollectionNameById.ContainsKey([string]$_)) {
+                        $candidateCollectionName = [string]$analysisCollectionNameById[[string]$_]
+                    }
+                    if ($candidateCollectionName -match '\(Required\)$') { 0 } else { 1 }
+                }; Descending = $false 
+            },
             @{ Expression = { [string]$_ }; Descending = $false }
         )
     )
@@ -1287,10 +1277,10 @@ function Get-CollectionMembershipRule {
     $cacheKey = [string]$CollectionID
     if ([string]::IsNullOrWhiteSpace($cacheKey)) {
         return [PSCustomObject]@{
-            Direct  = @()
-            Query   = @()
-            Include = @()
-            Exclude = @()
+            Direct      = @()
+            Query       = @()
+            Include     = @()
+            Exclude     = @()
             DataQuality = 'Partial'
         }
     }
@@ -1299,14 +1289,14 @@ function Get-CollectionMembershipRule {
         return $script:MembershipRulesCacheByCollectionId[$cacheKey]
     }
 
-    $direct  = @()
-    $query   = @()
+    $direct = @()
+    $query = @()
     $include = @()
     $exclude = @()
     $hadFailure = $false
 
-    try { $direct  = @(Get-CMDeviceCollectionDirectMembershipRule  -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
-    try { $query   = @(Get-CMDeviceCollectionQueryMembershipRule   -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
+    try { $direct = @(Get-CMDeviceCollectionDirectMembershipRule  -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
+    try { $query = @(Get-CMDeviceCollectionQueryMembershipRule   -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
     try { $include = @(Get-CMDeviceCollectionIncludeMembershipRule -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
     try { $exclude = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionId $CollectionID -ErrorAction SilentlyContinue) } catch { $hadFailure = $true }
 
@@ -1315,10 +1305,10 @@ function Get-CollectionMembershipRule {
     }
 
     $result = [PSCustomObject]@{
-        Direct  = $direct
-        Query   = $query
-        Include = $include
-        Exclude = $exclude
+        Direct      = $direct
+        Query       = $query
+        Include     = $include
+        Exclude     = $exclude
         DataQuality = if ($hadFailure) { 'Partial' } else { 'Complete' }
     }
 
@@ -1347,8 +1337,7 @@ function Get-CachedQueryMembershipRule {
         $rules = @(Get-CMDeviceCollectionQueryMembershipRule -CollectionId $CollectionID -ErrorAction SilentlyContinue)
         $script:QueryRulesCacheByCollectionId[$cacheKey] = @($rules)
         return @($rules)
-    }
-    catch {
+    } catch {
         $script:AnalysisWarningCounts.QueryRuleFailures++
         $script:QueryRulesCacheByCollectionId[$cacheKey] = @()
         return @()
@@ -1475,15 +1464,14 @@ function Get-CollectionDependencyIndex {
                             $excludeRows += [pscustomobject]@{ TargetId = $targetId; DependentId = $using:dependentCollectionId; DependentName = $using:dependentCollectionName }
                         }
                     }
-                }
-                catch {
+                } catch {
                     $errorText = $_.Exception.Message
                 }
 
                 return [pscustomobject]@{
                     IncludeRows = $includeRows
                     ExcludeRows = $excludeRows
-                    Error = $errorText
+                    Error       = $errorText
                 }
             }
         }
@@ -1529,7 +1517,7 @@ function Get-CollectionDependencyIndex {
         if ([string]::IsNullOrWhiteSpace($dependentCollectionId)) { continue }
 
         $dependentEntry = [pscustomobject]@{
-            CollectionID = $dependentCollectionId
+            CollectionID   = $dependentCollectionId
             CollectionName = $dependentCollectionName
         }
 
@@ -1584,7 +1572,7 @@ function Get-DeepReference {
 
     $references = New-Object System.Collections.Generic.List[object]
     if ([string]::IsNullOrWhiteSpace($CollectionID)) {
-           return $references.ToArray()
+        return $references.ToArray()
     }
 
     $targetCollection = @($Collections | Where-Object { ([string]$_.CollectionID) -eq $CollectionID } | Select-Object -First 1)
@@ -1622,17 +1610,14 @@ function Get-DeepReference {
             if ($queryExpression -match $quotedIdPattern) {
                 $matchType = 'ExactIdPredicate'
                 $confidence = 'High'
-            }
-            elseif ($queryExpression -match $inClausePattern) {
+            } elseif ($queryExpression -match $inClausePattern) {
                 $matchType = 'IdInClause'
                 $confidence = 'High'
-            }
-            elseif ($queryExpression -match $collectionIdPattern) {
+            } elseif ($queryExpression -match $collectionIdPattern) {
                 $matchType = 'HeuristicIdTextMatch'
                 $confidence = 'Medium'
                 $script:AnalysisWarningCounts.DeepReferenceHeuristicMatches++
-            }
-            elseif ($collectionNamePattern -and $queryExpression -match $collectionNamePattern) {
+            } elseif ($collectionNamePattern -and $queryExpression -match $collectionNamePattern) {
                 $matchType = 'HeuristicNameTextMatch'
                 $confidence = 'Low'
                 $script:AnalysisWarningCounts.DeepReferenceHeuristicMatches++
@@ -1640,13 +1625,13 @@ function Get-DeepReference {
 
             if ($matchType) {
                 [void]$references.Add([pscustomobject]@{
-                    Type = 'QueryExpression'
-                    CollectionID = $candidateId
-                    CollectionName = $candidateName
-                    Detail = ("Query rule reference detected via {0}." -f $matchType)
-                    Confidence = $confidence
-                    MatchType = $matchType
-                })
+                        Type           = 'QueryExpression'
+                        CollectionID   = $candidateId
+                        CollectionName = $candidateName
+                        Detail         = ("Query rule reference detected via {0}." -f $matchType)
+                        Confidence     = $confidence
+                        MatchType      = $matchType
+                    })
                 break
             }
         }
@@ -1687,7 +1672,7 @@ if ($AnalyzeSafeToDelete) {
 
         $reasons = @()
         $blockingCategories = New-Object System.Collections.Generic.List[string]
-        $status  = 'Safe'
+        $status = 'Safe'
         $dataQuality = 'Complete'
         $analysisConfidence = 'High'
         $lifecycleSignal = ''
@@ -1706,8 +1691,8 @@ if ($AnalyzeSafeToDelete) {
             $analysisConfidence = 'Medium'
         }
 
-        if ($rules.Direct.Count  -gt 0) { $status = 'NotSafe'; $reasons += "Has direct members"; [void]$blockingCategories.Add('DirectMembers') }
-        if ($rules.Query.Count   -gt 0) { $status = 'NotSafe'; $reasons += "Has query membership"; [void]$blockingCategories.Add('QueryMembership') }
+        if ($rules.Direct.Count -gt 0) { $status = 'NotSafe'; $reasons += "Has direct members"; [void]$blockingCategories.Add('DirectMembers') }
+        if ($rules.Query.Count -gt 0) { $status = 'NotSafe'; $reasons += "Has query membership"; [void]$blockingCategories.Add('QueryMembership') }
         $incomingInclude = @()
         $incomingExclude = @()
 
@@ -1724,8 +1709,7 @@ if ($AnalyzeSafeToDelete) {
             $includeNames = @($incomingInclude | ForEach-Object { $_.CollectionName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             if ($includeNames.Count -gt 0) {
                 $reasons += ("Included by collections: " + ($includeNames -join ', '))
-            }
-            else {
+            } else {
                 $reasons += "Included by other collections"
             }
         }
@@ -1736,8 +1720,7 @@ if ($AnalyzeSafeToDelete) {
             $excludeNames = @($incomingExclude | ForEach-Object { $_.CollectionName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             if ($excludeNames.Count -gt 0) {
                 $reasons += ("Excluded by collections: " + ($excludeNames -join ', '))
-            }
-            else {
+            } else {
                 $reasons += "Excluded by other collections"
             }
         }
@@ -1758,17 +1741,14 @@ if ($AnalyzeSafeToDelete) {
                 $deepConfidences = @($deepRefs | ForEach-Object { [string]$_.Confidence })
                 if ($deepConfidences -contains 'High') {
                     $analysisConfidence = 'High'
-                }
-                elseif ($deepConfidences -contains 'Medium') {
+                } elseif ($deepConfidences -contains 'Medium') {
                     if ($analysisConfidence -ne 'High') { $analysisConfidence = 'Medium' }
-                }
-                else {
+                } else {
                     $analysisConfidence = 'Low'
                 }
                 if ($deepRefNames.Count -gt 0) {
                     $reasons += ("Referenced by collection query rules: " + ($deepRefNames -join ', '))
-                }
-                else {
+                } else {
                     $reasons += "Referenced by other objects (Deep mode)"
                 }
             }
@@ -1786,8 +1766,7 @@ if ($AnalyzeSafeToDelete) {
                     $reasons = @(
                         ("Redundant explicit uninstall: paired install collection [{0}] has Required install deployment with implicit uninstall enabled." -f $pairedImplicitInstallCollection)
                     )
-                }
-                else {
+                } else {
                     $lifecycleSignal = 'ImplicitUninstallCoverageAvailable'
                     $reasons += ("Paired install collection [{0}] has implicit uninstall enabled; explicit uninstall collection may be redundant once other blockers are removed." -f $pairedImplicitInstallCollection)
                     if ($analysisConfidence -eq 'High') {
@@ -1802,42 +1781,40 @@ if ($AnalyzeSafeToDelete) {
                 Write-ResultLine -Message ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
 
                 $results += [PSCustomObject]@{
-                    Type           = 'SafeToDelete'
-                    FolderPath     = $folderPath
-                    Software       = $safeSoftwareName
-                    CollectionName = $colName
-                    Version        = ''
-                    CollectionID   = $colId
-                    Status         = $status
-                    Reason         = ''
-                    DataQuality    = $dataQuality
-                    AnalysisConfidence = $analysisConfidence
-                    LifecycleSignal = $lifecycleSignal
+                    Type                            = 'SafeToDelete'
+                    FolderPath                      = $folderPath
+                    Software                        = $safeSoftwareName
+                    CollectionName                  = $colName
+                    Version                         = ''
+                    CollectionID                    = $colId
+                    Status                          = $status
+                    Reason                          = ''
+                    DataQuality                     = $dataQuality
+                    AnalysisConfidence              = $analysisConfidence
+                    LifecycleSignal                 = $lifecycleSignal
                     PairedImplicitInstallCollection = $pairedImplicitInstallCollection
                 }
             }
-        }
-        else {
+        } else {
             if ($status -eq 'Safe') {
                 Write-ResultLine -Message ("[SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
-            }
-            else {
+            } else {
                 Write-ResultLine -Message ("[NOT SAFE] {0} (ID: {1}) - {2}" -f $colName, $colId, $folderPath)
                 Write-ResultLine -Message ("  Reasons: {0}" -f ($reasons -join '; '))
             }
 
             $results += [PSCustomObject]@{
-                Type           = 'SafeToDelete'
-                FolderPath     = $folderPath
-                Software       = $safeSoftwareName
-                CollectionName = $colName
-                Version        = ''
-                CollectionID   = $colId
-                Status         = $status
-                Reason         = ($reasons -join '; ')
-                DataQuality    = $dataQuality
-                AnalysisConfidence = $analysisConfidence
-                LifecycleSignal = $lifecycleSignal
+                Type                            = 'SafeToDelete'
+                FolderPath                      = $folderPath
+                Software                        = $safeSoftwareName
+                CollectionName                  = $colName
+                Version                         = ''
+                CollectionID                    = $colId
+                Status                          = $status
+                Reason                          = ($reasons -join '; ')
+                DataQuality                     = $dataQuality
+                AnalysisConfidence              = $analysisConfidence
+                LifecycleSignal                 = $lifecycleSignal
                 PairedImplicitInstallCollection = $pairedImplicitInstallCollection
             }
         }
@@ -1854,10 +1831,10 @@ if ($AnalyzeSafeToDelete) {
 # ---------------------------------------------------------
 
 $results = @($results | Sort-Object -Property @(
-    @{ Expression = { [string]$_.Software }; Descending = $false },
-    @{ Expression = { [string]$_.CollectionName }; Descending = $false },
-    @{ Expression = { [string]$_.FolderPath }; Descending = $false }
-))
+        @{ Expression = { [string]$_.Software }; Descending = $false },
+        @{ Expression = { [string]$_.CollectionName }; Descending = $false },
+        @{ Expression = { [string]$_.FolderPath }; Descending = $false }
+    ))
 
 if (-not [string]::IsNullOrWhiteSpace($OutputCsv)) {
     Write-PhaseLog -Message 'CSV export requested. Preparing output path.'
@@ -1867,26 +1844,23 @@ if (-not [string]::IsNullOrWhiteSpace($OutputCsv)) {
 
     try {
         $OutputCsv = Resolve-ValidatedOutputPath -Path $OutputCsv -ScriptDir $scriptDir
-    }
-    catch {
+    } catch {
         Write-PhaseLog -Message $_.Exception.Message -Level 'WARN'
         throw
     }
 
     if ($results.Count -gt 0) {
         $results |
-            Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence, LifecycleSignal, PairedImplicitInstallCollection |
-            Export-Csv -Path $OutputCsv -NoTypeInformation -Encoding UTF8
+        Select-Object Type, FolderPath, Software, CollectionName, Version, CollectionID, Status, Reason, DataQuality, AnalysisConfidence, LifecycleSignal, PairedImplicitInstallCollection |
+        Export-Csv -Path $OutputCsv -NoTypeInformation -Encoding UTF8
 
         Write-SectionHeader -Message ("CSV report saved as: {0}" -f $OutputCsv)
         Write-PhaseLog -Message ("CSV export completed: {0}" -f $OutputCsv) -Level 'SUCCESS'
-    }
-    else {
+    } else {
         Write-SectionHeader -Message 'No results to save to CSV.'
         Write-PhaseLog -Message 'CSV export skipped because there are no result rows.' -Level 'WARN'
     }
-}
-else {
+} else {
     Write-PhaseLog -Message 'CSV export skipped because OutputCsv is empty.'
 }
 
@@ -1896,44 +1870,42 @@ if (-not [string]::IsNullOrWhiteSpace($JsonSummaryPath)) {
     $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
     try {
         $JsonSummaryPath = Resolve-ValidatedOutputPath -Path $JsonSummaryPath -ScriptDir $scriptDir
-    }
-    catch {
+    } catch {
         Write-PhaseLog -Message $_.Exception.Message -Level 'WARN'
         throw
     }
 
     $summaryObject = [pscustomobject]@{
-        SiteCode = $SiteCode
-        Mode = $Mode
-        AnalyzeConsolidation = $AnalyzeConsolidation.IsPresent
-        AnalyzeSafeToDelete = $AnalyzeSafeToDelete.IsPresent
+        SiteCode                 = $SiteCode
+        Mode                     = $Mode
+        AnalyzeConsolidation     = $AnalyzeConsolidation.IsPresent
+        AnalyzeSafeToDelete      = $AnalyzeSafeToDelete.IsPresent
         IncludeMasterCollections = $IncludeMasterCollections.IsPresent
-        Filters = [pscustomobject]@{
-            SoftwareNameContains = $SoftwareNameContains
-            FolderPathContains = $FolderPathContains
+        Filters                  = [pscustomobject]@{
+            SoftwareNameContains         = $SoftwareNameContains
+            FolderPathContains           = $FolderPathContains
             ExcludeCollectionNamePattern = $ExcludeCollectionNamePattern
-            ExcludeFolderPathPattern = $ExcludeFolderPathPattern
-            MaxCollectionsToAnalyze = $MaxCollectionsToAnalyze
+            ExcludeFolderPathPattern     = $ExcludeFolderPathPattern
+            MaxCollectionsToAnalyze      = $MaxCollectionsToAnalyze
         }
-        ProgressInterval = $ProgressInterval
-        OutputCsv = $OutputCsv
-        Totals = [pscustomobject]@{
-            ScopedCandidates = $scopedItems.Count
+        ProgressInterval         = $ProgressInterval
+        OutputCsv                = $OutputCsv
+        Totals                   = [pscustomobject]@{
+            ScopedCandidates          = $scopedItems.Count
             MasterCollectionsExcluded = $masterCollectionsExcluded
-            ResultRows = $results.Count
-            ConsolidationRows = @($results | Where-Object { $_.Type -eq 'Consolidation' }).Count
-            SafeToDeleteRows = @($results | Where-Object { $_.Type -eq 'SafeToDelete' }).Count
-            SafeRows = @($results | Where-Object { $_.Type -eq 'SafeToDelete' -and $_.Status -eq 'Safe' }).Count
-            NotSafeRows = @($results | Where-Object { $_.Type -eq 'SafeToDelete' -and $_.Status -eq 'NotSafe' }).Count
+            ResultRows                = $results.Count
+            ConsolidationRows         = @($results | Where-Object { $_.Type -eq 'Consolidation' }).Count
+            SafeToDeleteRows          = @($results | Where-Object { $_.Type -eq 'SafeToDelete' }).Count
+            SafeRows                  = @($results | Where-Object { $_.Type -eq 'SafeToDelete' -and $_.Status -eq 'Safe' }).Count
+            NotSafeRows               = @($results | Where-Object { $_.Type -eq 'SafeToDelete' -and $_.Status -eq 'NotSafe' }).Count
         }
-        WarningCounts = [pscustomobject]$script:AnalysisWarningCounts
-        GeneratedAt = (Get-Date).ToString('o')
+        WarningCounts            = [pscustomobject]$script:AnalysisWarningCounts
+        GeneratedAt              = (Get-Date).ToString('o')
     }
 
     $summaryObject | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonSummaryPath -Encoding UTF8
     Write-PhaseLog -Message ("JSON summary export completed: {0}" -f $JsonSummaryPath) -Level 'SUCCESS'
-}
-else {
+} else {
     Write-PhaseLog -Message 'JSON summary export skipped because JsonSummaryPath is empty.'
 }
 
