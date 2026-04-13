@@ -68,6 +68,8 @@ param(
     [switch]$EnableDebugLog
 )
 
+. "$PSScriptRoot\SCCM-Common.ps1"
+
 # Backward compatibility: keep -DryRun working while standardizing on -WhatIf.
 if ($DryRun -and -not $WhatIfPreference) {
     $WhatIfPreference = $true
@@ -110,8 +112,7 @@ function Write-Log {
 
     try {
         Add-Content -Path $script:LogFile -Value $entry -ErrorAction Stop
-    }
-    catch {
+    } catch {
         Write-Host ('[{0}] [WARN] [LOGGING] Could not write log file: {1}' -f $timestamp, $_.Exception.Message) -ForegroundColor Yellow
     }
 }
@@ -129,12 +130,12 @@ function Write-AuditLog {
     )
 
     $auditObject = @{
-        Timestamp = (Get-Date).ToString('o')
-        SessionId = $script:SessionId
-        User = $env:USERNAME
-        Action = $Action
-        Target = $Target
-        ComputerName = $env:COMPUTERNAME
+        Timestamp      = (Get-Date).ToString('o')
+        SessionId      = $script:SessionId
+        User           = $env:USERNAME
+        Action         = $Action
+        Target         = $Target
+        ComputerName   = $env:COMPUTERNAME
         AdditionalData = $AdditionalData
     }
 
@@ -182,8 +183,7 @@ function Get-ObjectPropertyValue {
                     return [string]$value
                 }
             }
-        }
-        catch {
+        } catch {
             $null = $_
         }
     }
@@ -271,8 +271,7 @@ function Add-Count {
 
     if ($Table.ContainsKey($Key)) {
         $Table[$Key] = [int]$Table[$Key] + 1
-    }
-    else {
+    } else {
         $Table[$Key] = 1
     }
 }
@@ -306,8 +305,7 @@ function Get-VendorMap {
 
         if (Get-Command -Name 'ConvertFrom-Json' -ErrorAction SilentlyContinue) {
             $parsed = ConvertFrom-Json -InputObject $raw -ErrorAction Stop
-        }
-        else {
+        } else {
             Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
             $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
             $parsed = $serializer.DeserializeObject($raw)
@@ -322,8 +320,7 @@ function Get-VendorMap {
                     $map[$k.Trim().ToLowerInvariant()] = $v.Trim()
                 }
             }
-        }
-        else {
+        } else {
             foreach ($property in $parsed.PSObject.Properties) {
                 $k = [string]$property.Name
                 $v = [string]$property.Value
@@ -335,8 +332,7 @@ function Get-VendorMap {
 
         Write-Log -Level 'INFO' -Message ('Loaded vendor map entries: {0}' -f $map.Count)
         return $map
-    }
-    catch {
+    } catch {
         Write-Log -Level 'WARN' -Message ('Could not parse vendor map file {0}: {1}' -f $Path, $_.Exception.Message)
         return @{}
     }
@@ -389,8 +385,7 @@ function Get-SccmApplications {
     if ($AllApps) {
         try {
             return @(Get-CMApplication -ErrorAction Stop)
-        }
-        catch {
+        } catch {
             throw ('Failed to retrieve applications: {0}' -f $_.Exception.Message)
         }
     }
@@ -401,12 +396,11 @@ function Get-SccmApplications {
 
     try {
         return @(Get-CMApplication -Name ('*{0}*' -f $NameFilter) -ErrorAction Stop)
-    }
-    catch {
+    } catch {
         Write-Log -Level 'WARN' -Message ('Name-filter query failed; using fallback query: {0}' -f $_.Exception.Message)
         return @(Get-CMApplication -ErrorAction SilentlyContinue | Where-Object {
-            [string]$_.LocalizedDisplayName -like ('*{0}*' -f $NameFilter)
-        })
+                [string]$_.LocalizedDisplayName -like ('*{0}*' -f $NameFilter)
+            })
     }
 }
 
@@ -455,47 +449,60 @@ function Invoke-UpdateApplicationMetadata {
         return [pscustomobject]@{ Success = $false; Status = 'Failed'; Error = 'Set-CMApplication exposes no supported identity parameter (InputObject, Name, Id).' }
     }
 
-    $lastError = $null
+    $publisherChangeSupported = ($Changes.ContainsKey('Publisher') -and ($paramNames -contains 'Publisher'))
+    $versionChangeSupported = ($Changes.ContainsKey('SoftwareVersion') -and ($paramNames -contains 'SoftwareVersion'))
+
+    if (-not $publisherChangeSupported -and -not $versionChangeSupported) {
+        return [pscustomobject]@{ Success = $true; Status = 'NoChange'; Error = $null }
+    }
+
+    $idValue = $null
+    if ($attempts -contains 'Id') {
+        $idValue = Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('CI_ID', 'CIId', 'Id')
+    }
+
+    $fallbackAttempts = @()
     foreach ($attempt in $attempts) {
-        try {
-            $splat = @{ ErrorAction = 'Stop' }
-
-            if ($attempt -eq 'InputObject') {
-                $splat['InputObject'] = $Application
+        if ($attempt -eq 'InputObject') {
+            $fallbackAttempts += {
+                $splat = @{ ErrorAction = 'Stop'; InputObject = $Application }
+                if ($publisherChangeSupported) { $splat['Publisher'] = [string]$Changes['Publisher'] }
+                if ($versionChangeSupported) { $splat['SoftwareVersion'] = [string]$Changes['SoftwareVersion'] }
+                & $SetCommand @splat | Out-Null
             }
-            elseif ($attempt -eq 'Name') {
-                $splat['Name'] = $ApplicationName
-            }
-            elseif ($attempt -eq 'Id') {
-                $idValue = Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('CI_ID', 'CIId', 'Id')
-                if ([string]::IsNullOrWhiteSpace($idValue)) {
-                    continue
-                }
-                $splat['Id'] = $idValue
-            }
-
-            if ($Changes.ContainsKey('Publisher') -and ($paramNames -contains 'Publisher')) {
-                $splat['Publisher'] = [string]$Changes['Publisher']
-            }
-
-            if ($Changes.ContainsKey('SoftwareVersion') -and ($paramNames -contains 'SoftwareVersion')) {
-                $splat['SoftwareVersion'] = [string]$Changes['SoftwareVersion']
-            }
-
-            if (($splat.Keys.Count -le 2) -and $splat.ContainsKey('ErrorAction')) {
-                continue
-            }
-
-            & $SetCommand @splat | Out-Null
-            return [pscustomobject]@{ Success = $true; Status = 'Updated'; Error = $null }
+            continue
         }
-        catch {
-            $lastError = $_.Exception.Message
-            Write-Log -Level 'DEBUG' -Message ('Set-CMApplication attempt {0} failed for {1}: {2}' -f $attempt, $ApplicationName, $lastError)
+
+        if ($attempt -eq 'Name') {
+            $fallbackAttempts += {
+                $splat = @{ ErrorAction = 'Stop'; Name = $ApplicationName }
+                if ($publisherChangeSupported) { $splat['Publisher'] = [string]$Changes['Publisher'] }
+                if ($versionChangeSupported) { $splat['SoftwareVersion'] = [string]$Changes['SoftwareVersion'] }
+                & $SetCommand @splat | Out-Null
+            }
+            continue
+        }
+
+        if ($attempt -eq 'Id' -and -not [string]::IsNullOrWhiteSpace([string]$idValue)) {
+            $fallbackAttempts += {
+                $splat = @{ ErrorAction = 'Stop'; Id = $idValue }
+                if ($publisherChangeSupported) { $splat['Publisher'] = [string]$Changes['Publisher'] }
+                if ($versionChangeSupported) { $splat['SoftwareVersion'] = [string]$Changes['SoftwareVersion'] }
+                & $SetCommand @splat | Out-Null
+            }
         }
     }
 
-    return [pscustomobject]@{ Success = $false; Status = 'Failed'; Error = $lastError }
+    $fallbackResult = Invoke-SccmCommandWithFallback -Attempts $fallbackAttempts -ActionName 'Set-CMApplication metadata update' -WriteLogScript {
+        param($Level, $Message)
+        Write-Log -Level $Level -Message $Message
+    }
+
+    if ($fallbackResult.Success) {
+        return [pscustomobject]@{ Success = $true; Status = 'Updated'; Error = $null }
+    }
+
+    return [pscustomobject]@{ Success = $false; Status = 'Failed'; Error = [string]$fallbackResult.ErrorMessage }
 }
 
 try {
@@ -510,7 +517,7 @@ try {
     Import-Module ConfigurationManager -ErrorAction Stop
     Set-Location -Path ('{0}:' -f $SiteCode) -ErrorAction Stop
 
-    $setCommand = Get-Command -Name 'Set-CMApplication' -ErrorAction SilentlyContinue
+    $setCommand = Get-SccmCommandInfo -Name 'Set-CMApplication'
     if ($null -eq $setCommand) {
         throw 'Set-CMApplication is unavailable in this SCCM environment.'
     }
@@ -551,11 +558,11 @@ try {
         }
 
         $appRows += [pscustomobject]@{
-            App = $app
-            DisplayName = $displayName
-            FamilyKey = $familyKey
+            App              = $app
+            DisplayName      = $displayName
+            FamilyKey        = $familyKey
             CurrentPublisher = $publisher
-            CurrentVersion = $version
+            CurrentVersion   = $version
             ExtractedVersion = $extractedVersion
         }
     }
@@ -618,26 +625,25 @@ try {
 
             Write-AuditLog -Action ('APP_METADATA_{0}' -f $updateResult.Status.ToUpperInvariant()) -Target $displayName -AdditionalData @{
                 FamilyKey = $familyKey
-                Changes = $changes
+                Changes   = $changes
             }
-        }
-        elseif (-not $updateResult.Success) {
+        } elseif (-not $updateResult.Success) {
             Write-Log -Level 'ERROR' -Message ('Failed to update {0}: {1}' -f $displayName, $updateResult.Error)
             Write-AuditLog -Action 'APP_METADATA_FAILED' -Target $displayName -AdditionalData @{
                 FamilyKey = $familyKey
-                Error = $updateResult.Error
+                Error     = $updateResult.Error
             }
         }
 
         $reportRows += [pscustomobject]@{
-            DisplayName = $displayName
-            FamilyKey = $familyKey
-            CurrentPublisher = $currentPublisher
-            InferredPublisher = $candidatePublisher
-            CurrentSoftwareVersion = $currentVersion
+            DisplayName             = $displayName
+            FamilyKey               = $familyKey
+            CurrentPublisher        = $currentPublisher
+            InferredPublisher       = $candidatePublisher
+            CurrentSoftwareVersion  = $currentVersion
             InferredSoftwareVersion = $candidateVersion
-            Status = $updateResult.Status
-            Error = $updateResult.Error
+            Status                  = $updateResult.Status
+            Error                   = $updateResult.Error
         }
     }
 
@@ -650,8 +656,7 @@ try {
 
     Write-Log -Level 'INFO' -Message ('Report written to: {0}' -f $resolvedReportPath)
     Write-Log -Level 'INFO' -Message ('Summary | Updated={0}; Planned={1}; NoChange={2}; Failed={3}; Total={4}' -f $updatedCount, $plannedCount, $noChangeCount, $failedCount, $reportRows.Count)
-}
-catch {
+} catch {
     Write-Log -Level 'ERROR' -Message ('Fatal error: {0}' -f $_.Exception.Message)
     Write-AuditLog -Action 'SCRIPT_FATAL' -Target 'SCCM-EnrichSoftwareMetadata' -AdditionalData @{ Error = $_.Exception.Message }
     throw

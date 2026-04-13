@@ -37,8 +37,7 @@ function Initialize-SccmScript {
 
     $resolvedLogFileName = if ([string]::IsNullOrWhiteSpace($LogFileName)) {
         '{0}.log' -f [System.IO.Path]::GetFileNameWithoutExtension($ScriptName)
-    }
-    else {
+    } else {
         $LogFileName
     }
 
@@ -63,6 +62,144 @@ function ConvertTo-SccmArray {
     }
 
     return @($InputObject)
+}
+
+function Get-SccmCommandInfo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Refresh
+    )
+
+    if ($null -eq $script:SccmCommandMetadataCache) {
+        $script:SccmCommandMetadataCache = @{}
+    }
+
+    if (-not $Refresh -and $script:SccmCommandMetadataCache.ContainsKey($Name)) {
+        return $script:SccmCommandMetadataCache[$Name]
+    }
+
+    $command = Get-Command -Name $Name -ErrorAction SilentlyContinue
+    $script:SccmCommandMetadataCache[$Name] = $command
+    return $command
+}
+
+function Invoke-SccmDryRunAction {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Action,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Description,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$DryRun,
+
+        [Parameter(Mandatory = $false)]
+        [scriptblock]$WriteLogScript
+    )
+
+    if ($DryRun) {
+        if ($WriteLogScript) {
+            & $WriteLogScript 'INFO' ("[DryRun] Would execute action: {0}" -f $Description)
+        } elseif (Get-Command -Name 'Write-SccmLog' -ErrorAction SilentlyContinue) {
+            Write-SccmLog -Level 'INFO' -Message ("[DryRun] Would execute action: {0}" -f $Description)
+        }
+
+        return [pscustomobject]@{
+            Executed        = $false
+            SkippedByDryRun = $true
+        }
+    }
+
+    & $Action
+
+    return [pscustomobject]@{
+        Executed        = $true
+        SkippedByDryRun = $false
+    }
+}
+
+function Invoke-SccmCommandWithFallback {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [scriptblock[]]$Attempts,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ActionName = 'SCCM command',
+
+        [Parameter(Mandatory = $false)]
+        [scriptblock]$WriteLogScript
+    )
+
+    if ($null -eq $Attempts -or $Attempts.Count -eq 0) {
+        return [pscustomobject]@{
+            Success      = $false
+            Result       = $null
+            ErrorMessage = ("No fallback attempts were provided for {0}." -f $ActionName)
+            Errors       = @()
+        }
+    }
+
+    $errors = New-Object System.Collections.Generic.List[string]
+
+    for ($attemptIndex = 0; $attemptIndex -lt $Attempts.Count; $attemptIndex++) {
+        $attempt = $Attempts[$attemptIndex]
+        if ($null -eq $attempt) {
+            continue
+        }
+
+        try {
+            $previousErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Stop'
+            try {
+                $result = & $attempt
+            } finally {
+                $ErrorActionPreference = $previousErrorActionPreference
+            }
+
+            return [pscustomobject]@{
+                Success      = $true
+                Result       = $result
+                ErrorMessage = $null
+                Errors       = @()
+            }
+        } catch {
+            $attemptError = [string]$_.Exception.Message
+            if (-not [string]::IsNullOrWhiteSpace($attemptError)) {
+                [void]$errors.Add($attemptError)
+            }
+
+            $debugMessage = ("{0} fallback attempt {1}/{2} failed: {3}" -f $ActionName, ($attemptIndex + 1), $Attempts.Count, $attemptError)
+            if ($WriteLogScript) {
+                & $WriteLogScript 'DEBUG' $debugMessage
+            } elseif (Get-Command -Name 'Write-SccmLog' -ErrorAction SilentlyContinue) {
+                Write-SccmLog -Level 'DEBUG' -Message $debugMessage
+            }
+        }
+    }
+
+    $distinctErrors = @($errors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    $errorMessage = if ($distinctErrors.Count -gt 0) {
+        ("All {0} fallback attempts failed: {1}" -f $ActionName, ($distinctErrors -join ' | '))
+    } else {
+        ("All {0} fallback attempts failed." -f $ActionName)
+    }
+
+    return [pscustomobject]@{
+        Success      = $false
+        Result       = $null
+        ErrorMessage = $errorMessage
+        Errors       = $distinctErrors
+    }
 }
 
 function Get-SccmObjectPropertyValue {
@@ -107,12 +244,10 @@ function Get-SccmObjectPropertyValue {
                 if ($value -is [string] -and -not [string]::IsNullOrWhiteSpace($value)) {
                     try {
                         return [datetime]::Parse($value)
-                    }
-                    catch {
+                    } catch {
                         try {
                             return [System.Management.ManagementDateTimeConverter]::ToDateTime($value)
-                        }
-                        catch {
+                        } catch {
                             Write-Debug -Message ("Get-SccmObjectPropertyValue could not convert [{0}] to DateTime." -f $value)
                         }
                     }
@@ -130,8 +265,7 @@ function Get-SccmObjectPropertyValue {
             }
 
             return $value
-        }
-        catch {
+        } catch {
             Write-Debug -Message ("Get-SccmObjectPropertyValue failed to inspect property [{0}]." -f $propertyName)
         }
     }
@@ -158,12 +292,10 @@ function Resolve-SccmDateTime {
     if ($Value -is [string] -and -not [string]::IsNullOrWhiteSpace($Value)) {
         try {
             return [datetime]::Parse($Value)
-        }
-        catch {
+        } catch {
             try {
                 return [System.Management.ManagementDateTimeConverter]::ToDateTime($Value)
-            }
-            catch {
+            } catch {
                 Write-Debug -Message ("Resolve-SccmDateTime could not convert [{0}] to DateTime." -f $Value)
             }
         }
@@ -188,8 +320,7 @@ function Resolve-SccmOutputPath {
 
     $baseDirectory = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
         Join-Path -Path $PSScriptRoot -ChildPath 'output'
-    }
-    else {
+    } else {
         $OutputDirectory
     }
 
@@ -228,8 +359,7 @@ function Protect-SccmLogMessage {
 
         try {
             $sanitizedMessage = $sanitizedMessage -replace [regex]::Escape($token), '[REDACTED]'
-        }
-        catch {
+        } catch {
             Write-Debug -Message ("Protect-SccmLogMessage could not sanitize one token value.")
         }
     }
@@ -268,8 +398,7 @@ function Write-SccmLog {
 
     try {
         Add-Content -Path $script:LogFile -Value $fileEntry -ErrorAction Stop -WhatIf:$false
-    }
-    catch {
+    } catch {
         $fallbackEntry = ('[{0}] [WARN] [LOGGING] Failed to write log entry: {1}' -f $timestamp, $_.Exception.Message)
         Write-Warning -Message $fallbackEntry
     }
@@ -311,8 +440,7 @@ function Write-SccmAuditLog {
 
         $auditMessage = $auditObject | ConvertTo-Json -Compress -Depth 6
         Write-SccmLog -Message ([string]$auditMessage) -Level 'AUDIT' -Sensitive
-    }
-    catch {
+    } catch {
         $fallbackMessage = 'Audit logging failed for action [{0}]: {1}' -f [string]$Action, $_.Exception.Message
         Write-SccmLog -Message $fallbackMessage -Level 'WARN'
     }
@@ -348,8 +476,8 @@ function Resolve-SccmSiteCode {
 
     try {
         $provider = Get-CimInstance -Namespace 'root/SMS' -ClassName 'SMS_ProviderLocation' -ErrorAction Stop |
-            Where-Object { $_.ProviderForLocalSite -eq $true } |
-            Select-Object -First 1
+        Where-Object { $_.ProviderForLocalSite -eq $true } |
+        Select-Object -First 1
 
         $resolvedSiteCode = Get-SccmObjectPropertyValue -InputObject $provider -PropertyNames @('SiteCode')
         if ([string]::IsNullOrWhiteSpace($resolvedSiteCode)) {
@@ -357,8 +485,7 @@ function Resolve-SccmSiteCode {
         }
 
         return $resolvedSiteCode.Trim().ToUpperInvariant()
-    }
-    catch {
+    } catch {
         throw 'SiteCode was not provided and automatic discovery failed. Provide -SiteCode explicitly.'
     }
 }
@@ -412,8 +539,7 @@ function Disconnect-SccmSite {
     if (-not [string]::IsNullOrWhiteSpace($previousLocationPath)) {
         try {
             Set-Location -Path $previousLocationPath -ErrorAction Stop
-        }
-        catch {
+        } catch {
             Set-Location -Path $PSScriptRoot -ErrorAction SilentlyContinue
         }
     }
@@ -459,8 +585,7 @@ function Test-SccmLocalClient {
     try {
         $service = Get-Service -Name 'CcmExec' -ErrorAction Stop
         $client = Get-CimInstance -Namespace 'root/ccm' -ClassName 'SMS_Client' -ErrorAction Stop
-    }
-    catch {
+    } catch {
         return $false
     }
 

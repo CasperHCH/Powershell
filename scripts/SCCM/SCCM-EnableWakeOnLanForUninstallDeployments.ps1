@@ -468,7 +468,16 @@ try {
 
         try {
             if ($PSCmdlet.ShouldProcess($targetLabel, 'Enable wake-up packets')) {
-                $updatedDeployment = Set-DeploymentWakeOnLan -Deployment $deployment -DeploymentSummary $summary
+                $updateAttempts = @(
+                    { Set-DeploymentWakeOnLan -Deployment $deployment -DeploymentSummary $summary }
+                )
+
+                $updateResult = Invoke-SccmCommandWithFallback -Attempts $updateAttempts -ActionName 'Set-CimInstance (wake-on-lan update)'
+                if (-not $updateResult.Success) {
+                    throw [string]$updateResult.ErrorMessage
+                }
+
+                $updatedDeployment = $updateResult.Result
                 $updatedSummary = Resolve-DeploymentSummary -InputObject $updatedDeployment
                 $wakeEnabledAfter = if ($null -ne $updatedSummary.WakeEnabled) { $updatedSummary.WakeEnabled } else { $true }
                 $status = 'Updated'

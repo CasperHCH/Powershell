@@ -12,8 +12,8 @@
         * <Canonical> - Install (Available)
         * <Canonical> - Install (Required)
         * <Canonical> - Uninstall
-    - Place master collections in:
-        <SiteCode>:\DeviceCollection\Application Deployment\<TargetFolder>
+    - Place master collections in the resolved Application Deployment root:
+        <SiteCode>:\<DeviceCollection root>\<Deployment root>\<TargetFolder>
     - Populate master collections with members using this logic:
 
         OldAvailable:
@@ -36,8 +36,7 @@
     - Keep the two newest application versions plus all applications referenced
       by Task Sequences
     - Delete legacy collections, applications, and deployments
-    - Clean up empty folders under:
-        <SiteCode>:\DeviceCollection\Application Deployment\
+    - Clean up empty folders under the resolved Application Deployment root.
 
 .PARAMETER SiteCode
     SCCM site code, for example "P03".
@@ -47,10 +46,17 @@
     for example "Firefox".
 
 .PARAMETER TargetFolder
-    Name of the subfolder under:
-        <SiteCode>:\DeviceCollection\Application Deployment\<TargetFolder>
+    Name of the subfolder under the resolved Application Deployment root:
+        <SiteCode>:\<DeviceCollection root>\<Deployment root>\<TargetFolder>
     where master collections should be placed.
     Example: "Mozilla Firefox"
+
+.PARAMETER ApplicationDeploymentRootPath
+    Optional explicit root path override under the SCCM device collection tree.
+    Use this when auto-discovery is ambiguous in a given environment.
+    Examples:
+        DeviceCollections\Application Deployment Devices
+        DeviceCollection\Application Deployment
 
 .PARAMETER ManageSupersedence
     Defaults to $true and builds a linear supersedence chain between
@@ -144,6 +150,9 @@ param(
     [string]$FallbackLimitingCollectionName = 'All Systems',
 
     [Parameter(Mandatory = $false)]
+    [string]$ApplicationDeploymentRootPath = '',
+
+    [Parameter(Mandatory = $false)]
     [string]$ScriptBuildId = ''
 )
 
@@ -160,6 +169,7 @@ $script:DebugLoggingEnabled = $EnableDebugLog.IsPresent
 $script:CleanupMembershipDependenciesEnabled = [bool]$CleanupCollectionMembershipDependencies
 $script:ReassignLimitingDependencyEnabled = $ReassignLimitingCollectionDependencies.IsPresent
 $script:FallbackLimitingCollection = $FallbackLimitingCollectionName
+$script:ApplicationDeploymentRootOverride = $ApplicationDeploymentRootPath
 $script:ExecutionBuildId = $ScriptBuildId
 
 function Write-SectionHeader {
@@ -204,6 +214,7 @@ $script:AllDeviceCollectionsCache = $null
 $script:CmCollectionByNameCache = @{}
 $script:CollectionDependencyIndexCache = $null
 $script:CanonicalMappingInventoryCache = $null
+$script:ResolvedApplicationDeploymentRoot = $null
 
 # ------------------------------------------------------------
 # LOGGING
@@ -1941,11 +1952,433 @@ function Test-SoftwareNameCandidate {
 
 <#
 .SYNOPSIS
+    Returns known SCCM application deployment root layouts.
+
+.DESCRIPTION
+    These are last-resort fallback layouts used when provider-based discovery
+    cannot determine the correct root automatically.
+#>
+function Get-ApplicationDeploymentRootDefinition {
+    return @(
+        [pscustomobject]@{
+            DeviceRootName     = 'DeviceCollection'
+            DeploymentRootName = 'Application Deployment'
+        },
+        [pscustomobject]@{
+            DeviceRootName     = 'DeviceCollections'
+            DeploymentRootName = 'Application Deployment Devices'
+        }
+    )
+}
+
+function Get-NormalizedCmFolderPath {
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ''
+    }
+
+    $normalized = [string]$Path
+    $normalized = $normalized.Trim()
+    $normalized = $normalized -replace '/', '\\'
+    $normalized = $normalized -replace '\\\\+', '\\'
+    $normalized = $normalized -replace '^[^:]+:\\?', ''
+    $normalized = $normalized.TrimStart('\\').TrimEnd('\\')
+    return $normalized
+}
+
+function Get-ApplicationDeploymentRootInfo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceRootName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DeploymentRootPath,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Source = 'Unknown',
+
+        [Parameter(Mandatory = $false)]
+        [int]$Score = 0,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetFolder = '',
+
+        [Parameter(Mandatory = $false)]
+        [string]$ContainerNodeId = '',
+
+        [Parameter(Mandatory = $false)]
+        $FolderObject = $null,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OverridePath = ''
+    )
+
+    $normalizedDeviceRootName = (Get-NormalizedCmFolderPath -Path $DeviceRootName).Trim('\')
+    $normalizedDeploymentRootPath = (Get-NormalizedCmFolderPath -Path $DeploymentRootPath).Trim('\')
+    if ([string]::IsNullOrWhiteSpace($normalizedDeviceRootName) -or [string]::IsNullOrWhiteSpace($normalizedDeploymentRootPath)) {
+        return $null
+    }
+
+    $deploymentRootName = @($normalizedDeploymentRootPath -split '\\' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Last 1)[0]
+    $rootPathNoDrive = ('{0}\{1}' -f $normalizedDeviceRootName, $normalizedDeploymentRootPath)
+
+    return [pscustomobject]@{
+        SiteCode                   = [string]$SiteCode
+        DeviceRootName             = [string]$normalizedDeviceRootName
+        DeploymentRootName         = [string]$deploymentRootName
+        DeploymentRootRelativePath = [string]$normalizedDeploymentRootPath
+        DeviceRootNoDrive          = [string]$normalizedDeviceRootName
+        DeviceRootPath             = ('{0}:\{1}' -f $SiteCode, $normalizedDeviceRootName)
+        RootPathNoDrive            = [string]$rootPathNoDrive
+        RootPath                   = ('{0}:\{1}' -f $SiteCode, $rootPathNoDrive)
+        RootPathWithSlash          = ('\{0}' -f $rootPathNoDrive)
+        Source                     = [string]$Source
+        Score                      = [int]$Score
+        TargetFolder               = [string]$TargetFolder
+        ContainerNodeId            = [string]$ContainerNodeId
+        FolderObject               = $FolderObject
+        OverridePath               = [string]$OverridePath
+    }
+}
+
+<#
+.SYNOPSIS
+    Resolves the active application deployment root for the current site.
+
+.DESCRIPTION
+    Resolution order is:
+    1. Explicit ApplicationDeploymentRootPath override
+    2. Existing folder inference from TargetFolder
+    3. Provider-based discovery of a top-level device collection folder
+    4. Known fallback layouts
+
+    The selected root is cached for the rest of the run so all later folder and
+    cleanup operations use the same path consistently.
+#>
+function Resolve-ApplicationDeploymentRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteCode,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetFolder = ''
+    )
+
+    $normalizedOverridePath = Get-NormalizedCmFolderPath -Path $script:ApplicationDeploymentRootOverride
+    $cachedRootInfo = $script:ResolvedApplicationDeploymentRoot
+    if ($cachedRootInfo -and
+        [string]$cachedRootInfo.SiteCode -eq [string]$SiteCode -and
+        [string]$cachedRootInfo.OverridePath -eq [string]$normalizedOverridePath) {
+
+        $cacheCanBeReused = $true
+        if (-not [string]::IsNullOrWhiteSpace($TargetFolder) -and
+            [string]::IsNullOrWhiteSpace([string]$cachedRootInfo.TargetFolder) -and
+            [string]$cachedRootInfo.Source -eq 'FallbackKnownLayout') {
+            $cacheCanBeReused = $false
+        }
+
+        if ($cacheCanBeReused) {
+            return $cachedRootInfo
+        }
+    }
+
+    $rootDefinitions = @(Get-ApplicationDeploymentRootDefinition)
+    $knownDeviceRootNames = @($rootDefinitions | ForEach-Object { [string]$_.DeviceRootName } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $knownRootLookup = @{}
+    foreach ($rootDefinition in $rootDefinitions) {
+        $knownRootLookup[(('{0}\{1}' -f $rootDefinition.DeviceRootName, $rootDefinition.DeploymentRootName).ToLowerInvariant())] = $true
+    }
+
+    $resolveRootFolderObject = {
+        param(
+            [Parameter(Mandatory = $true)]
+            $RootInfo
+        )
+
+        $candidatePaths = @(
+            [string]$RootInfo.RootPath,
+            [string]$RootInfo.RootPathNoDrive,
+            [string]$RootInfo.RootPathWithSlash
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+        foreach ($candidatePath in $candidatePaths) {
+            $folderResult = @(Get-CMFolder -FolderPath $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($folderResult) {
+                return $folderResult
+            }
+
+            $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($folderResult) {
+                return $folderResult
+            }
+        }
+
+        $folderResult = @(
+            Get-CMFolder -Name ([string]$RootInfo.DeploymentRootName) -ErrorAction SilentlyContinue |
+            Where-Object {
+                (Get-NormalizedCmFolderPath -Path ([string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('FolderPath', 'Path', 'ContainerNodePath')))).ToLowerInvariant() -eq ([string]$RootInfo.RootPathNoDrive).ToLowerInvariant()
+            }
+        ) | Select-Object -First 1
+
+        return $folderResult
+    }
+
+    $testChildFolderExists = {
+        param(
+            [Parameter(Mandatory = $true)]
+            $RootInfo,
+
+            [Parameter(Mandatory = $true)]
+            [string]$ChildFolderName
+        )
+
+        $candidatePaths = @(
+            Join-Path -Path ([string]$RootInfo.RootPath) -ChildPath $ChildFolderName,
+            ('{0}\{1}' -f [string]$RootInfo.RootPathNoDrive, $ChildFolderName),
+            ('\{0}\{1}' -f [string]$RootInfo.RootPathNoDrive, $ChildFolderName)
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+        foreach ($candidatePath in $candidatePaths) {
+            $folderResult = @(Get-CMFolder -FolderPath $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($folderResult) {
+                return $true
+            }
+
+            $folderResult = @(Get-CMFolder -Path $candidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($folderResult) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    $cacheResolvedRoot = {
+        param(
+            [Parameter(Mandatory = $true)]
+            $RootInfo
+        )
+
+        $script:ResolvedApplicationDeploymentRoot = $RootInfo
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
+            "Resolved Application Deployment root via {0}: {1}" -f [string]$RootInfo.Source, [string]$RootInfo.RootPathNoDrive
+        )
+        return $RootInfo
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($normalizedOverridePath)) {
+        $overrideSegments = @($normalizedOverridePath -split '\\' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($overrideSegments.Count -lt 2) {
+            Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
+                "ApplicationDeploymentRootPath '{0}' is invalid. Expected a path like 'DeviceCollections\\Application Deployment Devices'." -f $script:ApplicationDeploymentRootOverride
+            )
+        } else {
+            $overrideDeviceRootName = [string]$overrideSegments[0]
+            $overrideDeploymentRootPath = [string]::Join('\\', @($overrideSegments[1..($overrideSegments.Count - 1)]))
+            $overrideRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName $overrideDeviceRootName -DeploymentRootPath $overrideDeploymentRootPath -Source 'ExplicitOverride' -Score 10000 -TargetFolder $TargetFolder -OverridePath $normalizedOverridePath
+            if ($overrideRootInfo) {
+                $overrideRootInfo.FolderObject = & $resolveRootFolderObject $overrideRootInfo
+                if (-not $overrideRootInfo.FolderObject) {
+                    Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
+                        "ApplicationDeploymentRootPath '{0}' did not resolve to an existing folder. The script will still use it as the root path override." -f $script:ApplicationDeploymentRootOverride
+                    )
+                }
+                return & $cacheResolvedRoot $overrideRootInfo
+            }
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($TargetFolder)) {
+        try {
+            $targetFolderRootsByPath = @{}
+            $existingTargetFolders = @(Get-CMFolder -Name $TargetFolder -ErrorAction SilentlyContinue)
+            foreach ($existingTargetFolder in $existingTargetFolders) {
+                if (-not $existingTargetFolder) {
+                    continue
+                }
+
+                $pathCandidates = @(
+                    [string](Get-ObjectPropertyValue -InputObject $existingTargetFolder -PropertyNames @('FolderPath')),
+                    [string](Get-ObjectPropertyValue -InputObject $existingTargetFolder -PropertyNames @('Path')),
+                    [string](Get-ObjectPropertyValue -InputObject $existingTargetFolder -PropertyNames @('ContainerNodePath'))
+                ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+                foreach ($pathCandidate in $pathCandidates) {
+                    $normalizedPathCandidate = Get-NormalizedCmFolderPath -Path $pathCandidate
+                    if ([string]::IsNullOrWhiteSpace($normalizedPathCandidate)) {
+                        continue
+                    }
+
+                    $segments = @($normalizedPathCandidate -split '\\' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+                    if ($segments.Count -lt 3) {
+                        continue
+                    }
+
+                    if ($segments[-1].ToLowerInvariant() -ne $TargetFolder.Trim().ToLowerInvariant()) {
+                        continue
+                    }
+
+                    $deploymentRootPath = [string]::Join('\\', @($segments[1..($segments.Count - 2)]))
+                    if ([string]::IsNullOrWhiteSpace($deploymentRootPath)) {
+                        continue
+                    }
+
+                    $rootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName ([string]$segments[0]) -DeploymentRootPath $deploymentRootPath -Source 'ExistingTargetFolder' -Score 5000 -TargetFolder $TargetFolder -FolderObject $existingTargetFolder -OverridePath $normalizedOverridePath
+                    if (-not $rootInfo) {
+                        continue
+                    }
+
+                    $targetFolderRootsByPath[$rootInfo.RootPathNoDrive.ToLowerInvariant()] = $rootInfo
+                }
+            }
+
+            if ($targetFolderRootsByPath.Count -eq 1) {
+                return & $cacheResolvedRoot @($targetFolderRootsByPath.Values)[0]
+            }
+
+            if ($targetFolderRootsByPath.Count -gt 1) {
+                Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
+                    "Target folder '{0}' exists under multiple possible roots: {1}. Auto-discovery will continue with provider-based scoring. Use -ApplicationDeploymentRootPath to force one." -f
+                    $TargetFolder,
+                    ((@($targetFolderRootsByPath.Values) | ForEach-Object { $_.RootPathNoDrive }) -join ', ')
+                )
+            }
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
+                "Target-folder-based root inference failed for '{0}': {1}" -f $TargetFolder, $_.Exception.Message
+            )
+        }
+    }
+
+    $providerCandidatesByPath = @{}
+    try {
+        $siteNamespace = 'root\SMS\site_{0}' -f $SiteCode
+        $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode')
+        $topLevelNodes = @($containerNodes | Where-Object {
+                $parentNodeId = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('ParentContainerNodeId', 'ParentContainerNodeID'))
+                [string]::IsNullOrWhiteSpace($parentNodeId) -or $parentNodeId -eq '0'
+            })
+
+        foreach ($topLevelNode in $topLevelNodes) {
+            if (-not $topLevelNode) {
+                continue
+            }
+
+            $nodeName = [string](Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('Name'))
+            if ([string]::IsNullOrWhiteSpace($nodeName)) {
+                continue
+            }
+
+            $containerNodeId = [string](Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('ContainerNodeId', 'ContainerNodeID'))
+            $isEmptyValue = Get-ObjectPropertyValue -InputObject $topLevelNode -PropertyNames @('IsEmpty')
+
+            foreach ($deviceRootName in $knownDeviceRootNames) {
+                $candidateRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName $deviceRootName -DeploymentRootPath $nodeName -Source 'ProviderDiscovery' -TargetFolder $TargetFolder -ContainerNodeId $containerNodeId -OverridePath $normalizedOverridePath
+                if (-not $candidateRootInfo) {
+                    continue
+                }
+
+                $candidateRootInfo.FolderObject = & $resolveRootFolderObject $candidateRootInfo
+                if (-not $candidateRootInfo.FolderObject) {
+                    continue
+                }
+
+                $candidateScore = 100
+                $candidateRootPathKey = ([string]$candidateRootInfo.RootPathNoDrive).ToLowerInvariant()
+                if ($knownRootLookup.ContainsKey($candidateRootPathKey)) {
+                    $candidateScore += 50
+                }
+
+                $nodeNameLower = $nodeName.ToLowerInvariant()
+                if ($nodeNameLower -match 'application') {
+                    $candidateScore += 20
+                }
+                if ($nodeNameLower -match 'deployment') {
+                    $candidateScore += 20
+                }
+                if ($nodeNameLower -match 'device') {
+                    $candidateScore += 5
+                }
+
+                try {
+                    if ($null -ne $isEmptyValue -and [int]$isEmptyValue -eq 0) {
+                        $candidateScore += 5
+                    }
+                } catch {
+                }
+
+                if (-not [string]::IsNullOrWhiteSpace($TargetFolder) -and (& $testChildFolderExists $candidateRootInfo $TargetFolder)) {
+                    $candidateScore += 200
+                }
+
+                $candidateRootInfo.Score = $candidateScore
+
+                if (-not $providerCandidatesByPath.ContainsKey($candidateRootPathKey) -or [int]$providerCandidatesByPath[$candidateRootPathKey].Score -lt $candidateScore) {
+                    $providerCandidatesByPath[$candidateRootPathKey] = $candidateRootInfo
+                }
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail (
+            "Provider-based Application Deployment root discovery failed: {0}" -f $_.Exception.Message
+        )
+    }
+
+    if ($providerCandidatesByPath.Count -gt 0) {
+        $rankedProviderCandidates = @($providerCandidatesByPath.Values | Sort-Object -Property @{ Expression = { [int]$_.Score }; Descending = $true }, @{ Expression = { [string]$_.RootPathNoDrive }; Descending = $false })
+        $bestScore = [int]$rankedProviderCandidates[0].Score
+        $bestCandidates = @($rankedProviderCandidates | Where-Object { [int]$_.Score -eq $bestScore })
+
+        if ($bestCandidates.Count -eq 1) {
+            return & $cacheResolvedRoot $bestCandidates[0]
+        }
+
+        Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
+            "Multiple Application Deployment roots scored equally in provider discovery: {0}. Falling back to known layouts unless -ApplicationDeploymentRootPath is specified." -f
+            (($bestCandidates | ForEach-Object { $_.RootPathNoDrive }) -join ', ')
+        )
+
+        $knownBestCandidate = @($bestCandidates | Where-Object { $knownRootLookup.ContainsKey(([string]$_.RootPathNoDrive).ToLowerInvariant()) } | Select-Object -First 1)[0]
+        if ($knownBestCandidate) {
+            return & $cacheResolvedRoot $knownBestCandidate
+        }
+    }
+
+    foreach ($rootDefinition in $rootDefinitions) {
+        $fallbackRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName ([string]$rootDefinition.DeviceRootName) -DeploymentRootPath ([string]$rootDefinition.DeploymentRootName) -Source 'FallbackKnownLayout' -TargetFolder $TargetFolder -OverridePath $normalizedOverridePath
+        if (-not $fallbackRootInfo) {
+            continue
+        }
+
+        $fallbackRootInfo.FolderObject = & $resolveRootFolderObject $fallbackRootInfo
+        if ($fallbackRootInfo.FolderObject) {
+            return & $cacheResolvedRoot $fallbackRootInfo
+        }
+    }
+
+    $fallback = @($rootDefinitions | Select-Object -First 1)[0]
+    $fallbackRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName ([string]$fallback.DeviceRootName) -DeploymentRootPath ([string]$fallback.DeploymentRootName) -Source 'FallbackKnownLayout' -TargetFolder $TargetFolder -OverridePath $normalizedOverridePath
+    Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
+        "Could not auto-discover an existing Application Deployment root. Defaulting to '{0}'. Use -ApplicationDeploymentRootPath if this environment uses a different root." -f [string]$fallbackRootInfo.RootPathNoDrive
+    )
+    return & $cacheResolvedRoot $fallbackRootInfo
+}
+
+<#
+.SYNOPSIS
     Builds the SCCM folder path for master collection placement.
 
 .DESCRIPTION
-    Combines SiteCode and TargetFolder into the canonical
-    DeviceCollection\Application Deployment path.
+    Combines SiteCode and TargetFolder into the resolved Application Deployment
+    root path for the current SCCM environment.
 #>
 function Get-TargetFolderPath {
     param(
@@ -1956,7 +2389,8 @@ function Get-TargetFolderPath {
         [string]$TargetFolder
     )
 
-    $basePath = "{0}:\DeviceCollection\Application Deployment" -f $SiteCode
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder
+    $basePath = [string]$rootInfo.RootPath
     return (Join-Path -Path $basePath -ChildPath $TargetFolder)
 }
 
@@ -1982,14 +2416,25 @@ function Set-CollectionFolder {
         [string]$TargetFolder
     )
 
-    $fullFolderPath = Get-TargetFolderPath -SiteCode $SiteCode -TargetFolder $TargetFolder
+    $targetFolderLeaf = ($TargetFolder -as [string]).Trim()
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder
+    $fullFolderPath = Join-Path -Path ([string]$rootInfo.RootPath) -ChildPath $targetFolderLeaf
+    $siteDeviceCollectionPath = [string]$rootInfo.DeviceRootPath
+    $siteBaseFolderPath = [string]$rootInfo.RootPath
+
     $normalizedCandidates = @()
     $normalizedCandidates += $fullFolderPath
     $normalizedCandidates += $fullFolderPath -replace '^[^:]+:\\', ''
     $normalizedCandidates += $fullFolderPath -replace '^[^:]+:', ''
-    $normalizedCandidates += "DeviceCollection\\Application Deployment\\$TargetFolder"
-    $normalizedCandidates += "\\DeviceCollection\\Application Deployment\\$TargetFolder"
-    $normalizedCandidates = $normalizedCandidates | Sort-Object -Unique
+    $normalizedCandidates += ('{0}\{1}' -f $rootInfo.RootPathNoDrive, $targetFolderLeaf)
+    $normalizedCandidates += ('\{0}\{1}' -f $rootInfo.RootPathNoDrive, $targetFolderLeaf)
+    $normalizedCandidates = @($normalizedCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+
+    $baseFolderCandidates = @(
+        $siteBaseFolderPath,
+        [string]$rootInfo.RootPathNoDrive,
+        [string]$rootInfo.RootPathWithSlash
+    )
 
     try {
         $folder = $null
@@ -2021,24 +2466,101 @@ function Set-CollectionFolder {
                 Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("[DryRun] Would create folder: {0}" -f $fullFolderPath)
                 return $fullFolderPath
             } else {
-                $siteBaseFolderPath = "{0}:\DeviceCollection\Application Deployment" -f $SiteCode
+                $resolveFolderByPath = {
+                    param(
+                        [Parameter(Mandatory = $true)]
+                        [string]$CandidatePath,
+
+                        [Parameter(Mandatory = $false)]
+                        [string]$NameHint
+                    )
+
+                    $folderResult = @(Get-CMFolder -FolderPath $CandidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+                    if ($folderResult) {
+                        return $folderResult
+                    }
+
+                    $folderResult = @(Get-CMFolder -Path $CandidatePath -ErrorAction SilentlyContinue) | Select-Object -First 1
+                    if ($folderResult) {
+                        return $folderResult
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($NameHint)) {
+                        $folderResult = @(Get-CMFolder -Name $NameHint -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $CandidatePath }) | Select-Object -First 1
+                        if ($folderResult) {
+                            return $folderResult
+                        }
+                    }
+
+                    return $null
+                }
+
+                $baseFolder = $null
+                foreach ($baseCandidate in $baseFolderCandidates) {
+                    $baseFolder = & $resolveFolderByPath $baseCandidate ([string]$rootInfo.DeploymentRootName)
+                    if ($baseFolder) {
+                        break
+                    }
+                }
+
+                if (-not $baseFolder) {
+                    $baseCreateErrors = New-Object System.Collections.Generic.List[string]
+                    $baseCreateAttempts = @(
+                        { New-CMFolder -Name ([string]$rootInfo.DeploymentRootName) -ParentFolderPath $siteDeviceCollectionPath -ErrorAction Stop | Out-Null },
+                        { New-CMFolder -Name ([string]$rootInfo.DeploymentRootName) -ParentFolderPath ([string]$rootInfo.DeviceRootNoDrive) -ErrorAction Stop | Out-Null },
+                        { New-Item -Path $siteDeviceCollectionPath -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null },
+                        { New-Item -Path ([string]$rootInfo.DeviceRootNoDrive) -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null }
+                    )
+
+                    foreach ($baseCreateAttempt in $baseCreateAttempts) {
+                        try {
+                            & $baseCreateAttempt
+                            break
+                        } catch {
+                            $baseErr = [string]$_.Exception.Message
+                            if (-not [string]::IsNullOrWhiteSpace($baseErr)) {
+                                [void]$baseCreateErrors.Add($baseErr)
+                            }
+                            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Base folder create attempt failed for '{0}': {1}" -f $siteBaseFolderPath, $baseErr)
+                        }
+                    }
+
+                    foreach ($baseCandidate in $baseFolderCandidates) {
+                        $baseFolder = & $resolveFolderByPath $baseCandidate ([string]$rootInfo.DeploymentRootName)
+                        if ($baseFolder) {
+                            break
+                        }
+                    }
+                }
+
+                $resolvedBaseFolderPath = $siteBaseFolderPath
+                if ($baseFolder -and -not [string]::IsNullOrWhiteSpace(($baseFolder.FolderPath -as [string]))) {
+                    $resolvedBaseFolderPath = [string]$baseFolder.FolderPath
+                }
+
                 $createAttemptErrors = New-Object System.Collections.Generic.List[string]
                 $createAttempts = @(
-                    { New-CMFolder -Name $TargetFolder -ParentFolderPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -ParentPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -Path $siteBaseFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -ParentFolderPath "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -ParentPath "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -Path "DeviceCollection\\Application Deployment" -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -FolderPath $fullFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Path $fullFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -ObjectType SMS_Collection -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $TargetFolder -ObjectType SMS_ApplicationDeployment -ErrorAction Stop | Out-Null }
+                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath $resolvedBaseFolderPath -ErrorAction Stop | Out-Null },
+                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
+                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath ([string]$rootInfo.RootPathNoDrive) -ErrorAction Stop | Out-Null }
                 )
 
                 foreach ($attempt in $createAttempts) {
                     try {
                         & $attempt
+                        $createdFolder = $null
+                        foreach ($candidate in $normalizedCandidates) {
+                            $createdFolder = & $resolveFolderByPath $candidate $targetFolderLeaf
+                            if ($createdFolder) {
+                                break
+                            }
+                        }
+
+                        if ($createdFolder -and -not [string]::IsNullOrWhiteSpace(($createdFolder.FolderPath -as [string]))) {
+                            Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $createdFolder.FolderPath)
+                            return ([string]$createdFolder.FolderPath)
+                        }
+
                         Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
                         return $fullFolderPath
                     } catch {
@@ -2053,9 +2575,9 @@ function Set-CollectionFolder {
 
                 $providerAttemptErrors = New-Object System.Collections.Generic.List[string]
                 $providerCreateAttempts = @(
-                    { New-Item -Path $fullFolderPath -ItemType Directory -ErrorAction Stop | Out-Null },
-                    { New-Item -Path ("{0}:\DeviceCollection\Application Deployment" -f $SiteCode) -Name $TargetFolder -ItemType Directory -ErrorAction Stop | Out-Null },
-                    { New-Item -Path ("\DeviceCollection\Application Deployment" ) -Name $TargetFolder -ItemType Directory -ErrorAction Stop | Out-Null }
+                    { New-Item -Path $resolvedBaseFolderPath -Name $targetFolderLeaf -ItemType Directory -ErrorAction Stop | Out-Null },
+                    { New-Item -Path $siteBaseFolderPath -Name $targetFolderLeaf -ItemType Directory -ErrorAction Stop | Out-Null },
+                    { New-Item -Path ([string]$rootInfo.RootPathWithSlash) -Name $targetFolderLeaf -ItemType Directory -ErrorAction Stop | Out-Null }
                 )
 
                 foreach ($attempt in $providerCreateAttempts) {
@@ -2088,7 +2610,7 @@ function Set-CollectionFolder {
                     $errorDetailText = [string]::Join(' || ', @($errorDetailParts))
                 }
 
-                Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not create folder '{0}': no supported parameters succeeded. {1}" -f $fullFolderPath, $errorDetailText)
+                Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not create folder '{0}': no supported parameters succeeded. Ensure parent folder '{1}' exists. {2}" -f $fullFolderPath, ([string]$rootInfo.RootPathNoDrive), $errorDetailText)
                 return $fullFolderPath
             }
         } else {
@@ -2126,21 +2648,45 @@ function Move-CollectionToFolder {
         return $false
     }
 
-    $attempts = @(
-        { Move-CMObject -ObjectId $Collection.CollectionID -FolderPath $FolderPath -ErrorAction Stop },
-        { Move-CMObject -ObjectId $Collection.CollectionID -InputObject $Collection -FolderPath $FolderPath -ErrorAction Stop },
-        { Move-CMObject -InputObject $Collection -FolderPath $FolderPath -ErrorAction Stop },
-        { Move-CMObject -InputObject $Collection -Path $FolderPath -ErrorAction Stop },
-        { Move-CMObject -InputObject $Collection -DestinationPath $FolderPath -ErrorAction Stop },
-        { Move-CMObject -InputObject $Collection -Destination $FolderPath -ErrorAction Stop },
-        { Move-CMObject -InputObject $Collection -TargetPath $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionId $Collection.CollectionID -FolderPath $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionName $Collection.Name -FolderPath $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionId $Collection.CollectionID -Path $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionId $Collection.CollectionID -DestinationPath $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionId $Collection.CollectionID -Destination $FolderPath -ErrorAction Stop },
-        { Move-CMDeviceCollection -CollectionId $Collection.CollectionID -TargetPath $FolderPath -ErrorAction Stop }
-    )
+    $collectionId = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
+    $collectionName = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('Name', 'CollectionName'))
+
+    $folderPathCandidates = @(
+        $FolderPath,
+        ($FolderPath -replace '^[^:]+:\\', ''),
+        ($FolderPath -replace '^[^:]+:', ''),
+        ('\' + ($FolderPath -replace '^[^:]+:\\', ''))
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique
+
+    $attempts = @()
+    foreach ($candidatePath in $folderPathCandidates) {
+        if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+            $attempts += { Move-CMObject -ObjectId $collectionId -FolderPath $candidatePath -ErrorAction Stop }
+            $attempts += { Move-CMObject -ObjectId $collectionId -InputObject $Collection -FolderPath $candidatePath -ErrorAction Stop }
+        }
+
+        $attempts += { Move-CMObject -InputObject $Collection -FolderPath $candidatePath -ErrorAction Stop }
+        $attempts += { Move-CMObject -InputObject $Collection -Path $candidatePath -ErrorAction Stop }
+        $attempts += { Move-CMObject -InputObject $Collection -DestinationPath $candidatePath -ErrorAction Stop }
+        $attempts += { Move-CMObject -InputObject $Collection -Destination $candidatePath -ErrorAction Stop }
+        $attempts += { Move-CMObject -InputObject $Collection -TargetPath $candidatePath -ErrorAction Stop }
+    }
+
+    if (Get-CachedCommand -Name 'Move-CMDeviceCollection') {
+        foreach ($candidatePath in $folderPathCandidates) {
+            if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -FolderPath $candidatePath -ErrorAction Stop }
+                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -Path $candidatePath -ErrorAction Stop }
+                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -DestinationPath $candidatePath -ErrorAction Stop }
+                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -Destination $candidatePath -ErrorAction Stop }
+                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -TargetPath $candidatePath -ErrorAction Stop }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
+                $attempts += { Move-CMDeviceCollection -CollectionName $collectionName -FolderPath $candidatePath -ErrorAction Stop }
+            }
+        }
+    }
 
     $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Move collection'
     return $result.Success
@@ -4814,7 +5360,8 @@ function Get-CollectionFolderCleanupCandidates {
         [object[]]$Collections
     )
 
-    $rootPathNoDrive = 'DeviceCollection\Application Deployment'
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode
+    $rootPathCandidates = @([string]$rootInfo.RootPathNoDrive)
     $results = New-Object System.Collections.Generic.HashSet[string]
 
     $normalizeCmFolderPath = {
@@ -4850,14 +5397,21 @@ function Get-CollectionFolderCleanupCandidates {
         }
 
         $normalizedLower = $normalized.ToLowerInvariant()
-        $rootLower = $rootPathNoDrive.ToLowerInvariant()
-        $rootIndex = $normalizedLower.IndexOf($rootLower)
-        if ($rootIndex -lt 0) {
+        $matchedRoot = $null
+        foreach ($rootCandidate in $rootPathCandidates) {
+            if ($normalizedLower.IndexOf($rootCandidate.ToLowerInvariant()) -ge 0) {
+                $matchedRoot = [string]$rootCandidate
+                break
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($matchedRoot)) {
             return
         }
 
+        $rootIndex = $normalizedLower.IndexOf($matchedRoot.ToLowerInvariant())
         $relative = $normalized.Substring($rootIndex).TrimEnd('\\')
-        if ($relative.ToLowerInvariant() -eq $rootLower) {
+        if ($relative.ToLowerInvariant() -eq $matchedRoot.ToLowerInvariant()) {
             return
         }
 
@@ -4948,7 +5502,7 @@ function Get-CollectionFolderCleanupCandidates {
 
                 $orderedNames = @($nameChain.ToArray())
                 [array]::Reverse($orderedNames)
-                $candidatePath = ('DeviceCollection\{0}' -f ($orderedNames -join '\\'))
+                $candidatePath = ('{0}\{1}' -f ([string]$rootInfo.DeviceRootName), ($orderedNames -join '\\'))
                 & $addCandidatePath $candidatePath
             }
         }
@@ -4980,8 +5534,8 @@ function Remove-KnownApplicationDeploymentFolders {
         [Parameter(Mandatory = $false)]
         [string[]]$PreserveFolderPaths = @()
     )
-
-    $rootPathNoDrive = 'DeviceCollection\Application Deployment'
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode
+    $rootPathCandidates = @([string]$rootInfo.RootPathNoDrive)
 
     $normalizeCmFolderPath = {
         param(
@@ -5016,24 +5570,31 @@ function Remove-KnownApplicationDeploymentFolders {
         }
 
         $normalizedLower = $normalizedPath.ToLowerInvariant()
-        $rootLower = $rootPathNoDrive.ToLowerInvariant()
-        $rootIndex = $normalizedLower.IndexOf($rootLower)
-        if ($rootIndex -lt 0) {
+        $matchedRoot = $null
+        foreach ($rootCandidate in $rootPathCandidates) {
+            if ($normalizedLower.IndexOf($rootCandidate.ToLowerInvariant()) -ge 0) {
+                $matchedRoot = [string]$rootCandidate
+                break
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($matchedRoot)) {
             continue
         }
 
+        $rootIndex = $normalizedLower.IndexOf($matchedRoot.ToLowerInvariant())
         $relativePath = $normalizedPath.Substring($rootIndex).TrimEnd('\\')
         if ([string]::IsNullOrWhiteSpace($relativePath)) {
             continue
         }
 
-        if ($relativePath.ToLowerInvariant() -eq $rootLower) {
+        if ($relativePath.ToLowerInvariant() -eq $matchedRoot.ToLowerInvariant()) {
             continue
         }
 
         $currentPath = $relativePath
         while (-not [string]::IsNullOrWhiteSpace($currentPath)) {
-            if ($currentPath.ToLowerInvariant() -eq $rootLower) {
+            if ($currentPath.ToLowerInvariant() -eq $matchedRoot.ToLowerInvariant()) {
                 break
             }
 
@@ -5116,9 +5677,10 @@ function Remove-EmptyApplicationDeploymentFolders {
         [string[]]$PreserveFolderPaths = @()
     )
 
-    $rootPath = "{0}:\DeviceCollection\Application Deployment" -f $SiteCode
-    $rootPathNoDrive = "DeviceCollection\Application Deployment"
-    $rootPathNoDriveWithSlash = "\DeviceCollection\Application Deployment"
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode
+    $rootPath = [string]$rootInfo.RootPath
+    $rootPathNoDrive = [string]$rootInfo.RootPathNoDrive
+    $rootPathNoDriveWithSlash = [string]$rootInfo.RootPathWithSlash
 
     $normalizeCmFolderPath = {
         param(
@@ -5209,7 +5771,7 @@ function Remove-EmptyApplicationDeploymentFolders {
 
         $orderedNames = @($nameChain.ToArray())
         [array]::Reverse($orderedNames)
-        return ('DeviceCollection\{0}' -f ($orderedNames -join '\'))
+        return ('{0}\{1}' -f ([string]$rootInfo.DeviceRootName), ($orderedNames -join '\'))
 
         return ''
     }
@@ -5464,7 +6026,7 @@ function Remove-EmptyApplicationDeploymentFolders {
                     }
 
                     $relativeNames = @($orderedNames[$appDeploymentIndex..($orderedNames.Count - 1)])
-                    $relativePath = "DeviceCollection\{0}" -f ($relativeNames -join '\')
+                    $relativePath = "{0}\{1}" -f ([string]$rootInfo.DeviceRootName), ($relativeNames -join '\')
                     $normalizedPathKey = ([string](& $normalizeCmFolderPath $relativePath)).ToLowerInvariant()
 
                     if ($normalizedPreservePaths -contains $normalizedPathKey) {

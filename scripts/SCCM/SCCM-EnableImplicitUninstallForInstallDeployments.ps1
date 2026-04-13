@@ -383,10 +383,21 @@ try {
 
         if ($PSCmdlet.ShouldProcess($targetDescription, 'Enable SCCM implicit uninstall')) {
             try {
-                $updatedAssignment = Set-CimInstance -InputObject $assignment -Property @{
-                    AdditionalProperties = $newAdditionalProperties
-                    OfferFlags           = [uint32]$newOfferFlags
-                } -PassThru -ErrorAction Stop
+                $updateAttempts = @(
+                    {
+                        Set-CimInstance -InputObject $assignment -Property @{
+                            AdditionalProperties = $newAdditionalProperties
+                            OfferFlags           = [uint32]$newOfferFlags
+                        } -PassThru -ErrorAction Stop
+                    }
+                )
+
+                $updateResult = Invoke-SccmCommandWithFallback -Attempts $updateAttempts -ActionName 'Set-CimInstance (implicit uninstall update)'
+                if (-not $updateResult.Success) {
+                    throw [string]$updateResult.ErrorMessage
+                }
+
+                $updatedAssignment = $updateResult.Result
 
                 $newState = Get-ImplicitUninstallEnabledState -AssignmentObject $updatedAssignment
 
