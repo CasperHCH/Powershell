@@ -75,36 +75,46 @@
     confirmation or candidate selection will abort with an explicit warning.
 
 .PARAMETER DryRun
-    If specified, log all planned actions but do not execute any changes.
+    If specified, run in no-create/no-delete simulation mode: execute
+    capability/root preflight and planning logs, but do not execute any
+    state-changing SCCM operations.
 
 .PARAMETER RetryCount
+    [Advanced]
     Number of retry rounds for failed deletions (deployments, apps, collections).
 
 .PARAMETER RetryDelaySeconds
+    [Advanced]
     Number of seconds between retry rounds.
 
 .PARAMETER EnableDebugLog
     If specified, show and write DEBUG log entries.
     If omitted, all [DEBUG] messages are suppressed.
+    Repeated DEBUG and INFO/Status lines are deduplicated automatically.
 
 .PARAMETER CleanupCollectionMembershipDependencies
+    [Advanced]
     If true, detect collection dependencies and safely remove include/exclude
     membership rules that point to collections scheduled for deletion.
 
 .PARAMETER ReassignLimitingCollectionDependencies
+    [Advanced]
     If specified, collections that use a collection scheduled for deletion as
     limiting collection are reassigned to another limiting collection first.
 
 .PARAMETER FallbackLimitingCollectionName
+    [Advanced]
     Name of the limiting collection used during reassignment when
     ReassignLimitingCollectionDependencies is specified. Default is "All Systems".
 
 .PARAMETER StrictApplicationDeploymentRootDiscovery
+    [Advanced]
     If specified, fail the run when the application deployment root cannot be
     discovered deterministically from explicit override, existing target-folder
     evidence, or provider evidence. This prevents silent fallback behavior.
 
 .PARAMETER ScriptBuildId
+    [Advanced]
     Optional build identifier for cross-machine verification.
     Example: "2026.03.20-rc2" or a CI run id.
 #>
@@ -135,32 +145,32 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$DryRun,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [int]$RetryCount = 1,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [int]$RetryDelaySeconds = 60,
 
     [Parameter(Mandatory = $false)]
     [switch]$EnableDebugLog,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [bool]$CleanupCollectionMembershipDependencies = $true,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [switch]$ReassignLimitingCollectionDependencies,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [ValidateNotNullOrEmpty()]
     [string]$FallbackLimitingCollectionName = 'All Systems',
 
     [Parameter(Mandatory = $false)]
     [string]$ApplicationDeploymentRootPath = '',
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [switch]$StrictApplicationDeploymentRootDiscovery,
 
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $false, DontShow = $true)]
     [string]$ScriptBuildId = ''
 )
 
@@ -227,6 +237,7 @@ $script:ResolvedApplicationDeploymentRoot = $null
 $script:GetCmFolderSupportsPath = $null
 $script:GetCmFolderSupportsRecurse = $null
 $script:RemoveCmFolderSupportsPath = $null
+$script:LogMessageCounts = @{}
 
 # ------------------------------------------------------------
 # LOGGING
@@ -314,6 +325,25 @@ function Write-LogEvent {
     }
 
     $prefix = ("[{0}] {1}" -f $normalizedScope, $normalizedAction)
+    $isNoiseCandidate = ($Level -eq 'DEBUG') -or ($Level -eq 'INFO' -and $normalizedAction -eq 'Status')
+
+    if ($isNoiseCandidate) {
+        if ($null -eq $script:LogMessageCounts) {
+            $script:LogMessageCounts = @{}
+        }
+
+        $logKey = ('{0}|{1}|{2}|{3}' -f $Level, $normalizedScope, $normalizedAction, $detailText)
+        if ($script:LogMessageCounts.ContainsKey($logKey)) {
+            $script:LogMessageCounts[$logKey] = [int]$script:LogMessageCounts[$logKey] + 1
+        } else {
+            $script:LogMessageCounts[$logKey] = 1
+        }
+
+        # Keep first occurrence and suppress exact repeats to reduce noise.
+        if ([int]$script:LogMessageCounts[$logKey] -gt 1) {
+            return
+        }
+    }
 
     try {
         if ([string]::IsNullOrWhiteSpace($detailText)) {
@@ -2646,9 +2676,15 @@ function Get-TargetFolderPath {
         [string]$TargetFolder
     )
 
-    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder
+    $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
+    $targetFolderLeaf = $targetFolderLeaf.Trim()
+    if ([string]::IsNullOrWhiteSpace($targetFolderLeaf)) {
+        return [string](Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder).RootPath
+    }
+
+    $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $targetFolderLeaf
     $basePath = [string]$rootInfo.RootPath
-    return (Join-Path -Path $basePath -ChildPath $TargetFolder)
+    return (Join-Path -Path $basePath -ChildPath $targetFolderLeaf)
 }
 
 # ------------------------------------------------------------
@@ -6589,11 +6625,7 @@ function Invoke-CleanupPlan {
         $cleanupStage = 'log app keep/delete plan'
         $appsToKeepList = @()
         if ($appsToKeep) {
-            if ($appsToKeep -is [System.Collections.Generic.List[object]]) {
-                $appsToKeepList = @($appsToKeep)
-            } else {
-                $appsToKeepList = Convert-ToSafeArray -InputObject $appsToKeep
-            }
+            $appsToKeepList = Convert-ToSafeArray -InputObject $appsToKeep
         }
 
         $oldAppsList = @()

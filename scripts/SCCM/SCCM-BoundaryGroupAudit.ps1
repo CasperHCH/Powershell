@@ -14,6 +14,10 @@
 .PARAMETER OutputDirectory
     Directory used for report output.
 
+.PARAMETER ProviderMachineName
+    Optional SMS Provider machine name used for WMI/CIM queries when the
+    local host is not an SMS Provider.
+
 .PARAMETER PassThru
     Returns summary rows as objects.
 
@@ -31,6 +35,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$OutputDirectory,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ProviderMachineName,
 
     [Parameter(Mandatory = $false)]
     [switch]$PassThru,
@@ -53,19 +60,55 @@ try {
     $resolvedSiteCode = [string](Get-SccmObjectPropertyValue -InputObject $connectionContext -PropertyNames @('SiteCode'))
     $namespace = "root/SMS/site_$resolvedSiteCode"
 
-    $groups = @(Get-CimInstance -Namespace $namespace -ClassName 'SMS_BoundaryGroup' -ErrorAction Stop)
+    $resolvedProviderMachineName = $null
+    if (-not [string]::IsNullOrWhiteSpace($ProviderMachineName)) {
+        $resolvedProviderMachineName = $ProviderMachineName.Trim().TrimStart('\\')
+    } else {
+        $siteDrive = Get-PSDrive -Name $resolvedSiteCode -PSProvider CMSite -ErrorAction SilentlyContinue
+        $siteDriveRoot = [string](Get-SccmObjectPropertyValue -InputObject $siteDrive -PropertyNames @('Root'))
+        if (-not [string]::IsNullOrWhiteSpace($siteDriveRoot)) {
+            $resolvedProviderMachineName = ($siteDriveRoot.Trim().TrimStart('\\').Split('\')[0]).Trim()
+        }
+    }
+
+    $usedProviderFallback = $false
+    function Get-BoundaryAuditCimClass {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$ClassName
+        )
+
+        try {
+            return @(Get-CimInstance -Namespace $namespace -ClassName $ClassName -ErrorAction Stop)
+        }
+        catch {
+            $isInvalidNamespace = ($_.Exception.Message -match 'Invalid namespace') -or ($_.FullyQualifiedErrorId -match '0x8004100e')
+            if (-not $isInvalidNamespace -or [string]::IsNullOrWhiteSpace($resolvedProviderMachineName)) {
+                throw
+            }
+
+            if (-not $usedProviderFallback) {
+                Write-SccmLog -Level 'INFO' -Message ("Local namespace [{0}] unavailable. Retrying CIM queries against provider host [{1}]." -f $namespace, $resolvedProviderMachineName)
+                $usedProviderFallback = $true
+            }
+
+            return @(Get-CimInstance -ComputerName $resolvedProviderMachineName -Namespace $namespace -ClassName $ClassName -ErrorAction Stop)
+        }
+    }
+
+    $groups = @(Get-BoundaryAuditCimClass -ClassName 'SMS_BoundaryGroup')
     $members = @()
     $siteSystems = @()
 
     try {
-        $members = @(Get-CimInstance -Namespace $namespace -ClassName 'SMS_BoundaryGroupMembers' -ErrorAction Stop)
+        $members = @(Get-BoundaryAuditCimClass -ClassName 'SMS_BoundaryGroupMembers')
     }
     catch {
         Write-SccmLog -Level 'DEBUG' -Message ("Boundary member query failed: {0}" -f $_.Exception.Message)
     }
 
     try {
-        $siteSystems = @(Get-CimInstance -Namespace $namespace -ClassName 'SMS_BoundaryGroupSiteSystems' -ErrorAction Stop)
+        $siteSystems = @(Get-BoundaryAuditCimClass -ClassName 'SMS_BoundaryGroupSiteSystems')
     }
     catch {
         Write-SccmLog -Level 'DEBUG' -Message ("Boundary site system query failed: {0}" -f $_.Exception.Message)
