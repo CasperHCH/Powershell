@@ -80,8 +80,7 @@ try {
 
         try {
             return @(Get-CimInstance -Namespace $namespace -ClassName $ClassName -ErrorAction Stop)
-        }
-        catch {
+        } catch {
             $isInvalidNamespace = ($_.Exception.Message -match 'Invalid namespace') -or ($_.FullyQualifiedErrorId -match '0x8004100e')
             if (-not $isInvalidNamespace -or [string]::IsNullOrWhiteSpace($resolvedProviderMachineName)) {
                 throw
@@ -102,54 +101,52 @@ try {
 
     try {
         $members = @(Get-BoundaryAuditCimClass -ClassName 'SMS_BoundaryGroupMembers')
-    }
-    catch {
+    } catch {
         Write-SccmLog -Level 'DEBUG' -Message ("Boundary member query failed: {0}" -f $_.Exception.Message)
     }
 
     try {
         $siteSystems = @(Get-BoundaryAuditCimClass -ClassName 'SMS_BoundaryGroupSiteSystems')
-    }
-    catch {
+    } catch {
         Write-SccmLog -Level 'DEBUG' -Message ("Boundary site system query failed: {0}" -f $_.Exception.Message)
     }
 
     $summaryRows = @($groups | ForEach-Object {
-        $groupId = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
-        $groupName = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('Name', 'DisplayName'))
-        $groupMembers = @($members | Where-Object {
-            [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupId
-        })
-        $groupSiteSystems = @($siteSystems | Where-Object {
-            [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupId
-        })
+            $groupId = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
+            $groupName = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('Name', 'DisplayName'))
+            $groupMembers = @($members | Where-Object {
+                    [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupId
+                })
+            $groupSiteSystems = @($siteSystems | Where-Object {
+                    [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId')) -eq $groupId
+                })
 
-        $issues = New-Object System.Collections.Generic.List[string]
-        if ($groupMembers.Count -eq 0) {
-            [void]$issues.Add('Boundary group has no boundaries.')
-        }
-        if ($groupSiteSystems.Count -eq 0) {
-            [void]$issues.Add('Boundary group has no linked site systems.')
-        }
+            $issues = New-Object System.Collections.Generic.List[string]
+            if ($groupMembers.Count -eq 0) {
+                [void]$issues.Add('Boundary group has no boundaries.')
+            }
+            if ($groupSiteSystems.Count -eq 0) {
+                [void]$issues.Add('Boundary group has no linked site systems.')
+            }
 
-        [pscustomobject]@{
-            BoundaryGroupId   = $groupId
-            BoundaryGroupName = $groupName
-            BoundaryCount     = $groupMembers.Count
-            SiteSystemCount   = $groupSiteSystems.Count
-            IssueCount        = @($issues).Count
-            Issues            = ($issues -join ' | ')
-        }
-    })
+            [pscustomobject]@{
+                BoundaryGroupId   = $groupId
+                BoundaryGroupName = $groupName
+                BoundaryCount     = $groupMembers.Count
+                SiteSystemCount   = $groupSiteSystems.Count
+                IssueCount        = @($issues).Count
+                Issues            = ($issues -join ' | ')
+            }
+        })
 
     $detailRows = @($siteSystems | ForEach-Object {
-        [pscustomobject]@{
-            BoundaryGroupId    = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
-            BoundaryGroupName  = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupName', 'BoundaryGroupName', 'Name'))
-            SiteSystem         = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('ServerName', 'NALPath', 'SiteSystem'))
-            Role               = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('Role', 'SiteSystemRole'))
-        }
-    })
+            [pscustomobject]@{
+                BoundaryGroupId   = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupID', 'GroupId', 'BoundaryGroupID', 'BoundaryGroupId'))
+                BoundaryGroupName = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('GroupName', 'BoundaryGroupName', 'Name'))
+                SiteSystem        = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('ServerName', 'NALPath', 'SiteSystem'))
+                Role              = [string](Get-SccmObjectPropertyValue -InputObject $_ -PropertyNames @('Role', 'SiteSystemRole'))
+            }
+        })
 
     $timestamp = Get-SccmTimestampString
     $summaryPath = Resolve-SccmOutputPath -OutputDirectory $OutputDirectory -CreateDirectory -FileName ("SCCM-BoundaryGroupAuditSummary-{0}.csv" -f $timestamp)
@@ -166,7 +163,6 @@ try {
     if ($PassThru) {
         return $summaryRows
     }
-}
-finally {
+} finally {
     Disconnect-SccmSite -ConnectionContext $connectionContext
 }

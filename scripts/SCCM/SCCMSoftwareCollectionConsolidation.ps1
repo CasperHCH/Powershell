@@ -496,8 +496,12 @@ function Invoke-CmCommandWithFallback {
         [Parameter(Mandatory = $true)]
         [scriptblock[]]$Attempts,
         [Parameter(Mandatory = $false)]
-        [string]$ActionName = 'command'
+        [string]$ActionName = 'command',
+        [Parameter(Mandatory = $false)]
+        [switch]$SuppressAttemptDebugLog
     )
+
+    $failureMessages = New-Object System.Collections.Generic.List[string]
 
     foreach ($attempt in $Attempts) {
         try {
@@ -506,17 +510,20 @@ function Invoke-CmCommandWithFallback {
             $previousErrorActionPreference = $ErrorActionPreference
             $ErrorActionPreference = 'Stop'
             $result = & $attempt
-            return @{ Success = $true; Result = $result }
+            return @{ Success = $true; Result = $result; Errors = @($failureMessages | Select-Object -Unique) }
         } catch {
             # Sanitize error to avoid information disclosure
             $sanitizedMsg = $_.Exception.Message -replace '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[EMAIL]'
-            Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Fallback {0} attempt failed: {1}" -f $ActionName, $sanitizedMsg)
+            [void]$failureMessages.Add([string]$sanitizedMsg)
+            if (-not $SuppressAttemptDebugLog) {
+                Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Fallback {0} attempt failed: {1}" -f $ActionName, $sanitizedMsg)
+            }
         } finally {
             $ErrorActionPreference = $previousErrorActionPreference
         }
     }
 
-    return @{ Success = $false; Result = $null }
+    return @{ Success = $false; Result = $null; Errors = @($failureMessages | Select-Object -Unique) }
 }
 
 <#
@@ -2580,6 +2587,7 @@ function Resolve-ApplicationDeploymentRoot {
         }
     }
 
+    $knownLayoutCandidates = New-Object System.Collections.Generic.List[object]
     foreach ($rootDefinition in $rootDefinitions) {
         $fallbackRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName ([string]$rootDefinition.DeviceRootName) -DeploymentRootPath ([string]$rootDefinition.DeploymentRootName) -Source 'FallbackKnownLayout' -TargetFolder $TargetFolder -OverridePath $normalizedOverridePath
         if (-not $fallbackRootInfo) {
@@ -2587,20 +2595,47 @@ function Resolve-ApplicationDeploymentRoot {
         }
 
         $fallbackRootInfo.FolderObject = & $resolveRootFolderObject $fallbackRootInfo
-        if ($fallbackRootInfo.FolderObject) {
-            Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Fallback root selected' -Detail (
-                "Using known layout fallback '{0}' because deterministic provider resolution did not produce a unique candidate. Provider error: {1}" -f
-                [string]$fallbackRootInfo.RootPathNoDrive,
-                ([string]$providerDiscoveryError)
-            )
-            if ($script:StrictRootDiscoveryEnabled) {
-                throw ("StrictApplicationDeploymentRootDiscovery is enabled and fallback root '{0}' would be required." -f [string]$fallbackRootInfo.RootPathNoDrive)
-            }
-            return & $cacheResolvedRoot $fallbackRootInfo
+        if (-not $fallbackRootInfo.FolderObject) {
+            continue
         }
+
+        $knownLayoutScore = 100
+        $deploymentRootNameLower = ([string]$fallbackRootInfo.DeploymentRootName).ToLowerInvariant()
+        if ($deploymentRootNameLower -match 'device') {
+            $knownLayoutScore += 50
+        }
+        if (([string]$fallbackRootInfo.DeviceRootName).ToLowerInvariant() -eq 'devicecollections') {
+            $knownLayoutScore += 25
+        }
+
+        $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
+        $targetFolderLeaf = $targetFolderLeaf.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($targetFolderLeaf) -and (& $testChildFolderExists -RootInfo $fallbackRootInfo -ChildFolderName $targetFolderLeaf)) {
+            $knownLayoutScore += 100
+        }
+
+        $fallbackRootInfo.Score = $knownLayoutScore
+        [void]$knownLayoutCandidates.Add($fallbackRootInfo)
     }
 
-    $fallback = @($rootDefinitions | Select-Object -First 1)[0]
+    if ($knownLayoutCandidates.Count -gt 0) {
+        $rankedKnownLayouts = @($knownLayoutCandidates | Sort-Object -Property @{ Expression = { [int]$_.Score }; Descending = $true }, @{ Expression = { [string]$_.RootPathNoDrive }; Descending = $false })
+        $selectedKnownLayout = @($rankedKnownLayouts | Select-Object -First 1)[0]
+
+        Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Fallback root selected' -Detail (
+            "Using known layout fallback '{0}' because deterministic provider resolution did not produce a unique candidate. Provider error: {1}" -f
+            [string]$selectedKnownLayout.RootPathNoDrive,
+            ([string]$providerDiscoveryError)
+        )
+        if ($script:StrictRootDiscoveryEnabled) {
+            throw ("StrictApplicationDeploymentRootDiscovery is enabled and fallback root '{0}' would be required." -f [string]$selectedKnownLayout.RootPathNoDrive)
+        }
+        return & $cacheResolvedRoot $selectedKnownLayout
+    }
+
+    $fallback = $rootDefinitions |
+    Sort-Object -Property @{ Expression = { if (([string]$_.DeploymentRootName).ToLowerInvariant() -match 'device') { 1 } else { 0 } }; Descending = $true }, @{ Expression = { if (([string]$_.DeviceRootName).ToLowerInvariant() -eq 'devicecollections') { 1 } else { 0 } }; Descending = $true } |
+    Select-Object -First 1
     $fallbackRootInfo = Get-ApplicationDeploymentRootInfo -SiteCode $SiteCode -DeviceRootName ([string]$fallback.DeviceRootName) -DeploymentRootPath ([string]$fallback.DeploymentRootName) -Source 'FallbackKnownLayout' -TargetFolder $TargetFolder -OverridePath $normalizedOverridePath
     Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail (
         "Could not auto-discover an existing Application Deployment root. Defaulting to '{0}'. Use -ApplicationDeploymentRootPath if this environment uses a different root." -f [string]$fallbackRootInfo.RootPathNoDrive
@@ -2709,11 +2744,68 @@ function Set-CollectionFolder {
         [string]$TargetFolder
     )
 
-    $targetFolderLeaf = ($TargetFolder -as [string]).Trim()
+    $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
+    if ($null -eq $targetFolderLeaf) {
+        $targetFolderLeaf = ''
+    }
+    $targetFolderLeaf = $targetFolderLeaf.Trim()
+    if ([string]::IsNullOrWhiteSpace($targetFolderLeaf)) {
+        Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail 'Target folder name was empty; skipping folder ensure.'
+        return [string](Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder '').RootPath
+    }
+
     $rootInfo = Resolve-ApplicationDeploymentRoot -SiteCode $SiteCode -TargetFolder $TargetFolder
-    $fullFolderPath = Join-Path -Path ([string]$rootInfo.RootPath) -ChildPath $targetFolderLeaf
+    if (-not $rootInfo) {
+        Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ('Could not resolve application deployment root for site {0}. Using fallback path construction.' -f $SiteCode)
+        return ('{0}:\DeviceCollections\Application Deployment Devices\{1}' -f $SiteCode, $targetFolderLeaf)
+    }
+    $resolvedRootNoDrive = [string](Get-NormalizedCmFolderPath -Path ([string]$rootInfo.RootPathNoDrive))
+    $targetFolderLeafLower = $targetFolderLeaf.ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($resolvedRootNoDrive) -and -not [string]::IsNullOrWhiteSpace($targetFolderLeafLower)) {
+        $resolvedRootNoDriveTrimmed = $resolvedRootNoDrive.TrimEnd('\\')
+        $targetLeafSuffix = ('\\{0}' -f $targetFolderLeafLower)
+        while (-not [string]::IsNullOrWhiteSpace($resolvedRootNoDriveTrimmed) -and $resolvedRootNoDriveTrimmed.ToLowerInvariant().EndsWith($targetLeafSuffix)) {
+            $resolvedRootNoDriveTrimmed = [string]$resolvedRootNoDriveTrimmed.Substring(0, $resolvedRootNoDriveTrimmed.Length - $targetLeafSuffix.Length)
+        }
+
+        $resolvedRootNoDrive = $resolvedRootNoDriveTrimmed.Trim('\\')
+        if ([string]::IsNullOrWhiteSpace($resolvedRootNoDrive)) {
+            $resolvedRootNoDrive = [string](Get-NormalizedCmFolderPath -Path ([string]$rootInfo.RootPathNoDrive))
+        }
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Normalized base root for target '{0}' to '{1}'." -f $targetFolderLeaf, $resolvedRootNoDrive)
+    }
+
+    $siteBaseFolderPathNoDrive = [string]$resolvedRootNoDrive
+    if (-not [string]::IsNullOrWhiteSpace($siteBaseFolderPathNoDrive) -and $siteBaseFolderPathNoDrive.ToLowerInvariant().EndsWith(('\\{0}' -f $targetFolderLeafLower))) {
+        try {
+            $siteBaseFolderPathNoDrive = [string](Split-Path -Path $siteBaseFolderPathNoDrive -Parent)
+            $siteBaseFolderPathNoDrive = $siteBaseFolderPathNoDrive.Trim('\\')
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Could not split base root path '{0}': {1}" -f $resolvedRootNoDrive, $_.Exception.Message)
+        }
+    }
+    $siteBaseFolderPath = ('{0}:\{1}' -f $SiteCode, $siteBaseFolderPathNoDrive)
+    $siteBaseFolderPathWithSlash = ('\{0}' -f $siteBaseFolderPathNoDrive)
+    $fullFolderPath = Join-Path -Path $siteBaseFolderPath -ChildPath $targetFolderLeaf
     $siteDeviceCollectionPath = [string]$rootInfo.DeviceRootPath
-    $siteBaseFolderPath = [string]$rootInfo.RootPath
+
+    if (-not [string]::IsNullOrWhiteSpace($siteBaseFolderPath) -and
+        -not [string]::IsNullOrWhiteSpace($fullFolderPath) -and
+        $siteBaseFolderPath.TrimEnd('\\').ToLowerInvariant() -eq $fullFolderPath.TrimEnd('\\').ToLowerInvariant()) {
+        try {
+            $forcedParentPath = [string](Split-Path -Path $fullFolderPath -Parent)
+            $forcedParentNoDrive = [string](Get-NormalizedCmFolderPath -Path $forcedParentPath)
+            if (-not [string]::IsNullOrWhiteSpace($forcedParentNoDrive)) {
+                $siteBaseFolderPathNoDrive = $forcedParentNoDrive
+                $siteBaseFolderPath = ('{0}:\{1}' -f $SiteCode, $siteBaseFolderPathNoDrive)
+                $siteBaseFolderPathWithSlash = ('\{0}' -f $siteBaseFolderPathNoDrive)
+                $fullFolderPath = Join-Path -Path $siteBaseFolderPath -ChildPath $targetFolderLeaf
+                Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Corrected base folder path to parent '{0}' to avoid self-parent folder creation attempts." -f $siteBaseFolderPath)
+            }
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Could not auto-correct base folder path '{0}': {1}" -f $siteBaseFolderPath, $_.Exception.Message)
+        }
+    }
 
     $normalizedCandidates = @()
     $normalizedCandidates += $fullFolderPath
@@ -2725,13 +2817,166 @@ function Set-CollectionFolder {
 
     $baseFolderCandidates = @(
         $siteBaseFolderPath,
-        [string]$rootInfo.RootPathNoDrive,
-        [string]$rootInfo.RootPathWithSlash
+        [string]$siteBaseFolderPathNoDrive,
+        [string]$siteBaseFolderPathWithSlash
     )
+
+    Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Ensuring target folder: {0}" -f $fullFolderPath)
 
     try {
         $getCmFolderSupportsPath = Test-CmFolderPathParameterSupport
         $getCmFolderSupportsRecurse = Test-CmFolderRecurseParameterSupport
+        $newCmFolderCommand = Get-CachedCommand -Name 'New-CMFolder'
+        $newCmFolderSupportedParameters = @()
+        if ($newCmFolderCommand -and $newCmFolderCommand.Parameters) {
+            $newCmFolderSupportedParameters = @($newCmFolderCommand.Parameters.Keys)
+        }
+
+        $newCmFolderParentPathParameters = @('ParentFolderPath', 'ParentPath', 'ParentContainerNodePath')
+        $newCmFolderParentIdParameters = @('ParentContainerNodeId', 'ParentContainerNodeID', 'ParentFolderId', 'ParentFolderID', 'ParentId')
+        $supportedParentPathParameters = @($newCmFolderParentPathParameters | Where-Object { $newCmFolderSupportedParameters -contains $_ })
+        $supportedParentIdParameters = @($newCmFolderParentIdParameters | Where-Object { $newCmFolderSupportedParameters -contains $_ })
+
+        $invokeNewCmFolderAttempt = {
+            param(
+                [Parameter(Mandatory = $true)]
+                [string]$FolderName,
+
+                [Parameter(Mandatory = $true)]
+                [string]$ParentParameter,
+
+                [Parameter(Mandatory = $true)]
+                [AllowNull()]
+                $ParentValue,
+
+                [Parameter(Mandatory = $false)]
+                [AllowNull()]
+                [AllowEmptyCollection()]
+                [System.Collections.Generic.List[string]]$ErrorCollector
+            )
+
+            if ($null -eq $ErrorCollector) {
+                $ErrorCollector = New-Object System.Collections.Generic.List[string]
+            }
+
+            if ([string]::IsNullOrWhiteSpace($FolderName) -or [string]::IsNullOrWhiteSpace($ParentParameter) -or $null -eq $ParentValue) {
+                return $false
+            }
+
+            $candidateText = [string]$ParentValue
+            if ([string]::IsNullOrWhiteSpace($candidateText)) {
+                return $false
+            }
+
+            $splat = [ordered]@{
+                Name        = $FolderName
+                ErrorAction = 'Stop'
+            }
+            $splat[$ParentParameter] = $ParentValue
+
+            try {
+                New-CMFolder @splat | Out-Null
+                return $true
+            } catch {
+                $msg = [string]$_.Exception.Message
+                if ([string]::IsNullOrWhiteSpace($msg)) {
+                    $msg = '[No exception message available]'
+                }
+                [void]$ErrorCollector.Add(('{0}={1} -> {2}' -f $ParentParameter, $candidateText, $msg))
+                return $false
+            }
+        }
+
+        $getPathAliasCandidates = {
+            param(
+                [Parameter(Mandatory = $false)]
+                [string]$PathText
+            )
+
+            if ([string]::IsNullOrWhiteSpace($PathText)) {
+                return @()
+            }
+
+            $candidateSet = New-Object System.Collections.Generic.List[string]
+            [void]$candidateSet.Add([string]$PathText)
+
+            $variants = @(
+                ([string]$PathText -replace '\\DeviceCollections\\', '\\DeviceCollection\\'),
+                ([string]$PathText -replace '\\DeviceCollection\\', '\\DeviceCollections\\'),
+                ([string]$PathText -replace '^DeviceCollections\\', 'DeviceCollection\\'),
+                ([string]$PathText -replace '^DeviceCollection\\', 'DeviceCollections\\'),
+                ([string]$PathText -replace '^\\DeviceCollections\\', '\\DeviceCollection\\'),
+                ([string]$PathText -replace '^\\DeviceCollection\\', '\\DeviceCollections\\')
+            )
+
+            foreach ($variant in $variants) {
+                if (-not [string]::IsNullOrWhiteSpace($variant)) {
+                    [void]$candidateSet.Add([string]$variant)
+                }
+            }
+
+            return @($candidateSet | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+        }
+
+        $invokeNewCmFolderWithCandidates = {
+            param(
+                [Parameter(Mandatory = $true)]
+                [string]$FolderName,
+
+                [Parameter(Mandatory = $false)]
+                [string[]]$ParentPathCandidates = @(),
+
+                [Parameter(Mandatory = $false)]
+                [string[]]$ParentIdCandidates = @(),
+
+                [Parameter(Mandatory = $false)]
+                [AllowNull()]
+                [AllowEmptyCollection()]
+                [System.Collections.Generic.List[string]]$ErrorCollector
+            )
+
+            if ($null -eq $ErrorCollector) {
+                $ErrorCollector = New-Object System.Collections.Generic.List[string]
+            }
+
+            if (-not $newCmFolderCommand) {
+                [void]$ErrorCollector.Add('New-CMFolder command is unavailable in this session.')
+                return $false
+            }
+
+            $expandedParentPathCandidates = New-Object System.Collections.Generic.List[string]
+            foreach ($rawPathCandidate in @($ParentPathCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)) {
+                foreach ($expandedCandidate in @(& $getPathAliasCandidates -PathText ([string]$rawPathCandidate))) {
+                    if (-not [string]::IsNullOrWhiteSpace($expandedCandidate)) {
+                        [void]$expandedParentPathCandidates.Add([string]$expandedCandidate)
+                    }
+                }
+            }
+            $expandedParentPathCandidates = @($expandedParentPathCandidates | Select-Object -Unique)
+
+            foreach ($parentParameter in $supportedParentPathParameters) {
+                foreach ($pathCandidate in @($expandedParentPathCandidates)) {
+                    if (& $invokeNewCmFolderAttempt -FolderName $FolderName -ParentParameter $parentParameter -ParentValue $pathCandidate -ErrorCollector $ErrorCollector) {
+                        return $true
+                    }
+                }
+            }
+
+            foreach ($parentParameter in $supportedParentIdParameters) {
+                foreach ($idCandidate in @($ParentIdCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)) {
+                    if (& $invokeNewCmFolderAttempt -FolderName $FolderName -ParentParameter $parentParameter -ParentValue $idCandidate -ErrorCollector $ErrorCollector) {
+                        return $true
+                    }
+                }
+            }
+
+            if ($supportedParentPathParameters.Count -eq 0 -and $supportedParentIdParameters.Count -eq 0) {
+                [void]$ErrorCollector.Add('New-CMFolder has no recognized parent parameters in this environment.')
+            }
+
+            return $false
+        }
+
         $folder = $null
         foreach ($candidate in $normalizedCandidates) {
             if ($folder) { break }
@@ -2806,22 +3051,29 @@ function Set-CollectionFolder {
 
                 if (-not $baseFolder) {
                     $baseCreateErrors = New-Object System.Collections.Generic.List[string]
-                    $baseCreateAttempts = @(
-                        { New-CMFolder -Name ([string]$rootInfo.DeploymentRootName) -ParentFolderPath $siteDeviceCollectionPath -ErrorAction Stop | Out-Null },
-                        { New-CMFolder -Name ([string]$rootInfo.DeploymentRootName) -ParentFolderPath ([string]$rootInfo.DeviceRootNoDrive) -ErrorAction Stop | Out-Null },
+                    $deviceParentPathCandidates = @(
+                        $siteDeviceCollectionPath,
+                        [string]$rootInfo.DeviceRootNoDrive,
+                        ('\{0}' -f ([string]$rootInfo.DeviceRootNoDrive).TrimStart('\'))
+                    )
+                    [void](& $invokeNewCmFolderWithCandidates -FolderName ([string]$rootInfo.DeploymentRootName) -ParentPathCandidates $deviceParentPathCandidates -ParentIdCandidates @() -ErrorCollector $baseCreateErrors)
+
+                    $baseProviderCreateAttempts = @(
                         { New-Item -Path $siteDeviceCollectionPath -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null },
-                        { New-Item -Path ([string]$rootInfo.DeviceRootNoDrive) -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null }
+                        { New-Item -Path ([string]$rootInfo.DeviceRootNoDrive) -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null },
+                        { New-Item -Path ('\{0}' -f ([string]$rootInfo.DeviceRootNoDrive).TrimStart('\')) -Name ([string]$rootInfo.DeploymentRootName) -ItemType Directory -ErrorAction Stop | Out-Null }
                     )
 
-                    foreach ($baseCreateAttempt in $baseCreateAttempts) {
+                    foreach ($baseCreateAttempt in $baseProviderCreateAttempts) {
                         try {
                             & $baseCreateAttempt
                             break
                         } catch {
                             $baseErr = [string]$_.Exception.Message
-                            if (-not [string]::IsNullOrWhiteSpace($baseErr)) {
-                                [void]$baseCreateErrors.Add($baseErr)
+                            if ([string]::IsNullOrWhiteSpace($baseErr)) {
+                                $baseErr = '[No exception message available]'
                             }
+                            [void]$baseCreateErrors.Add(('Provider create -> {0}' -f $baseErr))
                             Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Base folder create attempt failed for '{0}': {1}" -f $siteBaseFolderPath, $baseErr)
                         }
                     }
@@ -2839,39 +3091,45 @@ function Set-CollectionFolder {
                     $resolvedBaseFolderPath = [string]$baseFolder.FolderPath
                 }
 
+                $baseFolderNodeId = ''
+                if ($baseFolder) {
+                    $baseFolderNodeId = [string](Get-ObjectPropertyValue -InputObject $baseFolder -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                }
                 $createAttemptErrors = New-Object System.Collections.Generic.List[string]
-                $createAttempts = @(
-                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath $resolvedBaseFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath $siteBaseFolderPath -ErrorAction Stop | Out-Null },
-                    { New-CMFolder -Name $targetFolderLeaf -ParentFolderPath ([string]$rootInfo.RootPathNoDrive) -ErrorAction Stop | Out-Null }
+                $targetParentPathCandidates = @(
+                    $resolvedBaseFolderPath,
+                    $siteBaseFolderPath,
+                    [string]$siteBaseFolderPathNoDrive,
+                    [string]$siteBaseFolderPathWithSlash,
+                    ([string]$siteBaseFolderPathNoDrive).TrimStart('\\')
+                )
+                $targetParentIdCandidates = @(
+                    $baseFolderNodeId,
+                    [string]$rootInfo.ContainerNodeId
                 )
 
-                foreach ($attempt in $createAttempts) {
-                    try {
-                        & $attempt
-                        $createdFolder = $null
-                        foreach ($candidate in $normalizedCandidates) {
-                            $createdFolder = & $resolveFolderByPath $candidate $targetFolderLeaf
-                            if ($createdFolder) {
-                                break
-                            }
-                        }
+                $createdByCmdlet = & $invokeNewCmFolderWithCandidates -FolderName $targetFolderLeaf -ParentPathCandidates $targetParentPathCandidates -ParentIdCandidates $targetParentIdCandidates -ErrorCollector $createAttemptErrors
 
-                        if ($createdFolder -and -not [string]::IsNullOrWhiteSpace(($createdFolder.FolderPath -as [string]))) {
-                            Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $createdFolder.FolderPath)
-                            return ([string]$createdFolder.FolderPath)
+                if ($createdByCmdlet) {
+                    $createdFolder = $null
+                    foreach ($candidate in $normalizedCandidates) {
+                        $createdFolder = & $resolveFolderByPath $candidate $targetFolderLeaf
+                        if ($createdFolder) {
+                            break
                         }
-
-                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
-                        return $fullFolderPath
-                    } catch {
-                        $msg = [string]$_.Exception.Message
-                        if ([string]::IsNullOrWhiteSpace($msg)) {
-                            $msg = '[No exception message available]'
-                        }
-                        [void]$createAttemptErrors.Add($msg)
-                        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("New-CMFolder attempt failed for '{0}': {1}" -f $fullFolderPath, $msg)
                     }
+
+                    if ($createdFolder -and -not [string]::IsNullOrWhiteSpace(($createdFolder.FolderPath -as [string]))) {
+                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $createdFolder.FolderPath)
+                        return ([string]$createdFolder.FolderPath)
+                    }
+
+                    Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
+                    return $fullFolderPath
+                }
+
+                foreach ($createError in @($createAttemptErrors | Select-Object -Unique)) {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("New-CMFolder attempt failed for '{0}': {1}" -f $fullFolderPath, [string]$createError)
                 }
 
                 $providerAttemptErrors = New-Object System.Collections.Generic.List[string]
@@ -2919,7 +3177,7 @@ function Set-CollectionFolder {
             if (-not $resolvedPath) {
                 $resolvedPath = $fullFolderPath
             }
-            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Found existing folder: {0}" -f $resolvedPath)
+            Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Using existing folder: {0}" -f $resolvedPath)
             return $resolvedPath
         }
     } catch {
@@ -2989,7 +3247,13 @@ function Move-CollectionToFolder {
         }
     }
 
-    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Move collection'
+    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Move collection' -SuppressAttemptDebugLog
+    if (-not $result.Success) {
+        $moveErrorSummary = @($result.Errors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 3)
+        if ($moveErrorSummary.Count -gt 0) {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Move collection failed after fallback attempts. Sample errors: {0}" -f ([string]::Join(' | ', $moveErrorSummary)))
+        }
+    }
     return $result.Success
 }
 
@@ -6625,12 +6889,24 @@ function Invoke-CleanupPlan {
         $cleanupStage = 'log app keep/delete plan'
         $appsToKeepList = @()
         if ($appsToKeep) {
-            $appsToKeepList = Convert-ToSafeArray -InputObject $appsToKeep
+            try {
+                foreach ($entry in $appsToKeep) {
+                    $appsToKeepList += , $entry
+                }
+            } catch {
+                $appsToKeepList = @($appsToKeep)
+            }
         }
 
         $oldAppsList = @()
         if ($oldApps) {
-            $oldAppsList = Convert-ToSafeArray -InputObject $oldApps
+            try {
+                foreach ($entry in $oldApps) {
+                    $oldAppsList += , $entry
+                }
+            } catch {
+                $oldAppsList = @($oldApps)
+            }
         }
 
         $appsToKeepNames = @(
@@ -6657,12 +6933,32 @@ function Invoke-CleanupPlan {
 
         $keepDetail = 'None'
         if ($appsToKeepNames -and @($appsToKeepNames).Count -gt 0) {
-            $keepDetail = [string]::Join(', ', @($appsToKeepNames | Where-Object { -not [string]::IsNullOrWhiteSpace(($_ -as [string])) }))
+            $keepNameList = @(
+                foreach ($name in @($appsToKeepNames)) {
+                    $nameText = [string]$name
+                    if (-not [string]::IsNullOrWhiteSpace($nameText)) {
+                        $nameText.Trim()
+                    }
+                }
+            )
+            if ($keepNameList.Count -gt 0) {
+                $keepDetail = ($keepNameList -join ', ')
+            }
         }
 
         $deleteDetail = 'None'
         if ($oldAppNames -and @($oldAppNames).Count -gt 0) {
-            $deleteDetail = [string]::Join(', ', @($oldAppNames | Where-Object { -not [string]::IsNullOrWhiteSpace(($_ -as [string])) }))
+            $deleteNameList = @(
+                foreach ($name in @($oldAppNames)) {
+                    $nameText = [string]$name
+                    if (-not [string]::IsNullOrWhiteSpace($nameText)) {
+                        $nameText.Trim()
+                    }
+                }
+            )
+            if ($deleteNameList.Count -gt 0) {
+                $deleteDetail = ($deleteNameList -join ', ')
+            }
         }
 
         try { Write-LogEvent -Level 'INFO' -Scope 'Cleanup' -Action 'Applications to keep' -Detail $keepDetail } catch { Write-ScriptLog -Level 'INFO' -Message ("[CLEANUP] Applications to keep: {0}" -f $keepDetail) }
@@ -7331,6 +7627,47 @@ try {
     $summaryLines += ("  Failed deployments    : {0}" -f $failedDeployments.Count)
     Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Summary'
     foreach ($line in $summaryLines) { Write-LogEvent -Level 'INFO' -Scope 'Run' -Action 'Summary line' -Detail $line.Trim() }
+} catch {
+    $topLevelMessage = [string]$_.Exception.Message
+    if ([string]::IsNullOrWhiteSpace($topLevelMessage)) {
+        $topLevelMessage = '[No exception message available]'
+    }
+
+    $positionMessage = ''
+    try {
+        $positionMessage = [string]$_.InvocationInfo.PositionMessage
+    } catch {
+        $positionMessage = ''
+    }
+
+    $scriptStack = ''
+    try {
+        $scriptStack = [string]$_.ScriptStackTrace
+    } catch {
+        $scriptStack = ''
+    }
+
+    $innerMessage = ''
+    try {
+        if ($_.Exception -and $_.Exception.InnerException) {
+            $innerMessage = [string]$_.Exception.InnerException.Message
+        }
+    } catch {
+        $innerMessage = ''
+    }
+
+    Write-LogEvent -Level 'ERROR' -Scope 'Run' -Action 'Unhandled exception' -Detail $topLevelMessage
+    if (-not [string]::IsNullOrWhiteSpace($innerMessage)) {
+        Write-LogEvent -Level 'ERROR' -Scope 'Run' -Action 'Inner exception' -Detail $innerMessage
+    }
+    if (-not [string]::IsNullOrWhiteSpace($positionMessage)) {
+        Write-LogEvent -Level 'ERROR' -Scope 'Run' -Action 'Error position' -Detail $positionMessage
+    }
+    if (-not [string]::IsNullOrWhiteSpace($scriptStack)) {
+        Write-LogEvent -Level 'ERROR' -Scope 'Run' -Action 'Script stack trace' -Detail $scriptStack
+    }
+
+    throw
 } finally {
     $ConfirmPreference = $__OldConfirmPreference
     $ProgressPreference = $__OldProgressPreference
