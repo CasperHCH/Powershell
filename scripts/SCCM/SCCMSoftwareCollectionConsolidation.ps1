@@ -512,8 +512,19 @@ function Invoke-CmCommandWithFallback {
             $result = & $attempt
             return @{ Success = $true; Result = $result; Errors = @($failureMessages | Select-Object -Unique) }
         } catch {
+            # Capture error message safely (some throws may not populate Exception)
+            if ($_.Exception -and $_.Exception.Message) {
+                $rawMsg = $_.Exception.Message
+            } else {
+                try {
+                    $rawMsg = ($_ | Out-String).Trim()
+                } catch {
+                    $rawMsg = ''
+                }
+            }
+
             # Sanitize error to avoid information disclosure
-            $sanitizedMsg = $_.Exception.Message -replace '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[EMAIL]'
+            $sanitizedMsg = $rawMsg -replace '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[EMAIL]'
             [void]$failureMessages.Add([string]$sanitizedMsg)
             if (-not $SuppressAttemptDebugLog) {
                 Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Fallback {0} attempt failed: {1}" -f $ActionName, $sanitizedMsg)
@@ -1156,10 +1167,32 @@ function Get-ApplicationsForSoftwareName {
             $applicationMatches = @(Get-CMApplication -Name ("*{0}*" -f $term) -ErrorAction Stop)
             Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Found {0} apps matching pattern '*{1}*'" -f $applicationMatches.Count, $term)
 
+            # Helper: token-based match to avoid accidental substring matches
+            $termTokenMatch = {
+                param($displayName, $termValue)
+                if ([string]::IsNullOrWhiteSpace($displayName) -or [string]::IsNullOrWhiteSpace($termValue)) { return $false }
+                try {
+                    $displayTokens = @([regex]::Split($displayName.ToLowerInvariant(), '\W+')) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+                    $termTokens = @([regex]::Split($termValue.ToLowerInvariant(), '\W+')) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+                    foreach ($t in $termTokens) {
+                        if ($t.Length -lt 2) { continue }
+                        if (-not ($displayTokens -contains $t)) { return $false }
+                    }
+                    return $true
+                } catch {
+                    return $false
+                }
+            }
+
             foreach ($app in $applicationMatches) {
                 $appKey = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId', 'LocalizedDisplayName', 'ApplicationName', 'Name'))
                 if (-not [string]::IsNullOrWhiteSpace($appKey)) {
-                    $appsByKey[$appKey.ToLowerInvariant()] = $app
+                    $displayName = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+                    if (& $termTokenMatch $displayName $term) {
+                        $appsByKey[$appKey.ToLowerInvariant()] = $app
+                    } else {
+                        Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Skipping provider match for '{0}' as not token-match for term '{1}'" -f $displayName, $term)
+                    }
                 }
             }
         } catch {
@@ -1182,6 +1215,11 @@ function Get-ApplicationsForSoftwareName {
             $apps = @($allApps | Where-Object {
                     $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
                     foreach ($term in $allTerms) {
+                        # use token-match for full-scan fallback to avoid accidental substring matches
+                        $termTokensMatchFunc = $termTokenMatch
+                        if (& $termTokensMatchFunc $displayName $term) {
+                            return $true
+                        }
                         if ($displayName -like ("*{0}*" -f $term)) {
                             return $true
                         }
@@ -1685,8 +1723,30 @@ function Set-LatestDeploymentForCollection {
         return $false
     }
 
-    $existing = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $LatestApp
-    if ($existing) {
+    # Prefer strict CI_ID matching when deciding whether the latest app is
+    # already deployed to the target collection. Fallback to the legacy
+    # Find-ExistingApplicationDeployment behavior only when the app CI cannot
+    # be determined from the application object.
+    $appCiId = Get-ObjectPropertyValue -InputObject $LatestApp -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
+    $collectionDeployments = Get-CollectionDeployments -CollectionName $collectionName
+
+    $hasLatestDeployment = $false
+    if (-not [string]::IsNullOrWhiteSpace(($appCiId -as [string]))) {
+        foreach ($d in $collectionDeployments) {
+            $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
+            if ($dAppId -and ([string]$dAppId -eq [string]$appCiId)) {
+                $hasLatestDeployment = $true
+                break
+            }
+        }
+    } else {
+        # If we could not resolve a CI id for the target app, fall back to
+        # the original resilient matching behavior.
+        $existing = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $LatestApp
+        if ($existing) { $hasLatestDeployment = $true }
+    }
+
+    if ($hasLatestDeployment) {
         $audit = [pscustomobject]@{
             Timestamp        = (Get-Date).ToString('o')
             SourceDeployment = $deploymentId
@@ -2709,6 +2769,9 @@ function Get-TargetFolderPath {
 
         [Parameter(Mandatory = $true)]
         [string]$TargetFolder
+        ,
+        [Parameter(Mandatory = $false)]
+        [switch]$ReturnFolderObject
     )
 
     $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
@@ -2742,6 +2805,9 @@ function Set-CollectionFolder {
 
         [Parameter(Mandatory = $true)]
         [string]$TargetFolder
+        ,
+        [Parameter(Mandatory = $false)]
+        [switch]$ReturnFolderObject
     )
 
     $targetFolderLeaf = [string](@($TargetFolder) | Select-Object -First 1)
@@ -2832,8 +2898,23 @@ function Set-CollectionFolder {
             $newCmFolderSupportedParameters = @($newCmFolderCommand.Parameters.Keys)
         }
 
-        $newCmFolderParentPathParameters = @('ParentFolderPath', 'ParentPath', 'ParentContainerNodePath')
-        $newCmFolderParentIdParameters = @('ParentContainerNodeId', 'ParentContainerNodeID', 'ParentFolderId', 'ParentFolderID', 'ParentId')
+        $newCmFolderParentPathParameters = @(
+            'ParentFolderPath',
+            'ParentPath',
+            'ParentContainerNodePath',
+            'Path',
+            'FolderPath',
+            'ContainerNodePath'
+        )
+        $newCmFolderParentIdParameters = @(
+            'ParentContainerNodeId',
+            'ParentContainerNodeID',
+            'ParentFolderId',
+            'ParentFolderID',
+            'ParentId',
+            'ContainerNodeId',
+            'ContainerNodeID'
+        )
         $supportedParentPathParameters = @($newCmFolderParentPathParameters | Where-Object { $newCmFolderSupportedParameters -contains $_ })
         $supportedParentIdParameters = @($newCmFolderParentIdParameters | Where-Object { $newCmFolderSupportedParameters -contains $_ })
 
@@ -3008,6 +3089,7 @@ function Set-CollectionFolder {
         if (-not $folder) {
             if ($DryRun) {
                 Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("[DryRun] Would create folder: {0}" -f $fullFolderPath)
+                if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $fullFolderPath; Id = $script:LastEnsuredFolderId } }
                 return $fullFolderPath
             } else {
                 $resolveFolderByPath = {
@@ -3120,11 +3202,56 @@ function Set-CollectionFolder {
                     }
 
                     if ($createdFolder -and -not [string]::IsNullOrWhiteSpace(($createdFolder.FolderPath -as [string]))) {
-                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $createdFolder.FolderPath)
-                        return ([string]$createdFolder.FolderPath)
+                        $resolvedCreatedPath = [string]$createdFolder.FolderPath
+                        $script:LastEnsuredFolderPath = $resolvedCreatedPath
+                        $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $createdFolder -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                        if ([string]::IsNullOrWhiteSpace($script:LastEnsuredFolderId)) {
+                            try {
+                                if (-not [string]::IsNullOrWhiteSpace($SiteCode)) {
+                                    $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+                                    $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+                                    foreach ($node in $containerNodes) {
+                                        $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                                        if ([string]::IsNullOrWhiteSpace($nodePath)) { continue }
+                                        $normNode = Get-NormalizedCmFolderPath -Path $nodePath
+                                        $normTarget = Get-NormalizedCmFolderPath -Path $resolvedCreatedPath
+                                        if (-not [string]::IsNullOrWhiteSpace($normNode) -and -not [string]::IsNullOrWhiteSpace($normTarget) -and $normNode.TrimStart('\').ToLowerInvariant() -eq $normTarget.TrimStart('\').ToLowerInvariant()) {
+                                            $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                                            break
+                                        }
+                                    }
+                                }
+                            } catch {
+                                Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Best-effort provider node probe failed: {0}" -f $_.Exception.Message)
+                            }
+                        }
+                        Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $resolvedCreatedPath)
+                        if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $resolvedCreatedPath; Id = $script:LastEnsuredFolderId } }
+                        return $resolvedCreatedPath
                     }
 
+                    # Created by cmdlet but could not resolve CMFolder object; record path and attempt provider lookup for an ID
+                    $script:LastEnsuredFolderPath = $fullFolderPath
+                    try {
+                        if (-not [string]::IsNullOrWhiteSpace($SiteCode)) {
+                            $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+                            $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+                            foreach ($node in $containerNodes) {
+                                $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                                if ([string]::IsNullOrWhiteSpace($nodePath)) { continue }
+                                $normNode = Get-NormalizedCmFolderPath -Path $nodePath
+                                $normTarget = Get-NormalizedCmFolderPath -Path $fullFolderPath
+                                if (-not [string]::IsNullOrWhiteSpace($normNode) -and -not [string]::IsNullOrWhiteSpace($normTarget) -and $normNode.TrimStart('\').ToLowerInvariant() -eq $normTarget.TrimStart('\').ToLowerInvariant()) {
+                                    $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                                    break
+                                }
+                            }
+                        }
+                    } catch {
+                        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Best-effort provider node probe failed: {0}" -f $_.Exception.Message)
+                    }
                     Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder: {0}" -f $fullFolderPath)
+                    if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $fullFolderPath; Id = $script:LastEnsuredFolderId } }
                     return $fullFolderPath
                 }
 
@@ -3142,7 +3269,28 @@ function Set-CollectionFolder {
                 foreach ($attempt in $providerCreateAttempts) {
                     try {
                         & $attempt
+                        # Record ensured path and attempt to resolve provider ID
+                        $script:LastEnsuredFolderPath = $fullFolderPath
+                        try {
+                            if (-not [string]::IsNullOrWhiteSpace($SiteCode)) {
+                                $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+                                $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+                                foreach ($node in $containerNodes) {
+                                    $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                                    if ([string]::IsNullOrWhiteSpace($nodePath)) { continue }
+                                    $normNode = Get-NormalizedCmFolderPath -Path $nodePath
+                                    $normTarget = Get-NormalizedCmFolderPath -Path $fullFolderPath
+                                    if (-not [string]::IsNullOrWhiteSpace($normNode) -and -not [string]::IsNullOrWhiteSpace($normTarget) -and $normNode.TrimStart('\').ToLowerInvariant() -eq $normTarget.TrimStart('\').ToLowerInvariant()) {
+                                        $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                                        break
+                                    }
+                                }
+                            }
+                        } catch {
+                            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Best-effort provider node probe failed: {0}" -f $_.Exception.Message)
+                        }
                         Write-LogEvent -Level 'SUCCESS' -Scope 'Folders' -Action 'Success' -Detail ("Created folder via provider path: {0}" -f $fullFolderPath)
+                        if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $fullFolderPath; Id = $script:LastEnsuredFolderId } }
                         return $fullFolderPath
                     } catch {
                         $msg = [string]$_.Exception.Message
@@ -3170,14 +3318,37 @@ function Set-CollectionFolder {
                 }
 
                 Write-LogEvent -Level 'WARN' -Scope 'Folders' -Action 'Warning' -Detail ("Could not create folder '{0}': no supported parameters succeeded. Ensure parent folder '{1}' exists. {2}" -f $fullFolderPath, ([string]$rootInfo.RootPathNoDrive), $errorDetailText)
+                if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $fullFolderPath; Id = $script:LastEnsuredFolderId } }
                 return $fullFolderPath
             }
         } else {
             $resolvedPath = $folder.FolderPath
-            if (-not $resolvedPath) {
-                $resolvedPath = $fullFolderPath
+            if (-not $resolvedPath) { $resolvedPath = $fullFolderPath }
+            # Record existing folder path and try to capture its ID
+            $script:LastEnsuredFolderPath = $resolvedPath
+            $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $folder -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+            if ([string]::IsNullOrWhiteSpace($script:LastEnsuredFolderId)) {
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($SiteCode)) {
+                        $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+                        $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+                        foreach ($node in $containerNodes) {
+                            $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                            if ([string]::IsNullOrWhiteSpace($nodePath)) { continue }
+                            $normNode = Get-NormalizedCmFolderPath -Path $nodePath
+                            $normTarget = Get-NormalizedCmFolderPath -Path $resolvedPath
+                            if (-not [string]::IsNullOrWhiteSpace($normNode) -and -not [string]::IsNullOrWhiteSpace($normTarget) -and $normNode.TrimStart('\').ToLowerInvariant() -eq $normTarget.TrimStart('\').ToLowerInvariant()) {
+                                $script:LastEnsuredFolderId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                                break
+                            }
+                        }
+                    }
+                } catch {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Best-effort provider node probe failed: {0}" -f $_.Exception.Message)
+                }
             }
             Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Using existing folder: {0}" -f $resolvedPath)
+            if ($ReturnFolderObject.IsPresent) { return [pscustomobject]@{ Path = $resolvedPath; Id = $script:LastEnsuredFolderId } }
             return $resolvedPath
         }
     } catch {
@@ -3210,48 +3381,269 @@ function Move-CollectionToFolder {
     $collectionId = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
     $collectionName = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('Name', 'CollectionName'))
 
+    # If the collection object doesn't provide an Id, try to resolve it by name
+    if ([string]::IsNullOrWhiteSpace($collectionId) -and -not [string]::IsNullOrWhiteSpace($collectionName)) {
+        try {
+            $fresh = @(Get-CMDeviceCollection -Name $collectionName -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($fresh) {
+                $Collection = $fresh
+                $collectionId = [string](Get-ObjectPropertyValue -InputObject $Collection -PropertyNames @('CollectionID', 'CollectionId', 'Id'))
+                Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Refreshed collection object for '{0}': Id={1}" -f $collectionName, $collectionId)
+            }
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Could not refresh collection '{0}': {1}" -f $collectionName, $_.Exception.Message)
+        }
+    }
     $folderPathCandidates = @(
         $FolderPath,
         ($FolderPath -replace '^[^:]+:\\', ''),
         ($FolderPath -replace '^[^:]+:', ''),
-        ('\' + ($FolderPath -replace '^[^:]+:\\', ''))
+        ('\\' + ($FolderPath -replace '^[^:]+:\\', ''))
     ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique
 
-    $attempts = @()
-    foreach ($candidatePath in $folderPathCandidates) {
-        if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
-            $attempts += { Move-CMObject -ObjectId $collectionId -FolderPath $candidatePath -ErrorAction Stop }
-            $attempts += { Move-CMObject -ObjectId $collectionId -InputObject $Collection -FolderPath $candidatePath -ErrorAction Stop }
+    # Expand common singular/plural path aliases (DeviceCollection <-> DeviceCollections)
+    $expandPathAliases = {
+        param([Parameter(Mandatory = $true)][string]$PathText)
+        if ([string]::IsNullOrWhiteSpace($PathText)) { return @() }
+        $set = New-Object System.Collections.Generic.List[string]
+        [void]$set.Add([string]$PathText)
+        $variants = @(
+            ([string]$PathText -replace '\\DeviceCollections\\', '\\DeviceCollection\\'),
+            ([string]$PathText -replace '\\DeviceCollection\\', '\\DeviceCollections\\'),
+            ([string]$PathText -replace '^DeviceCollections\\', 'DeviceCollection\\'),
+            ([string]$PathText -replace '^DeviceCollection\\', 'DeviceCollections\\'),
+            ([string]$PathText -replace '^\\DeviceCollections\\', '\\DeviceCollection\\'),
+            ([string]$PathText -replace '^\\DeviceCollection\\', '\\DeviceCollections\\')
+        )
+        foreach ($v in $variants) {
+            if (-not [string]::IsNullOrWhiteSpace($v)) { [void]$set.Add([string]$v) }
         }
-
-        $attempts += { Move-CMObject -InputObject $Collection -FolderPath $candidatePath -ErrorAction Stop }
-        $attempts += { Move-CMObject -InputObject $Collection -Path $candidatePath -ErrorAction Stop }
-        $attempts += { Move-CMObject -InputObject $Collection -DestinationPath $candidatePath -ErrorAction Stop }
-        $attempts += { Move-CMObject -InputObject $Collection -Destination $candidatePath -ErrorAction Stop }
-        $attempts += { Move-CMObject -InputObject $Collection -TargetPath $candidatePath -ErrorAction Stop }
+        return @($set | Select-Object -Unique)
     }
 
-    if (Get-CachedCommand -Name 'Move-CMDeviceCollection') {
+    $expandedCandidates = New-Object System.Collections.Generic.List[string]
+    foreach ($raw in $folderPathCandidates) {
+        foreach ($c in & $expandPathAliases -PathText $raw) {
+            if (-not [string]::IsNullOrWhiteSpace($c)) { [void]$expandedCandidates.Add([string]$c) }
+        }
+    }
+    $folderPathCandidates = @($expandedCandidates | Sort-Object -Unique)
+
+    Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail (
+        "Preparing to move collection: Id={0}; Name={1}; RequestedFolder='{2}'; CandidatePaths={3}" -f
+        $collectionId, $collectionName, $FolderPath, ($folderPathCandidates -join '|')
+    )
+
+    # Resolve target folder object and extract an ID to support ID-based move variants
+    $targetFolderId = ''
+    try {
+        $resolveFolderSimple = {
+            param($candidate)
+            $res = @(Get-CMFolder -FolderPath $candidate -ErrorAction SilentlyContinue) | Select-Object -First 1
+            if ($res) { return $res }
+            if (Test-CmFolderPathParameterSupport) {
+                $res = @(Get-CMFolder -Path $candidate -ErrorAction SilentlyContinue) | Select-Object -First 1
+                if ($res) { return $res }
+            }
+            $leaf = (Split-Path -Path $candidate -Leaf)
+            if (-not [string]::IsNullOrWhiteSpace($leaf)) {
+                $res = @(Get-CMFolder -Name $leaf -ErrorAction SilentlyContinue | Where-Object { $_.FolderPath -eq $candidate }) | Select-Object -First 1
+                if ($res) { return $res }
+            }
+            return $null
+        }
+
         foreach ($candidatePath in $folderPathCandidates) {
-            if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
-                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -FolderPath $candidatePath -ErrorAction Stop }
-                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -Path $candidatePath -ErrorAction Stop }
-                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -DestinationPath $candidatePath -ErrorAction Stop }
-                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -Destination $candidatePath -ErrorAction Stop }
-                $attempts += { Move-CMDeviceCollection -CollectionId $collectionId -TargetPath $candidatePath -ErrorAction Stop }
+            try {
+                $resolvedFolder = & $resolveFolderSimple $candidatePath
+                if ($resolvedFolder) {
+                    $targetFolderId = [string](Get-ObjectPropertyValue -InputObject $resolvedFolder -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                    if (-not [string]::IsNullOrWhiteSpace($targetFolderId)) {
+                        break
+                    }
+                }
+            } catch {
+                Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("ResolveFolderSimple failed for candidate '{0}': {1}" -f $candidatePath, $_.Exception.Message)
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Folder ID resolution failed: {0}" -f $_.Exception.Message)
+    }
+
+    # If Set-CollectionFolder just ran, prefer its recorded provider ID when it matches this path.
+    try {
+        if ([string]::IsNullOrWhiteSpace($targetFolderId) -and $null -ne $script:LastEnsuredFolderId -and -not [string]::IsNullOrWhiteSpace($script:LastEnsuredFolderPath)) {
+            foreach ($p in $folderPathCandidates) {
+                try {
+                    if ([string]::IsNullOrWhiteSpace($p)) { continue }
+                    $normP = (Get-NormalizedCmFolderPath -Path $p).TrimStart('\').ToLowerInvariant()
+                    $normLast = (Get-NormalizedCmFolderPath -Path $script:LastEnsuredFolderPath).TrimStart('\').ToLowerInvariant()
+                    if ($normP -eq $normLast) {
+                        $targetFolderId = $script:LastEnsuredFolderId
+                        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Using previously recorded folder ID from Set-CollectionFolder: {0}" -f $targetFolderId)
+                        break
+                    }
+                } catch {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Folder ID compare iteration failed for candidate '{0}': {1}" -f $p, $_.Exception.Message)
+                    continue
+                }
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Folder ID pre-recorded preference check failed: {0}" -f $_.Exception.Message)
+    }
+
+    # Log resolved folder object (if any) and whether an ID was found
+    try {
+        if ($null -ne $resolvedFolder) {
+            $resolvedPath = [string](Get-ObjectPropertyValue -InputObject $resolvedFolder -PropertyNames @('FolderPath', 'Path', 'ContainerNodePath'))
+            $resolvedId = [string](Get-ObjectPropertyValue -InputObject $resolvedFolder -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Resolved folder object for move: Path={0}; Id={1}" -f $resolvedPath, $resolvedId)
+        } else {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail 'No CMFolder object resolved prior to provider fallback.'
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Resolved-folder logging failed: {0}" -f $_.Exception.Message)
+    }
+
+    # If we still don't have an ID, try provider (SMS_ObjectContainerNode) lookup by path
+    if ([string]::IsNullOrWhiteSpace($targetFolderId)) {
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($SiteCode)) {
+                $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+                $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+                if ($containerNodes -and $containerNodes.Count -gt 0) {
+                    foreach ($candidatePath in $folderPathCandidates) {
+                        foreach ($node in $containerNodes) {
+                            $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                            if ([string]::IsNullOrWhiteSpace($nodePath)) { continue }
+                            $normNode = Get-NormalizedCmFolderPath -Path $nodePath
+                            $normCand = Get-NormalizedCmFolderPath -Path $candidatePath
+                            if (-not [string]::IsNullOrWhiteSpace($normNode) -and -not [string]::IsNullOrWhiteSpace($normCand) -and $normNode.TrimStart('\').ToLowerInvariant() -eq $normCand.TrimStart('\').ToLowerInvariant()) {
+                                $targetFolderId = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodeID', 'ContainerNodeId', 'FolderId', 'NodeID', 'NodeId'))
+                                Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Provider lookup matched container node: Path={0}; Id={1}" -f $nodePath, $targetFolderId)
+                                break
+                            }
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($targetFolderId)) { break }
+                    }
+                } else {
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Preflight' -Action 'Debug' -Detail ("Provider lookup returned no SMS_ObjectContainerNode rows for {0}." -f $siteNamespace)
+                }
+            }
+        } catch {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Provider-based folder ID lookup failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    $attempts = @()
+
+    $makeAttempt = {
+        param(
+            [Parameter(Mandatory = $true)][string]$cmdName,
+            [Parameter(Mandatory = $true)][hashtable]$splat
+        )
+
+        return & {
+            param($cmdParam, $splatParam)
+            $cmdLocal = $cmdParam
+            $splatLocal = $splatParam
+            $inner = {
+                & $cmdLocal @splatLocal
+            }
+            return $inner.GetNewClosure()
+        } -cmdParam $cmdName -splatParam $splat
+    }
+
+    $moveParamNames = @('FolderPath', 'Path', 'DestinationPath', 'Destination', 'TargetPath')
+
+    foreach ($candidatePath in $folderPathCandidates) {
+        # Move-CMObject attempts (various path param names)
+        if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+            foreach ($paramName in $moveParamNames) {
+                $splat = @{ ObjectId = $collectionId; ErrorAction = 'Stop' }
+                $splat[$paramName] = $candidatePath
+                $attempts += & $makeAttempt -cmdName 'Move-CMObject' -splat $splat
             }
 
-            if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
-                $attempts += { Move-CMDeviceCollection -CollectionName $collectionName -FolderPath $candidatePath -ErrorAction Stop }
+            foreach ($paramName in $moveParamNames) {
+                $splat = @{ InputObject = $Collection; ObjectId = $collectionId; ErrorAction = 'Stop' }
+                $splat[$paramName] = $candidatePath
+                $attempts += & $makeAttempt -cmdName 'Move-CMObject' -splat $splat
+            }
+        } else {
+            foreach ($paramName in $moveParamNames) {
+                $splat = @{ InputObject = $Collection; ErrorAction = 'Stop' }
+                $splat[$paramName] = $candidatePath
+                $attempts += & $makeAttempt -cmdName 'Move-CMObject' -splat $splat
+            }
+        }
+
+        # Move-CMDeviceCollection attempts (various path param names)
+        if (Get-CachedCommand -Name 'Move-CMDeviceCollection') {
+            foreach ($paramName in $moveParamNames) {
+                if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+                    $splat = @{ CollectionId = $collectionId; ErrorAction = 'Stop' }
+                    $splat[$paramName] = $candidatePath
+                    $attempts += & $makeAttempt -cmdName 'Move-CMDeviceCollection' -splat $splat
+                }
+                if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
+                    $splat = @{ CollectionName = $collectionName; ErrorAction = 'Stop' }
+                    $splat[$paramName] = $candidatePath
+                    $attempts += & $makeAttempt -cmdName 'Move-CMDeviceCollection' -splat $splat
+                }
             }
         }
     }
 
-    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Move collection' -SuppressAttemptDebugLog
+    # If we resolved a target folder ID, add ID-based move attempts for commands
+    # that accept an ID parameter name variant (ContainerNodeID/FolderId/etc.).
+    if (-not [string]::IsNullOrWhiteSpace($targetFolderId)) {
+        $idParamCandidates = @('ContainerNodeID', 'ContainerNodeId', 'ParentContainerNodeId', 'ParentContainerNodeID', 'FolderId', 'FolderID', 'DestinationContainerNodeId', 'DestinationContainerNodeID', 'DestinationFolderId', 'DestinationFolderID', 'TargetContainerNodeId', 'TargetContainerNodeID')
+
+        $moveDeviceCmd = Get-CachedCommand -Name 'Move-CMDeviceCollection'
+        if ($moveDeviceCmd) {
+            $supported = @($moveDeviceCmd.Parameters.Keys)
+            $supportedIdParams = @($idParamCandidates | Where-Object { $supported -contains $_ })
+            foreach ($idParam in $supportedIdParams) {
+                if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+                    $splat = @{ CollectionId = $collectionId; ErrorAction = 'Stop' }
+                    $splat[$idParam] = $targetFolderId
+                    $attempts += & $makeAttempt -cmdName 'Move-CMDeviceCollection' -splat $splat
+                }
+                if (-not [string]::IsNullOrWhiteSpace($collectionName)) {
+                    $splat = @{ CollectionName = $collectionName; ErrorAction = 'Stop' }
+                    $splat[$idParam] = $targetFolderId
+                    $attempts += & $makeAttempt -cmdName 'Move-CMDeviceCollection' -splat $splat
+                }
+            }
+        }
+
+        $moveObjectCmd = Get-CachedCommand -Name 'Move-CMObject'
+        if ($moveObjectCmd) {
+            $supported = @($moveObjectCmd.Parameters.Keys)
+            $supportedIdParams = @($idParamCandidates | Where-Object { $supported -contains $_ })
+            foreach ($idParam in $supportedIdParams) {
+                if (-not [string]::IsNullOrWhiteSpace($collectionId)) {
+                    $splat = @{ ObjectId = $collectionId; ErrorAction = 'Stop' }
+                    $splat[$idParam] = $targetFolderId
+                    $attempts += & $makeAttempt -cmdName 'Move-CMObject' -splat $splat
+                }
+                $splat = @{ InputObject = $Collection; ErrorAction = 'Stop' }
+                $splat[$idParam] = $targetFolderId
+                $attempts += & $makeAttempt -cmdName 'Move-CMObject' -splat $splat
+            }
+        }
+    }
+
+    # Run fallback attempts and allow per-attempt debug logging so callers can see why each variant failed.
+    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Move collection'
     if (-not $result.Success) {
-        $moveErrorSummary = @($result.Errors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 3)
+        $moveErrorSummary = @($result.Errors | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } )
         if ($moveErrorSummary.Count -gt 0) {
-            Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Move collection failed after fallback attempts. Sample errors: {0}" -f ([string]::Join(' | ', $moveErrorSummary)))
+            Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail ("Move collection failed after fallback attempts. Errors: {0}" -f ([string]::Join(' || ', $moveErrorSummary)))
+        } else {
+            Write-LogEvent -Level 'DEBUG' -Scope 'Operations' -Action 'Debug' -Detail 'Move collection failed with no error text captured.'
         }
     }
     return $result.Success
@@ -3491,11 +3883,26 @@ function Set-MasterCollectionDeployment {
     $appName = [string](Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
     $appDisplayName = Get-ApplicationDisplayName -App $Application
 
-    # Check if deployment already exists
+    # Check if deployment already exists (prefer strict CI_ID matching).
     $collectionDeployments = Get-CollectionDeployments -CollectionName $collectionName
-    $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $Application
+    $appCiId = Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
 
-    if ($existingDeployment -or $collectionDeployments.Count -gt 0) {
+    $hasLatestDeployment = $false
+    if (-not [string]::IsNullOrWhiteSpace(($appCiId -as [string]))) {
+        foreach ($d in $collectionDeployments) {
+            $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
+            if ($dAppId -and ([string]$dAppId -eq [string]$appCiId)) {
+                $hasLatestDeployment = $true
+                break
+            }
+        }
+    } else {
+        # Fall back to legacy resilient matching when CI id is unavailable
+        $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $collectionName -Application $Application
+        if ($existingDeployment) { $hasLatestDeployment = $true }
+    }
+
+    if ($hasLatestDeployment) {
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
         return
     }
@@ -3517,6 +3924,17 @@ function Set-MasterCollectionDeployment {
             New-CMApplicationDeployment @deployParams | Out-Null
             Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'" -f $appDisplayName, $DeploymentPurpose, $collectionName)
         } -Description "deploy '$appDisplayName' as $DeploymentPurpose to collection '$collectionName'"
+
+        # After creating the new deployment, remove legacy deployments that
+        # target the collection but reference a different (older) application CI.
+        foreach ($d in $collectionDeployments) {
+            $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
+            if (-not $dAppId) { continue }
+            if ([string]$dAppId -ne [string]$appCiId) {
+                Write-LogEvent -Level 'INFO' -Scope 'Deployments' -Action 'Status' -Detail (("Removing legacy deployment targeting '{0}' from collection '{1}'") -f (Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationName', 'SoftwareName', 'Name')), $collectionName)
+                Remove-Deployment-Robust -Deployment $d
+            }
+        }
     } catch {
         if ($_.Exception.Message -match 'already been deployed') {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
@@ -3959,14 +4377,50 @@ function New-MasterDeviceCollection {
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$Comment,
         [Parameter(Mandatory = $true)][string]$LimitingCollectionName,
-        [Parameter(Mandatory = $true)][string]$FolderPath
+        # Accept either a folder path string or a PSCustomObject returned by Set-CollectionFolder -ReturnFolderObject
+        [Parameter(Mandatory = $true)][AllowNull()][object]$FolderPath
     )
 
     if ([string]::IsNullOrWhiteSpace($Name) -or
         [string]::IsNullOrWhiteSpace($Comment) -or
         [string]::IsNullOrWhiteSpace($LimitingCollectionName) -or
-        [string]::IsNullOrWhiteSpace($FolderPath)) {
+        $null -eq $FolderPath) {
         return $null
+    }
+
+    # Normalize folder input: allow either a string path or an object with Path and Id
+    $folderPathText = ''
+    $folderId = ''
+    try {
+        if ($FolderPath -is [string]) {
+            $folderPathText = [string]$FolderPath
+        } elseif ($FolderPath -ne $null) {
+            if ($FolderPath.Path) {
+                $folderPathText = [string]$FolderPath.Path
+            } elseif ($FolderPath.FolderPath) {
+                $folderPathText = [string]$FolderPath.FolderPath
+            } else {
+                $folderPathText = [string]$FolderPath.Path
+            }
+
+            if ($FolderPath.Id) {
+                $folderId = [string]$FolderPath.Id
+            } elseif ($FolderPath.ContainerNodeID) {
+                $folderId = [string]$FolderPath.ContainerNodeID
+            } elseif ($FolderPath.ContainerNodeId) {
+                $folderId = [string]$FolderPath.ContainerNodeId
+            } elseif ($FolderPath.FolderId) {
+                $folderId = [string]$FolderPath.FolderId
+            } elseif ($FolderPath.NodeID) {
+                $folderId = [string]$FolderPath.NodeID
+            } elseif ($FolderPath.NodeId) {
+                $folderId = [string]$FolderPath.NodeId
+            } else {
+                $folderId = ''
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Normalizing folder input failed: {0}" -f $_.Exception.Message)
     }
 
     $cmd = Get-CachedCommand -Name 'New-CMDeviceCollection'
@@ -3974,12 +4428,72 @@ function New-MasterDeviceCollection {
         return $null
     }
 
-    $attempts = @(
-        { New-CMDeviceCollection -Name $Name -LimitingCollectionName $LimitingCollectionName -Comment $Comment -FolderPath $FolderPath -ErrorAction Stop },
-        { New-CMDeviceCollection -Name $Name -LimitingCollectionName $LimitingCollectionName -Comment $Comment -Path $FolderPath -ErrorAction Stop },
-        { New-CMDeviceCollection -Name $Name -LimitingCollectionName $LimitingCollectionName -Comment $Comment -CollectionFolderPath $FolderPath -ErrorAction Stop },
-        { New-CMDeviceCollection -Name $Name -LimitingCollectionName $LimitingCollectionName -Comment $Comment -ErrorAction Stop }
+    $supportedFolderPathParameters = @(
+        'FolderPath',
+        'Path',
+        'CollectionFolderPath',
+        'CollectionFolder',
+        'CollectionPath',
+        'ParentPath',
+        'DestinationPath',
+        'Destination',
+        'TargetPath'
     )
+
+    $supportedParams = @($cmd.Parameters.Keys | Where-Object { $supportedFolderPathParameters -contains $_ })
+    if ($supportedParams.Count -gt 0) {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail (
+            "New-CMDeviceCollection supports folder parameters: {0}" -f ($supportedParams -join ', ')
+        )
+    }
+
+    $attempts = @()
+
+    # If we have a folder ID and the cmdlet supports ID-style parameters, prefer those.
+    $idParamCandidates = @('ContainerNodeID', 'ContainerNodeId', 'ParentContainerNodeId', 'ParentContainerNodeID', 'ParentId', 'FolderId', 'FolderID', 'DestinationContainerNodeId', 'DestinationContainerNodeID', 'DestinationFolderId', 'DestinationFolderID', 'TargetContainerNodeId', 'TargetContainerNodeID')
+    $supportedIdParams = @($cmd.Parameters.Keys | Where-Object { $idParamCandidates -contains $_ })
+
+    if (-not [string]::IsNullOrWhiteSpace($folderId) -and $supportedIdParams.Count -gt 0) {
+        foreach ($idParam in $supportedIdParams) {
+            $idParamLocal = $idParam
+            if (-not [string]::IsNullOrWhiteSpace($folderId)) {
+                $folderIdLocal = $folderId
+                $attempts += {
+                    $splat = @{
+                        Name                   = $Name
+                        LimitingCollectionName = $LimitingCollectionName
+                        Comment                = $Comment
+                        ErrorAction            = 'Stop'
+                    }
+                    $splat[$idParamLocal] = $folderIdLocal
+                    New-CMDeviceCollection @splat
+                }
+            }
+        }
+    }
+
+    # Path-style attempts (if a path was provided)
+    if (-not [string]::IsNullOrWhiteSpace($folderPathText)) {
+        foreach ($folderParam in $supportedParams) {
+            $folderParamLocal = $folderParam
+            $folderPathLocal = $folderPathText
+            $attempts += {
+                $splat = @{
+                    Name                   = $Name
+                    LimitingCollectionName = $LimitingCollectionName
+                    Comment                = $Comment
+                    ErrorAction            = 'Stop'
+                }
+                $splat[$folderParamLocal] = $folderPathLocal
+                New-CMDeviceCollection @splat
+            }
+        }
+    }
+
+    # If the cmdlet has no recognized folder parameter at all, still attempt creation
+    $attempts += {
+        New-CMDeviceCollection -Name $Name -LimitingCollectionName $LimitingCollectionName -Comment $Comment -ErrorAction Stop
+    }
 
     $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'New-CMDeviceCollection'
     if ($result.Success) {
@@ -4011,7 +4525,26 @@ function Set-MasterCollections {
         [string]$TargetFolder
     )
 
-    $fullFolderPath = Set-CollectionFolder -SiteCode $SiteCode -TargetFolder $TargetFolder
+    # Prefer the richer folder object (Path + Id) when possible to allow ID-based creation/moves
+    $folderObj = Set-CollectionFolder -SiteCode $SiteCode -TargetFolder $TargetFolder -ReturnFolderObject
+    if ($folderObj -is [System.Management.Automation.PSCustomObject] -or $folderObj -is [hashtable]) {
+        if ($folderObj.Path) {
+            $fullFolderPath = [string]$folderObj.Path
+        } elseif ($folderObj.FolderPath) {
+            $fullFolderPath = [string]$folderObj.FolderPath
+        } else {
+            $fullFolderPath = [string]$folderObj.Path
+        }
+        $resolvedFolderObj = $folderObj
+    } else {
+        $fullFolderPath = [string]$folderObj
+        $resolvedFolderObj = $null
+    }
+    # Determine folder argument for cmdlets (PS5.1-safe; avoids inline 'if' expression)
+    $folderPathArg = $fullFolderPath
+    if ($resolvedFolderObj) {
+        $folderPathArg = $resolvedFolderObj
+    }
 
     $installAvailName = "{0} - Install (Available)" -f $CanonicalName
     $installReqName = "{0} - Install (Required)" -f $CanonicalName
@@ -4029,7 +4562,7 @@ function Set-MasterCollections {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $installAvailName)
             $installAvailCol = [pscustomobject]@{ Name = $installAvailName; CollectionID = 0 }
         } else {
-            $installAvailCol = New-MasterDeviceCollection -Name $installAvailName -LimitingCollectionName "All Systems" -Comment ("Master available install collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
+            $installAvailCol = New-MasterDeviceCollection -Name $installAvailName -LimitingCollectionName "All Systems" -Comment ("Master available install collection for {0}" -f $CanonicalName) -FolderPath $folderPathArg
             if ($installAvailCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $installAvailName)
             } else {
@@ -4043,7 +4576,7 @@ function Set-MasterCollections {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $installReqName)
             $installReqCol = [pscustomobject]@{ Name = $installReqName; CollectionID = 0 }
         } else {
-            $installReqCol = New-MasterDeviceCollection -Name $installReqName -LimitingCollectionName "All Systems" -Comment ("Master required install collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
+            $installReqCol = New-MasterDeviceCollection -Name $installReqName -LimitingCollectionName "All Systems" -Comment ("Master required install collection for {0}" -f $CanonicalName) -FolderPath $folderPathArg
             if ($installReqCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $installReqName)
             } else {
@@ -4057,7 +4590,7 @@ function Set-MasterCollections {
             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("[DryRun] Would create collection: {0}" -f $uninstallName)
             $uninstallCol = [pscustomobject]@{ Name = $uninstallName; CollectionID = 0 }
         } else {
-            $uninstallCol = New-MasterDeviceCollection -Name $uninstallName -LimitingCollectionName "All Systems" -Comment ("Master uninstall collection for {0}" -f $CanonicalName) -FolderPath $fullFolderPath
+            $uninstallCol = New-MasterDeviceCollection -Name $uninstallName -LimitingCollectionName "All Systems" -Comment ("Master uninstall collection for {0}" -f $CanonicalName) -FolderPath $folderPathArg
             if ($uninstallCol) {
                 Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Created collection: {0}" -f $uninstallName)
             } else {
@@ -4415,10 +4948,21 @@ function Update-MasterCollections {
                     $app = $appForMasterDeploy
                     if ($app) {
                         $collectionDeployments = Get-CollectionDeployments -CollectionName $masterInstallAvailableNameResolved
-                        $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Application $app
                         $appDisplayName = Get-ApplicationDisplayName -App $app
+                        $appCiId = Get-ObjectPropertyValue -InputObject $app -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
 
-                        if ($existingDeployment -or $collectionDeployments.Count -gt 0) {
+                        $hasLatestDeployment = $false
+                        if (-not [string]::IsNullOrWhiteSpace(($appCiId -as [string]))) {
+                            foreach ($d in $collectionDeployments) {
+                                $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
+                                if ($dAppId -and ([string]$dAppId -eq [string]$appCiId)) { $hasLatestDeployment = $true; break }
+                            }
+                        } else {
+                            $existingDeployment = Find-ExistingApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Application $app
+                            if ($existingDeployment) { $hasLatestDeployment = $true }
+                        }
+
+                        if ($hasLatestDeployment) {
                             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                         } else {
                             try {
@@ -4426,6 +4970,16 @@ function Update-MasterCollections {
                                     New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -ErrorAction Stop | Out-Null
                                     Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as 'Available' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                                 } -Description "deploy '$appDisplayName' as Available to collection '$masterInstallAvailableNameResolved'"
+
+                                # Remove any legacy deployments that do not point to the latest CI
+                                foreach ($d in $collectionDeployments) {
+                                    $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
+                                    if (-not $dAppId) { continue }
+                                    if ([string]$dAppId -ne [string]$appCiId) {
+                                        Write-LogEvent -Level 'INFO' -Scope 'Deployments' -Action 'Status' -Detail (("Removing legacy deployment targeting '{0}' from collection '{1}'") -f (Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationName', 'SoftwareName', 'Name')), $masterInstallAvailableNameResolved)
+                                        Remove-Deployment-Robust -Deployment $d
+                                    }
+                                }
                             } catch {
                                 if ($_.Exception.Message -match 'already been deployed') {
                                     Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
@@ -6662,6 +7216,105 @@ function Remove-EmptyApplicationDeploymentFolders {
     }
 
     Write-LogEvent -Level 'INFO' -Scope 'Folders' -Action 'Status' -Detail ("Discovered {0} candidate folder(s) under Application Deployment." -f $allSubfolders.Count)
+
+    # Attempt to map SMS provider container nodes to discovered folder entries so
+    # provider-level deletion can be attempted when Remove-CMFolder cmdlet calls
+    # fail due to environment-specific parameter shapes or protection policies.
+    try {
+        $siteNamespace = "root\SMS\site_{0}" -f $SiteCode
+        $containerNodes = @(Get-SmsProviderInstance -Namespace $siteNamespace -ClassName 'SMS_ObjectContainerNode' -ErrorAction SilentlyContinue)
+        if ($containerNodes -and $containerNodes.Count -gt 0) {
+            # Build multiple lookup maps to increase chance of matching folder entries
+            $nodesByNormalizedPath = @{}
+            $nodesByTail = @{}
+            foreach ($node in $containerNodes) {
+                try {
+                    $nodePath = [string](Get-ObjectPropertyValue -InputObject $node -PropertyNames @('ContainerNodePath', 'FolderPath', 'Path'))
+                    if (-not [string]::IsNullOrWhiteSpace($nodePath)) {
+                        $norm = [string](& $normalizeCmFolderPath $nodePath)
+                        if (-not [string]::IsNullOrWhiteSpace($norm)) {
+                            $key = $norm.ToLowerInvariant()
+                            if (-not $nodesByNormalizedPath.ContainsKey($key)) {
+                                $nodesByNormalizedPath[$key] = $node
+                            }
+
+                            # Also add tolerant variants for common root-name differences
+                            $altKey = $key -replace 'devicecollections\\', 'devicecollection\\'
+                            if ($altKey -ne $key -and -not $nodesByNormalizedPath.ContainsKey($altKey)) {
+                                $nodesByNormalizedPath[$altKey] = $node
+                            }
+                            $altKey2 = $key -replace 'devicecollection\\', 'devicecollections\\'
+                            if ($altKey2 -ne $key -and -not $nodesByNormalizedPath.ContainsKey($altKey2)) {
+                                $nodesByNormalizedPath[$altKey2] = $node
+                            }
+
+                            # Also index by tail portion starting at 'application deployment' to handle root-name mismatches
+                            $lower = $key
+                            $adIndex = $lower.IndexOf('application deployment')
+                            if ($adIndex -ge 0) {
+                                $tail = $lower.Substring($adIndex)
+                                if (-not $nodesByTail.ContainsKey($tail)) {
+                                    $nodesByTail[$tail] = $node
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    # ignore per-node failures
+                }
+            }
+
+            foreach ($fe in $allSubfolders) {
+                try {
+                    $normPath = [string](& $normalizeCmFolderPath $fe.RawPath)
+                    if (-not [string]::IsNullOrWhiteSpace($normPath)) {
+                        $key = $normPath.ToLowerInvariant()
+
+                        # Direct normalized match
+                        if ($nodesByNormalizedPath.ContainsKey($key)) {
+                            $fe | Add-Member -NotePropertyName 'Node' -NotePropertyValue $nodesByNormalizedPath[$key] -Force
+                            continue
+                        }
+
+                        # Try tolerant root-name variants
+                        $altKey = $key -replace 'devicecollections\\', 'devicecollection\\'
+                        if ($nodesByNormalizedPath.ContainsKey($altKey)) {
+                            $fe | Add-Member -NotePropertyName 'Node' -NotePropertyValue $nodesByNormalizedPath[$altKey] -Force
+                            continue
+                        }
+                        $altKey2 = $key -replace 'devicecollection\\', 'devicecollections\\'
+                        if ($nodesByNormalizedPath.ContainsKey($altKey2)) {
+                            $fe | Add-Member -NotePropertyName 'Node' -NotePropertyValue $nodesByNormalizedPath[$altKey2] -Force
+                            continue
+                        }
+
+                        # Tail-based match from 'application deployment' onward
+                        $lowerKey = $key
+                        $adIndex = $lowerKey.IndexOf('application deployment')
+                        if ($adIndex -ge 0) {
+                            $tail = $lowerKey.Substring($adIndex)
+                            if ($nodesByTail.ContainsKey($tail)) {
+                                $fe | Add-Member -NotePropertyName 'Node' -NotePropertyValue $nodesByTail[$tail] -Force
+                                continue
+                            }
+                        }
+
+                        # As a last resort, try ends-with matching for the path portion
+                        foreach ($nk in $nodesByNormalizedPath.Keys) {
+                            if ($nk.EndsWith($key) -or $key.EndsWith($nk)) {
+                                $fe | Add-Member -NotePropertyName 'Node' -NotePropertyValue $nodesByNormalizedPath[$nk] -Force
+                                break
+                            }
+                        }
+                    }
+                } catch {
+                    # best-effort mapping; continue
+                }
+            }
+        }
+    } catch {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Folders' -Action 'Debug' -Detail ("Provider node mapping for cleanup failed: {0}" -f $_.Exception.Message)
+    }
 
     # Sort deepest path first so child folders are removed before parents.
     $sortedFolders = $allSubfolders | Sort-Object -Property @(
