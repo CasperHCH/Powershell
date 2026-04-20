@@ -535,12 +535,22 @@ function Disconnect-SccmSite {
         return
     }
 
-    $previousLocationPath = [string](Get-SccmObjectPropertyValue -InputObject $ConnectionContext -PropertyNames @('PreviousLocationPath', 'PreviousLocation'))
-    if (-not [string]::IsNullOrWhiteSpace($previousLocationPath)) {
-        try {
-            Set-Location -Path $previousLocationPath -ErrorAction Stop
-        } catch {
-            Set-Location -Path $PSScriptRoot -ErrorAction SilentlyContinue
+    try {
+        $prev = Get-SccmObjectPropertyValue -InputObject $ConnectionContext -PropertyNames @('PreviousLocationPath', 'PreviousLocation')
+        $previousLocationPath = if ($null -ne $prev) { [string]$prev } else { $null }
+
+        if (-not [string]::IsNullOrWhiteSpace($previousLocationPath)) {
+            try {
+                Set-Location -Path $previousLocationPath -ErrorAction Stop
+            } catch {
+                Set-Location -Path $PSScriptRoot -ErrorAction SilentlyContinue
+            }
+        }
+    } catch {
+        if (Get-Command -Name 'Write-SccmLog' -ErrorAction SilentlyContinue) {
+            Write-SccmLog -Level 'DEBUG' -Message ("Disconnect-SccmSite cleanup error: {0}" -f $_.Exception.Message)
+        } else {
+            Write-Debug -Message ("Disconnect-SccmSite cleanup error: {0}" -f $_.Exception.Message)
         }
     }
 }
