@@ -149,9 +149,21 @@ function Map-Item {
         $isEnabled = if ($InputObject.PSObject.Properties['IsEnabled']) { $InputObject.IsEnabled } elseif ($InputObject.PSObject.Properties['IsHidden']) { -not $InputObject.IsHidden } else { $null }
         $description = if ($InputObject.PSObject.Properties['Description']) { $InputObject.Description } else { $null }
 
+        # Prefer LocalizedDisplayName for application display names when present (SMS_Application)
+        $name = $null
+        if ($InputObject.PSObject.Properties['LocalizedDisplayName'] -and -not [string]::IsNullOrEmpty($InputObject.LocalizedDisplayName)) {
+            $name = $InputObject.LocalizedDisplayName
+        } elseif ($InputObject.PSObject.Properties['Name'] -and -not [string]::IsNullOrEmpty($InputObject.Name)) {
+            $name = $InputObject.Name
+        } elseif ($InputObject.PSObject.Properties['SoftwareName'] -and -not [string]::IsNullOrEmpty($InputObject.SoftwareName)) {
+            $name = $InputObject.SoftwareName
+        } else {
+            $name = $null
+        }
+
         [PSCustomObject]@{
             Type        = $TypeLabel
-            Name        = $InputObject.Name
+            Name        = $name
             ID          = $id
             Version     = $version
             Publisher   = $publisher

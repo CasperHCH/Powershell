@@ -161,5 +161,14 @@ try {
     }
 }
 finally {
-    Disconnect-SccmSite -ConnectionContext $connectionContext
+    try {
+        Disconnect-SccmSite -ConnectionContext $connectionContext
+    } catch {
+        $cleanupMsg = $_.Exception.Message
+        if ($cleanupMsg -match 'Argument types do not match') {
+            Write-SccmLog -Level 'DEBUG' -Message ("Disconnect-SccmSite cleanup quirk: {0}" -f $cleanupMsg)
+        } else {
+            Write-SccmLog -Level 'WARN' -Message ("Disconnect-SccmSite cleanup failed: {0}" -f $cleanupMsg)
+        }
+    }
 }

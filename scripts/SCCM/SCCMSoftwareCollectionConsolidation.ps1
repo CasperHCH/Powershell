@@ -1780,6 +1780,18 @@ function Set-LatestDeploymentForCollection {
 
     try {
         $deployAttempts = @()
+        if ($intent.DeployAction -eq 'Install' -and $intent.DeployPurpose -eq 'Available') {
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -AutoUpgrade $false -ErrorAction Stop | Out-Null
+            }
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -AutoUpgradeSupersededApplications $false -ErrorAction Stop | Out-Null
+            }
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -AutomaticallyUpgradeAnySupersededVersionsOfThisApplication $false -ErrorAction Stop | Out-Null
+            }
+        }
+
         if ($intent.DeployPurpose) {
             $deployAttempts += {
                 New-CMApplicationDeployment -CollectionName $collectionName -Name $latestAppName -DeployAction $intent.DeployAction -DeployPurpose $intent.DeployPurpose -ErrorAction Stop | Out-Null
@@ -3888,11 +3900,13 @@ function Set-MasterCollectionDeployment {
     $appCiId = Get-ObjectPropertyValue -InputObject $Application -PropertyNames @('CI_ID', 'CIId', 'ModelID', 'ModelId')
 
     $hasLatestDeployment = $false
+    $existingDeployment = $null
     if (-not [string]::IsNullOrWhiteSpace(($appCiId -as [string]))) {
         foreach ($d in $collectionDeployments) {
             $dAppId = Get-ObjectPropertyValue -InputObject $d -PropertyNames @('ApplicationCIID', 'ApplicationCI_ID', 'CI_ID', 'CIId', 'ModelID', 'ModelId')
             if ($dAppId -and ([string]$dAppId -eq [string]$appCiId)) {
                 $hasLatestDeployment = $true
+                $existingDeployment = $d
                 break
             }
         }
@@ -3902,6 +3916,25 @@ function Set-MasterCollectionDeployment {
         if ($existingDeployment) { $hasLatestDeployment = $true }
     }
 
+    if ($hasLatestDeployment -and $DeploymentPurpose -eq 'Required' -and $existingDeployment) {
+        $desiredDeploymentStartTime = [datetime]::Today.AddHours(14)
+        if ((Get-Date) -gt $desiredDeploymentStartTime) {
+            $desiredDeploymentStartTime = $desiredDeploymentStartTime.AddDays(1)
+        }
+
+        $existingStartCandidate = Get-ObjectPropertyValue -InputObject $existingDeployment -PropertyNames @('StartTime', 'DeploymentStartTime', 'ScheduledStartTime', 'ScheduleStartTime', 'StartDateTime')
+        $existingStartTime = $null
+        if ($existingStartCandidate) {
+            try { $existingStartTime = [datetime]$existingStartCandidate } catch { $existingStartTime = $null }
+        }
+
+        if ($existingStartTime -and $existingStartTime -lt $desiredDeploymentStartTime) {
+            Write-LogEvent -Level 'INFO' -Scope 'Deployments' -Action 'Status' -Detail ("Existing required deployment for '{0}' to collection '{1}' starts at {2:yyyy-MM-dd HH:mm}. Replacing to enforce start after {3:yyyy-MM-dd HH:mm}." -f $appDisplayName, $collectionName, $existingStartTime, $desiredDeploymentStartTime)
+            Remove-Deployment-Robust -Deployment $existingDeployment
+            $hasLatestDeployment = $false
+        }
+    }
+
     if ($hasLatestDeployment) {
         Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $collectionName)
         return
@@ -3909,20 +3942,56 @@ function Set-MasterCollectionDeployment {
 
     # Create new deployment
     try {
-        $deployParams = @{
-            CollectionName = $collectionName
-            Name           = $appName
-            DeployAction   = $DeploymentAction
-            ErrorAction    = 'Stop'
+        $deploymentStartTime = $null
+        if ($DeploymentAction -eq 'Install' -and $DeploymentPurpose -eq 'Required') {
+            $deploymentStartTime = [datetime]::Today.AddHours(14)
+            if ((Get-Date) -gt $deploymentStartTime) {
+                $deploymentStartTime = $deploymentStartTime.AddDays(1)
+            }
+            Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Scheduled required deployment start time: {0:u}" -f $deploymentStartTime)
+        }
+
+        $deployAttempts = @()
+        $disableAutoUpgrade = ($DeploymentAction -eq 'Install' -and $DeploymentPurpose -eq 'Available')
+        if ($disableAutoUpgrade) {
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -DeployPurpose $DeploymentPurpose -AutoUpgrade $false -ErrorAction Stop | Out-Null
+            }
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -DeployPurpose $DeploymentPurpose -AutoUpgradeSupersededApplications $false -ErrorAction Stop | Out-Null
+            }
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -DeployPurpose $DeploymentPurpose -AutomaticallyUpgradeAnySupersededVersionsOfThisApplication $false -ErrorAction Stop | Out-Null
+            }
         }
 
         if ($DeploymentAction -eq 'Install') {
-            $deployParams['DeployPurpose'] = $DeploymentPurpose
+            if ($deploymentStartTime) {
+                $deployAttempts += {
+                    New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -DeployPurpose $DeploymentPurpose -StartTime $deploymentStartTime -ErrorAction Stop | Out-Null
+                }
+            }
+
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -DeployPurpose $DeploymentPurpose -ErrorAction Stop | Out-Null
+            }
+        } else {
+            $deployAttempts += {
+                New-CMApplicationDeployment -CollectionName $collectionName -Name $appName -DeployAction $DeploymentAction -ErrorAction Stop | Out-Null
+            }
         }
 
         Invoke-DryRunAction -Action {
-            New-CMApplicationDeployment @deployParams | Out-Null
-            Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'" -f $appDisplayName, $DeploymentPurpose, $collectionName)
+            $result = Invoke-CmCommandWithFallback -Attempts $deployAttempts -ActionName 'New-CMApplicationDeployment'
+            if (-not $result.Success) {
+                throw 'All deployment creation attempts failed.'
+            }
+
+            $scheduledText = ''
+            if ($deploymentStartTime) {
+                $scheduledText = (' starting at {0:yyyy-MM-dd HH:mm}' -f $deploymentStartTime)
+            }
+            Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as '{1}' to collection '{2}'{3}" -f $appDisplayName, $DeploymentPurpose, $collectionName, $scheduledText)
         } -Description "deploy '$appDisplayName' as $DeploymentPurpose to collection '$collectionName'"
 
         # After creating the new deployment, remove legacy deployments that
@@ -4515,11 +4584,536 @@ function New-MasterDeviceCollection {
     Creates Install (Available), Install (Required), and Uninstall collections
     when missing, and moves them into the configured target folder.
 #>
+# >>> ADDED: Build a WQL ARP query that catches any installed version of the software family.
+<#
+.SYNOPSIS
+        Builds a WQL query that matches devices with the software installed and
+        produces non-versioned DisplayName LIKE patterns so master collections
+        pick up any installed version and can be used to manage upgrades.
+
+.DESCRIPTION
+        Generates a WQL detection query used on `Install (Required)` master
+        collections to include devices that already have the target software
+        installed and to help the master drive upgrades and deployments.
+
+        Behavior highlights:
+        - Targeting by requested product:
+            When `-RequestedSoftwareName` is supplied the function prefers that
+            product and strips trailing version tokens (e.g. ' 26.1', 'v2.3.4') to
+            create a single non-versioned pattern such as `DisplayName like "%Adobe Acrobat Pro%"`.
+            This ensures the master matches any installed version and will pick up
+            upgrades when new deployments are applied.
+
+        - Family-mode (no `-RequestedSoftwareName`):
+            The function collects discovered application display names and strips
+            trailing version tokens to build family-level patterns (for example,
+            `"%Adobe Acrobat%"`) instead of locking the master to specific
+            version strings.
+
+        - Exclusions:
+            `-ExcludeDisplayNameLike` patterns are applied two ways:
+                1) They prune the OR-list at build-time so excluded display names are
+                     not included in the generated LIKE clauses (keeps WQL focused).
+                2) They are appended as runtime `AND DisplayName not like "%pattern%"`
+                     guards to avoid accidental matches.
+
+        - Deployment-type (DT) detection translation:
+            The function performs a best-effort translation of DT detection rules
+            into extra WQL subqueries (MSI product code → `IdentifyingNumber`,
+            registry path → `SMS_G_System_REGISTRY`, file path → `SMS_G_System_FILE`).
+            These are appended as additional `ResourceID IN (...)` clauses limited
+            to the selected app(s). This translation is heuristic and may not parse
+            every DT rule; DT parsing improvements are a planned enhancement.
+
+        - Avoids locking masters to specific versions: LIKE patterns are
+            intentionally non-versioned so master collections will pick up installed
+            instances across versions and can be used to manage upgrades.
+
+        Notes / caveats:
+        - Very large application families can still produce long OR-lists; pass
+            an explicit `-RequestedSoftwareName` or add family-specific excludes to
+            keep WQL compact when necessary.
+        - If you require exact registry/value or file-based matching, consider
+            enabling the DT->WQL refinement enhancement that prefers exact keys/paths
+            when DT XML provides them.
+#>
+function Get-InstalledSoftwareDetectionQuery {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CanonicalName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$RequestedSoftwareName = '',
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExcludeDisplayNameLike = @()
+    )
+
+    # Determine candidate application objects to use for detection:
+    # Prefer requested-specific apps when supplied to keep per-master WQL targeted.
+    if (-not [string]::IsNullOrWhiteSpace($RequestedSoftwareName) -and $RequestedSoftwareName -ne $CanonicalName) {
+        $appObjects = @(Get-ApplicationsForSoftwareName -SoftwareName $RequestedSoftwareName)
+        if ($appObjects.Count -eq 0) {
+            $appObjects = @(Get-ApplicationsForSoftwareName -SoftwareName $CanonicalName)
+        }
+    } else {
+        $appObjects = @(Get-ApplicationsForSoftwareName -SoftwareName $CanonicalName)
+    }
+
+    # $familyApps is used for display-name LIKE clauses; start from the actual app objects.
+    $familyApps = @($appObjects)
+
+    # If no provider objects found, fall back to a placeholder using the canonical name.
+    if ($familyApps.Count -eq 0) {
+        $familyApps = @([pscustomobject]@{ LocalizedDisplayName = $CanonicalName; ApplicationName = $CanonicalName; Name = $CanonicalName })
+    }
+
+    # Attempt to include deployment-type display names from each application so
+    # detection covers variants declared at the deployment-type level.
+    $getDtCmd = Get-CachedCommand -Name 'Get-CMDeploymentType'
+    if ($getDtCmd) {
+        foreach ($app in @($familyApps)) {
+            try {
+                $dts = @(Get-CMDeploymentType -InputObject $app -ErrorAction Stop)
+            } catch {
+                continue
+            }
+
+            foreach ($dt in $dts) {
+                $dtDisplay = [string](Get-ObjectPropertyValue -InputObject $dt -PropertyNames @('LocalizedDisplayName', 'DeploymentTypeName', 'Name', 'Title'))
+                if (-not [string]::IsNullOrWhiteSpace($dtDisplay)) {
+                    $pseudo = [pscustomobject]@{ LocalizedDisplayName = $dtDisplay; ApplicationName = $dtDisplay; Name = $dtDisplay }
+                    $familyApps += $pseudo
+                    Write-LogEvent -Level 'DEBUG' -Scope 'Applications' -Action 'Debug' -Detail ("Including deployment-type display name for detection: '{0}'" -f $dtDisplay)
+                }
+            }
+        }
+    }
+
+    # Remove excluded display-name patterns from the OR-list so the generated
+    # LIKE clauses don't contain excluded names (e.g., Reader).
+    if ($ExcludeDisplayNameLike -and $ExcludeDisplayNameLike.Count -gt 0) {
+        # Use an ArrayList to collect filtered app objects, then convert to a plain object[]
+        $filtered = New-Object System.Collections.ArrayList
+        foreach ($app in $familyApps) {
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+            if ([string]::IsNullOrWhiteSpace($displayName)) { continue }
+            $skip = $false
+            foreach ($pat in $ExcludeDisplayNameLike) {
+                if ([string]::IsNullOrWhiteSpace($pat)) { continue }
+                $p = $pat.Trim()
+                if ($displayName -like ('*' + $p + '*')) { $skip = $true; break }
+            }
+            if (-not $skip) { [void]$filtered.Add($app) }
+        }
+        $familyApps = $filtered.ToArray()
+    }
+
+    # Build a deduplicated list of display name LIKE clauses (used inside subqueries).
+    # Prefer a single non-versioned clause when a specific RequestedSoftwareName
+    # is provided; otherwise strip trailing version tokens from discovered
+    # display names to create stable family-level patterns.
+    $seenNames = New-Object System.Collections.Generic.HashSet[string]
+    $clauses = New-Object System.Collections.Generic.List[string]
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedSoftwareName) -and $RequestedSoftwareName -ne $CanonicalName) {
+        # Normalize requested name by removing trailing version tokens
+        $baseRequested = ($RequestedSoftwareName.Trim() -replace '(?i)\s+v?\d+(?:\.\d+){0,3}\s*$', '').Trim()
+        if (-not [string]::IsNullOrWhiteSpace($baseRequested)) {
+            $bEsc = $baseRequested -replace '%', '[%]'
+            $likePattern = '"%' + $bEsc + '%"'
+            $clauses.Add('DisplayName like ' + $likePattern)
+            [void]$seenNames.Add($baseRequested.ToLowerInvariant())
+        }
+    } else {
+        foreach ($app in $familyApps) {
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $app -PropertyNames @('LocalizedDisplayName', 'ApplicationName', 'Name'))
+            if ([string]::IsNullOrWhiteSpace($displayName)) { continue }
+            # Remove trailing version tokens like ' 26.1' or ' v2.3.4'
+            $base = ($displayName.Trim() -replace '(?i)\s+v?\d+(?:\.\d+){0,3}\s*$', '').Trim()
+            if ([string]::IsNullOrWhiteSpace($base)) { continue }
+            $key = $base.ToLowerInvariant()
+            if ($seenNames.Add($key)) {
+                $escaped = $base -replace '%', '[%]'
+                $likePattern = '"%' + $escaped + '%"'
+                $clauses.Add('DisplayName like ' + $likePattern)
+            }
+        }
+    }
+
+    # Include a broad canonical-name clause only when no specific requested
+    # software name was supplied, or as a last-resort fallback if no app
+    # display-name clauses were discovered for the requested product.
+    $canonicalEscaped = $CanonicalName.Trim() -replace '%', '[%]'
+    $canonicalClause = 'DisplayName like "%' + $canonicalEscaped + '%"'
+    $canonicalKey = $CanonicalName.Trim().ToLowerInvariant()
+
+    if ([string]::IsNullOrWhiteSpace($RequestedSoftwareName) -or $RequestedSoftwareName -eq $CanonicalName) {
+        if ($seenNames.Add($canonicalKey)) { $clauses.Add($canonicalClause) }
+    } else {
+        if ($clauses.Count -eq 0) { $clauses.Add($canonicalClause) }
+    }
+
+    $whereClause = $clauses -join "`n      or "
+
+    # Build optional exclusion clauses (e.g. exclude Reader)
+    $excludeClauses = New-Object System.Collections.Generic.List[string]
+    foreach ($pattern in $ExcludeDisplayNameLike) {
+        if (-not [string]::IsNullOrWhiteSpace($pattern)) {
+            $pEscaped = $pattern.Trim() -replace '%', '[%]'
+            $excludeClauses.Add('DisplayName not like "%' + $pEscaped + '%"')
+        }
+    }
+
+    if ($excludeClauses.Count -gt 0) {
+        $excludeWhere = $excludeClauses -join "`n      and "
+        $innerWhere = "($whereClause)`n      and $excludeWhere"
+    } else {
+        $innerWhere = $whereClause
+    }
+
+    # Best-effort: translate per-deployment-type detection methods into extra
+    # WQL subqueries (MSI product codes, registry keys, file paths). These
+    # augment the ARP-based LIKE detection above.
+    $detectionSubqueries = New-Object System.Collections.Generic.HashSet[string]
+    $getDtCmd = Get-CachedCommand -Name 'Get-CMDeploymentType'
+    if ($getDtCmd) {
+        # Use the same application objects selected above (requested-specific when supplied)
+        $appObjects = @($appObjects)
+        foreach ($app in $appObjects) {
+            try {
+                $dts = @(Get-CMDeploymentType -InputObject $app -ErrorAction Stop)
+            } catch {
+                continue
+            }
+
+            foreach ($dt in $dts) {
+                $detRaw = Get-ObjectPropertyValue -InputObject $dt -PropertyNames @('DetectionMethodXml', 'DetectionXml', 'DetectionMethod', 'Detection', 'DetectionRuleXml', 'DetectionRules', 'DetectionClause')
+                $detStr = $detRaw -as [string]
+
+                # Prefer structured parsing of DT detection rules: try XML, then
+                # extract exact MSI product GUIDs, registry key paths, and file
+                # paths. Fall back to the original regex approach only when the
+                # structured parsing yields nothing.
+                $guidRegex = '\{?[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}?'
+                $regRegex = '(?i)(?:HKEY_LOCAL_MACHINE|HKLM|HKEY_CURRENT_USER|HKCU)\\[^\s"''<>]+'
+                $fileRegex = '[A-Za-z]:\\[^\s"''<>]+'
+
+                $foundAny = $false
+
+                if (-not [string]::IsNullOrWhiteSpace($detStr)) {
+                    $xml = $null
+                    try {
+                        $xml = [xml]$detStr
+                    } catch {
+                        $xml = $null
+                    }
+
+                    if ($xml) {
+                        $nodes = $null
+                        try { $nodes = $xml.SelectNodes('//*') } catch { $nodes = $null }
+                        if ($nodes) {
+                            foreach ($node in $nodes) {
+                                $text = ($node.InnerText -as [string])
+                                if ($text) {
+                                    if ($text -match $guidRegex) {
+                                        $productGuid = $matches[0].Trim('{}')
+                                        $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS where IdentifyingNumber = '$productGuid'") | Out-Null
+                                        $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS_64 where IdentifyingNumber = '$productGuid'") | Out-Null
+                                        $foundAny = $true
+                                    }
+                                    if ($text -match $regRegex) {
+                                        $kp = $matches[0]
+                                        $kpEsc = $kp -replace '%', '[%]'
+                                        $detectionSubqueries.Add("select ResourceID from SMS_G_System_REGISTRY where KeyPath like '%$kpEsc%'") | Out-Null
+                                        $foundAny = $true
+                                    }
+                                    if ($text -match $fileRegex) {
+                                        $fpath = $matches[0]
+                                        $fpathEsc = $fpath -replace '%', '[%]'
+                                        $detectionSubqueries.Add("select ResourceID from SMS_G_System_FILE where FilePath like '%$fpathEsc%'") | Out-Null
+                                        $foundAny = $true
+                                    }
+                                }
+
+                                if ($node.Attributes) {
+                                    foreach ($attr in $node.Attributes) {
+                                        $aval = $attr.Value
+                                        if ($aval -and $aval -match $guidRegex) {
+                                            $productGuid = $matches[0].Trim('{}')
+                                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS where IdentifyingNumber = '$productGuid'") | Out-Null
+                                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS_64 where IdentifyingNumber = '$productGuid'") | Out-Null
+                                            $foundAny = $true
+                                        }
+                                        if ($aval -and $aval -match $regRegex) {
+                                            $kp = $matches[0]
+                                            $kpEsc = $kp -replace '%', '[%]'
+                                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_REGISTRY where KeyPath like '%$kpEsc%'") | Out-Null
+                                            $foundAny = $true
+                                        }
+                                        if ($aval -and $aval -match $fileRegex) {
+                                            $fpath = $matches[0]
+                                            $fpathEsc = $fpath -replace '%', '[%]'
+                                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_FILE where FilePath like '%$fpathEsc%'") | Out-Null
+                                            $foundAny = $true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (-not $foundAny) {
+                        # Fallback: regex-based extraction (previous behavior)
+                        if ($detStr -match $guidRegex) {
+                            $productGuid = $matches[0].Trim('{}')
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS where IdentifyingNumber = '$productGuid'") | Out-Null
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS_64 where IdentifyingNumber = '$productGuid'") | Out-Null
+                            $foundAny = $true
+                        }
+                        if ($detStr -match $regRegex) {
+                            $kp = $matches[0]
+                            $kpEsc = $kp -replace '%', '[%]'
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_REGISTRY where KeyPath like '%$kpEsc%'") | Out-Null
+                            $foundAny = $true
+                        }
+                        if ($detStr -match $fileRegex) {
+                            $fpath = $matches[0]
+                            $fpathEsc = $fpath -replace '%', '[%]'
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_FILE where FilePath like '%$fpathEsc%'") | Out-Null
+                            $foundAny = $true
+                        }
+                    }
+                } else {
+                    # Last-resort: scan DT properties for GUIDs
+                    foreach ($p in $dt.PSObject.Properties) {
+                        $val = ($p.Value -as [string])
+                        if ($val -and $val -match $guidRegex) {
+                            $productGuid = $matches[0].Trim('{}')
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS where IdentifyingNumber = '$productGuid'") | Out-Null
+                            $detectionSubqueries.Add("select ResourceID from SMS_G_System_ADD_REMOVE_PROGRAMS_64 where IdentifyingNumber = '$productGuid'") | Out-Null
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $extraWql = ''
+    foreach ($sq in $detectionSubqueries) {
+        $extraWql += "`nor SMS_R_System.ResourceId in (`n      $sq`n)"
+    }
+
+    $wql = @"
+select SMS_R_SYSTEM.ResourceID,
+       SMS_R_SYSTEM.Name
+from SMS_R_System
+where SMS_R_System.ResourceId in (
+      select ResourceID
+      from SMS_G_System_ADD_REMOVE_PROGRAMS
+      where $innerWhere
+)
+or SMS_R_System.ResourceId in (
+      select ResourceID
+      from SMS_G_System_ADD_REMOVE_PROGRAMS_64
+      where $innerWhere
+)
+$extraWql
+"@
+
+    return $wql.Trim()
+}
+
+# >>> ADDED: Attach the installed-software detection query to the Required master.
+<#
+.SYNOPSIS
+    Adds (or verifies) the installed-software ARP detection query on the
+    Install (Required) master collection.
+
+.DESCRIPTION
+    Uses the existing Add-CollectionQueryMembershipRuleIfMissing infrastructure
+    so the operation is fully idempotent: if a rule with the same name or query
+    already exists it is left untouched. Respects DryRun mode.
+#>
+function Add-InstalledSoftwareDetectionQueryToRequired {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal query-rule helper. Confirmation is coordinated by the top-level workflow.')]
+    param(
+        [Parameter(Mandatory = $true)]
+        $RequiredCollection,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CanonicalName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$RequestedSoftwareName = '',
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExcludeDisplayNameLike = @()
+    )
+
+    if (-not $RequiredCollection) {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail 'Add-InstalledSoftwareDetectionQueryToRequired: Required collection is null; skipping.'
+        return
+    }
+
+    $identity = Get-CollectionIdentity -InputObject $RequiredCollection
+    if (-not $identity.IsValid) {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail 'Add-InstalledSoftwareDetectionQueryToRequired: Required collection identity is invalid; skipping.'
+        return
+    }
+
+    $ruleName = "Installed - $CanonicalName (any version)"
+
+    $wql = Get-InstalledSoftwareDetectionQuery -CanonicalName $CanonicalName -RequestedSoftwareName $RequestedSoftwareName -ExcludeDisplayNameLike $ExcludeDisplayNameLike
+
+    if ($ExcludeDisplayNameLike -and $ExcludeDisplayNameLike.Count -gt 0) {
+        Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail (("Excluding display-name LIKE patterns: {0}" -f ($ExcludeDisplayNameLike -join ', ')))
+    }
+
+    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
+        "Ensuring installed-software detection query '{0}' on Required master '{1}'." -f $ruleName, $identity.Name
+    )
+    Write-LogEvent -Level 'DEBUG' -Scope 'Collections' -Action 'Debug' -Detail ("Detection query WQL:`n{0}" -f $wql)
+
+    $added = Add-CollectionQueryMembershipRuleIfMissing `
+        -TargetCollection $RequiredCollection `
+        -RuleName         $ruleName `
+        -QueryExpression  $wql
+
+    if ($added) {
+        Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail (
+            "Installed-software detection query added/verified on '{0}'." -f $identity.Name
+        )
+    } else {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail (
+            "Could not add installed-software detection query to '{0}'. Collection may need manual review." -f $identity.Name
+        )
+    }
+}
+
+# >>> ADDED: Idempotently attach an exclude membership rule to a collection.
+<#
+.SYNOPSIS
+    Adds an exclude membership rule from ExcludedCollection onto TargetCollection
+    if one does not already exist, using a multi-parameter-set fallback chain.
+
+.DESCRIPTION
+    Mirrors the pattern used by Add-CollectionQueryMembershipRuleIfMissing.
+    Safe to call on repeated runs — existing exclude rules are detected and
+    skipped. Respects DryRun mode via Invoke-DryRunAction.
+#>
+function Add-CollectionExcludeMembershipRuleIfMissing {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal exclude-rule helper. Confirmation is coordinated by the top-level workflow.')]
+    param(
+        [Parameter(Mandatory = $true)]
+        $TargetCollection,
+
+        [Parameter(Mandatory = $true)]
+        $ExcludedCollection
+    )
+
+    $targetIdentity = Get-CollectionIdentity -InputObject $TargetCollection
+    $excludedIdentity = Get-CollectionIdentity -InputObject $ExcludedCollection
+
+    if (-not $targetIdentity.IsValid -or -not $excludedIdentity.IsValid) {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail (
+            'Add-CollectionExcludeMembershipRuleIfMissing: one or both collection identities are invalid; skipping.'
+        )
+        return $false
+    }
+
+    # Idempotency check: scan existing exclude rules on the target collection
+    $getExcludeCmd = Get-CachedCommand -Name 'Get-CMDeviceCollectionExcludeMembershipRule'
+    if ($getExcludeCmd) {
+        $existingExcludes = $null
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($targetIdentity.Id)) {
+                $existingExcludes = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionId $targetIdentity.Id -ErrorAction SilentlyContinue)
+            } elseif (-not [string]::IsNullOrWhiteSpace($targetIdentity.Name)) {
+                $existingExcludes = @(Get-CMDeviceCollectionExcludeMembershipRule -CollectionName $targetIdentity.Name -ErrorAction SilentlyContinue)
+            }
+        } catch {
+            $existingExcludes = @()
+        }
+
+        foreach ($rule in $existingExcludes) {
+            $ruleExcludeId = [string](Get-ObjectPropertyValue -InputObject $rule -PropertyNames @('ExcludeCollectionID', 'ExcludeCollectionId'))
+            $ruleExcludeName = [string](Get-ObjectPropertyValue -InputObject $rule -PropertyNames @('ExcludeCollectionName', 'RuleName', 'Name'))
+            $idMatch = (-not [string]::IsNullOrWhiteSpace($ruleExcludeId) -and $ruleExcludeId -eq $excludedIdentity.Id)
+            $nameMatch = (-not [string]::IsNullOrWhiteSpace($ruleExcludeName) -and $ruleExcludeName -eq $excludedIdentity.Name)
+            if ($idMatch -or $nameMatch) {
+                Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
+                    "Exclude rule for '{0}' already exists on '{1}'; skipping." -f $excludedIdentity.Name, $targetIdentity.Name
+                )
+                return $true
+            }
+        }
+    }
+
+    $addExcludeCmd = Get-CachedCommand -Name 'Add-CMDeviceCollectionExcludeMembershipRule'
+    if (-not $addExcludeCmd) {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail (
+            'Add-CMDeviceCollectionExcludeMembershipRule is not available in this SCCM environment; exclude rule skipped.'
+        )
+        return $false
+    }
+
+    $paramNames = @($addExcludeCmd.Parameters.Keys)
+    $attempts = @()
+
+    # Build fallback attempts from most-specific (ID+ID) to least-specific (InputObject+Name)
+    if (($paramNames -contains 'CollectionId') -and ($paramNames -contains 'ExcludeCollectionId') -and
+        -not [string]::IsNullOrWhiteSpace($targetIdentity.Id) -and -not [string]::IsNullOrWhiteSpace($excludedIdentity.Id)) {
+        $tId = $targetIdentity.Id; $eId = $excludedIdentity.Id
+        $attempts += { Add-CMDeviceCollectionExcludeMembershipRule -CollectionId $tId -ExcludeCollectionId $eId -ErrorAction Stop }
+    }
+    if (($paramNames -contains 'CollectionName') -and ($paramNames -contains 'ExcludeCollectionId') -and
+        -not [string]::IsNullOrWhiteSpace($targetIdentity.Name) -and -not [string]::IsNullOrWhiteSpace($excludedIdentity.Id)) {
+        $tName = $targetIdentity.Name; $eId = $excludedIdentity.Id
+        $attempts += { Add-CMDeviceCollectionExcludeMembershipRule -CollectionName $tName -ExcludeCollectionId $eId -ErrorAction Stop }
+    }
+    if (($paramNames -contains 'InputObject') -and ($paramNames -contains 'ExcludeCollectionName') -and
+        -not [string]::IsNullOrWhiteSpace($excludedIdentity.Name)) {
+        $tObj = $TargetCollection; $eName = $excludedIdentity.Name
+        $attempts += { Add-CMDeviceCollectionExcludeMembershipRule -InputObject $tObj -ExcludeCollectionName $eName -ErrorAction Stop }
+    }
+
+    if ($attempts.Count -eq 0) {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail (
+            "Could not build any Add-CMDeviceCollectionExcludeMembershipRule call for target='{0}' exclude='{1}'." -f $targetIdentity.Name, $excludedIdentity.Name
+        )
+        return $false
+    }
+
+    if ($DryRun) {
+        Write-LogEvent -Level 'INFO' -Scope 'DryRun' -Action 'Would add exclude rule' -Detail (
+            "Target='{0}', ExcludeCollection='{1}'" -f $targetIdentity.Name, $excludedIdentity.Name
+        )
+        return $true
+    }
+
+    $result = Invoke-CmCommandWithFallback -Attempts $attempts -ActionName 'Add-CMDeviceCollectionExcludeMembershipRule'
+    if ($result.Success) {
+        Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail (
+            "Exclude rule added: '{0}' excludes members of '{1}'." -f $targetIdentity.Name, $excludedIdentity.Name
+        )
+    } else {
+        Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail (
+            "All attempts to add exclude rule failed: target='{0}', exclude='{1}'." -f $targetIdentity.Name, $excludedIdentity.Name
+        )
+    }
+    return $result.Success
+}
+
 function Set-MasterCollections {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Internal orchestration helper. Confirmation is controlled by the top-level script and DryRun behavior.')]
     param(
         [Parameter(Mandatory = $true)]
         [string]$CanonicalName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$RequestedSoftwareName = '',
 
         [Parameter(Mandatory = $true)]
         [string]$TargetFolder
@@ -4597,6 +5191,25 @@ function Set-MasterCollections {
                 Write-LogEvent -Level 'WARN' -Scope 'Collections' -Action 'Warning' -Detail ("Could not create master collection: {0}" -f $uninstallName)
             }
         }
+    }
+
+    # >>> ADDED: Attach the installed-software ARP detection query to the Required master.
+    # This ensures devices that already have the software (any version) are automatically
+    # included in the Required collection, even if they were never in a legacy collection.
+    if ($installReqCol) {
+        # Determine family-specific default excludes (e.g., Acrobat vs. Reader).
+        $defaultExcludes = @()
+        try {
+            if ($CanonicalName -match '(?i)\bAdobe\b') { $defaultExcludes += 'Reader' }
+        } catch {
+            $defaultExcludes = @()
+        }
+
+        Add-InstalledSoftwareDetectionQueryToRequired `
+            -RequiredCollection    $installReqCol `
+            -CanonicalName         $CanonicalName `
+            -RequestedSoftwareName $RequestedSoftwareName `
+            -ExcludeDisplayNameLike $defaultExcludes
     }
 
     # Move newly created or discovered master collections into the target folder.
@@ -4966,8 +5579,26 @@ function Update-MasterCollections {
                             Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail ("Deployment already exists for '{0}' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                         } else {
                             try {
-                                Invoke-DryRunAction -Action {
+                                $deployAttempts = @()
+                                $deployAttempts += {
+                                    New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -AutoUpgrade $false -ErrorAction Stop | Out-Null
+                                }
+                                $deployAttempts += {
+                                    New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -AutoUpgradeSupersededApplications $false -ErrorAction Stop | Out-Null
+                                }
+                                $deployAttempts += {
+                                    New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -AutomaticallyUpgradeAnySupersededVersionsOfThisApplication $false -ErrorAction Stop | Out-Null
+                                }
+                                $deployAttempts += {
                                     New-CMApplicationDeployment -CollectionName $masterInstallAvailableNameResolved -Name $app.LocalizedDisplayName -DeployAction Install -DeployPurpose Available -ErrorAction Stop | Out-Null
+                                }
+
+                                Invoke-DryRunAction -Action {
+                                    $result = Invoke-CmCommandWithFallback -Attempts $deployAttempts -ActionName 'New-CMApplicationDeployment (Available)'
+                                    if (-not $result.Success) {
+                                        throw 'All deployment creation attempts failed.'
+                                    }
+
                                     Write-LogEvent -Level 'SUCCESS' -Scope 'Collections' -Action 'Success' -Detail ("Deployed '{0}' as 'Available' to collection '{1}'" -f $appDisplayName, $masterInstallAvailableNameResolved)
                                 } -Description "deploy '$appDisplayName' as Available to collection '$masterInstallAvailableNameResolved'"
 
@@ -5055,6 +5686,31 @@ function Update-MasterCollections {
             if ($masterUninstall -and $masterUninstall.CollectionID -and $masterUninstall.CollectionID -ne 0) {
                 Add-DirectMembershipRulesIfMissing -Collection $masterUninstall -DesiredIds $uninstallIds
             }
+
+            # >>> ADDED: Ensure Install (Required) excludes Install (Available) and Uninstall members.
+            # This prevents a device from receiving a Required push if it is already
+            # deliberately targeted for Available-only or Uninstall intent.
+            if ($masterInstallRequired -and $masterInstallRequired.CollectionID -and $masterInstallRequired.CollectionID -ne 0) {
+
+                if ($masterInstallAvailable -and $masterInstallAvailable.CollectionID -and $masterInstallAvailable.CollectionID -ne 0) {
+                    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
+                        "Ensuring Install (Required) excludes Install (Available): '{0}' excludes '{1}'." -f $masterInstallRequiredName, $masterInstallAvailableName
+                    )
+                    Add-CollectionExcludeMembershipRuleIfMissing `
+                        -TargetCollection   $masterInstallRequired `
+                        -ExcludedCollection $masterInstallAvailable
+                }
+
+                if ($masterUninstall -and $masterUninstall.CollectionID -and $masterUninstall.CollectionID -ne 0) {
+                    Write-LogEvent -Level 'INFO' -Scope 'Collections' -Action 'Status' -Detail (
+                        "Ensuring Install (Required) excludes Uninstall: '{0}' excludes '{1}'." -f $masterInstallRequiredName, $masterUninstallName
+                    )
+                    Add-CollectionExcludeMembershipRuleIfMissing `
+                        -TargetCollection   $masterInstallRequired `
+                        -ExcludedCollection $masterUninstall
+                }
+            }
+            # <<< END ADDED
 
             $app = $appForMasterDeploy
             if ($app) {
@@ -8214,6 +8870,7 @@ try {
         # Phase 5: create/locate master collections and place them in target folder.
         $masters = Set-MasterCollections `
             -CanonicalName $canonicalName `
+            -RequestedSoftwareName $resolvedSoftwareName `
             -TargetFolder $TargetFolder
 
         # ------------------------------------------------------------
